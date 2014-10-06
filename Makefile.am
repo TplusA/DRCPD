@@ -27,7 +27,7 @@ drcpd_LDADD = $(noinst_LTLIBRARIES)
 
 drcpd_LDFLAGS = $(LTLIBINTL)
 
-liblist_la_SOURCES = list.hh ramlist.hh ramlist.cc
+liblist_la_SOURCES = list.hh list.cc ramlist.hh ramlist.cc
 
 .md.html:
 	$(MARKDOWN) $< >$@

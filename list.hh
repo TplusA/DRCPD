@@ -28,6 +28,15 @@ class Item
 
   public:
     explicit Item(unsigned int flags):
+        text_is_translatable_(false),
+        flags_(flags),
+        child_list_(nullptr)
+    {}
+
+    explicit Item(const char *text, bool text_is_translatable,
+                  unsigned int flags):
+        text_(text),
+        text_is_translatable_(text_is_translatable),
         flags_(flags),
         child_list_(nullptr)
     {}
@@ -36,6 +45,8 @@ class Item
     {
         return child_list_;
     }
+
+    const char *get_text() const;
 };
 
 class ListIface
