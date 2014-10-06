@@ -21,16 +21,22 @@ class RamList: public ListIface
     RamList(const RamList &);
     RamList &operator=(const RamList &);
 
+    const ListIface *parent_list_;
     std::vector<Item> items_;
 
+    Item *get_nonconst_item(unsigned int line);
+
   public:
-    explicit RamList() {}
+    explicit RamList(): parent_list_(this) {}
 
     unsigned int get_number_of_items() const override;
 
-    const Item *get_item(unsigned int line) override;
+    const Item *get_item(unsigned int line) const override;
+    void set_parent_list(const ListIface *parent) override;
+    bool set_child_list(unsigned int line,
+                        const std::shared_ptr<ListIface> &list) override;
 
-    const ListIface *up() const override;
+    const ListIface &up() const override;
     const ListIface *down(unsigned int line) const override;
 
     unsigned int append(Item &&item);
