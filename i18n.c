@@ -13,6 +13,7 @@ void i18n_init(void)
 {
     bindtextdomain(PACKAGE, LOCALEDIR);
     textdomain(PACKAGE);
+    setlocale(LC_ALL, "");
 }
 
 void i18n_switch_language(const char *language_identifier)
