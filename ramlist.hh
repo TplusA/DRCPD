@@ -21,6 +21,8 @@ class RamList: public ListIface
     RamList(const RamList &);
     RamList &operator=(const RamList &);
 
+    std::vector<Item> items_;
+
   public:
     explicit RamList() {}
 
@@ -30,6 +32,8 @@ class RamList: public ListIface
 
     const ListIface *up() const override;
     const ListIface *down(unsigned int line) const override;
+
+    unsigned int append(Item &&item);
 };
 
 };

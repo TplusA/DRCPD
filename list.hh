@@ -27,6 +27,8 @@ class Item
     ListIface *child_list_;
 
   public:
+    explicit Item(Item &&) = default;
+
     explicit Item(unsigned int flags):
         text_is_translatable_(false),
         flags_(flags),
