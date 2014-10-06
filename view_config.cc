@@ -2,18 +2,33 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-#include "view.hh"
+#include "view_config.hh"
+#include "i18n.h"
 
-void ViewConfig::input(DrcpCommand command)
+bool ViewConfig::View::init()
+{
+    return true;
+}
+
+void ViewConfig::View::focus()
 {
 }
 
-void ViewConfig::serialize(std::ostream &os)
+void ViewConfig::View::defocus()
 {
-    os << "Hello world!" << std::endl;
 }
 
-void ViewConfig::update(std::ostream &os)
+ViewIface::InputResult ViewConfig::View::input(DrcpCommand command)
+{
+    return InputResult::OK;
+}
+
+void ViewConfig::View::serialize(std::ostream &os)
+{
+    os << _("Device name") << std::endl;
+}
+
+void ViewConfig::View::update(std::ostream &os)
 {
     os << "Update world!" << std::endl;
 }

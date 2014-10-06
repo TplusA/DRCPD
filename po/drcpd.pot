@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: drcpd 0.1\n"
 "Report-Msgid-Bugs-To: r.tiemann@ta-hifi.de\n"
-"POT-Creation-Date: 2014-10-02 12:11+0200\n"
+"POT-Creation-Date: 2014-10-06 16:52+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,6 +17,6 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: drcpd.cc:13
-msgid "dummy"
+#: view_config.cc:28
+msgid "Device name"
 msgstr ""

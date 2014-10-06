@@ -13,7 +13,7 @@ CLEANFILES = README.html
 drcpd_SOURCES = \
     drcpd.cc drcp_commands.hh i18n.h i18n.c \
     list.hh ramlist.hh \
-    view.hh view_config.cc
+    view.hh view_config.hh view_config.cc
 
 AM_CPPFLAGS = -DLOCALEDIR=\"$(localedir)\"
 
