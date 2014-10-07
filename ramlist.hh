@@ -28,6 +28,7 @@ class RamList: public ListIface
 
   public:
     explicit RamList(): parent_list_(this) {}
+    ~RamList();
 
     unsigned int get_number_of_items() const override;
 

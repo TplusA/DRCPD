@@ -6,6 +6,12 @@
 
 #include "ramlist.hh"
 
+List::RamList::~RamList()
+{
+    for(auto i : items_)
+        delete i;
+}
+
 unsigned int List::RamList::get_number_of_items() const
 {
     return items_.size();
