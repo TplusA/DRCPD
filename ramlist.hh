@@ -22,7 +22,7 @@ class RamList: public ListIface
     RamList &operator=(const RamList &);
 
     const ListIface *parent_list_;
-    std::vector<Item> items_;
+    std::vector<Item *> items_;
 
     Item *get_nonconst_item(unsigned int line);
 
@@ -39,8 +39,14 @@ class RamList: public ListIface
     const ListIface &up() const override;
     const ListIface *down(unsigned int line) const override;
 
-    unsigned int append(Item &&item);
+    unsigned int append(Item *item);
 };
+
+template <typename T>
+static unsigned int append(RamList *list, T &&item)
+{
+    return list->append(new T(std::move(item)));
+}
 
 };
 

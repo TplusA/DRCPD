@@ -21,7 +21,7 @@ List::Item *List::RamList::get_nonconst_item(unsigned int line)
     if(line >= get_number_of_items())
         return nullptr;
     else
-        return &items_[line];
+        return items_[line];
 }
 
 void List::RamList::set_parent_list(const List::ListIface *parent)
@@ -61,8 +61,8 @@ const List::ListIface *List::RamList::down(unsigned int line) const
     return item->down();
 }
 
-unsigned int List::RamList::append(Item &&item)
+unsigned int List::RamList::append(Item *item)
 {
-    items_.push_back(std::move(item));
+    items_.push_back(item);
     return items_.size() - 1;
 }

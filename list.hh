@@ -21,28 +21,19 @@ class Item
     Item(const Item &);
     Item &operator=(const Item &);
 
-    std::string text_;
-    bool text_is_translatable_;
-
+  protected:
     unsigned int flags_;
     std::shared_ptr<ListIface> child_list_;
+
+    explicit Item(unsigned int flags):
+        flags_(flags),
+        child_list_(nullptr)
+    {}
 
   public:
     explicit Item(Item &&) = default;
 
-    explicit Item(unsigned int flags):
-        text_is_translatable_(false),
-        flags_(flags),
-        child_list_(nullptr)
-    {}
-
-    explicit Item(const char *text, bool text_is_translatable,
-                  unsigned int flags):
-        text_(text),
-        text_is_translatable_(text_is_translatable),
-        flags_(flags),
-        child_list_(nullptr)
-    {}
+    virtual ~Item() {}
 
     void set_child_list(const std::shared_ptr<ListIface> &list)
     {
@@ -53,6 +44,31 @@ class Item
     {
         return child_list_.get();
     }
+};
+
+class TextItem: public Item
+{
+  private:
+    TextItem(const TextItem &);
+    TextItem &operator=(const TextItem &);
+
+    std::string text_;
+    bool text_is_translatable_;
+
+  public:
+    explicit TextItem(TextItem &&) = default;
+
+    explicit TextItem(unsigned int flags):
+        Item(flags),
+        text_is_translatable_(false)
+    {}
+
+    explicit TextItem(const char *text, bool text_is_translatable,
+                      unsigned int flags):
+        Item(flags),
+        text_(text),
+        text_is_translatable_(text_is_translatable)
+    {}
 
     const char *get_text() const;
 };
