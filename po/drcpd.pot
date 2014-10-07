@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: drcpd 0.1\n"
 "Report-Msgid-Bugs-To: r.tiemann@ta-hifi.de\n"
-"POT-Creation-Date: 2014-10-06 16:52+0200\n"
+"POT-Creation-Date: 2014-10-07 16:25+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,6 +17,30 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: view_config.cc:28
+#: view_config.cc:83
+msgid "MAC"
+msgstr ""
+
+#: view_config.cc:85
+msgid "DHCP"
+msgstr ""
+
+#: view_config.cc:87
+msgid "Proxy"
+msgstr ""
+
+#: view_config.cc:89
 msgid "Device name"
+msgstr ""
+
+#: view_config.cc:91
+msgid "Networking mode"
+msgstr ""
+
+#: view_config.cc:93
+msgid "Save and restart"
+msgstr ""
+
+#: view_config.cc:95
+msgid "Exit without saving"
 msgstr ""
