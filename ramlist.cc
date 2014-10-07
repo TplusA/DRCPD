@@ -35,15 +35,15 @@ bool List::RamList::set_child_list(unsigned int line,
     if(list == nullptr)
         return false;
 
-   Item *item = get_nonconst_item(line);
+    Item *item = get_nonconst_item(line);
 
-   if(item == nullptr)
-       return false;
+    if(item == nullptr)
+        return false;
 
-   list->set_parent_list(this);
-   item->set_child_list(list);
+    list->set_parent_list(this);
+    item->set_child_list(list);
 
-   return true;
+    return true;
 }
 
 const List::ListIface &List::RamList::up() const
