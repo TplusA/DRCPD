@@ -13,6 +13,8 @@
 #define _(S)    (S)
 #endif /* ENABLE_NLS */
 
+#define N_(S)   (S)
+
 #ifdef __cplusplus
 extern "C" {
 #endif
