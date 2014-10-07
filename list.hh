@@ -23,17 +23,34 @@ class Item
 
   protected:
     unsigned int flags_;
-    std::shared_ptr<ListIface> child_list_;
 
     explicit Item(unsigned int flags):
-        flags_(flags),
-        child_list_(nullptr)
+        flags_(flags)
     {}
 
   public:
     explicit Item(Item &&) = default;
 
     virtual ~Item() {}
+
+};
+
+class TreeItem: virtual public Item
+{
+  private:
+    TreeItem(const TreeItem &);
+    TreeItem &operator=(const TreeItem &);
+
+  protected:
+    std::shared_ptr<ListIface> child_list_;
+
+  public:
+    explicit TreeItem(TreeItem &&) = default;
+
+    explicit TreeItem(unsigned int flags):
+        Item(flags),
+        child_list_(nullptr)
+    {}
 
     void set_child_list(const std::shared_ptr<ListIface> &list)
     {
@@ -46,12 +63,13 @@ class Item
     }
 };
 
-class TextItem: public Item
+class TextItem: virtual public Item
 {
   private:
     TextItem(const TextItem &);
     TextItem &operator=(const TextItem &);
 
+  protected:
     std::string text_;
     bool text_is_translatable_;
 

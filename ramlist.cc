@@ -35,7 +35,7 @@ bool List::RamList::set_child_list(unsigned int line,
     if(list == nullptr)
         return false;
 
-    Item *item = get_nonconst_item(line);
+    auto item = dynamic_cast<TreeItem *>(get_nonconst_item(line));
 
     if(item == nullptr)
         return false;
@@ -53,7 +53,7 @@ const List::ListIface &List::RamList::up() const
 
 const List::ListIface *List::RamList::down(unsigned int line) const
 {
-    const List::Item *item = get_item(line);
+    auto item = dynamic_cast<const List::TreeItem *>(get_item(line));
 
     if(item == nullptr)
         return nullptr;
