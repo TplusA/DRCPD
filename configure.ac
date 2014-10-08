@@ -54,6 +54,7 @@ AC_LANG_POP([C++])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_CHECK_HEADER_STDBOOL
+AC_TYPE_SIZE_T
 
 # Checks for library functions.
 AC_CHECK_FUNCS([setenv setlocale])
