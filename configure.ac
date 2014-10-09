@@ -40,6 +40,7 @@ AC_CHECK_GCUTTER
 AC_CHECK_COVERAGE
 
 # Checks for libraries.
+PKG_CHECK_MODULES([DRCPD_DEPENDENCIES], [gmodule-2.0 gio-2.0 gio-unix-2.0 gthread-2.0])
 
 # Checks for header files.
 AC_CHECK_HEADERS([libintl.h locale.h stdlib.h])
