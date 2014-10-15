@@ -2,8 +2,6 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-#include <vector>
-
 #include "ramlist.hh"
 
 List::RamList::~RamList()
