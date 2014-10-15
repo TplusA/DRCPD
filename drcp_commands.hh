@@ -3,6 +3,7 @@
 
 enum class DrcpCommand
 {
+    UNDEFINED_COMMAND              = 0x00,
     POWER_ON                       = 0x02,
     POWER_OFF                      = 0x03,
     POWER_TOGGLE                   = 0x04,
