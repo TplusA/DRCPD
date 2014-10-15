@@ -3,6 +3,11 @@
 
 #include "drcp_commands.hh"
 
+/*!
+ * \addtogroup view_manager Management of the various views.
+ */
+/*!@{*/
+
 class ViewManagerIface
 {
   private:
@@ -37,5 +42,7 @@ class ViewManager: public ViewManagerIface
     void toggle_views_by_name(const char *view_name_a,
                               const char *view_name_b) override;
 };
+
+/*!@}*/
 
 #endif /* !VIEW_MANAGER_HH */

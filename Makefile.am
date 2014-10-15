@@ -14,8 +14,7 @@ drcpd_SOURCES = \
     drcpd.cc drcp_commands.hh i18n.h i18n.c messages.h messages.c \
     dbus_iface.c dbus_iface.h \
     list.hh ramlist.hh listnav.hh \
-    view.hh view_config.hh view_config.cc \
-    view_manager.hh view_manager.cc
+    view.hh view_config.hh view_manager.hh
 
 AM_CPPFLAGS = -DLOCALEDIR=\"$(localedir)\"
 AM_CPPFLAGS += $(DRCPD_DEPENDENCIES_CFLAGS)
@@ -24,13 +23,17 @@ AM_CFLAGS = $(CWARNINGS)
 
 AM_CXXFLAGS = $(CXXWARNINGS)
 
-noinst_LTLIBRARIES = liblist.la libdbus_handlers.la libdrcpd_dbus_client.la
+noinst_LTLIBRARIES = libviews.la liblist.la libdbus_handlers.la libdrcpd_dbus_client.la
 
 drcpd_LDADD = $(noinst_LTLIBRARIES) $(DRCPD_DEPENDENCIES_LIBS)
 
 drcpd_LDFLAGS = $(LTLIBINTL)
 
 liblist_la_SOURCES = list.hh list.cc ramlist.hh ramlist.cc
+
+libviews_la_SOURCES = \
+    view.hh view_config.hh view_config.cc \
+    view_manager.hh view_manager.cc
 
 libdbus_handlers_la_SOURCES = dbus_handlers.h dbus_handlers.cc
 

@@ -10,7 +10,7 @@ AM_CPPFLAGS += -I$(top_srcdir)
 
 LIBS += $(CPPCUTTER_LIBS)
 
-check_LTLIBRARIES = test_list.la test_dbus_handlers.la
+check_LTLIBRARIES = test_list.la test_dbus_handlers.la test_view_manager.la
 
 test_list_la_SOURCES = test_list.cc
 
@@ -24,6 +24,10 @@ test_dbus_handlers_la_SOURCES = \
 test_dbus_handlers_la_LIBADD = ../libdbus_handlers.la
 
 test_dbus_handlers_la_CXXFLAGS = $(DRCPD_DEPENDENCIES_CFLAGS)
+
+test_view_manager_la_SOURCES = test_view_manager.cc
+
+test_view_manager_la_LIBADD = ../libviews.la
 
 CLEANFILES = test_report.xml
 endif
