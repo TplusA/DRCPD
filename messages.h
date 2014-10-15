@@ -26,7 +26,8 @@ void msg_error(int error_code, int priority, const char *error_format, ...)
 /*
  * Emit log informative message to stderr and syslog.
  */
-void msg_info(const char *format_string, ...);
+void msg_info(const char *format_string, ...)
+    __attribute__ ((format (printf, 1, 2)));
 
 #ifdef __cplusplus
 }
