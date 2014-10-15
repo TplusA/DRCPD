@@ -9,6 +9,7 @@
 #include <glib-unix.h>
 
 #include "i18n.h"
+#include "view_manager.hh"
 #include "dbus_iface.h"
 #include "messages.h"
 
@@ -110,7 +111,9 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    if(dbus_setup(globals.loop, true) < 0)
+    static ViewManager view_manager;
+
+    if(dbus_setup(globals.loop, true, static_cast<ViewManagerIface *>(&view_manager)) < 0)
         return EXIT_FAILURE;
 
     g_unix_signal_add(SIGINT, signal_handler, globals.loop);
