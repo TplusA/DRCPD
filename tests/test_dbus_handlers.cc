@@ -76,6 +76,21 @@ void test_dcpd_playback_shuffle_mode_toggle(void);
  */
 void test_dcpd_playback_unknown_signal_name(void);
 
+/*!\test
+ * Check if de.tahifi.Dcpd.Views.Open is handled correctly.
+ */
+void test_dcpd_views_open(void);
+
+/*!\test
+ * Check if de.tahifi.Dcpd.Views.Toggle is handled correctly.
+ */
+void test_dcpd_views_toggle(void);
+
+/*!\test
+ * Check if unknown signals on de.tahifi.Dcpd.Views are handled correctly.
+ */
+void test_dcpd_views_unknown_signal_name(void);
+
 };
 
 /*!@}*/
@@ -209,6 +224,48 @@ void test_dcpd_playback_unknown_signal_name(void)
                                              "Got unknown signal de.tahifi.Dcpd.Playback.UnsupportedSignalName from :1.123 (Function not implemented)");
     dbussignal_dcpd_playback(dummy_gdbus_proxy, dummy_sender_name,
                              "UnsupportedSignalName", nullptr, &mock_view_manager);
+}
+
+void test_dcpd_views_open(void)
+{
+    mock_messages.expect_msg_info_formatted("de.tahifi.Dcpd.Views signal from ':1.123': Open");
+    mock_view_manager.expect_activate_view_by_name("SomeViewName");
+
+    GVariantBuilder builder;
+    g_variant_builder_init(&builder, G_VARIANT_TYPE("(s)"));
+    g_variant_builder_add(&builder, "s", "SomeViewName");
+    GVariant *view_name = g_variant_builder_end(&builder);
+
+    dbussignal_dcpd_views(dummy_gdbus_proxy, dummy_sender_name,
+                          "Open", view_name, &mock_view_manager);
+
+    g_variant_unref(view_name);
+}
+
+void test_dcpd_views_toggle(void)
+{
+    mock_messages.expect_msg_info_formatted("de.tahifi.Dcpd.Views signal from ':1.123': Toggle");
+    mock_view_manager.expect_toggle_views_by_name("Foo", "Bar");
+
+    GVariantBuilder builder;
+    g_variant_builder_init(&builder, G_VARIANT_TYPE("(ss)"));
+    g_variant_builder_add(&builder, "s", "Foo");
+    g_variant_builder_add(&builder, "s", "Bar");
+    GVariant *view_names = g_variant_builder_end(&builder);
+
+    dbussignal_dcpd_views(dummy_gdbus_proxy, dummy_sender_name,
+                          "Toggle", view_names, &mock_view_manager);
+
+    g_variant_unref(view_names);
+}
+
+void test_dcpd_views_unknown_signal_name(void)
+{
+    mock_messages.expect_msg_info_formatted("de.tahifi.Dcpd.Views signal from ':1.123': UnsupportedSignalName");
+    mock_messages.expect_msg_error_formatted(ENOSYS, LOG_NOTICE,
+                                             "Got unknown signal de.tahifi.Dcpd.Views.UnsupportedSignalName from :1.123 (Function not implemented)");
+    dbussignal_dcpd_views(dummy_gdbus_proxy, dummy_sender_name,
+                          "UnsupportedSignalName", nullptr, &mock_view_manager);
 }
 
 };

@@ -18,6 +18,8 @@ class ViewManagerIface
     virtual void input(DrcpCommand command) = 0;
     virtual void input_set_fast_wind_factor(double factor) = 0;
     virtual void activate_view_by_name(const char *view_name) = 0;
+    virtual void toggle_views_by_name(const char *view_name_a,
+                                      const char *view_name_b) = 0;
 };
 
 class ViewManager: public ViewManagerIface
@@ -32,6 +34,8 @@ class ViewManager: public ViewManagerIface
     void input(DrcpCommand command) override;
     void input_set_fast_wind_factor(double factor) override;
     void activate_view_by_name(const char *view_name) override;
+    void toggle_views_by_name(const char *view_name_a,
+                              const char *view_name_b) override;
 };
 
 #endif /* !VIEW_MANAGER_HH */

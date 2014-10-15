@@ -24,10 +24,14 @@ class MockViewManager: public ViewManagerIface
     void expect_input(DrcpCommand command);
     void expect_input_set_fast_wind_factor(double factor);
     void expect_activate_view_by_name(const char *view_name);
+    void expect_toggle_views_by_name(const char *view_name_a,
+                                     const char *view_name_b);
 
     void input(DrcpCommand command) override;
     void input_set_fast_wind_factor(double factor) override;
     void activate_view_by_name(const char *view_name) override;
+    void toggle_views_by_name(const char *view_name_a,
+                              const char *view_name_b) override;
 };
 
 #endif /* !MOCK_VIEW_MANAGER_HH */

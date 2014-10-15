@@ -14,9 +14,10 @@ enum class MemberFn
     input,
     input_set_fast_wind_factor,
     activate_view_by_name,
+    toggle_views_by_name,
 
     first_valid_member_fn_id = input,
-    last_valid_member_fn_id = activate_view_by_name,
+    last_valid_member_fn_id = toggle_views_by_name,
 };
 
 static std::ostream &operator<<(std::ostream &os, const MemberFn id)
@@ -60,19 +61,18 @@ class MockViewManager::Expectation
     const DrcpCommand arg_command_;
     const double arg_factor_;
     const std::string arg_view_name_;
+    const std::string arg_view_name_b_;
 
     explicit Expectation(MemberFn id, DrcpCommand command):
         function_id_(id),
         arg_command_(command),
-        arg_factor_(0.0),
-        arg_view_name_("")
+        arg_factor_(0.0)
     {}
 
     explicit Expectation(MemberFn id, double factor):
         function_id_(id),
         arg_command_(DrcpCommand::UNDEFINED_COMMAND),
-        arg_factor_(factor),
-        arg_view_name_("")
+        arg_factor_(factor)
     {}
 
     explicit Expectation(MemberFn id, const char *view_name):
@@ -80,6 +80,15 @@ class MockViewManager::Expectation
         arg_command_(DrcpCommand::UNDEFINED_COMMAND),
         arg_factor_(0.0),
         arg_view_name_(view_name)
+    {}
+
+    explicit Expectation(MemberFn id,
+                         const char *view_name_a, const char *view_name_b):
+        function_id_(id),
+        arg_command_(DrcpCommand::UNDEFINED_COMMAND),
+        arg_factor_(0.0),
+        arg_view_name_(view_name_a),
+        arg_view_name_b_(view_name_b)
     {}
 
     Expectation(Expectation &&) = default;
@@ -123,6 +132,13 @@ void MockViewManager::expect_activate_view_by_name(const char *view_name)
     expectations_->add(Expectation(MemberFn::activate_view_by_name, view_name));
 }
 
+void MockViewManager::expect_toggle_views_by_name(const char *view_name_a,
+                                                  const char *view_name_b)
+{
+    expectations_->add(Expectation(MemberFn::toggle_views_by_name,
+                                   view_name_a, view_name_b));
+}
+
 void MockViewManager::input(DrcpCommand command)
 {
     const auto &expect(expectations_->get_next_expectation(__func__));
@@ -145,4 +161,14 @@ void MockViewManager::activate_view_by_name(const char *view_name)
 
     cppcut_assert_equal(expect.function_id_, MemberFn::activate_view_by_name);
     cppcut_assert_equal(expect.arg_view_name_, std::string(view_name));
+}
+
+void MockViewManager::toggle_views_by_name(const char *view_name_a,
+                                           const char *view_name_b)
+{
+    const auto &expect(expectations_->get_next_expectation(__func__));
+
+    cppcut_assert_equal(expect.function_id_, MemberFn::toggle_views_by_name);
+    cppcut_assert_equal(expect.arg_view_name_, std::string(view_name_a));
+    cppcut_assert_equal(expect.arg_view_name_b_, std::string(view_name_b));
 }

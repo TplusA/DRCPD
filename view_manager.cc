@@ -19,3 +19,10 @@ void ViewManager::activate_view_by_name(const char *view_name)
 {
     msg_info("Requested to activate view \"%s\"", view_name);
 }
+
+void ViewManager::toggle_views_by_name(const char *view_name_a,
+                                       const char *view_name_b)
+{
+    msg_info("Requested to toggle between views \"%s\" and \"%s\"",
+             view_name_a, view_name_b );
+}

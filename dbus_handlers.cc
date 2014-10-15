@@ -76,7 +76,41 @@ void dbussignal_dcpd_views(GDBusProxy *proxy, const gchar *sender_name,
                            const gchar *signal_name, GVariant *parameters,
                            gpointer user_data)
 {
-    msg_info("DCPD Views signal from '%s': %s", sender_name, signal_name);
+    static const char iface_name[] = "de.tahifi.Dcpd.Views";
+
+    msg_info("%s signal from '%s': %s", iface_name, sender_name, signal_name);
+
+    auto *mgr = static_cast<ViewManagerIface *>(user_data);
+    assert(mgr != nullptr);
+
+    if(strcmp(signal_name, "Open") == 0)
+    {
+        check_parameter_assertions(parameters, 1);
+
+        GVariant *view_name = g_variant_get_child_value(parameters, 0);
+        assert(view_name != nullptr);
+
+        mgr->activate_view_by_name(g_variant_get_string(view_name, NULL));
+
+        g_variant_unref(view_name);
+    }
+    else if(strcmp(signal_name, "Toggle") == 0)
+    {
+        check_parameter_assertions(parameters, 2);
+
+        GVariant *first_view_name = g_variant_get_child_value(parameters, 0);
+        GVariant *second_view_name = g_variant_get_child_value(parameters, 1);
+        assert(first_view_name != nullptr);
+        assert(second_view_name != nullptr);
+
+        mgr->toggle_views_by_name(g_variant_get_string(first_view_name, NULL),
+                                  g_variant_get_string(second_view_name, NULL));
+
+        g_variant_unref(first_view_name);
+        g_variant_unref(second_view_name);
+    }
+    else
+        unknown_signal(iface_name, signal_name, sender_name);
 }
 
 void dbussignal_dcpd_listnav(GDBusProxy *proxy, const gchar *sender_name,
