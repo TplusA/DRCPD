@@ -7,57 +7,10 @@
 #include <assert.h>
 
 #include "dbus_iface.h"
+#include "dbus_handlers.h"
 #include "dcpd_dbus.h"
 #include "streamplayer_dbus.h"
 #include "messages.h"
-
-static void handle_dcpd_playback_signal(GDBusProxy *proxy, gchar *sender_name,
-                                        gchar *signal_name,
-                                        GVariant *parameters,
-                                        gpointer user_data)
-{
-    msg_info("DCPD Playback signal from '%s': %s", sender_name, signal_name);
-}
-
-static void handle_dcpd_views_signal(GDBusProxy *proxy, gchar *sender_name,
-                                     gchar *signal_name,
-                                     GVariant *parameters,
-                                     gpointer user_data)
-{
-    msg_info("DCPD Views signal from '%s': %s", sender_name, signal_name);
-}
-
-static void handle_dcpd_listnav_signal(GDBusProxy *proxy, gchar *sender_name,
-                                       gchar *signal_name,
-                                       GVariant *parameters,
-                                       gpointer user_data)
-{
-    msg_info("DCPD ListNavigation signal from '%s': %s", sender_name, signal_name);
-}
-
-static void handle_dcpd_listitem_signal(GDBusProxy *proxy, gchar *sender_name,
-                                        gchar *signal_name,
-                                        GVariant *parameters,
-                                        gpointer user_data)
-{
-    msg_info("DCPD ListItem signal from '%s': %s", sender_name, signal_name);
-}
-
-static void handle_splay_urlfifo_signal(GDBusProxy *proxy, gchar *sender_name,
-                                        gchar *signal_name,
-                                        GVariant *parameters,
-                                        gpointer user_data)
-{
-    msg_info("Streamplayer URLFIFO signal from '%s': %s", sender_name, signal_name);
-}
-
-static void handle_splay_playback_signal(GDBusProxy *proxy, gchar *sender_name,
-                                         gchar *signal_name,
-                                         GVariant *parameters,
-                                         gpointer user_data)
-{
-    msg_info("Streamplayer Playback signal from '%s': %s", sender_name, signal_name);
-}
 
 struct dbus_data
 {
@@ -211,22 +164,22 @@ int dbus_setup(GMainLoop *loop, bool connect_to_session_bus)
     assert(dbus_data.splay_playback_proxy != NULL);
 
     g_signal_connect(dbus_data.dcpd_playback_proxy, "g-signal",
-                     G_CALLBACK(handle_dcpd_playback_signal), NULL);
+                     G_CALLBACK(dbussignal_dcpd_playback), NULL);
 
     g_signal_connect(dbus_data.dcpd_views_proxy, "g-signal",
-                     G_CALLBACK(handle_dcpd_views_signal), NULL);
+                     G_CALLBACK(dbussignal_dcpd_views), NULL);
 
     g_signal_connect(dbus_data.dcpd_list_navigation_proxy, "g-signal",
-                     G_CALLBACK(handle_dcpd_listnav_signal), NULL);
+                     G_CALLBACK(dbussignal_dcpd_listnav), NULL);
 
     g_signal_connect(dbus_data.dcpd_list_item_proxy, "g-signal",
-                     G_CALLBACK(handle_dcpd_listitem_signal), NULL);
+                     G_CALLBACK(dbussignal_dcpd_listitem), NULL);
 
     g_signal_connect(dbus_data.splay_urlfifo_proxy, "g-signal",
-                     G_CALLBACK(handle_splay_urlfifo_signal), NULL);
+                     G_CALLBACK(dbussignal_splay_urlfifo), NULL);
 
     g_signal_connect(dbus_data.splay_playback_proxy, "g-signal",
-                     G_CALLBACK(handle_splay_playback_signal), NULL);
+                     G_CALLBACK(dbussignal_splay_playback), NULL);
 
     g_main_loop_ref(loop);
 

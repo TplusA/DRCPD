@@ -24,13 +24,15 @@ AM_CFLAGS = $(CWARNINGS)
 
 AM_CXXFLAGS = $(CXXWARNINGS)
 
-noinst_LTLIBRARIES = liblist.la libdrcpd_dbus_client.la
+noinst_LTLIBRARIES = liblist.la libdbus_handlers.la libdrcpd_dbus_client.la
 
 drcpd_LDADD = $(noinst_LTLIBRARIES) $(DRCPD_DEPENDENCIES_LIBS)
 
 drcpd_LDFLAGS = $(LTLIBINTL)
 
 liblist_la_SOURCES = list.hh list.cc ramlist.hh ramlist.cc
+
+libdbus_handlers_la_SOURCES = dbus_handlers.h dbus_handlers.cc
 
 nodist_libdrcpd_dbus_client_la_SOURCES = dcpd_dbus.c dcpd_dbus.h streamplayer_dbus.c streamplayer_dbus.h
 
