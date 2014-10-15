@@ -3,6 +3,5 @@
 exec $CUTTER \
     --source-directory="@srcdir@" \
     --xml-report=test_report.xml \
-    --multi-thread \
     --keep-opening-modules \
     "$@" .
