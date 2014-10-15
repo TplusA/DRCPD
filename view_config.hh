@@ -97,6 +97,7 @@ class View: public ViewIface
     View &operator=(const View &) = delete;
 
     explicit View(unsigned int max_lines):
+        ViewIface("Config"),
         navigation(1, 0, 7, max_lines)
     {}
 

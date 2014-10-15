@@ -11,8 +11,13 @@ class ViewIface
     ViewIface(const ViewIface &);
     ViewIface &operator=(const ViewIface &);
 
+  public:
+    const std::string name_;
+
   protected:
-    explicit ViewIface() {}
+    explicit ViewIface(const std::string &name):
+        name_(name)
+    {}
 
   public:
     /*!
