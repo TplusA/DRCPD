@@ -14,7 +14,8 @@ drcpd_SOURCES = \
     drcpd.cc drcp_commands.hh i18n.h i18n.c messages.h messages.c \
     dbus_iface.c dbus_iface.h \
     list.hh ramlist.hh listnav.hh \
-    view.hh view_config.hh view_config.cc
+    view.hh view_config.hh view_config.cc \
+    view_manager.hh view_manager.cc
 
 AM_CPPFLAGS = -DLOCALEDIR=\"$(localedir)\"
 AM_CPPFLAGS += $(DRCPD_DEPENDENCIES_CFLAGS)
