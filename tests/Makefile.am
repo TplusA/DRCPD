@@ -25,7 +25,9 @@ test_dbus_handlers_la_LIBADD = ../libdbus_handlers.la
 
 test_dbus_handlers_la_CXXFLAGS = $(DRCPD_DEPENDENCIES_CFLAGS)
 
-test_view_manager_la_SOURCES = test_view_manager.cc
+test_view_manager_la_SOURCES = \
+    test_view_manager.cc view_mock.hh view_mock.cc \
+    mock_messages.hh mock_messages.cc
 
 test_view_manager_la_LIBADD = ../libviews.la
 

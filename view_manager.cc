@@ -39,9 +39,33 @@ void ViewManager::input_set_fast_wind_factor(double factor)
     msg_info("Need to handle FastWindSetFactor %f", factor);
 }
 
+static ViewIface *lookup_view_by_name(ViewManager::views_container_t &container,
+                                      const char *view_name)
+{
+    if(view_name[0] == '#')
+        return nullptr;
+
+    auto it = container.find(view_name);
+
+    return (it != container.end()) ? it->second : nullptr;
+}
+
 void ViewManager::activate_view_by_name(const char *view_name)
 {
     msg_info("Requested to activate view \"%s\"", view_name);
+
+    ViewIface *view = lookup_view_by_name(all_views_, view_name);
+
+    if(view == nullptr)
+        return;
+
+    if(view == active_view_)
+        return;
+
+    active_view_->defocus();
+
+    active_view_ = view;
+    active_view_->focus();
 }
 
 void ViewManager::toggle_views_by_name(const char *view_name_a,
