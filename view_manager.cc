@@ -18,12 +18,17 @@ ViewManager::ViewManager()
     output_stream_ = &nop_ostream;
 }
 
+static inline bool is_view_name_valid(const std::string &view_name)
+{
+    return view_name[0] != '#' && view_name[0] != '\0';
+}
+
 bool ViewManager::add_view(ViewIface *view)
 {
     if(view == nullptr)
         return false;
 
-    if(view->name_[0] == '#')
+    if(!is_view_name_valid(view->name_))
         return false;
 
     if(all_views_.find(view->name_) != all_views_.end())
@@ -52,7 +57,7 @@ void ViewManager::input_set_fast_wind_factor(double factor)
 static ViewIface *lookup_view_by_name(ViewManager::views_container_t &container,
                                       const char *view_name)
 {
-    if(view_name[0] == '#')
+    if(!is_view_name_valid(view_name))
         return nullptr;
 
     auto it = container.find(view_name);
