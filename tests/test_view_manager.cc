@@ -62,6 +62,11 @@ void test_activate_nonexistent_view_does_nothing(void);
  */
 void test_activate_nop_view_does_nothing(void);
 
+/*!\test
+ * Activating a view takes the focus from one view and gives it to the other.
+ */
+void test_activate_different_view(void);
+
 };
 
 /*!@}*/
@@ -223,6 +228,20 @@ void test_activate_nop_view_does_nothing(void)
 {
     mock_messages.expect_msg_info_formatted("Requested to activate view \"#NOP\"");
     vm->activate_view_by_name("#NOP");
+}
+
+void test_activate_different_view(void)
+{
+    mock_messages.expect_msg_info_formatted("Requested to activate view \"Second\"");
+
+    all_mock_views[0]->expect_defocus();
+
+    all_mock_views[1]->expect_focus();
+    all_mock_views[1]->expect_serialize(views_output);
+
+    vm->activate_view_by_name("Second");
+
+    cppcut_assert_equal("Second serialize\n", views_output.str().c_str());
 }
 
 };
