@@ -38,7 +38,8 @@ class MockMessages::Expectation
 };
 
 
-MockMessages::MockMessages()
+MockMessages::MockMessages():
+    ignore_all_(false)
 {
     expectations_ = new MockExpectations();
 }
@@ -113,6 +114,9 @@ void msg_enable_syslog(bool enable_syslog) {}
 
 void msg_error(int error_code, int priority, const char *error_format, ...)
 {
+    if(mock_messages_singleton->ignore_all_)
+        return;
+
     va_list va;
 
     va_start(va, error_format);
@@ -122,6 +126,9 @@ void msg_error(int error_code, int priority, const char *error_format, ...)
 
 void msg_info(const char *format_string, ...)
 {
+    if(mock_messages_singleton->ignore_all_)
+        return;
+
     va_list va;
 
     va_start(va, format_string);

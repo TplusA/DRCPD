@@ -14,6 +14,8 @@ class View: public ViewIface
     typedef MockExpectationsTemplate<Expectation> MockExpectations;
     MockExpectations *expectations_;
 
+    bool ignore_all_;
+
     View(const View &) = delete;
     View &operator=(const View &) = delete;
 

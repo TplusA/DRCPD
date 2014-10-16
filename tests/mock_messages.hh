@@ -15,6 +15,8 @@ class MockMessages
     typedef MockExpectationsTemplate<Expectation> MockExpectations;
     MockExpectations *expectations_;
 
+    bool ignore_all_;
+
     explicit MockMessages();
     ~MockMessages();
 

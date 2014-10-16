@@ -83,7 +83,8 @@ class ViewMock::View::Expectation
 };
 
 ViewMock::View::View(const std::string &name):
-    ViewIface(name)
+    ViewIface(name),
+    ignore_all_(false)
 {
     expectations_ = new MockExpectations();
 }
@@ -124,6 +125,7 @@ void ViewMock::View::expect_input_return(DrcpCommand command, InputResult retval
 void ViewMock::View::expect_serialize(std::ostream &os)
 {
     expectations_->add(Expectation(MemberFn::serialize));
+    os << name_ << " serialize\n";
 }
 
 void ViewMock::View::expect_update(std::ostream &os)
@@ -134,6 +136,9 @@ void ViewMock::View::expect_update(std::ostream &os)
 
 void ViewMock::View::focus()
 {
+    if(ignore_all_)
+        return;
+
     const auto &expect(expectations_->get_next_expectation(__func__));
 
     cppcut_assert_equal(expect.function_id_, MemberFn::focus);
@@ -141,6 +146,9 @@ void ViewMock::View::focus()
 
 void ViewMock::View::defocus()
 {
+    if(ignore_all_)
+        return;
+
     const auto &expect(expectations_->get_next_expectation(__func__));
 
     cppcut_assert_equal(expect.function_id_, MemberFn::defocus);
@@ -148,6 +156,9 @@ void ViewMock::View::defocus()
 
 ViewIface::InputResult ViewMock::View::input(DrcpCommand command)
 {
+    if(ignore_all_)
+        return ViewIface::InputResult::OK;
+
     const auto &expect(expectations_->get_next_expectation(__func__));
 
     cppcut_assert_equal(expect.function_id_, MemberFn::input);
@@ -158,6 +169,9 @@ ViewIface::InputResult ViewMock::View::input(DrcpCommand command)
 
 void ViewMock::View::serialize(std::ostream &os)
 {
+    if(ignore_all_)
+        return;
+
     const auto &expect(expectations_->get_next_expectation(__func__));
 
     cppcut_assert_equal(expect.function_id_, MemberFn::serialize);
@@ -165,6 +179,9 @@ void ViewMock::View::serialize(std::ostream &os)
 
 void ViewMock::View::update(std::ostream &os)
 {
+    if(ignore_all_)
+        return;
+
     const auto &expect(expectations_->get_next_expectation(__func__));
 
     cppcut_assert_equal(expect.function_id_, MemberFn::update);
