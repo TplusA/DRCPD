@@ -72,6 +72,19 @@ void test_activate_different_view(void);
 /*!@}*/
 
 
+static void clear_ostream(std::ostringstream &ss)
+{
+    ss.str("");
+    ss.clear();
+}
+
+static void check_and_clear_ostream(const char *string, std::ostringstream &ss)
+{
+    cppcut_assert_equal(string, ss.str().c_str());
+    clear_ostream(ss);
+}
+
+
 namespace view_manager_tests
 {
 
@@ -82,7 +95,7 @@ static std::string standard_mock_view_name("Mock");
 
 void cut_setup(void)
 {
-    views_output.clear();
+    clear_ostream(views_output);
 
     mock_messages_singleton = &mock_messages;
     mock_messages.init();
@@ -94,6 +107,7 @@ void cut_setup(void)
 void cut_teardown(void)
 {
     mock_messages.check();
+    cppcut_assert_equal("", views_output.str().c_str());
     delete vm;
 }
 
@@ -143,7 +157,7 @@ void test_add_view_and_activate(void)
     vm->activate_view_by_name(standard_mock_view_name.c_str());
     view.check();
 
-    cppcut_assert_equal("Mock serialize\n", views_output.str().c_str());
+    check_and_clear_ostream("Mock serialize\n", views_output);
 }
 
 };
@@ -181,7 +195,7 @@ static std::ostringstream views_output;
 
 void cut_setup(void)
 {
-    views_output.clear();
+    clear_ostream(views_output);
 
     mock_messages_singleton = &mock_messages;
     mock_messages.init();
@@ -201,6 +215,8 @@ void cut_setup(void)
 
 void cut_teardown(void)
 {
+    cppcut_assert_equal("", views_output.str().c_str());
+
     mock_messages.check();
 
     for(auto view: all_mock_views)
@@ -241,7 +257,7 @@ void test_activate_different_view(void)
 
     vm->activate_view_by_name("Second");
 
-    cppcut_assert_equal("Second serialize\n", views_output.str().c_str());
+    check_and_clear_ostream("Second serialize\n", views_output);
 }
 
 };
