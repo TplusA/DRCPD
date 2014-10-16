@@ -33,6 +33,11 @@ void test_add_nop_view_fails(void);
 void test_add_view(void);
 
 /*!\test
+ * Attempt to add views with the same name only works for the first attempt.
+ */
+void test_add_views_with_same_name_fails(void);
+
+/*!\test
  * Adding a regular view to a fresh view manager and activating it works.
  */
 void test_add_view_and_activate(void);
@@ -72,7 +77,7 @@ void cut_teardown(void)
     delete vm;
 }
 
-void test_add_views_with_same_name_fails(void)
+void test_add_nullptr_view_fails(void)
 {
     cut_assert_false(vm->add_view(nullptr));
 }
@@ -91,6 +96,16 @@ void test_add_view(void)
 
     cut_assert_true(view.init());
     cut_assert_true(vm->add_view(&view));
+    view.check();
+}
+
+void test_add_views_with_same_name_fails(void)
+{
+    ViewMock::View view(standard_mock_view_name);
+
+    cut_assert_true(view.init());
+    cut_assert_true(vm->add_view(&view));
+    cut_assert_false(vm->add_view(&view));
     view.check();
 }
 
