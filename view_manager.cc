@@ -13,6 +13,19 @@ ViewManager::ViewManager()
     active_view_ = &nop_view;
 }
 
+bool ViewManager::add_view(ViewIface *view)
+{
+    if(view == nullptr)
+        return false;
+
+    if(all_views_.find(view->name_) != all_views_.end())
+        return false;
+
+    all_views_.insert(views_container_t::value_type(view->name_, view));
+
+    return true;
+}
+
 void ViewManager::input(DrcpCommand command)
 {
     msg_info("Need to handle DRCP command %d", command);

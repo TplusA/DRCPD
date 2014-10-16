@@ -139,6 +139,13 @@ void MockViewManager::expect_toggle_views_by_name(const char *view_name_a,
                                    view_name_a, view_name_b));
 }
 
+
+bool MockViewManager::add_view(ViewIface *view)
+{
+    cut_fail("Not implemented");
+    return false;
+}
+
 void MockViewManager::input(DrcpCommand command)
 {
     const auto &expect(expectations_->get_next_expectation(__func__));
