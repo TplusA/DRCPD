@@ -47,6 +47,16 @@ void test_add_view_and_activate(void);
  */
 void test_reactivate_active_view_does_nothing(void);
 
+/*!\test
+ * Activating a view with unknown name does not disturb the view.
+ */
+void test_activate_nonexistent_view_does_nothing(void);
+
+/*!\test
+ * Activating the NOP view does not disturb the view.
+ */
+void test_activate_nop_view_does_nothing(void);
+
 };
 
 /*!@}*/
@@ -141,6 +151,48 @@ void test_reactivate_active_view_does_nothing(void)
 
     mock_messages.expect_msg_info_formatted("Requested to activate view \"Mock\"");
     vm->activate_view_by_name(standard_mock_view_name.c_str());
+    view.check();
+    mock_messages.check();
+}
+
+void test_activate_nonexistent_view_does_nothing(void)
+{
+    ViewMock::View view(standard_mock_view_name);
+
+    cut_assert_true(view.init());
+    cut_assert_true(vm->add_view(&view));
+    view.check();
+
+    mock_messages.expect_msg_info_formatted("Requested to activate view \"Mock\"");
+    view.expect_focus();
+    view.expect_serialize(views_output);
+    vm->activate_view_by_name(standard_mock_view_name.c_str());
+    view.check();
+    mock_messages.check();
+
+    mock_messages.expect_msg_info_formatted("Requested to activate view \"DoesNotExist\"");
+    vm->activate_view_by_name("DoesNotExist");
+    view.check();
+    mock_messages.check();
+}
+
+void test_activate_nop_view_does_nothing(void)
+{
+    ViewMock::View view(standard_mock_view_name);
+
+    cut_assert_true(view.init());
+    cut_assert_true(vm->add_view(&view));
+    view.check();
+
+    mock_messages.expect_msg_info_formatted("Requested to activate view \"Mock\"");
+    view.expect_focus();
+    view.expect_serialize(views_output);
+    vm->activate_view_by_name(standard_mock_view_name.c_str());
+    view.check();
+    mock_messages.check();
+
+    mock_messages.expect_msg_info_formatted("Requested to activate view \"#NOP\"");
+    vm->activate_view_by_name("#NOP");
     view.check();
     mock_messages.check();
 }
