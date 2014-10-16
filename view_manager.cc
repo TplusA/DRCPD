@@ -18,6 +18,9 @@ bool ViewManager::add_view(ViewIface *view)
     if(view == nullptr)
         return false;
 
+    if(view->name_[0] == '#')
+        return false;
+
     if(all_views_.find(view->name_) != all_views_.end())
         return false;
 
