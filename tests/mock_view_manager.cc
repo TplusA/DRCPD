@@ -146,6 +146,11 @@ bool MockViewManager::add_view(ViewIface *view)
     return false;
 }
 
+void MockViewManager::set_output_stream(std::ostream &os)
+{
+    cut_fail("Not implemented");
+}
+
 void MockViewManager::input(DrcpCommand command)
 {
     const auto &expect(expectations_->get_next_expectation(__func__));

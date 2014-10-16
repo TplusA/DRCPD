@@ -8,9 +8,14 @@
 
 static ViewNop::View nop_view;
 
+class NopOutputStream: public std::ostream {};
+
+static NopOutputStream nop_ostream;
+
 ViewManager::ViewManager()
 {
     active_view_ = &nop_view;
+    output_stream_ = &nop_ostream;
 }
 
 bool ViewManager::add_view(ViewIface *view)
@@ -27,6 +32,11 @@ bool ViewManager::add_view(ViewIface *view)
     all_views_.insert(views_container_t::value_type(view->name_, view));
 
     return true;
+}
+
+void ViewManager::set_output_stream(std::ostream &os)
+{
+    output_stream_ = &os;
 }
 
 void ViewManager::input(DrcpCommand command)
@@ -66,6 +76,7 @@ void ViewManager::activate_view_by_name(const char *view_name)
 
     active_view_ = view;
     active_view_->focus();
+    active_view_->serialize(*output_stream_);
 }
 
 void ViewManager::toggle_views_by_name(const char *view_name_a,

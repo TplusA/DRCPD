@@ -1,4 +1,5 @@
 #include <cppcutter.h>
+#include <sstream>
 
 #include "view_manager.hh"
 #include "view_nop.hh"
@@ -51,14 +52,18 @@ namespace view_manager_tests
 
 static MockMessages mock_messages;
 static ViewManager *vm;
+static std::ostringstream views_output;
 static std::string standard_mock_view_name("Mock");
 
 void cut_setup(void)
 {
+    views_output.clear();
+
     mock_messages_singleton = &mock_messages;
     mock_messages.init();
 
     vm = new ViewManager();
+    vm->set_output_stream(views_output);
 }
 
 void cut_teardown(void)
@@ -99,6 +104,7 @@ void test_add_view_and_activate(void)
 
     mock_messages.expect_msg_info_formatted("Requested to activate view \"Mock\"");
     view.expect_focus();
+    view.expect_serialize(views_output);
     vm->activate_view_by_name(standard_mock_view_name.c_str());
     view.check();
 }
@@ -113,6 +119,7 @@ void test_reactivate_active_view_does_nothing(void)
 
     mock_messages.expect_msg_info_formatted("Requested to activate view \"Mock\"");
     view.expect_focus();
+    view.expect_serialize(views_output);
     vm->activate_view_by_name(standard_mock_view_name.c_str());
     view.check();
     mock_messages.check();

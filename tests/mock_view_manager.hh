@@ -28,6 +28,7 @@ class MockViewManager: public ViewManagerIface
                                      const char *view_name_b);
 
     bool add_view(ViewIface *view) override;
+    void set_output_stream(std::ostream &os) override;
     void input(DrcpCommand command) override;
     void input_set_fast_wind_factor(double factor) override;
     void activate_view_by_name(const char *view_name) override;
