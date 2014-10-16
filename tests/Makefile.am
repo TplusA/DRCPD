@@ -1,7 +1,7 @@
 if WITH_CUTTER
 TESTS = run_test.sh
 
-AM_TESTS_ENVIRONMENT = CUTTER="$(CUTTER)"
+AM_TESTS_ENVIRONMENT = CUTTER="$(CUTTER)" XSLTPROC="$(XSLTPROC)"
 
 AM_LDFLAGS = -module -rpath $(libdir) -avoid-version -no-undefined
 
@@ -31,5 +31,7 @@ test_view_manager_la_SOURCES = \
 
 test_view_manager_la_LIBADD = ../libviews.la
 
-CLEANFILES = test_report.xml
+CLEANFILES = test_report.xml test_report_junit.xml
+
+EXTRA_DIST = cutter2junit.xslt
 endif
