@@ -46,7 +46,21 @@ void ViewManager::set_output_stream(std::ostream &os)
 
 void ViewManager::input(DrcpCommand command)
 {
-    msg_info("Need to handle DRCP command %d", command);
+    msg_info("Dispatching DRCP command %d", command);
+
+    switch(active_view_->input(command))
+    {
+      case ViewIface::InputResult::OK:
+        break;
+
+      case ViewIface::InputResult::UPDATE_NEEDED:
+        active_view_->update(*output_stream_);
+        break;
+
+      case ViewIface::InputResult::SHOULD_HIDE:
+        active_view_->defocus();
+        break;
+    }
 }
 
 void ViewManager::input_set_fast_wind_factor(double factor)

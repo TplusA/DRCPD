@@ -131,6 +131,7 @@ void ViewMock::View::expect_serialize(std::ostream &os)
 void ViewMock::View::expect_update(std::ostream &os)
 {
     expectations_->add(Expectation(MemberFn::update));
+    os << name_ << " update\n";
 }
 
 

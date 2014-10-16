@@ -67,6 +67,24 @@ void test_activate_nop_view_does_nothing(void);
  */
 void test_activate_different_view(void);
 
+/*!\test
+ * Command sent to view manager is sent to the active view, the view tells that
+ * there is nothing to do.
+ */
+void test_input_command_with_no_need_to_refresh(void);
+
+/*!\test
+ * Commands sent to view manager is sent to the active view, the view tells
+ * that the display content needs be updated.
+ */
+void test_input_command_with_need_to_refresh(void);
+
+/*!\test
+ * Commands sent to view manager is sent to the active view, the view tells
+ * that it should be removed from screen.
+ */
+void test_input_command_with_need_to_hide_view(void);
+
 };
 
 /*!@}*/
@@ -258,6 +276,34 @@ void test_activate_different_view(void)
     vm->activate_view_by_name("Second");
 
     check_and_clear_ostream("Second serialize\n", views_output);
+}
+
+void test_input_command_with_no_need_to_refresh(void)
+{
+    mock_messages.expect_msg_info("Dispatching DRCP command %d");
+    all_mock_views[0]->expect_input_return(DrcpCommand::PLAYBACK_START,
+                                           ViewIface::InputResult::OK);
+    vm->input(DrcpCommand::PLAYBACK_START);
+}
+
+void test_input_command_with_need_to_refresh(void)
+{
+    mock_messages.expect_msg_info("Dispatching DRCP command %d");
+    all_mock_views[0]->expect_input_return(DrcpCommand::PLAYBACK_START,
+                                           ViewIface::InputResult::UPDATE_NEEDED);
+    all_mock_views[0]->expect_update(views_output);
+    vm->input(DrcpCommand::PLAYBACK_START);
+
+    check_and_clear_ostream("First update\n", views_output);
+}
+
+void test_input_command_with_need_to_hide_view(void)
+{
+    mock_messages.expect_msg_info("Dispatching DRCP command %d");
+    all_mock_views[0]->expect_input_return(DrcpCommand::PLAYBACK_START,
+                                           ViewIface::InputResult::SHOULD_HIDE);
+    all_mock_views[0]->expect_defocus();
+    vm->input(DrcpCommand::PLAYBACK_START);
 }
 
 };
