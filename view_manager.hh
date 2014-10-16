@@ -1,7 +1,7 @@
 #ifndef VIEW_MANAGER_HH
 #define VIEW_MANAGER_HH
 
-#include "drcp_commands.hh"
+#include "view.hh"
 
 /*!
  * \addtogroup view_manager Management of the various views.
@@ -33,8 +33,10 @@ class ViewManager: public ViewManagerIface
     ViewManager(const ViewManager &);
     ViewManager &operator=(const ViewManager &);
 
+    ViewIface *active_view_;
+
   public:
-    explicit ViewManager() {}
+    explicit ViewManager();
 
     void input(DrcpCommand command) override;
     void input_set_fast_wind_factor(double factor) override;

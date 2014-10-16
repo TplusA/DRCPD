@@ -3,7 +3,15 @@
 #endif /* HAVE_CONFIG_H */
 
 #include "view_manager.hh"
+#include "view_nop.hh"
 #include "messages.h"
+
+static ViewNop::View nop_view;
+
+ViewManager::ViewManager()
+{
+    active_view_ = &nop_view;
+}
 
 void ViewManager::input(DrcpCommand command)
 {
