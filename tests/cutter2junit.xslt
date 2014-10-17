@@ -18,6 +18,10 @@
                         <xsl:value-of select="sum(/report/result/test-case[name = current()/name]/../elapsed)"/>
                     </xsl:attribute>
 
+                    <xsl:attribute name="tests">
+                        <xsl:value-of select="count(/report/result/test-case[name = current()/name])"/>
+                    </xsl:attribute>
+
                     <xsl:apply-templates select="/report/result/test-case[name = current()/name]/.."/>
                 </testsuite>
             </xsl:for-each>
