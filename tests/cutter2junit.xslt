@@ -55,7 +55,19 @@
                         <xsl:value-of select="status"/>
                     </xsl:attribute>
 
-                    <xsl:value-of select="detail"/>
+                    <xsl:value-of select="backtrace/entry/file"/><xsl:text>:</xsl:text><xsl:value-of select="backtrace/entry/line"/>
+                    <xsl:text>&#xa;</xsl:text>
+                    <xsl:value-of select="backtrace/entry/info"/>
+                    <xsl:text>&#xa;</xsl:text>
+                    <xsl:text>&#xa;</xsl:text>
+                    <xsl:if test="expected != ''">
+                        <xsl:text>Expected: </xsl:text><xsl:value-of select="expected"/>
+                        <xsl:text>&#xa;</xsl:text>
+                        <xsl:text>Actual  : </xsl:text><xsl:value-of select="actual"/>
+                        <xsl:text>&#xa;</xsl:text>
+                        <xsl:text>&#xa;</xsl:text>
+                    </xsl:if>
+                    <xsl:text>Error   : </xsl:text><xsl:value-of select="detail"/>
                 </failure>
             </xsl:if>
         </testcase>
