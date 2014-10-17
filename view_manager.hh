@@ -57,6 +57,9 @@ class ViewManager: public ViewManagerIface
     void activate_view_by_name(const char *view_name) override;
     void toggle_views_by_name(const char *view_name_a,
                               const char *view_name_b) override;
+
+  private:
+    void activate_view(ViewIface *view);
 };
 
 /*!@}*/

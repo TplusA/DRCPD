@@ -79,12 +79,8 @@ static ViewIface *lookup_view_by_name(ViewManager::views_container_t &container,
     return (it != container.end()) ? it->second : nullptr;
 }
 
-void ViewManager::activate_view_by_name(const char *view_name)
+void ViewManager::activate_view(ViewIface *view)
 {
-    msg_info("Requested to activate view \"%s\"", view_name);
-
-    ViewIface *view = lookup_view_by_name(all_views_, view_name);
-
     if(view == nullptr)
         return;
 
@@ -98,9 +94,31 @@ void ViewManager::activate_view_by_name(const char *view_name)
     active_view_->serialize(*output_stream_);
 }
 
+void ViewManager::activate_view_by_name(const char *view_name)
+{
+    msg_info("Requested to activate view \"%s\"", view_name);
+    activate_view(lookup_view_by_name(all_views_, view_name));
+}
+
 void ViewManager::toggle_views_by_name(const char *view_name_a,
                                        const char *view_name_b)
 {
     msg_info("Requested to toggle between views \"%s\" and \"%s\"",
              view_name_a, view_name_b );
+
+    ViewIface *view_a = lookup_view_by_name(all_views_, view_name_a);
+    ViewIface *view_b = lookup_view_by_name(all_views_, view_name_b);
+
+    ViewIface *next_view;
+
+    if(view_a == view_b)
+        next_view = view_a;
+    else if(view_a == nullptr)
+        next_view = view_b;
+    else if(view_a == active_view_)
+        next_view = view_b;
+    else
+        next_view = view_a;
+
+    activate_view(next_view);
 }

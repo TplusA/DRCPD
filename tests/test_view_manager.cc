@@ -330,22 +330,65 @@ void test_input_command_with_need_to_hide_view(void)
 
 void test_toggle_two_views(void)
 {
-    cut_fail("Not implemented");
+    mock_messages.expect_msg_info_formatted("Requested to toggle between views \"Second\" and \"Third\"");
+    all_mock_views[0]->expect_defocus();
+    all_mock_views[1]->expect_focus();
+    all_mock_views[1]->expect_serialize(views_output);
+    vm->toggle_views_by_name("Second", "Third");
+    check_and_clear_ostream("Second serialize\n", views_output);
+
+    mock_messages.expect_msg_info_formatted("Requested to toggle between views \"Second\" and \"Third\"");
+    all_mock_views[1]->expect_defocus();
+    all_mock_views[2]->expect_focus();
+    all_mock_views[2]->expect_serialize(views_output);
+    vm->toggle_views_by_name("Second", "Third");
+    check_and_clear_ostream("Third serialize\n", views_output);
+
+
+    mock_messages.expect_msg_info_formatted("Requested to toggle between views \"Second\" and \"Third\"");
+    all_mock_views[2]->expect_defocus();
+    all_mock_views[1]->expect_focus();
+    all_mock_views[1]->expect_serialize(views_output);
+    vm->toggle_views_by_name("Second", "Third");
+    check_and_clear_ostream("Second serialize\n", views_output);
 }
 
 void test_toggle_views_with_same_names_switches_once(void)
 {
-    cut_fail("Not implemented");
+    mock_messages.expect_msg_info_formatted("Requested to toggle between views \"Fourth\" and \"Fourth\"");
+    all_mock_views[0]->expect_defocus();
+    all_mock_views[3]->expect_focus();
+    all_mock_views[3]->expect_serialize(views_output);
+    vm->toggle_views_by_name("Fourth", "Fourth");
+    check_and_clear_ostream("Fourth serialize\n", views_output);
+
+    mock_messages.expect_msg_info_formatted("Requested to toggle between views \"Fourth\" and \"Fourth\"");
+    vm->toggle_views_by_name("Fourth", "Fourth");
 }
 
 void test_toggle_views_with_one_unknown_name_switches_to_the_known_name(void)
 {
-    cut_fail("Not implemented");
+    mock_messages.expect_msg_info_formatted("Requested to toggle between views \"Third\" and \"Foo\"");
+    all_mock_views[0]->expect_defocus();
+    all_mock_views[2]->expect_focus();
+    all_mock_views[2]->expect_serialize(views_output);
+    vm->toggle_views_by_name("Third", "Foo");
+    check_and_clear_ostream("Third serialize\n", views_output);
+
+    mock_messages.expect_msg_info_formatted("Requested to toggle between views \"Third\" and \"Foo\"");
+    vm->toggle_views_by_name("Third", "Foo");
+
+    mock_messages.expect_msg_info_formatted("Requested to toggle between views \"Third\" and \"Foo\"");
+    vm->toggle_views_by_name("Third", "Foo");
 }
 
 void test_toggle_views_with_two_unknown_names_does_nothing(void)
 {
-    cut_fail("Not implemented");
+    mock_messages.expect_msg_info_formatted("Requested to toggle between views \"Foo\" and \"Bar\"");
+    vm->toggle_views_by_name("Foo", "Bar");
+
+    mock_messages.expect_msg_info_formatted("Requested to toggle between views \"Foo\" and \"Bar\"");
+    vm->toggle_views_by_name("Foo", "Bar");
 }
 
 };
