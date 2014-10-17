@@ -85,6 +85,28 @@ void test_input_command_with_need_to_refresh(void);
  */
 void test_input_command_with_need_to_hide_view(void);
 
+/*!\test
+ * Toggle between two named views with recognized, different names.
+ */
+void test_toggle_two_views(void);
+
+/*!\test
+ * Toggle requests between views with the same known name have no effect,
+ * except initial switching.
+ */
+void test_toggle_views_with_same_names_switches_once(void);
+
+/*!\test
+ * Toggle requests between two views with an unknown and a known name switch to
+ * the known name, nothing more.
+ */
+void test_toggle_views_with_one_unknown_name_switches_to_the_known_name(void);
+
+/*!\test
+ * Toggle requests between two views with unknown names have no effect.
+ */
+void test_toggle_views_with_two_unknown_names_does_nothing(void);
+
 };
 
 /*!@}*/
@@ -304,6 +326,26 @@ void test_input_command_with_need_to_hide_view(void)
                                            ViewIface::InputResult::SHOULD_HIDE);
     all_mock_views[0]->expect_defocus();
     vm->input(DrcpCommand::PLAYBACK_START);
+}
+
+void test_toggle_two_views(void)
+{
+    cut_fail("Not implemented");
+}
+
+void test_toggle_views_with_same_names_switches_once(void)
+{
+    cut_fail("Not implemented");
+}
+
+void test_toggle_views_with_one_unknown_name_switches_to_the_known_name(void)
+{
+    cut_fail("Not implemented");
+}
+
+void test_toggle_views_with_two_unknown_names_does_nothing(void)
+{
+    cut_fail("Not implemented");
 }
 
 };
