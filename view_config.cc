@@ -124,17 +124,17 @@ ViewIface::InputResult ViewConfig::View::input(DrcpCommand command)
     switch(command)
     {
       case DrcpCommand::KEY_OK_ENTER:
-        if(auto item = dynamic_cast<const CallbackItem *>(editable_menu_items_.get_item(navigation.get_cursor())))
+        if(auto item = dynamic_cast<const CallbackItem *>(editable_menu_items_.get_item(navigation_.get_cursor())))
         {
             item->activate(this);
             return InputResult::SHOULD_HIDE;
         }
 
       case DrcpCommand::SCROLL_DOWN_ONE:
-        return navigation.down() ? InputResult::UPDATE_NEEDED : InputResult::OK;
+        return navigation_.down() ? InputResult::UPDATE_NEEDED : InputResult::OK;
 
       case DrcpCommand::SCROLL_UP_ONE:
-        return navigation.up() ? InputResult::UPDATE_NEEDED : InputResult::OK;
+        return navigation_.up() ? InputResult::UPDATE_NEEDED : InputResult::OK;
 
       default:
         break;
@@ -145,13 +145,13 @@ ViewIface::InputResult ViewConfig::View::input(DrcpCommand command)
 
 void ViewConfig::View::serialize(std::ostream &os)
 {
-    for(auto it : navigation)
+    for(auto it : navigation_)
     {
         auto text_item = dynamic_cast<const List::TextItem *>(editable_menu_items_.get_item(it));
 
         assert(text_item != nullptr);
 
-        if(it == navigation.get_cursor())
+        if(it == navigation_.get_cursor())
             os << "--> ";
         else
             os << "    ";
