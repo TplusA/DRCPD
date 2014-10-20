@@ -89,7 +89,7 @@ class View: public ViewIface
     Data edit_settings_;
 
     List::RamList editable_menu_items_;
-    ListNav navigation;
+    List::Nav navigation;
 
   public:
     View(const View &) = delete;

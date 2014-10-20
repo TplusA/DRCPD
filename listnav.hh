@@ -1,11 +1,20 @@
 #ifndef LISTNAV_HH
 #define LISTNAV_HH
 
-class ListNav
+/*!
+ * \addtogroup list_navigation List navigation
+ * \ingroup list
+ */
+/*!@{*/
+
+namespace List
+{
+
+class Nav
 {
   private:
-    ListNav(const ListNav &);
-    ListNav &operator=(const ListNav &);
+    Nav(const Nav &);
+    Nav &operator=(const Nav &);
 
     unsigned int cursor_;
     unsigned int first_displayed_line_;
@@ -15,10 +24,10 @@ class ListNav
     const unsigned int maximum_number_of_displayed_lines_;
 
   public:
-    constexpr explicit ListNav(unsigned int first_selectable_line,
-                               unsigned int first_line_on_display,
-                               unsigned int number_of_lines,
-                               unsigned int max_display_lines):
+    constexpr explicit Nav(unsigned int first_selectable_line,
+                           unsigned int first_line_on_display,
+                           unsigned int number_of_lines,
+                           unsigned int max_display_lines):
         cursor_(first_selectable_line),
         first_displayed_line_(first_line_on_display),
         first_selectable_line_(first_selectable_line),
@@ -108,5 +117,9 @@ class ListNav
             : number_of_lines_;
     }
 };
+
+};
+
+/*!@}*/
 
 #endif /* !LISTNAV_HH */
