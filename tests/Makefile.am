@@ -10,11 +10,15 @@ AM_CPPFLAGS += -I$(top_srcdir)
 
 LIBS += $(CPPCUTTER_LIBS)
 
-check_LTLIBRARIES = test_list.la test_dbus_handlers.la test_view_manager.la
+check_LTLIBRARIES = test_list.la test_listnav.la test_dbus_handlers.la test_view_manager.la
 
 test_list_la_SOURCES = test_list.cc
 
 test_list_la_LIBADD = ../liblist.la
+
+test_listnav_la_SOURCES = test_listnav.cc
+
+test_listnav_la_LIBADD = ../liblist.la
 
 test_dbus_handlers_la_SOURCES = \
     test_dbus_handlers.cc mock_expectation.hh \
