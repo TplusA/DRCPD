@@ -39,6 +39,11 @@ void test_cannot_move_before_first_line(void);
  */
 void test_cannot_move_beyond_last_line(void);
 
+};
+
+namespace list_navigation_tests_with_unselectable_items
+{
+
 /*!\test
  * Navigation should start in second line, with first line displayed first.
  */
@@ -59,26 +64,9 @@ void test_scroll_to_unselectable_line(void);
 /*!@}*/
 
 
-namespace list_navigation_tests
-{
-
 static List::RamList *list;
 static const char *list_texts[] =
     { "First", "Second", "Third", "Fourth", "Fifth", "Sixth", };
-
-void cut_setup(void)
-{
-    list = new List::RamList();
-    cppcut_assert_not_null(list);
-    for(auto t : list_texts)
-        List::append(list, List::TextItem(t, false, 0));
-}
-
-void cut_teardown(void)
-{
-    delete list;
-    list = nullptr;
-}
 
 template <size_t N>
 static void check_display(const List::RamList &l, const List::Nav &nav,
@@ -100,6 +88,24 @@ static void check_display(const List::RamList &l, const List::Nav &nav,
     }
 
     cppcut_assert_equal(N, i);
+}
+
+
+namespace list_navigation_tests
+{
+
+void cut_setup(void)
+{
+    list = new List::RamList();
+    cppcut_assert_not_null(list);
+    for(auto t : list_texts)
+        List::append(list, List::TextItem(t, false, 0));
+}
+
+void cut_teardown(void)
+{
+    delete list;
+    list = nullptr;
 }
 
 void test_simple_navigation_init(void)
