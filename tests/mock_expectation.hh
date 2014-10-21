@@ -25,12 +25,11 @@ class MockExpectationsTemplate
     void check() const
     {
         cppcut_assert_equal(next_checked_expectation_, expectations_.size(),
-                            cppcut_message() << "Have " << expectations_.size()
-                            << " expectation" << (expectations_.size() == 1 ? "" : "s")
-                            << ", but only "
-                            << next_checked_expectation_
-                            << " " << (next_checked_expectation_ == 1 ? "was" : "were")
-                            << " checked");
+                            cut_message("Have %zu expectation%s, but only %zu %s checked",
+                                        expectations_.size(),
+                                        (expectations_.size() == 1) ? "" : "s",
+                                        next_checked_expectation_,
+                                        (next_checked_expectation_ == 1) ? "was" : "were"));
     }
 
     void add(E &&expectation)
@@ -41,8 +40,8 @@ class MockExpectationsTemplate
     const E &get_next_expectation(const char *string)
     {
         cppcut_assert_operator(next_checked_expectation_, <, expectations_.size(),
-                               cppcut_message() << "Missing expectation for \""
-                                                << string << "\"");
+                               cut_message("Missing expectation for \"%s\"",
+                                           string));
 
         return expectations_[next_checked_expectation_++];
     }
