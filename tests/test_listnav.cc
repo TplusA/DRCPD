@@ -62,20 +62,21 @@ void test_scroll_to_unselectable_line(void);
 namespace list_navigation_tests
 {
 
-static std::shared_ptr<List::RamList> list;
+static List::RamList *list;
 static const char *list_texts[] =
     { "First", "Second", "Third", "Fourth", "Fifth", "Sixth", };
 
 void cut_setup(void)
 {
-    list.reset(new List::RamList());
-    cppcut_assert_not_null(list.get());
+    list = new List::RamList();
+    cppcut_assert_not_null(list);
     for(auto t : list_texts)
-        List::append(list.get(), List::TextItem(t, false, 0));
+        List::append(list, List::TextItem(t, false, 0));
 }
 
 void cut_teardown(void)
 {
+    delete list;
     list = nullptr;
 }
 
@@ -87,6 +88,7 @@ static void check_display(const List::RamList &l, const List::Nav &nav,
 
     for(auto it : nav)
     {
+        cppcut_assert_operator(i, <, N);
         cppcut_assert_equal(expected_indices[i], it);
 
         const List::TextItem *item = dynamic_cast<const List::TextItem *>(l.get_item(it));
@@ -105,7 +107,7 @@ void test_simple_navigation_init(void)
     List::Nav nav(0, 0, list->get_number_of_items(), 3);
 
     cppcut_assert_equal(0U, nav.get_cursor());
-    check_display(*list.get(), nav, std::array<unsigned int, 3>({0, 1, 2}));
+    check_display(*list, nav, std::array<unsigned int, 3>({0, 1, 2}));
 }
 
 void test_move_down_and_up_within_displayed_lines(void)
@@ -115,12 +117,12 @@ void test_move_down_and_up_within_displayed_lines(void)
     cut_assert_true(nav.down());
     cut_assert_true(nav.down());
     cppcut_assert_equal(2U, nav.get_cursor());
-    check_display(*list.get(), nav, std::array<unsigned int, 3>({0, 1, 2}));
+    check_display(*list, nav, std::array<unsigned int, 3>({0, 1, 2}));
 
     cut_assert_true(nav.up());
     cut_assert_true(nav.up());
     cppcut_assert_equal(0U, nav.get_cursor());
-    check_display(*list.get(), nav, std::array<unsigned int, 3>({0, 1, 2}));
+    check_display(*list, nav, std::array<unsigned int, 3>({0, 1, 2}));
 }
 
 void test_move_down_and_up_with_scrolling(void)
@@ -129,27 +131,27 @@ void test_move_down_and_up_with_scrolling(void)
 
     cut_assert_true(nav.down());
     cppcut_assert_equal(1U, nav.get_cursor());
-    check_display(*list.get(), nav, std::array<unsigned int, 2>({0, 1}));
+    check_display(*list, nav, std::array<unsigned int, 2>({0, 1}));
 
     cut_assert_true(nav.down());
     cppcut_assert_equal(2U, nav.get_cursor());
-    check_display(*list.get(), nav, std::array<unsigned int, 2>({1, 2}));
+    check_display(*list, nav, std::array<unsigned int, 2>({1, 2}));
 
     cut_assert_true(nav.down());
     cppcut_assert_equal(3U, nav.get_cursor());
-    check_display(*list.get(), nav, std::array<unsigned int, 2>({2, 3}));
+    check_display(*list, nav, std::array<unsigned int, 2>({2, 3}));
 
     cut_assert_true(nav.up());
     cppcut_assert_equal(2U, nav.get_cursor());
-    check_display(*list.get(), nav, std::array<unsigned int, 2>({2, 3}));
+    check_display(*list, nav, std::array<unsigned int, 2>({2, 3}));
 
     cut_assert_true(nav.up());
     cppcut_assert_equal(1U, nav.get_cursor());
-    check_display(*list.get(), nav, std::array<unsigned int, 2>({1, 2}));
+    check_display(*list, nav, std::array<unsigned int, 2>({1, 2}));
 
     cut_assert_true(nav.up());
     cppcut_assert_equal(0U, nav.get_cursor());
-    check_display(*list.get(), nav, std::array<unsigned int, 2>({0, 1}));
+    check_display(*list, nav, std::array<unsigned int, 2>({0, 1}));
 }
 
 void test_cannot_move_before_first_line(void)
@@ -158,12 +160,12 @@ void test_cannot_move_before_first_line(void)
 
     cut_assert_false(nav.up());
     cppcut_assert_equal(0U, nav.get_cursor());
-    check_display(*list.get(), nav, std::array<unsigned int, 2>({0, 1}));
+    check_display(*list, nav, std::array<unsigned int, 2>({0, 1}));
 
     /* down works as expected, no persistent internal underflows */
     cut_assert_true(nav.down());
     cppcut_assert_equal(1U, nav.get_cursor());
-    check_display(*list.get(), nav, std::array<unsigned int, 2>({0, 1}));
+    check_display(*list, nav, std::array<unsigned int, 2>({0, 1}));
 }
 
 void test_cannot_move_beyond_last_line(void)
@@ -176,16 +178,16 @@ void test_cannot_move_beyond_last_line(void)
     cut_assert_true(nav.down());
     cut_assert_true(nav.down());
     cppcut_assert_equal(5U, nav.get_cursor());
-    check_display(*list.get(), nav, std::array<unsigned int, 3>({3, 4, 5}));
+    check_display(*list, nav, std::array<unsigned int, 3>({3, 4, 5}));
 
     cut_assert_false(nav.down());
     cppcut_assert_equal(5U, nav.get_cursor());
-    check_display(*list.get(), nav, std::array<unsigned int, 3>({3, 4, 5}));
+    check_display(*list, nav, std::array<unsigned int, 3>({3, 4, 5}));
 
     /* up works as expected, no persistent internal overflows */
     cut_assert_true(nav.up());
     cppcut_assert_equal(4U, nav.get_cursor());
-    check_display(*list.get(), nav, std::array<unsigned int, 3>({3, 4, 5}));
+    check_display(*list, nav, std::array<unsigned int, 3>({3, 4, 5}));
 }
 
 void test_navigation_init_with_first_line_unselectable(void)
@@ -193,7 +195,7 @@ void test_navigation_init_with_first_line_unselectable(void)
     List::Nav nav(1, 0, list->get_number_of_items(), 3);
 
     cppcut_assert_equal(1U, nav.get_cursor());
-    check_display(*list.get(), nav, std::array<unsigned int, 3>({0, 1, 2}));
+    check_display(*list, nav, std::array<unsigned int, 3>({0, 1, 2}));
 }
 
 void test_cannot_select_unselectable_line(void)
@@ -202,12 +204,12 @@ void test_cannot_select_unselectable_line(void)
 
     cut_assert_false(nav.up());
     cppcut_assert_equal(1U, nav.get_cursor());
-    check_display(*list.get(), nav, std::array<unsigned int, 3>({0, 1, 2}));
+    check_display(*list, nav, std::array<unsigned int, 3>({0, 1, 2}));
 
     /* down works as expected, no persistent internal underflows */
     cut_assert_true(nav.down());
     cppcut_assert_equal(2U, nav.get_cursor());
-    check_display(*list.get(), nav, std::array<unsigned int, 3>({0, 1, 2}));
+    check_display(*list, nav, std::array<unsigned int, 3>({0, 1, 2}));
 }
 
 void test_scroll_to_unselectable_line(void)
@@ -217,17 +219,17 @@ void test_scroll_to_unselectable_line(void)
     cut_assert_true(nav.down());
     cut_assert_true(nav.down());
     cppcut_assert_equal(3U, nav.get_cursor());
-    check_display(*list.get(), nav, std::array<unsigned int, 3>({1, 2, 3}));
+    check_display(*list, nav, std::array<unsigned int, 3>({1, 2, 3}));
 
     /* regular case... */
     cut_assert_true(nav.up());
     cppcut_assert_equal(2U, nav.get_cursor());
-    check_display(*list.get(), nav, std::array<unsigned int, 3>({1, 2, 3}));
+    check_display(*list, nav, std::array<unsigned int, 3>({1, 2, 3}));
 
     /* ...but now show first line even though the second line is selected */
     cut_assert_true(nav.up());
     cppcut_assert_equal(1U, nav.get_cursor());
-    check_display(*list.get(), nav, std::array<unsigned int, 3>({0, 1, 2}));
+    check_display(*list, nav, std::array<unsigned int, 3>({0, 1, 2}));
 }
 
 };
