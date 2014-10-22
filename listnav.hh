@@ -252,7 +252,7 @@ class Nav
         return item_filter_.is_selectable(item_filter_.get_flags_for_line(line));
     }
 
-    unsigned int step_forward_selection(unsigned int line)
+    unsigned int step_forward_selection(unsigned int line) const
     {
         while(!is_selectable(++line))
         {
@@ -262,7 +262,7 @@ class Nav
         return line;
     }
 
-    unsigned int step_back_selection(unsigned int line)
+    unsigned int step_back_selection(unsigned int line) const
     {
         while(!is_selectable(--line))
         {
