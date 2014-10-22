@@ -15520,3 +15520,253 @@
    fun:g_object_new
    fun:cut_backtrace_entry_new
 }
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:g_malloc
+   fun:g_strdup
+   fun:cut_set_cutter_command_path
+   fun:cut_init_environment
+   fun:cut_init
+   fun:main
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   obj:/lib/x86_64-linux-gnu/libglib-2.0.so.0.4000.0
+   obj:/lib/x86_64-linux-gnu/libglib-2.0.so.0.4000.0
+   fun:g_mutex_lock
+   fun:g_print
+   obj:/usr/lib/cutter/module/ui/console.so
+   obj:/usr/lib/cutter/module/ui/console.so
+   obj:/usr/lib/cutter/module/ui/console.so
+   fun:g_closure_invoke
+   obj:/usr/lib/x86_64-linux-gnu/libgobject-2.0.so.0.4000.0
+   fun:g_signal_emit_valist
+   fun:g_signal_emit_by_name
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:g_malloc
+   fun:g_strdup
+   fun:g_module_open
+   fun:cut_loader_load_test_cases
+   fun:cut_repository_create_test_suite
+   fun:cut_run_context_create_test_suite
+   fun:cut_run_context_get_test_suite
+   obj:/usr/lib/libcutter.so.0.1.0
+   fun:cut_runner_run
+   fun:cut_run_context_start
+   fun:cut_start_run_context
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:vasprintf
+   fun:asprintf
+   fun:dlerror
+   fun:g_module_symbol
+   fun:cut_loader_load_test_cases
+   fun:cut_repository_create_test_suite
+   fun:cut_run_context_create_test_suite
+   fun:cut_run_context_get_test_suite
+   obj:/usr/lib/libcutter.so.0.1.0
+   fun:cut_runner_run
+   fun:cut_run_context_start
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:g_malloc
+   fun:g_module_open
+   fun:cut_loader_load_test_cases
+   fun:cut_repository_create_test_suite
+   fun:cut_run_context_create_test_suite
+   fun:cut_run_context_get_test_suite
+   obj:/usr/lib/libcutter.so.0.1.0
+   fun:cut_runner_run
+   fun:cut_run_context_start
+   fun:cut_start_run_context
+   fun:cut_run
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:g_malloc
+   fun:g_strdup
+   fun:g_module_symbol
+   fun:cut_loader_load_test_cases
+   fun:cut_repository_create_test_suite
+   fun:cut_run_context_create_test_suite
+   fun:cut_run_context_get_test_suite
+   obj:/usr/lib/libcutter.so.0.1.0
+   fun:cut_runner_run
+   fun:cut_run_context_start
+   fun:cut_start_run_context
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:dl_open_worker
+   fun:_dl_catch_error
+   fun:_dl_open
+   fun:dlopen_doit
+   fun:_dl_catch_error
+   fun:_dlerror_run
+   fun:dlopen@@GLIBC_2.2.5
+   fun:g_module_open
+   fun:cut_loader_load_test_cases
+   fun:cut_repository_create_test_suite
+   fun:cut_run_context_create_test_suite
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:realloc
+   fun:_dl_new_object
+   fun:_dl_map_object_from_fd
+   fun:_dl_map_object
+   fun:dl_open_worker
+   fun:_dl_catch_error
+   fun:_dl_open
+   fun:dlopen_doit
+   fun:_dl_catch_error
+   fun:_dlerror_run
+   fun:dlopen@@GLIBC_2.2.5
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   obj:/lib/x86_64-linux-gnu/libglib-2.0.so.0.4000.0
+   obj:/lib/x86_64-linux-gnu/libglib-2.0.so.0.4000.0
+   fun:g_mutex_lock
+   fun:g_print
+   obj:/usr/lib/cutter/module/ui/console.so
+   obj:/usr/lib/cutter/module/ui/console.so
+   obj:/usr/lib/cutter/module/ui/console.so
+   fun:g_closure_invoke
+   obj:/usr/lib/x86_64-linux-gnu/libgobject-2.0.so.0.4000.0
+   fun:g_signal_emit_valist
+   fun:g_signal_emit_by_name
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:g_malloc
+   fun:g_strdup
+   fun:g_module_open
+   fun:cut_loader_load_test_cases
+   fun:cut_repository_create_test_suite
+   fun:cut_run_context_create_test_suite
+   fun:cut_run_context_get_test_suite
+   obj:/usr/lib/libcutter.so.0.1.0
+   fun:cut_runner_run
+   fun:cut_run_context_start
+   fun:cut_start_run_context
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:vasprintf
+   fun:asprintf
+   fun:dlerror
+   fun:g_module_symbol
+   fun:cut_loader_load_test_cases
+   fun:cut_repository_create_test_suite
+   fun:cut_run_context_create_test_suite
+   fun:cut_run_context_get_test_suite
+   obj:/usr/lib/libcutter.so.0.1.0
+   fun:cut_runner_run
+   fun:cut_run_context_start
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:g_malloc
+   fun:g_module_open
+   fun:cut_loader_load_test_cases
+   fun:cut_repository_create_test_suite
+   fun:cut_run_context_create_test_suite
+   fun:cut_run_context_get_test_suite
+   obj:/usr/lib/libcutter.so.0.1.0
+   fun:cut_runner_run
+   fun:cut_run_context_start
+   fun:cut_start_run_context
+   fun:cut_run
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:g_malloc
+   fun:g_strdup
+   fun:g_module_symbol
+   fun:cut_loader_load_test_cases
+   fun:cut_repository_create_test_suite
+   fun:cut_run_context_create_test_suite
+   fun:cut_run_context_get_test_suite
+   obj:/usr/lib/libcutter.so.0.1.0
+   fun:cut_runner_run
+   fun:cut_run_context_start
+   fun:cut_start_run_context
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:dl_open_worker
+   fun:_dl_catch_error
+   fun:_dl_open
+   fun:dlopen_doit
+   fun:_dl_catch_error
+   fun:_dlerror_run
+   fun:dlopen@@GLIBC_2.2.5
+   fun:g_module_open
+   fun:cut_loader_load_test_cases
+   fun:cut_repository_create_test_suite
+   fun:cut_run_context_create_test_suite
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:realloc
+   fun:_dl_new_object
+   fun:_dl_map_object_from_fd
+   fun:_dl_map_object
+   fun:dl_open_worker
+   fun:_dl_catch_error
+   fun:_dl_open
+   fun:dlopen_doit
+   fun:_dl_catch_error
+   fun:_dlerror_run
+   fun:dlopen@@GLIBC_2.2.5
+}
