@@ -66,7 +66,7 @@ void test_scroll_to_unselectable_line(void);
 
 static List::RamList *list;
 static const char *list_texts[] =
-    { "First", "Second", "Third", "Fourth", "Fifth", "Sixth", };
+    { "First", "Second", "Third", "Fourth", "Fifth", "Sixth", "Seventh", };
 
 template <size_t N>
 static void check_display(const List::RamList &l, const List::Nav &nav,
@@ -178,22 +178,22 @@ void test_cannot_move_beyond_last_line(void)
 {
     List::Nav nav(0, 0, list->get_number_of_items(), 3);
 
-    cut_assert_true(nav.down());
-    cut_assert_true(nav.down());
-    cut_assert_true(nav.down());
-    cut_assert_true(nav.down());
-    cut_assert_true(nav.down());
-    cppcut_assert_equal(5U, nav.get_cursor());
-    check_display(*list, nav, std::array<unsigned int, 3>({3, 4, 5}));
+    const unsigned int N = list->get_number_of_items() - 1;
+
+    for(unsigned int i = 0; i < N; ++i)
+        cut_assert_true(nav.down());
+
+    cppcut_assert_equal(N, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 3>({N - 2, N - 1, N}));
 
     cut_assert_false(nav.down());
-    cppcut_assert_equal(5U, nav.get_cursor());
-    check_display(*list, nav, std::array<unsigned int, 3>({3, 4, 5}));
+    cppcut_assert_equal(N, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 3>({N - 2, N - 1, N}));
 
     /* up works as expected, no persistent internal overflows */
     cut_assert_true(nav.up());
-    cppcut_assert_equal(4U, nav.get_cursor());
-    check_display(*list, nav, std::array<unsigned int, 3>({3, 4, 5}));
+    cppcut_assert_equal(N - 1, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 3>({N - 2, N - 1, N}));
 }
 
 void test_navigation_init_with_first_line_unselectable(void)
