@@ -1,5 +1,9 @@
 if WITH_CUTTER
-TESTS = run_test.sh valgrind.sh
+TESTS = run_test.sh
+
+if WITH_VALGRIND
+TESTS += valgrind.sh
+endif
 
 AM_TESTS_ENVIRONMENT = CUTTER="$(CUTTER)" XSLTPROC="$(XSLTPROC)" VALGRIND="$(VALGRIND)"
 
