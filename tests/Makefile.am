@@ -38,4 +38,5 @@ test_view_manager_la_LIBADD = ../libviews.la
 CLEANFILES = test_report.xml test_report_junit.xml
 
 EXTRA_DIST = cutter2junit.xslt
+EXTRA_DIST += cutter-1_2_4.supp cutter-children-1_2_4.supp
 endif
