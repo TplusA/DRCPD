@@ -89,6 +89,7 @@ class View: public ViewIface
     Data edit_settings_;
 
     List::RamList editable_menu_items_;
+    List::NavItemFilterIface &item_flags_;
     List::Nav navigation_;
 
   public:
@@ -96,10 +97,13 @@ class View: public ViewIface
 
     View &operator=(const View &) = delete;
 
-    explicit View(unsigned int max_lines):
+    explicit View(unsigned int max_lines, List::NavItemFilterIface &item_flags):
         ViewIface("Config"),
-        navigation_(1, 0, 7, max_lines)
-    {}
+        item_flags_(item_flags),
+        navigation_(max_lines, item_flags_)
+    {
+        item_flags_.tie(&editable_menu_items_);
+    }
 
     bool init() override;
 

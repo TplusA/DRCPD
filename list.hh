@@ -33,6 +33,10 @@ class Item
 
     virtual ~Item() {}
 
+    unsigned int get_flags() const
+    {
+        return flags_;
+    }
 };
 
 class TreeItem: virtual public Item

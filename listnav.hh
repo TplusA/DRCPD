@@ -1,6 +1,8 @@
 #ifndef LISTNAV_HH
 #define LISTNAV_HH
 
+#include "list.hh"
+
 /*!
  * \addtogroup list_navigation List navigation
  * \ingroup list
@@ -10,62 +12,175 @@
 namespace List
 {
 
+class NavItemFilterIface
+{
+  protected:
+    const List::ListIface *list_;
+
+    constexpr explicit NavItemFilterIface(const List::ListIface *list = nullptr):
+        list_(list)
+    {}
+
+  public:
+    NavItemFilterIface(const NavItemFilterIface &) = delete;
+    NavItemFilterIface &operator=(const NavItemFilterIface &) = delete;
+
+    virtual ~NavItemFilterIface() {}
+
+    virtual void tie(const List::ListIface *list) { list_ = list; }
+
+    virtual bool ensure_consistency() const = 0;
+
+    virtual bool is_visible(unsigned int flags) const = 0;
+    virtual bool is_selectable(unsigned int flags) const = 0;
+
+    virtual unsigned int get_first_selectable_line() const = 0;
+    virtual unsigned int get_last_selectable_line() const = 0;
+    virtual unsigned int get_first_visible_line() const = 0;
+    virtual unsigned int get_last_visible_line() const = 0;
+    virtual unsigned int get_flags_for_line(unsigned int line) const = 0;
+};
+
+class NavItemNoFilter: public NavItemFilterIface
+{
+  private:
+    unsigned int number_of_items_minus_1_;
+
+  public:
+    NavItemNoFilter(const NavItemNoFilter &) = delete;
+    NavItemNoFilter &operator=(const NavItemNoFilter &) = delete;
+
+    constexpr explicit NavItemNoFilter(unsigned int number_of_items):
+        NavItemFilterIface::NavItemFilterIface(nullptr),
+        number_of_items_minus_1_(number_of_items - 1)
+    {}
+
+    void tie(const List::ListIface *list) override
+    {
+        number_of_items_minus_1_ = list->get_number_of_items() - 1;
+    }
+
+    bool ensure_consistency() const override { return false; }
+    bool is_visible(unsigned int flags) const override { return true; }
+    bool is_selectable(unsigned int flags) const override { return true; }
+    unsigned int get_first_selectable_line() const override { return 0; }
+    unsigned int get_last_selectable_line() const override { return number_of_items_minus_1_; }
+    unsigned int get_first_visible_line() const override { return 0; }
+    unsigned int get_last_visible_line() const override { return number_of_items_minus_1_; }
+    unsigned int get_flags_for_line(unsigned int line) const override { return 0; }
+};
+
 class Nav
 {
   private:
-    Nav(const Nav &);
-    Nav &operator=(const Nav &);
-
+    /*!
+     * The currently selected item number in the underlying list.
+     */
     unsigned int cursor_;
-    unsigned int first_displayed_line_;
 
-    const unsigned int first_selectable_line_;
-    const unsigned int number_of_lines_;
+    /*!
+     * The item number displayed in the first line.
+     */
+    unsigned int first_displayed_item_;
+
+    /*!
+     * Currently selected line number as is visible on the display.
+     */
+    unsigned int selected_line_number_;
+
     const unsigned int maximum_number_of_displayed_lines_;
+    const NavItemFilterIface &item_filter_;
 
   public:
-    constexpr explicit Nav(unsigned int first_selectable_line,
-                           unsigned int first_line_on_display,
-                           unsigned int number_of_lines,
-                           unsigned int max_display_lines):
-        cursor_(first_selectable_line),
-        first_displayed_line_(first_line_on_display),
-        first_selectable_line_(first_selectable_line),
-        number_of_lines_(number_of_lines),
-        maximum_number_of_displayed_lines_(max_display_lines)
+    Nav(const Nav &) = delete;
+    Nav &operator=(const Nav &) = delete;
+
+    explicit Nav(unsigned int max_display_lines,
+                 const NavItemFilterIface &item_filter):
+        cursor_(0),
+        first_displayed_item_(0),
+        selected_line_number_(0),
+        maximum_number_of_displayed_lines_(max_display_lines),
+        item_filter_(item_filter)
     {}
 
     bool down()
     {
-        if(cursor_ >= number_of_lines_ - 1)
+        const bool full_update_required = item_filter_.ensure_consistency();
+
+        if(full_update_required && !is_selectable(cursor_))
+            recover_cursor_and_selection();
+
+        const bool moved = (cursor_ < item_filter_.get_last_selectable_line());
+
+        if(!moved && !full_update_required)
             return false;
 
-        ++cursor_;
+        if(moved)
+        {
+            cursor_ = step_forward_selection(cursor_);
 
-        if(cursor_ + 1 - first_displayed_line_ > maximum_number_of_displayed_lines_)
-            first_displayed_line_ = cursor_ + 1 - maximum_number_of_displayed_lines_;
+            if(selected_line_number_ < maximum_number_of_displayed_lines_ - 1)
+                ++selected_line_number_;
+        }
 
-        return true;
+        if(cursor_ == item_filter_.get_last_selectable_line())
+            selected_line_number_ -=
+                item_filter_.get_last_visible_line() - item_filter_.get_last_selectable_line();
 
+        first_displayed_item_ = cursor_;
+
+        for(unsigned int line = 0;
+            line < selected_line_number_ && first_displayed_item_ > item_filter_.get_first_visible_line();
+            ++line)
+        {
+            first_displayed_item_ = step_back_visible(first_displayed_item_);
+        }
+
+        return moved;
     }
 
     bool up()
     {
-        if(cursor_ <= first_selectable_line_)
+        const bool full_update_required = item_filter_.ensure_consistency();
+
+        if(full_update_required && !is_selectable(cursor_))
+            recover_cursor_and_selection();
+
+        const bool moved = (cursor_ > item_filter_.get_first_selectable_line());
+
+        if(!moved && !full_update_required)
             return false;
 
-        --cursor_;
+        if(moved)
+        {
+            cursor_ = step_back_selection(cursor_);
 
-        if(cursor_ == first_selectable_line_)
-            first_displayed_line_ = 0;
-        else if(cursor_ < first_displayed_line_)
-            first_displayed_line_ = cursor_;
+            if(selected_line_number_ > 0)
+                --selected_line_number_;
+        }
 
-        return true;
+        if(cursor_ == item_filter_.get_first_selectable_line())
+            selected_line_number_ +=
+                item_filter_.get_first_selectable_line() - item_filter_.get_first_visible_line();
+
+        first_displayed_item_ = cursor_;
+
+        for(unsigned int line = 0;
+            line < selected_line_number_ && first_displayed_item_ > item_filter_.get_first_visible_line();
+            ++line)
+        {
+            first_displayed_item_ = step_back_visible(first_displayed_item_);
+        }
+
+        return moved;
     }
 
-    unsigned int get_cursor() const
+    unsigned int get_cursor()
     {
+        if(item_filter_.ensure_consistency() && !is_selectable(cursor_))
+            cursor_ = item_filter_.get_first_selectable_line();
+
         return cursor_;
     }
 
@@ -74,47 +189,120 @@ class Nav
       private:
         const_iterator &operator=(const const_iterator &);
 
-        unsigned int line_;
+        const Nav &nav_;
+        unsigned int item_;
+        unsigned int line_number_;
 
       public:
-        explicit const_iterator(unsigned int line): line_(line) {}
+        explicit const_iterator(const Nav &nav, unsigned int item,
+                                unsigned int line_number = 0):
+            nav_(nav),
+            item_(item),
+            line_number_(line_number)
+        {}
 
         unsigned int operator*() const
         {
-            return line_;
+            return item_;
         }
 
         const_iterator &operator++()
         {
-            ++line_;
+            if(line_number_ >= nav_.maximum_number_of_displayed_lines_)
+                return *this;
+
+            const unsigned int last = nav_.item_filter_.get_last_visible_line();
+
+            if(item_ < last)
+            {
+                item_ = nav_.step_forward_visible(item_);
+                ++line_number_;
+            }
+            else
+                line_number_ = nav_.maximum_number_of_displayed_lines_;
+
             return *this;
         }
 
         bool operator!=(const const_iterator &other) const
         {
-            return line_ != other.line_;
+            return line_number_ != other.line_number_;
         }
     };
 
     const_iterator begin() const
     {
-        return const_iterator(first_displayed_line_);
+        return const_iterator(*this, first_displayed_item_);
     }
 
     const_iterator end() const
     {
-        return const_iterator(get_last_line());
+        return const_iterator(*this, first_displayed_item_,
+                              maximum_number_of_displayed_lines_);
     }
 
   private:
-    constexpr unsigned int get_last_line() const
+    bool is_visible(unsigned int line) const
     {
-        /* no, we cannot use std::min() because then we cannot use constexpr
-         * anymore */
-        return 
-            (first_displayed_line_ + maximum_number_of_displayed_lines_ < number_of_lines_)
-            ? first_displayed_line_ + maximum_number_of_displayed_lines_
-            : number_of_lines_;
+        return item_filter_.is_visible(item_filter_.get_flags_for_line(line));
+    }
+
+    bool is_selectable(unsigned int line) const
+    {
+        return item_filter_.is_selectable(item_filter_.get_flags_for_line(line));
+    }
+
+    unsigned int step_forward_selection(unsigned int line)
+    {
+        while(!is_selectable(++line))
+        {
+            /* nothing */
+        }
+
+        return line;
+    }
+
+    unsigned int step_back_selection(unsigned int line)
+    {
+        while(!is_selectable(--line))
+        {
+            /* nothing */
+        }
+
+        return line;
+    }
+
+    unsigned int step_back_visible(unsigned int line) const
+    {
+        while(!is_visible(--line))
+        {
+            /* nothing */
+        }
+
+        return line;
+    }
+
+    unsigned int step_forward_visible(unsigned int line) const
+    {
+        while(!is_visible(++line))
+        {
+            /* nothing */
+        }
+
+        return line;
+    }
+
+    void recover_cursor_and_selection()
+    {
+        cursor_ = item_filter_.get_first_selectable_line();
+        selected_line_number_ = 0;
+
+        for(unsigned int line = item_filter_.get_first_visible_line();
+            line < cursor_ && selected_line_number_ < maximum_number_of_displayed_lines_;
+            line = step_forward_visible(line))
+        {
+            ++selected_line_number_;
+        }
     }
 };
 
