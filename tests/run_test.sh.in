@@ -3,7 +3,6 @@
 $CUTTER \
     --source-directory="@srcdir@" \
     --xml-report=test_report.xml \
-    --keep-opening-modules \
     "$@" .
 
 RET=$?

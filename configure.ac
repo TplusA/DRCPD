@@ -35,6 +35,7 @@ AC_CHECK_PROGS([GDBUS_CODEGEN], [gdbus-codegen])
 AC_CHECK_PROGS([DPKG_BUILDPACKAGE], [dpkg-buildpackage])
 AC_CHECK_PROGS([DPKG_ARCHITECTURE], [dpkg-architecture])
 AC_CHECK_PROGS([XSLTPROC], [xsltproc])
+AC_CHECK_PROGS([VALGRIND], [valgrind])
 AC_CHECK_CUTTER
 AC_CHECK_CPPCUTTER
 AC_CHECK_GCUTTER
@@ -87,4 +88,5 @@ AM_CONDITIONAL([CAN_BUILD_DEBIAN_PACKAGE], [test "x$ac_cv_prog_DPKG_BUILDPACKAGE
 AC_CONFIG_FILES([Makefile tests/Makefile po/Makefile.in Doxyfile])
 AC_CONFIG_FILES([debian/control])
 AC_CONFIG_FILES([tests/run_test.sh], [chmod +x tests/run_test.sh])
+AC_CONFIG_FILES([tests/valgrind.sh], [chmod +x tests/valgrind.sh])
 AC_OUTPUT
