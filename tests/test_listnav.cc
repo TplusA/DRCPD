@@ -321,6 +321,106 @@ void test_cannot_move_beyond_last_line(void)
     check_display(*list, nav, std::array<unsigned int, 3>({N - 2, N - 1, N}));
 }
 
+/*!\test
+ * The iterator defined for unfiltered List::Nav iterates over the currently
+ * shown lines, where the currently shown lines here are the first few items
+ * stored in the list.
+ */
+void test_const_iterator_steps_through_visible_lines_from_first(void)
+{
+    List::NavItemNoFilter no_filter(list->get_number_of_items());
+    List::Nav nav(3, no_filter);
+
+    unsigned int expected_current_line = 0;
+
+    for(auto it : nav)
+    {
+        cppcut_assert_equal(expected_current_line, it);
+        ++expected_current_line;
+    }
+
+    cppcut_assert_equal(3U, expected_current_line);
+}
+
+/*!\test
+ * The iterator defined for unfiltered List::Nav iterates over the currently
+ * shown lines in a scrolled list.
+ */
+void test_const_iterator_steps_through_visible_lines_scrolled_down(void)
+{
+    List::NavItemNoFilter no_filter(list->get_number_of_items());
+    List::Nav nav(3, no_filter);
+
+    /* move some steps down */
+    for(int i = 0; i < 4; ++i)
+        cut_assert_true(nav.down());
+
+    /* select middle item */
+    cut_assert_true(nav.up());
+
+    cppcut_assert_equal(3U, nav.get_cursor());
+
+    unsigned int expected_current_line = 2;
+
+    for(auto it : nav)
+    {
+        cppcut_assert_equal(expected_current_line, it);
+        ++expected_current_line;
+    }
+
+    cppcut_assert_equal(5U, expected_current_line);
+}
+
+/*!\test
+ * The iterator defined for unfiltered List::Nav iterates over the currently
+ * shown lines in a list scrolled down all way down
+ */
+void test_const_iterator_steps_through_visible_lines_at_end_of_list(void)
+{
+    List::NavItemNoFilter no_filter(list->get_number_of_items());
+    List::Nav nav(3, no_filter);
+
+    while(nav.down())
+    {
+        /* nothing */
+    }
+
+    cppcut_assert_equal(list->get_number_of_items() - 1, nav.get_cursor());
+
+    unsigned int expected_current_line = list->get_number_of_items() - 3;
+
+    for(auto it : nav)
+    {
+        cppcut_assert_equal(expected_current_line, it);
+        ++expected_current_line;
+    }
+
+    cppcut_assert_equal(list->get_number_of_items(), expected_current_line);
+}
+
+/*!\test
+ * The iterator defined for unfiltered List::Nav does not get confused if there
+ * are fewer visible items than the maximum number of lines on the display.
+ */
+void test_const_iterator_steps_through_visible_lines_on_big_display(void)
+{
+    List::NavItemNoFilter no_filter(list->get_number_of_items());
+    List::Nav nav(50, no_filter);
+
+    cppcut_assert_operator(list->get_number_of_items(), <=, 50U,
+                           cut_message("This test cannot work with so many items. Please fix the test."));
+
+    unsigned int expected_current_line = 0;
+
+    for(auto it : nav)
+    {
+        cppcut_assert_equal(expected_current_line, it);
+        ++expected_current_line;
+    }
+
+    cppcut_assert_equal(list->get_number_of_items(), expected_current_line);
+}
+
 };
 
 
