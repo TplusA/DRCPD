@@ -14,104 +14,6 @@
  */
 /*!@{*/
 
-namespace view_manager_tests
-{
-
-/*!\test
- * Attempt to add nothingness to the views is handled and leads to failure.
- */
-void test_add_nullptr_view_fails(void);
-
-/*!\test
- * Attempt to add a NOP view is rejected and leads to failure.
- */
-void test_add_nop_view_fails(void);
-
-/*!\test
- * Adding a regular view to a fresh view manager works.
- */
-void test_add_view(void);
-
-/*!\test
- * Attempt to add views with the same name only works for the first attempt.
- */
-void test_add_views_with_same_name_fails(void);
-
-/*!\test
- * Adding a regular view to a fresh view manager and activating it works.
- */
-void test_add_view_and_activate(void);
-
-};
-
-namespace view_manager_tests_multiple_views
-{
-
-/*!\test
- * Activating an active view does not disturb the view.
- */
-void test_reactivate_active_view_does_nothing(void);
-
-/*!\test
- * Activating a view with unknown name does not disturb the view.
- */
-void test_activate_nonexistent_view_does_nothing(void);
-
-/*!\test
- * Activating the NOP view does not disturb the view.
- */
-void test_activate_nop_view_does_nothing(void);
-
-/*!\test
- * Activating a view takes the focus from one view and gives it to the other.
- */
-void test_activate_different_view(void);
-
-/*!\test
- * Command sent to view manager is sent to the active view, the view tells that
- * there is nothing to do.
- */
-void test_input_command_with_no_need_to_refresh(void);
-
-/*!\test
- * Commands sent to view manager is sent to the active view, the view tells
- * that the display content needs be updated.
- */
-void test_input_command_with_need_to_refresh(void);
-
-/*!\test
- * Commands sent to view manager is sent to the active view, the view tells
- * that it should be removed from screen.
- */
-void test_input_command_with_need_to_hide_view(void);
-
-/*!\test
- * Toggle between two named views with recognized, different names.
- */
-void test_toggle_two_views(void);
-
-/*!\test
- * Toggle requests between views with the same known name have no effect,
- * except initial switching.
- */
-void test_toggle_views_with_same_names_switches_once(void);
-
-/*!\test
- * Toggle requests between two views with an unknown and a known name switch to
- * the known name, nothing more.
- */
-void test_toggle_views_with_one_unknown_name_switches_to_the_known_name(void);
-
-/*!\test
- * Toggle requests between two views with unknown names have no effect.
- */
-void test_toggle_views_with_two_unknown_names_does_nothing(void);
-
-};
-
-/*!@}*/
-
-
 static void clear_ostream(std::ostringstream &ss)
 {
     ss.str("");
@@ -151,11 +53,17 @@ void cut_teardown(void)
     delete vm;
 }
 
+/*!\test
+ * Attempt to add nothingness to the views is handled and leads to failure.
+ */
 void test_add_nullptr_view_fails(void)
 {
     cut_assert_false(vm->add_view(nullptr));
 }
 
+/*!\test
+ * Attempt to add a NOP view is rejected and leads to failure.
+ */
 void test_add_nop_view_fails(void)
 {
     ViewNop::View view;
@@ -164,6 +72,9 @@ void test_add_nop_view_fails(void)
     cut_assert_false(vm->add_view(&view));
 }
 
+/*!\test
+ * Adding a regular view to a fresh view manager works.
+ */
 void test_add_view(void)
 {
     ViewMock::View view(standard_mock_view_name);
@@ -173,6 +84,9 @@ void test_add_view(void)
     view.check();
 }
 
+/*!\test
+ * Attempt to add views with the same name only works for the first attempt.
+ */
 void test_add_views_with_same_name_fails(void)
 {
     ViewMock::View view(standard_mock_view_name);
@@ -183,6 +97,9 @@ void test_add_views_with_same_name_fails(void)
     view.check();
 }
 
+/*!\test
+ * Adding a regular view to a fresh view manager and activating it works.
+ */
 void test_add_view_and_activate(void)
 {
     ViewMock::View view(standard_mock_view_name);
@@ -268,24 +185,36 @@ void cut_teardown(void)
         delete view;
 }
 
+/*!\test
+ * Activating an active view does not disturb the view.
+ */
 void test_reactivate_active_view_does_nothing(void)
 {
     mock_messages.expect_msg_info_formatted("Requested to activate view \"First\"");
     vm->activate_view_by_name("First");
 }
 
+/*!\test
+ * Activating a view with unknown name does not disturb the view.
+ */
 void test_activate_nonexistent_view_does_nothing(void)
 {
     mock_messages.expect_msg_info_formatted("Requested to activate view \"DoesNotExist\"");
     vm->activate_view_by_name("DoesNotExist");
 }
 
+/*!\test
+ * Activating the NOP view does not disturb the view.
+ */
 void test_activate_nop_view_does_nothing(void)
 {
     mock_messages.expect_msg_info_formatted("Requested to activate view \"#NOP\"");
     vm->activate_view_by_name("#NOP");
 }
 
+/*!\test
+ * Activating a view takes the focus from one view and gives it to the other.
+ */
 void test_activate_different_view(void)
 {
     mock_messages.expect_msg_info_formatted("Requested to activate view \"Second\"");
@@ -300,6 +229,10 @@ void test_activate_different_view(void)
     check_and_clear_ostream("Second serialize\n", views_output);
 }
 
+/*!\test
+ * Command sent to view manager is sent to the active view, the view tells that
+ * there is nothing to do.
+ */
 void test_input_command_with_no_need_to_refresh(void)
 {
     mock_messages.expect_msg_info("Dispatching DRCP command %d");
@@ -308,6 +241,10 @@ void test_input_command_with_no_need_to_refresh(void)
     vm->input(DrcpCommand::PLAYBACK_START);
 }
 
+/*!\test
+ * Commands sent to view manager is sent to the active view, the view tells
+ * that the display content needs be updated.
+ */
 void test_input_command_with_need_to_refresh(void)
 {
     mock_messages.expect_msg_info("Dispatching DRCP command %d");
@@ -319,6 +256,10 @@ void test_input_command_with_need_to_refresh(void)
     check_and_clear_ostream("First update\n", views_output);
 }
 
+/*!\test
+ * Commands sent to view manager is sent to the active view, the view tells
+ * that it should be removed from screen.
+ */
 void test_input_command_with_need_to_hide_view(void)
 {
     mock_messages.expect_msg_info("Dispatching DRCP command %d");
@@ -328,6 +269,9 @@ void test_input_command_with_need_to_hide_view(void)
     vm->input(DrcpCommand::PLAYBACK_START);
 }
 
+/*!\test
+ * Toggle between two named views with recognized, different names.
+ */
 void test_toggle_two_views(void)
 {
     mock_messages.expect_msg_info_formatted("Requested to toggle between views \"Second\" and \"Third\"");
@@ -353,6 +297,10 @@ void test_toggle_two_views(void)
     check_and_clear_ostream("Second serialize\n", views_output);
 }
 
+/*!\test
+ * Toggle requests between views with the same known name have no effect,
+ * except initial switching.
+ */
 void test_toggle_views_with_same_names_switches_once(void)
 {
     mock_messages.expect_msg_info_formatted("Requested to toggle between views \"Fourth\" and \"Fourth\"");
@@ -366,6 +314,10 @@ void test_toggle_views_with_same_names_switches_once(void)
     vm->toggle_views_by_name("Fourth", "Fourth");
 }
 
+/*!\test
+ * Toggle requests between two views with an unknown and a known name switch to
+ * the known name, nothing more.
+ */
 void test_toggle_views_with_one_unknown_name_switches_to_the_known_name(void)
 {
     mock_messages.expect_msg_info_formatted("Requested to toggle between views \"Third\" and \"Foo\"");
@@ -382,6 +334,9 @@ void test_toggle_views_with_one_unknown_name_switches_to_the_known_name(void)
     vm->toggle_views_by_name("Third", "Foo");
 }
 
+/*!\test
+ * Toggle requests between two views with unknown names have no effect.
+ */
 void test_toggle_views_with_two_unknown_names_does_nothing(void)
 {
     mock_messages.expect_msg_info_formatted("Requested to toggle between views \"Foo\" and \"Bar\"");
@@ -392,3 +347,5 @@ void test_toggle_views_with_two_unknown_names_does_nothing(void)
 }
 
 };
+
+/*!@}*/

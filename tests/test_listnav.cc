@@ -11,65 +11,6 @@
  */
 /*!@{*/
 
-namespace list_navigation_tests
-{
-
-/*!\test
- * Navigation should start in first line, with first line displayed first.
- */
-void test_simple_navigation_init(void);
-
-/*!\test
- * Navigation in visible lines does not change number of first line.
- */
-void test_move_down_and_up_within_displayed_lines(void);
-
-/*!\test
- * Moving beyond displayed lines scrolls the list.
- */
-void test_move_down_and_up_with_scrolling(void);
-
-/*!\test
- * We cannot select negative lines.
- */
-void test_cannot_move_before_first_line(void);
-
-/*!\test
- * We cannot select lines beyond the last one.
- */
-void test_cannot_move_beyond_last_line(void);
-
-};
-
-namespace list_navigation_tests_with_unselectable_items
-{
-
-/*!\test
- * Navigation should start in third line, with first two lines displayed first.
- */
-void test_navigation_init_with_first_lines_unselectable(void);
-
-/*!\test
- * First two lines are unselectable, so we cannot select them.
-*/
-void test_cannot_select_unselectable_first_lines(void);
-
-/*!\test
- * First two lines are unselectable, but they must become visible when
- * scrolling up.
-*/
-void test_scroll_to_unselectable_first_lines(void);
-
-/*!\test
- * Last line is unselectable, but it must become visible when scrolling down.
-*/
-void test_scroll_to_unselectable_last_line(void);
-
-};
-
-/*!@}*/
-
-
 class NavItemFlags: public List::NavItemFilterIface
 {
   public:
@@ -272,6 +213,9 @@ void cut_teardown(void)
     list = nullptr;
 }
 
+/*!\test
+ * Navigation should start in first line, with first line displayed first.
+ */
 void test_simple_navigation_init(void)
 {
     List::NavItemNoFilter no_filter(list->get_number_of_items());
@@ -281,6 +225,9 @@ void test_simple_navigation_init(void)
     check_display(*list, nav, std::array<unsigned int, 3>({0, 1, 2}));
 }
 
+/*!\test
+ * Navigation in visible lines does not change number of first line.
+ */
 void test_move_down_and_up_within_displayed_lines(void)
 {
     List::NavItemNoFilter no_filter(list->get_number_of_items());
@@ -297,6 +244,9 @@ void test_move_down_and_up_within_displayed_lines(void)
     check_display(*list, nav, std::array<unsigned int, 3>({0, 1, 2}));
 }
 
+/*!\test
+ * Moving beyond displayed lines scrolls the list.
+ */
 void test_move_down_and_up_with_scrolling(void)
 {
     List::NavItemNoFilter no_filter(list->get_number_of_items());
@@ -327,6 +277,9 @@ void test_move_down_and_up_with_scrolling(void)
     check_display(*list, nav, std::array<unsigned int, 2>({0, 1}));
 }
 
+/*!\test
+ * We cannot select negative lines.
+ */
 void test_cannot_move_before_first_line(void)
 {
     List::NavItemNoFilter no_filter(list->get_number_of_items());
@@ -342,6 +295,9 @@ void test_cannot_move_before_first_line(void)
     check_display(*list, nav, std::array<unsigned int, 2>({0, 1}));
 }
 
+/*!\test
+ * We cannot select lines beyond the last one.
+ */
 void test_cannot_move_beyond_last_line(void)
 {
     List::NavItemNoFilter no_filter(list->get_number_of_items());
@@ -400,6 +356,9 @@ void cut_teardown(void)
     list = nullptr;
 }
 
+/*!\test
+ * Navigation should start in third line, with first two lines displayed first.
+ */
 void test_navigation_init_with_first_lines_unselectable(void)
 {
     NavItemFlags flags(*list);
@@ -411,6 +370,9 @@ void test_navigation_init_with_first_lines_unselectable(void)
     check_display(*list, nav, std::array<unsigned int, 4>({0, 1, 2, 3}));
 }
 
+/*!\test
+ * First two lines are unselectable, so we cannot select them.
+ */
 void test_cannot_select_unselectable_first_lines(void)
 {
     NavItemFlags flags(*list);
@@ -428,6 +390,10 @@ void test_cannot_select_unselectable_first_lines(void)
     check_display(*list, nav, std::array<unsigned int, 4>({0, 1, 2, 3}));
 }
 
+/*!\test
+ * First two lines are unselectable, but they must become visible when
+ * scrolling up.
+ */
 void test_scroll_to_unselectable_first_lines(void)
 {
     NavItemFlags flags(*list);
@@ -457,6 +423,9 @@ void test_scroll_to_unselectable_first_lines(void)
     check_display(*list, nav, std::array<unsigned int, 4>({0, 1, 2, 3}));
 }
 
+/*!\test
+ * Last line is unselectable, but it must become visible when scrolling down.
+ */
 void test_scroll_to_unselectable_last_line(void)
 {
     NavItemFlags flags(*list);
@@ -483,3 +452,5 @@ void test_scroll_to_unselectable_last_line(void)
 }
 
 };
+
+/*!@}*/

@@ -16,89 +16,6 @@
 namespace dbus_handlers_tests
 {
 
-/*!\test
- * Check if de.tahifi.Dcpd.Playback.Start is handled correctly.
- */
-void test_dcpd_playback_start(void);
-
-/*!\test
- * Check if de.tahifi.Dcpd.Playback.Stop is handled correctly.
- */
-void test_dcpd_playback_stop(void);
-
-/*!\test
- * Check if de.tahifi.Dcpd.Playback.Pause is handled correctly.
- */
-void test_dcpd_playback_pause(void);
-
-/*!\test
- * Check if de.tahifi.Dcpd.Playback.Next is handled correctly.
- */
-void test_dcpd_playback_next(void);
-
-/*!\test
- * Check if de.tahifi.Dcpd.Playback.Previous is handled correctly.
- */
-void test_dcpd_playback_previous(void);
-
-/*!\test
- * Check if de.tahifi.Dcpd.Playback.FastForward is handled correctly.
- */
-void test_dcpd_playback_fast_forward(void);
-
-/*!\test
- * Check if de.tahifi.Dcpd.Playback.FastRewind is handled correctly.
- */
-void test_dcpd_playback_fast_rewind(void);
-
-/*!\test
- * Check if de.tahifi.Dcpd.Playback.FastWindStop is handled correctly.
- */
-void test_dcpd_playback_fast_wind_stop(void);
-
-/*!\test
- * Check if de.tahifi.Dcpd.Playback.FastWindSetFactor is handled correctly.
- */
-void test_dcpd_playback_fast_wind_set_factor(void);
-
-/*!\test
- * Check if de.tahifi.Dcpd.Playback.RepeatModeToggle is handled correctly.
- */
-void test_dcpd_playback_repeat_mode_toggle(void);
-
-/*!\test
- * Check if de.tahifi.Dcpd.Playback.ShuffleModeToggle is handled correctly.
- */
-void test_dcpd_playback_shuffle_mode_toggle(void);
-
-/*!\test
- * Check if unknown signals on de.tahifi.Dcpd.Playback are handled correctly.
- */
-void test_dcpd_playback_unknown_signal_name(void);
-
-/*!\test
- * Check if de.tahifi.Dcpd.Views.Open is handled correctly.
- */
-void test_dcpd_views_open(void);
-
-/*!\test
- * Check if de.tahifi.Dcpd.Views.Toggle is handled correctly.
- */
-void test_dcpd_views_toggle(void);
-
-/*!\test
- * Check if unknown signals on de.tahifi.Dcpd.Views are handled correctly.
- */
-void test_dcpd_views_unknown_signal_name(void);
-
-};
-
-/*!@}*/
-
-
-namespace dbus_handlers_tests
-{
-
 static MockMessages mock_messages;
 static MockViewManager mock_view_manager;
 
@@ -121,6 +38,9 @@ void cut_teardown(void)
     mock_view_manager.check();
 }
 
+/*!\test
+ * Check if de.tahifi.Dcpd.Playback.Start is handled correctly.
+ */
 void test_dcpd_playback_start(void)
 {
     mock_messages.expect_msg_info_formatted("de.tahifi.Dcpd.Playback signal from ':1.123': Start");
@@ -129,6 +49,9 @@ void test_dcpd_playback_start(void)
                              "Start", nullptr, &mock_view_manager);
 }
 
+/*!\test
+ * Check if de.tahifi.Dcpd.Playback.Stop is handled correctly.
+ */
 void test_dcpd_playback_stop(void)
 {
     mock_messages.expect_msg_info_formatted("de.tahifi.Dcpd.Playback signal from ':1.123': Stop");
@@ -137,6 +60,9 @@ void test_dcpd_playback_stop(void)
                              "Stop", nullptr, &mock_view_manager);
 }
 
+/*!\test
+ * Check if de.tahifi.Dcpd.Playback.Pause is handled correctly.
+ */
 void test_dcpd_playback_pause(void)
 {
     mock_messages.expect_msg_info_formatted("de.tahifi.Dcpd.Playback signal from ':1.123': Pause");
@@ -145,6 +71,9 @@ void test_dcpd_playback_pause(void)
                              "Pause", nullptr, &mock_view_manager);
 }
 
+/*!\test
+ * Check if de.tahifi.Dcpd.Playback.Next is handled correctly.
+ */
 void test_dcpd_playback_next(void)
 {
     mock_messages.expect_msg_info_formatted("de.tahifi.Dcpd.Playback signal from ':1.123': Next");
@@ -153,6 +82,9 @@ void test_dcpd_playback_next(void)
                              "Next", nullptr, &mock_view_manager);
 }
 
+/*!\test
+ * Check if de.tahifi.Dcpd.Playback.Previous is handled correctly.
+ */
 void test_dcpd_playback_previous(void)
 {
     mock_messages.expect_msg_info_formatted("de.tahifi.Dcpd.Playback signal from ':1.123': Previous");
@@ -161,6 +93,9 @@ void test_dcpd_playback_previous(void)
                              "Previous", nullptr, &mock_view_manager);
 }
 
+/*!\test
+ * Check if de.tahifi.Dcpd.Playback.FastForward is handled correctly.
+ */
 void test_dcpd_playback_fast_forward(void)
 {
     mock_messages.expect_msg_info_formatted("de.tahifi.Dcpd.Playback signal from ':1.123': FastForward");
@@ -169,6 +104,9 @@ void test_dcpd_playback_fast_forward(void)
                              "FastForward", nullptr, &mock_view_manager);
 }
 
+/*!\test
+ * Check if de.tahifi.Dcpd.Playback.FastRewind is handled correctly.
+ */
 void test_dcpd_playback_fast_rewind(void)
 {
     mock_messages.expect_msg_info_formatted("de.tahifi.Dcpd.Playback signal from ':1.123': FastRewind");
@@ -177,6 +115,9 @@ void test_dcpd_playback_fast_rewind(void)
                              "FastRewind", nullptr, &mock_view_manager);
 }
 
+/*!\test
+ * Check if de.tahifi.Dcpd.Playback.FastWindStop is handled correctly.
+ */
 void test_dcpd_playback_fast_wind_stop(void)
 {
     mock_messages.expect_msg_info_formatted("de.tahifi.Dcpd.Playback signal from ':1.123': FastWindStop");
@@ -185,6 +126,9 @@ void test_dcpd_playback_fast_wind_stop(void)
                              "FastWindStop", nullptr, &mock_view_manager);
 }
 
+/*!\test
+ * Check if de.tahifi.Dcpd.Playback.FastWindSetFactor is handled correctly.
+ */
 void test_dcpd_playback_fast_wind_set_factor(void)
 {
     mock_messages.expect_msg_info_formatted("de.tahifi.Dcpd.Playback signal from ':1.123': FastWindSetFactor");
@@ -201,6 +145,9 @@ void test_dcpd_playback_fast_wind_set_factor(void)
     g_variant_unref(factor);
 }
 
+/*!\test
+ * Check if de.tahifi.Dcpd.Playback.RepeatModeToggle is handled correctly.
+ */
 void test_dcpd_playback_repeat_mode_toggle(void)
 {
     mock_messages.expect_msg_info_formatted("de.tahifi.Dcpd.Playback signal from ':1.123': RepeatModeToggle");
@@ -209,6 +156,9 @@ void test_dcpd_playback_repeat_mode_toggle(void)
                              "RepeatModeToggle", nullptr, &mock_view_manager);
 }
 
+/*!\test
+ * Check if de.tahifi.Dcpd.Playback.ShuffleModeToggle is handled correctly.
+ */
 void test_dcpd_playback_shuffle_mode_toggle(void)
 {
     mock_messages.expect_msg_info_formatted("de.tahifi.Dcpd.Playback signal from ':1.123': ShuffleModeToggle");
@@ -217,6 +167,9 @@ void test_dcpd_playback_shuffle_mode_toggle(void)
                              "ShuffleModeToggle", nullptr, &mock_view_manager);
 }
 
+/*!\test
+ * Check if unknown signals on de.tahifi.Dcpd.Playback are handled correctly.
+ */
 void test_dcpd_playback_unknown_signal_name(void)
 {
     mock_messages.expect_msg_info_formatted("de.tahifi.Dcpd.Playback signal from ':1.123': UnsupportedSignalName");
@@ -226,6 +179,9 @@ void test_dcpd_playback_unknown_signal_name(void)
                              "UnsupportedSignalName", nullptr, &mock_view_manager);
 }
 
+/*!\test
+ * Check if de.tahifi.Dcpd.Views.Open is handled correctly.
+ */
 void test_dcpd_views_open(void)
 {
     mock_messages.expect_msg_info_formatted("de.tahifi.Dcpd.Views signal from ':1.123': Open");
@@ -242,6 +198,9 @@ void test_dcpd_views_open(void)
     g_variant_unref(view_name);
 }
 
+/*!\test
+ * Check if de.tahifi.Dcpd.Views.Toggle is handled correctly.
+ */
 void test_dcpd_views_toggle(void)
 {
     mock_messages.expect_msg_info_formatted("de.tahifi.Dcpd.Views signal from ':1.123': Toggle");
@@ -259,6 +218,9 @@ void test_dcpd_views_toggle(void)
     g_variant_unref(view_names);
 }
 
+/*!\test
+ * Check if unknown signals on de.tahifi.Dcpd.Views are handled correctly.
+ */
 void test_dcpd_views_unknown_signal_name(void)
 {
     mock_messages.expect_msg_info_formatted("de.tahifi.Dcpd.Views signal from ':1.123': UnsupportedSignalName");
@@ -269,3 +231,5 @@ void test_dcpd_views_unknown_signal_name(void)
 }
 
 };
+
+/*!@}*/

@@ -13,51 +13,6 @@
 namespace ram_list_tests
 {
 
-/*!\test
- * After initialization, the list shall be empty.
- */
-void test_list_is_empty_on_startup(void);
-
-/*!\test
- * Appending a single item to an empty RAM-based list works.
- */
-void test_add_single_list_item(void);
-
-/*!\test
- * Appending a few items to an empty RAM-based list works.
- */
-void test_add_multiple_list_item(void);
-
-/*!\test
- * Trying to descend into a non-existent sub-list returns a null pointer.
- */
-void test_move_down_hierarchy_without_child_list_returns_null_list(void);
-
-/*!\test
- * Trying to ascend to non-existent parent list returns the current list.
- */
-void test_move_up_hierarchy_without_parent_list_returns_self(void);
-
-/*!\test
- * It is possible to move to a sub-list referenced by a list item of another
- * list.
- */
-void test_up_and_down_one_level_of_hierarchy(void);
-
-/*!\test
- * It is possible to move through a generic hierarchy of lists (i.e., a tree of
- * lists).
- */
-void test_up_and_down_multiple_levels_of_hierarchy(void);
-
-};
-
-/*!@}*/
-
-
-namespace ram_list_tests
-{
-
 class TextTreeItem: public List::TreeItem, public List::TextItem
 {
   private:
@@ -88,11 +43,17 @@ void cut_teardown(void)
     list = nullptr;
 }
 
+/*!\test
+ * After initialization, the list shall be empty.
+ */
 void test_list_is_empty_on_startup(void)
 {
     cut_assert_equal_uint(0, list->get_number_of_items());
 }
 
+/*!\test
+ * Appending a single item to an empty RAM-based list works.
+ */
 void test_add_single_list_item(void)
 {
     unsigned int line =
@@ -122,6 +83,9 @@ static void append_items_to_list(const std::shared_ptr<List::RamList> &l,
     cut_assert_equal_uint(expected_size, l->get_number_of_items());
 }
 
+/*!\test
+ * Appending a few items to an empty RAM-based list works.
+ */
 void test_add_multiple_list_item(void)
 {
     static const char *strings[] = { "first", "second", "foo", "bar", nullptr };
@@ -137,17 +101,27 @@ void test_add_multiple_list_item(void)
     }
 }
 
+/*!\test
+ * Trying to descend into a non-existent sub-list returns a null pointer.
+ */
 void test_move_down_hierarchy_without_child_list_returns_null_list(void)
 {
     (void)List::append(list.get(), TextTreeItem("Foo", false, 0));
     cut_assert_null(list->down(0));
 }
 
+/*!\test
+ * Trying to ascend to non-existent parent list returns the current list.
+ */
 void test_move_up_hierarchy_without_parent_list_returns_self(void)
 {
     cut_assert_equal_pointer(list.get(), &list->up());
 }
 
+/*!\test
+ * It is possible to move to a sub-list referenced by a list item of another
+ * list.
+ */
 void test_up_and_down_one_level_of_hierarchy(void)
 {
     static const char *strings[] = { "foo", "bar", nullptr };
@@ -176,6 +150,10 @@ void test_up_and_down_one_level_of_hierarchy(void)
     cut_assert_equal_string("sixth", dynamic_cast<const TextTreeItem *>(list->down(1)->get_item(2))->get_text());
 }
 
+/*!\test
+ * It is possible to move through a generic hierarchy of lists (i.e., a tree of
+ * lists).
+ */
 void test_up_and_down_multiple_levels_of_hierarchy(void)
 {
     static const char *levels[] = { "Level 0", "Level 1", "Level 2", "Level 3", nullptr };
@@ -218,3 +196,5 @@ void test_up_and_down_multiple_levels_of_hierarchy(void)
 }
 
 };
+
+/*!@}*/
