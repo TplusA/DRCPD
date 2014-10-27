@@ -20,10 +20,10 @@ class NavItemFlags: public List::NavItemFilterIface
 
   private:
     bool are_cached_values_valid_;
-    unsigned int cached_first_selectable_line_;
-    unsigned int cached_last_selectable_line_;
-    unsigned int cached_first_visible_line_;
-    unsigned int cached_last_visible_line_;
+    unsigned int cached_first_selectable_item_;
+    unsigned int cached_last_selectable_item_;
+    unsigned int cached_first_visible_item_;
+    unsigned int cached_last_visible_item_;
 
     unsigned int visibility_flags_;
     unsigned int selectability_flags_;
@@ -35,10 +35,10 @@ class NavItemFlags: public List::NavItemFilterIface
     constexpr explicit NavItemFlags(const List::ListIface *list):
         NavItemFilterIface(list),
         are_cached_values_valid_(false),
-        cached_first_selectable_line_(0),
-        cached_last_selectable_line_(0),
-        cached_first_visible_line_(0),
-        cached_last_visible_line_(0),
+        cached_first_selectable_item_(0),
+        cached_last_selectable_item_(0),
+        cached_first_visible_item_(0),
+        cached_last_visible_item_(0),
         visibility_flags_(0),
         selectability_flags_(0)
     {}
@@ -85,42 +85,42 @@ class NavItemFlags: public List::NavItemFilterIface
         return !(flags & (selectability_flags_ | visibility_flags_));
     }
 
-    unsigned int get_first_selectable_line() const override
+    unsigned int get_first_selectable_item() const override
     {
         if(!are_cached_values_valid_)
             const_cast<NavItemFlags *>(this)->update_cached_values();
 
-        return cached_first_selectable_line_;
+        return cached_first_selectable_item_;
     }
 
-    unsigned int get_last_selectable_line() const override
+    unsigned int get_last_selectable_item() const override
     {
         if(!are_cached_values_valid_)
             const_cast<NavItemFlags *>(this)->update_cached_values();
 
-        return cached_last_selectable_line_;
+        return cached_last_selectable_item_;
     }
 
-    unsigned int get_first_visible_line() const override
+    unsigned int get_first_visible_item() const override
     {
         if(!are_cached_values_valid_)
             const_cast<NavItemFlags *>(this)->update_cached_values();
 
-        return cached_first_visible_line_;
+        return cached_first_visible_item_;
     }
 
-    unsigned int get_last_visible_line() const override
+    unsigned int get_last_visible_item() const override
     {
         if(!are_cached_values_valid_)
             const_cast<NavItemFlags *>(this)->update_cached_values();
 
-        return cached_last_visible_line_;
+        return cached_last_visible_item_;
     }
 
-    unsigned int get_flags_for_line(unsigned int line) const override
+    unsigned int get_flags_for_item(unsigned int item) const override
     {
         assert(list_ != nullptr);
-        return list_->get_item(line)->get_flags();
+        return list_->get_item(item)->get_flags();
     }
 
   private:
@@ -128,20 +128,20 @@ class NavItemFlags: public List::NavItemFilterIface
     {
         if(list_ == nullptr)
         {
-            cached_first_selectable_line_ = 0;
-            cached_first_visible_line_ = 0;
-            cached_last_selectable_line_ = 0;
-            cached_last_visible_line_ = 0;
+            cached_first_selectable_item_ = 0;
+            cached_first_visible_item_ = 0;
+            cached_last_selectable_item_ = 0;
+            cached_last_visible_item_ = 0;
             are_cached_values_valid_ = true;
             return;
         }
 
         const unsigned int n = list_->get_number_of_items();
 
-        cached_first_selectable_line_ = 0;
-        cached_first_visible_line_ = 0;
-        cached_last_selectable_line_ = n - 1;
-        cached_last_visible_line_ = cached_last_selectable_line_;
+        cached_first_selectable_item_ = 0;
+        cached_first_visible_item_ = 0;
+        cached_last_selectable_item_ = n - 1;
+        cached_last_visible_item_ = cached_last_selectable_item_;
 
         bool is_first_selectable_set = false;
         bool is_first_visible_set = false;
@@ -159,25 +159,25 @@ class NavItemFlags: public List::NavItemFilterIface
 
             if(!is_first_selectable_set && is_selectable(first_flags))
             {
-                cached_first_selectable_line_ = i;
+                cached_first_selectable_item_ = i;
                 is_first_selectable_set = true;
             }
 
             if(!is_first_visible_set && is_visible(first_flags))
             {
-                cached_first_visible_line_ = i;
+                cached_first_visible_item_ = i;
                 is_first_visible_set = true;
             }
 
             if(!is_last_selectable_set && is_selectable(last_flags))
             {
-                cached_last_selectable_line_ = n - i - 1;
+                cached_last_selectable_item_ = n - i - 1;
                 is_last_selectable_set = true;
             }
 
             if(!is_last_visible_set && is_visible(last_flags))
             {
-                cached_last_visible_line_ = n - i - 1;
+                cached_last_visible_item_ = n - i - 1;
                 is_last_visible_set = true;
             }
         }

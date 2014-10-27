@@ -45,11 +45,11 @@ class NavItemFilterIface
     virtual bool is_visible(unsigned int flags) const = 0;
     virtual bool is_selectable(unsigned int flags) const = 0;
 
-    virtual unsigned int get_first_selectable_line() const = 0;
-    virtual unsigned int get_last_selectable_line() const = 0;
-    virtual unsigned int get_first_visible_line() const = 0;
-    virtual unsigned int get_last_visible_line() const = 0;
-    virtual unsigned int get_flags_for_line(unsigned int line) const = 0;
+    virtual unsigned int get_first_selectable_item() const = 0;
+    virtual unsigned int get_last_selectable_item() const = 0;
+    virtual unsigned int get_first_visible_item() const = 0;
+    virtual unsigned int get_last_visible_item() const = 0;
+    virtual unsigned int get_flags_for_item(unsigned int item) const = 0;
 };
 
 class NavItemNoFilter: public NavItemFilterIface
@@ -79,11 +79,11 @@ class NavItemNoFilter: public NavItemFilterIface
     bool ensure_consistency() const override { return false; }
     bool is_visible(unsigned int flags) const override { return contains_items_; }
     bool is_selectable(unsigned int flags) const override { return contains_items_; }
-    unsigned int get_first_selectable_line() const override { return 0; }
-    unsigned int get_last_selectable_line() const override { return number_of_items_minus_1_; }
-    unsigned int get_first_visible_line() const override { return 0; }
-    unsigned int get_last_visible_line() const override { return number_of_items_minus_1_; }
-    unsigned int get_flags_for_line(unsigned int line) const override { return 0; }
+    unsigned int get_first_selectable_item() const override { return 0; }
+    unsigned int get_last_selectable_item() const override { return number_of_items_minus_1_; }
+    unsigned int get_first_visible_item() const override { return 0; }
+    unsigned int get_last_visible_item() const override { return number_of_items_minus_1_; }
+    unsigned int get_flags_for_item(unsigned int item) const override { return 0; }
 };
 
 class Nav
@@ -127,7 +127,7 @@ class Nav
         if(full_update_required && !is_selectable(cursor_))
             recover_cursor_and_selection();
 
-        const bool moved = (cursor_ < item_filter_.get_last_selectable_line());
+        const bool moved = (cursor_ < item_filter_.get_last_selectable_item());
 
         if(!moved && !full_update_required)
             return false;
@@ -140,14 +140,14 @@ class Nav
                 ++selected_line_number_;
         }
 
-        if(cursor_ == item_filter_.get_last_selectable_line())
+        if(cursor_ == item_filter_.get_last_selectable_item())
             selected_line_number_ -=
-                item_filter_.get_last_visible_line() - item_filter_.get_last_selectable_line();
+                item_filter_.get_last_visible_item() - item_filter_.get_last_selectable_item();
 
         first_displayed_item_ = cursor_;
 
         for(unsigned int line = 0;
-            line < selected_line_number_ && first_displayed_item_ > item_filter_.get_first_visible_line();
+            line < selected_line_number_ && first_displayed_item_ > item_filter_.get_first_visible_item();
             ++line)
         {
             first_displayed_item_ = step_back_visible(first_displayed_item_);
@@ -163,7 +163,7 @@ class Nav
         if(full_update_required && !is_selectable(cursor_))
             recover_cursor_and_selection();
 
-        const bool moved = (cursor_ > item_filter_.get_first_selectable_line());
+        const bool moved = (cursor_ > item_filter_.get_first_selectable_item());
 
         if(!moved && !full_update_required)
             return false;
@@ -176,14 +176,14 @@ class Nav
                 --selected_line_number_;
         }
 
-        if(cursor_ == item_filter_.get_first_selectable_line())
+        if(cursor_ == item_filter_.get_first_selectable_item())
             selected_line_number_ +=
-                item_filter_.get_first_selectable_line() - item_filter_.get_first_visible_line();
+                item_filter_.get_first_selectable_item() - item_filter_.get_first_visible_item();
 
         first_displayed_item_ = cursor_;
 
         for(unsigned int line = 0;
-            line < selected_line_number_ && first_displayed_item_ > item_filter_.get_first_visible_line();
+            line < selected_line_number_ && first_displayed_item_ > item_filter_.get_first_visible_item();
             ++line)
         {
             first_displayed_item_ = step_back_visible(first_displayed_item_);
@@ -195,7 +195,7 @@ class Nav
     unsigned int get_cursor()
     {
         if(item_filter_.ensure_consistency() && !is_selectable(cursor_))
-            cursor_ = item_filter_.get_first_selectable_line();
+            cursor_ = item_filter_.get_first_selectable_item();
 
         return cursor_;
     }
@@ -215,7 +215,7 @@ class Nav
             if(line_number_ >= nav_.maximum_number_of_displayed_lines_)
                 return;
 
-            const unsigned int last = nav_.item_filter_.get_last_visible_line();
+            const unsigned int last = nav_.item_filter_.get_last_visible_item();
 
             if(item_ < last)
             {
@@ -271,64 +271,64 @@ class Nav
     }
 
   private:
-    bool is_visible(unsigned int line) const
+    bool is_visible(unsigned int item) const
     {
-        return item_filter_.is_visible(item_filter_.get_flags_for_line(line));
+        return item_filter_.is_visible(item_filter_.get_flags_for_item(item));
     }
 
-    bool is_selectable(unsigned int line) const
+    bool is_selectable(unsigned int item) const
     {
-        return item_filter_.is_selectable(item_filter_.get_flags_for_line(line));
+        return item_filter_.is_selectable(item_filter_.get_flags_for_item(item));
     }
 
-    unsigned int step_forward_selection(unsigned int line) const
+    unsigned int step_forward_selection(unsigned int item) const
     {
-        while(!is_selectable(++line))
+        while(!is_selectable(++item))
         {
             /* nothing */
         }
 
-        return line;
+        return item;
     }
 
-    unsigned int step_back_selection(unsigned int line) const
+    unsigned int step_back_selection(unsigned int item) const
     {
-        while(!is_selectable(--line))
+        while(!is_selectable(--item))
         {
             /* nothing */
         }
 
-        return line;
+        return item;
     }
 
-    unsigned int step_back_visible(unsigned int line) const
+    unsigned int step_back_visible(unsigned int item) const
     {
-        while(!is_visible(--line))
+        while(!is_visible(--item))
         {
             /* nothing */
         }
 
-        return line;
+        return item;
     }
 
-    unsigned int step_forward_visible(unsigned int line) const
+    unsigned int step_forward_visible(unsigned int item) const
     {
-        while(!is_visible(++line))
+        while(!is_visible(++item))
         {
             /* nothing */
         }
 
-        return line;
+        return item;
     }
 
     void recover_cursor_and_selection()
     {
-        cursor_ = item_filter_.get_first_selectable_line();
+        cursor_ = item_filter_.get_first_selectable_item();
         selected_line_number_ = 0;
 
-        for(unsigned int line = item_filter_.get_first_visible_line();
-            line < cursor_ && selected_line_number_ < maximum_number_of_displayed_lines_;
-            line = step_forward_visible(line))
+        for(unsigned int item = item_filter_.get_first_visible_item();
+            item < cursor_ && selected_line_number_ < maximum_number_of_displayed_lines_;
+            item = step_forward_visible(item))
         {
             ++selected_line_number_;
         }
