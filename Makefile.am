@@ -41,23 +41,32 @@ nodist_libdrcpd_dbus_client_la_SOURCES = dcpd_dbus.c dcpd_dbus.h streamplayer_db
 
 libdrcpd_dbus_client_la_CFLAGS = $(CRELAXEDWARNINGS)
 
-EXTRA_DIST += dbus_interfaces/de_tahifi_dcpd.xml dbus_interfaces/de_tahifi_streamplayer.xml
+EXTRA_DIST += dbus_interfaces/extract_documentation.py dbus_interfaces/de_tahifi_dcpd.xml dbus_interfaces/de_tahifi_streamplayer.xml
 
-BUILT_SOURCES = $(nodist_libdrcpd_dbus_client_la_SOURCES) dcpd_dbus.stamp streamplayer_dbus.stamp
+BUILT_SOURCES = $(nodist_libdrcpd_dbus_client_la_SOURCES) \
+    de_tahifi_dcpd.h de_tahifi_dcpd.md \
+    de_tahifi_streamplayer.h de_tahifi_streamplayer.md \
+    dcpd_dbus.stamp streamplayer_dbus.stamp
 
 CLEANFILES += $(BUILT_SOURCES)
 
 
+de_tahifi_dcpd.h: dcpd_dbus.stamp
+de_tahifi_dcpd.md: dcpd_dbus.stamp
 dcpd_dbus.c: dcpd_dbus.stamp
 dcpd_dbus.h: dcpd_dbus.stamp
 dcpd_dbus.stamp: dbus_interfaces/de_tahifi_dcpd.xml
 	$(GDBUS_CODEGEN) --generate-c-code=dcpd_dbus --c-namespace tdbus_dcpd --interface-prefix de.tahifi.Dcpd. $<
+	$(abs_srcdir)/dbus_interfaces/extract_documentation.py -i $< -o de_tahifi_dcpd.md -H de_tahifi_dcpd.h -c tdbus_dcpd -s de.tahifi.Dcpd. -n 'DCPD' -x methods
 	touch $@
 
+de_tahifi_streamplayer.h: streamplayer_dbus.stamp
+de_tahifi_streamplayer.md: streamplayer_dbus.stamp
 streamplayer_dbus.c: streamplayer_dbus.stamp
 streamplayer_dbus.h: streamplayer_dbus.stamp
 streamplayer_dbus.stamp: dbus_interfaces/de_tahifi_streamplayer.xml
 	$(GDBUS_CODEGEN) --generate-c-code=streamplayer_dbus --c-namespace tdbus_splay --interface-prefix de.tahifi.Streamplayer. $<
+	$(abs_srcdir)/dbus_interfaces/extract_documentation.py -i $< -o de_tahifi_streamplayer.md -H de_tahifi_streamplayer.h -c tdbus_splay -s de.tahifi.Streamplayer. -n 'Streamplayer' -x methods
 	touch $@
 
 
