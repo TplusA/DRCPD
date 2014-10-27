@@ -27,7 +27,18 @@ class NavItemFilterIface
 
     virtual ~NavItemFilterIface() {}
 
-    virtual void tie(const List::ListIface *list) { list_ = list; }
+    virtual void tie(const List::ListIface *list)
+    {
+        if(list_ == list)
+            return;
+
+        list_ = list;
+        list_content_changed();
+    }
+
+    bool is_tied() const { return list_ != nullptr; }
+
+    virtual void list_content_changed() = 0;
 
     virtual bool ensure_consistency() const = 0;
 
@@ -45,24 +56,29 @@ class NavItemNoFilter: public NavItemFilterIface
 {
   private:
     unsigned int number_of_items_minus_1_;
+    bool contains_items_;
 
   public:
     NavItemNoFilter(const NavItemNoFilter &) = delete;
     NavItemNoFilter &operator=(const NavItemNoFilter &) = delete;
 
-    constexpr explicit NavItemNoFilter(unsigned int number_of_items):
-        NavItemFilterIface::NavItemFilterIface(nullptr),
-        number_of_items_minus_1_(number_of_items - 1)
-    {}
-
-    void tie(const List::ListIface *list) override
+    explicit NavItemNoFilter(const List::ListIface *list):
+        NavItemFilterIface::NavItemFilterIface(list)
     {
-        number_of_items_minus_1_ = list->get_number_of_items() - 1;
+        list_content_changed();
+    }
+
+    void list_content_changed() override
+    {
+        const unsigned int n = (list_ != nullptr) ? list_->get_number_of_items() : 0;
+
+        contains_items_ = (n > 0);
+        number_of_items_minus_1_ = contains_items_ ? n - 1 : 0;
     }
 
     bool ensure_consistency() const override { return false; }
-    bool is_visible(unsigned int flags) const override { return true; }
-    bool is_selectable(unsigned int flags) const override { return true; }
+    bool is_visible(unsigned int flags) const override { return contains_items_; }
+    bool is_selectable(unsigned int flags) const override { return contains_items_; }
     unsigned int get_first_selectable_line() const override { return 0; }
     unsigned int get_last_selectable_line() const override { return number_of_items_minus_1_; }
     unsigned int get_first_visible_line() const override { return 0; }
@@ -193,23 +209,11 @@ class Nav
         unsigned int item_;
         unsigned int line_number_;
 
-      public:
-        explicit const_iterator(const Nav &nav, unsigned int item,
-                                unsigned int line_number = 0):
-            nav_(nav),
-            item_(item),
-            line_number_(line_number)
-        {}
-
-        unsigned int operator*() const
-        {
-            return item_;
-        }
-
-        const_iterator &operator++()
+      private:
+        void find_next_visible_item()
         {
             if(line_number_ >= nav_.maximum_number_of_displayed_lines_)
-                return *this;
+                return;
 
             const unsigned int last = nav_.item_filter_.get_last_visible_line();
 
@@ -220,7 +224,32 @@ class Nav
             }
             else
                 line_number_ = nav_.maximum_number_of_displayed_lines_;
+        }
 
+      public:
+        explicit const_iterator(const Nav &nav, unsigned int item,
+                                unsigned int line_number = 0):
+            nav_(nav),
+            item_(item),
+            line_number_(line_number)
+        {
+            if(nav_.item_filter_.is_tied())
+            {
+                if(!nav_.is_visible(item_))
+                    find_next_visible_item();
+            }
+            else
+                line_number_ = nav_.maximum_number_of_displayed_lines_;
+        }
+
+        unsigned int operator*() const
+        {
+            return item_;
+        }
+
+        const_iterator &operator++()
+        {
+            find_next_visible_item();
             return *this;
         }
 

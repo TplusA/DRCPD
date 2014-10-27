@@ -1,4 +1,5 @@
 #include <cppcutter.h>
+#include <cassert>
 
 #include "listnav.hh"
 #include "ramlist.hh"
@@ -31,8 +32,8 @@ class NavItemFlags: public List::NavItemFilterIface
     NavItemFlags(const NavItemFlags &) = delete;
     NavItemFlags &operator=(const NavItemFlags &) = delete;
 
-    constexpr explicit NavItemFlags(const List::ListIface &list):
-        NavItemFilterIface(&list),
+    constexpr explicit NavItemFlags(const List::ListIface *list):
+        NavItemFilterIface(list),
         are_cached_values_valid_(false),
         cached_first_selectable_line_(0),
         cached_last_selectable_line_(0),
@@ -57,6 +58,11 @@ class NavItemFlags: public List::NavItemFilterIface
             return;
 
         selectability_flags_ = flags;
+        are_cached_values_valid_ = false;
+    }
+
+    void list_content_changed() override
+    {
         are_cached_values_valid_ = false;
     }
 
@@ -113,17 +119,28 @@ class NavItemFlags: public List::NavItemFilterIface
 
     unsigned int get_flags_for_line(unsigned int line) const override
     {
+        assert(list_ != nullptr);
         return list_->get_item(line)->get_flags();
     }
 
   private:
     void update_cached_values()
     {
+        if(list_ == nullptr)
+        {
+            cached_first_selectable_line_ = 0;
+            cached_first_visible_line_ = 0;
+            cached_last_selectable_line_ = 0;
+            cached_last_visible_line_ = 0;
+            are_cached_values_valid_ = true;
+            return;
+        }
+
         const unsigned int n = list_->get_number_of_items();
 
         cached_first_selectable_line_ = 0;
         cached_first_visible_line_ = 0;
-        cached_last_selectable_line_ = list_->get_number_of_items() - 1;
+        cached_last_selectable_line_ = n - 1;
         cached_last_visible_line_ = cached_last_selectable_line_;
 
         bool is_first_selectable_set = false;
@@ -218,7 +235,7 @@ void cut_teardown(void)
  */
 void test_simple_navigation_init(void)
 {
-    List::NavItemNoFilter no_filter(list->get_number_of_items());
+    List::NavItemNoFilter no_filter(list);
     List::Nav nav(3, no_filter);
 
     cppcut_assert_equal(0U, nav.get_cursor());
@@ -230,7 +247,7 @@ void test_simple_navigation_init(void)
  */
 void test_move_down_and_up_within_displayed_lines(void)
 {
-    List::NavItemNoFilter no_filter(list->get_number_of_items());
+    List::NavItemNoFilter no_filter(list);
     List::Nav nav(3, no_filter);
 
     cut_assert_true(nav.down());
@@ -249,7 +266,7 @@ void test_move_down_and_up_within_displayed_lines(void)
  */
 void test_move_down_and_up_with_scrolling(void)
 {
-    List::NavItemNoFilter no_filter(list->get_number_of_items());
+    List::NavItemNoFilter no_filter(list);
     List::Nav nav(2, no_filter);
 
     cut_assert_true(nav.down());
@@ -282,7 +299,7 @@ void test_move_down_and_up_with_scrolling(void)
  */
 void test_cannot_move_before_first_line(void)
 {
-    List::NavItemNoFilter no_filter(list->get_number_of_items());
+    List::NavItemNoFilter no_filter(list);
     List::Nav nav(2, no_filter);
 
     cut_assert_false(nav.up());
@@ -300,7 +317,7 @@ void test_cannot_move_before_first_line(void)
  */
 void test_cannot_move_beyond_last_line(void)
 {
-    List::NavItemNoFilter no_filter(list->get_number_of_items());
+    List::NavItemNoFilter no_filter(list);
     List::Nav nav(3, no_filter);
 
     const unsigned int N = list->get_number_of_items() - 1;
@@ -328,7 +345,7 @@ void test_cannot_move_beyond_last_line(void)
  */
 void test_const_iterator_steps_through_visible_lines_from_first(void)
 {
-    List::NavItemNoFilter no_filter(list->get_number_of_items());
+    List::NavItemNoFilter no_filter(list);
     List::Nav nav(3, no_filter);
 
     unsigned int expected_current_line = 0;
@@ -348,7 +365,7 @@ void test_const_iterator_steps_through_visible_lines_from_first(void)
  */
 void test_const_iterator_steps_through_visible_lines_scrolled_down(void)
 {
-    List::NavItemNoFilter no_filter(list->get_number_of_items());
+    List::NavItemNoFilter no_filter(list);
     List::Nav nav(3, no_filter);
 
     /* move some steps down */
@@ -377,7 +394,7 @@ void test_const_iterator_steps_through_visible_lines_scrolled_down(void)
  */
 void test_const_iterator_steps_through_visible_lines_at_end_of_list(void)
 {
-    List::NavItemNoFilter no_filter(list->get_number_of_items());
+    List::NavItemNoFilter no_filter(list);
     List::Nav nav(3, no_filter);
 
     while(nav.down())
@@ -404,7 +421,7 @@ void test_const_iterator_steps_through_visible_lines_at_end_of_list(void)
  */
 void test_const_iterator_steps_through_visible_lines_on_big_display(void)
 {
-    List::NavItemNoFilter no_filter(list->get_number_of_items());
+    List::NavItemNoFilter no_filter(list);
     List::Nav nav(50, no_filter);
 
     cppcut_assert_operator(list->get_number_of_items(), <=, 50U,
@@ -419,6 +436,53 @@ void test_const_iterator_steps_through_visible_lines_on_big_display(void)
     }
 
     cppcut_assert_equal(list->get_number_of_items(), expected_current_line);
+}
+
+void test_const_iterator_on_empty_list(void)
+{
+    List::RamList empty_list;
+
+    cppcut_assert_equal(0U, empty_list.get_number_of_items());
+
+    List::NavItemNoFilter no_filter(&empty_list);
+    List::Nav nav(10, no_filter);
+
+    unsigned int count = 0;
+
+    for(auto it : nav)
+        ++count;
+
+    cppcut_assert_equal(0U, count);
+}
+
+/*!\test
+ * Tying of list to filter can be done after construction of the filter object.
+ */
+void test_late_binding_of_navigation_and_filter(void)
+{
+    List::NavItemNoFilter no_filter(nullptr);
+    List::Nav nav(4, no_filter);
+
+    unsigned int expected_current_line = 0;
+
+    for(auto it : nav)
+        ++expected_current_line;
+
+    /* no list associated with filter, so there is nothing to show */
+    cppcut_assert_equal(0U, expected_current_line);
+
+    /* associate list and do it again */
+    no_filter.tie(list);
+    expected_current_line = 0;
+
+    for(auto it : nav)
+    {
+        cppcut_assert_equal(expected_current_line, it);
+        ++expected_current_line;
+    }
+
+    /* first four entries were shown */
+    cppcut_assert_equal(4U, expected_current_line);
 }
 
 };
@@ -461,7 +525,7 @@ void cut_teardown(void)
  */
 void test_navigation_init_with_first_lines_unselectable(void)
 {
-    NavItemFlags flags(*list);
+    NavItemFlags flags(list);
     List::Nav nav(4, flags);
 
     flags.set_selectable_mask(NavItemFlags::item_is_on_top);
@@ -475,7 +539,7 @@ void test_navigation_init_with_first_lines_unselectable(void)
  */
 void test_cannot_select_unselectable_first_lines(void)
 {
-    NavItemFlags flags(*list);
+    NavItemFlags flags(list);
     List::Nav nav(4, flags);
 
     flags.set_selectable_mask(NavItemFlags::item_is_on_top);
@@ -496,7 +560,7 @@ void test_cannot_select_unselectable_first_lines(void)
  */
 void test_scroll_to_unselectable_first_lines(void)
 {
-    NavItemFlags flags(*list);
+    NavItemFlags flags(list);
     List::Nav nav(4, flags);
 
     flags.set_selectable_mask(NavItemFlags::item_is_on_top);
@@ -528,7 +592,7 @@ void test_scroll_to_unselectable_first_lines(void)
  */
 void test_scroll_to_unselectable_last_line(void)
 {
-    NavItemFlags flags(*list);
+    NavItemFlags flags(list);
     List::Nav nav(3, flags);
 
     flags.set_selectable_mask(NavItemFlags::item_is_at_bottom);
@@ -549,6 +613,36 @@ void test_scroll_to_unselectable_last_line(void)
     cut_assert_true(nav.down());
     cppcut_assert_equal(N - 2, nav.get_cursor());
     check_display(*list, nav, std::array<unsigned int, 3>({N - 2, N - 1, N - 0}));
+}
+
+/*!\test
+ * Tying of list to filter can be done after construction of the filter object.
+ */
+void test_late_binding_of_navigation_and_filter(void)
+{
+    NavItemFlags flags(nullptr);
+    List::Nav nav(4, flags);
+
+    unsigned int expected_current_line = 0;
+
+    for(auto it : nav)
+        ++expected_current_line;
+
+    /* no list associated with filter, so there is nothing to show */
+    cppcut_assert_equal(0U, expected_current_line);
+
+    /* associate list and do it again */
+    flags.tie(list);
+    expected_current_line = 0;
+
+    for(auto it : nav)
+    {
+        cppcut_assert_equal(expected_current_line, it);
+        ++expected_current_line;
+    }
+
+    /* first four entries were shown */
+    cppcut_assert_equal(4U, expected_current_line);
 }
 
 };
