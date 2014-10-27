@@ -84,11 +84,11 @@ bool ViewConfig::View::init()
     List::append(&editable_menu_items_,
                  SettingItem(N_("DHCP"), 0, &edit_settings_.is_dhcp_on_, true));
     List::append(&editable_menu_items_,
-                 SettingItem(N_("Proxy"), 0, &settings_.is_proxy_on_, true));
+                 SettingItem(N_("Proxy"), 0, &edit_settings_.is_proxy_on_, true));
     List::append(&editable_menu_items_,
-                 SettingItem(N_("Device name"), 0, &settings_.device_name_, true));
+                 SettingItem(N_("Device name"), 0, &edit_settings_.device_name_, true));
     List::append(&editable_menu_items_,
-                 SettingItem(N_("Networking mode"), 0, &settings_.networking_mode_, true));
+                 SettingItem(N_("Networking mode"), 0, &edit_settings_.networking_mode_, true));
     List::append(&editable_menu_items_,
                  CallbackItem(N_("Save and restart"), 0, save_and_exit));
     List::append(&editable_menu_items_,
