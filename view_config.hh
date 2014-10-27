@@ -7,6 +7,13 @@
 
 namespace ViewConfig
 {
+    class MACAddr;
+};
+
+std::ostream &operator<<(std::ostream &os, const ::ViewConfig::MACAddr &addr);
+
+namespace ViewConfig
+{
 
 class SettingBase
 {
@@ -62,6 +69,18 @@ class Setting: public SettingBase
     }
 };
 
+class MACAddr
+{
+  private:
+    std::array<uint8_t, 6> addr_;
+
+  public:
+    MACAddr(const MACAddr &) = delete;
+    MACAddr(std::array<uint8_t, 6> &&addr): addr_(addr) {}
+    constexpr explicit MACAddr(): addr_{0U, 0U, 0U, 0U, 0U, 0U} {}
+    friend std::ostream &::operator<<(std::ostream &os, const MACAddr &addr);
+};
+
 class Data
 {
   public:
@@ -76,7 +95,7 @@ class Data
     bool is_valid_;
 
   public:
-    Setting<std::string> mac_address_;
+    Setting<MACAddr> mac_address_;
     Setting<std::string> device_name_;
     Setting<bool> is_dhcp_on_;
     Setting<bool> is_proxy_on_;

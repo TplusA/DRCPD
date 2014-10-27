@@ -2,10 +2,30 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
+#include <iostream>
+#include <iomanip>
 #include <cassert>
 
 #include "view_config.hh"
 #include "i18n.h"
+
+std::ostream &operator<<(std::ostream &os, const ViewConfig::MACAddr &addr)
+{
+    auto save_flags = os.flags(std::ios::hex);
+    auto save_fill = os.fill('0');
+
+    os << std::setw(2) << unsigned(addr.addr_[0]) << ':'
+       << std::setw(2) << unsigned(addr.addr_[1]) << ':'
+       << std::setw(2) << unsigned(addr.addr_[2]) << ':'
+       << std::setw(2) << unsigned(addr.addr_[3]) << ':'
+       << std::setw(2) << unsigned(addr.addr_[4]) << ':'
+       << std::setw(2) << unsigned(addr.addr_[5]);
+
+    os.flags(save_flags);
+    os.fill(save_fill);
+
+    return os;
+}
 
 class SettingItem: public List::TextItem
 {
@@ -94,7 +114,7 @@ bool ViewConfig::View::init()
     List::append(&editable_menu_items_,
                  CallbackItem(N_("Exit without saving"), 0, nullptr));
 
-    settings_.mac_address_ = "e0:3f:49:1a:70:45";
+    settings_.mac_address_ = MACAddr({0xe0, 0x3f, 0x49, 0x1a, 0x70, 0x45});
     settings_.device_name_ = "Test device";
     settings_.is_dhcp_on_ = true;
     settings_.is_proxy_on_ = false;
