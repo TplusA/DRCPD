@@ -100,6 +100,8 @@ bool ViewConfig::View::init()
     settings_.is_proxy_on_ = false;
     settings_.networking_mode_ = Data::LAN_ONLY;
 
+    item_flags_.list_content_changed();
+
     return true;
 }
 
