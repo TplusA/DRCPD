@@ -100,7 +100,7 @@ bool ViewConfig::View::init()
     settings_.is_proxy_on_ = false;
     settings_.networking_mode_ = Data::LAN_ONLY;
 
-    item_flags_.list_content_changed();
+    update_visibility();
 
     return true;
 }
@@ -181,4 +181,17 @@ void ViewConfig::View::update(std::ostream &os)
 void ViewConfig::View::apply_changed_settings()
 {
     settings_ = edit_settings_;
+}
+
+void ViewConfig::View::update_visibility()
+{
+    unsigned int visibility_flags = 0;
+
+    if(settings_.is_dhcp_on_.value())
+        visibility_flags |= FilterFlags::item_invisible_if_dhcp_on;
+
+    if(!settings_.is_proxy_on_.value())
+        visibility_flags |= FilterFlags::item_invisible_if_proxy_off;
+
+    item_flags_.set_visible_mask(visibility_flags);
 }
