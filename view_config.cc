@@ -27,6 +27,22 @@ std::ostream &operator<<(std::ostream &os, const ViewConfig::MACAddr &addr)
     return os;
 }
 
+std::ostream &operator<<(std::ostream &os, const ViewConfig::IPv4Addr &addr)
+{
+    auto save_flags = os.flags(std::ios::dec | std::ios::right);
+    auto save_fill = os.fill(' ');
+
+    os << std::setw(3) << unsigned(addr.addr_[0]) << '.'
+       << std::setw(3) << unsigned(addr.addr_[1]) << '.'
+       << std::setw(3) << unsigned(addr.addr_[2]) << '.'
+       << std::setw(3) << unsigned(addr.addr_[3]);
+
+    os.flags(save_flags);
+    os.fill(save_fill);
+
+    return os;
+}
+
 class SettingItem: public List::TextItem
 {
   private:
@@ -100,11 +116,44 @@ static void save_and_exit(ViewConfig::View *view)
 bool ViewConfig::View::init()
 {
     List::append(&editable_menu_items_,
-                 SettingItem(N_("MAC"), 0, &edit_settings_.mac_address_, false));
+                 SettingItem(N_("MAC"),
+                             FilterFlags::item_is_not_selectable,
+                             &edit_settings_.mac_address_, false));
+
     List::append(&editable_menu_items_,
                  SettingItem(N_("DHCP"), 0, &edit_settings_.is_dhcp_on_, true));
     List::append(&editable_menu_items_,
+                 SettingItem(N_("Device IP"),
+                             FilterFlags::item_invisible_if_dhcp_on,
+                             &edit_settings_.device_ip_addr4_, true));
+    List::append(&editable_menu_items_,
+                 SettingItem(N_("IP mask"),
+                             FilterFlags::item_invisible_if_dhcp_on,
+                             &edit_settings_.device_subnet_mask4_, true));
+    List::append(&editable_menu_items_,
+                 SettingItem(N_("Gateway IP"),
+                             FilterFlags::item_invisible_if_dhcp_on,
+                             &edit_settings_.gateway_ip_addr4_, true));
+    List::append(&editable_menu_items_,
+                 SettingItem(N_("DNS 1"),
+                             FilterFlags::item_invisible_if_dhcp_on,
+                             &edit_settings_.dns_primary_ip_addr4_, true));
+    List::append(&editable_menu_items_,
+                 SettingItem(N_("DNS 2"),
+                             FilterFlags::item_invisible_if_dhcp_on,
+                             &edit_settings_.dns_secondary_ip_addr4_, true));
+
+    List::append(&editable_menu_items_,
                  SettingItem(N_("Proxy"), 0, &edit_settings_.is_proxy_on_, true));
+    List::append(&editable_menu_items_,
+                 SettingItem(N_("Proxy IP"),
+                             FilterFlags::item_invisible_if_proxy_off,
+                             &edit_settings_.proxy_ip_addr4_, true));
+    List::append(&editable_menu_items_,
+                 SettingItem(N_("Proxy port"),
+                             FilterFlags::item_invisible_if_proxy_off,
+                             &edit_settings_.proxy_port_, true));
+
     List::append(&editable_menu_items_,
                  SettingItem(N_("Device name"), 0, &edit_settings_.device_name_, true));
     List::append(&editable_menu_items_,

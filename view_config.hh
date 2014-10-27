@@ -8,9 +8,11 @@
 namespace ViewConfig
 {
     class MACAddr;
+    class IPv4Addr;
 };
 
 std::ostream &operator<<(std::ostream &os, const ::ViewConfig::MACAddr &addr);
+std::ostream &operator<<(std::ostream &os, const ::ViewConfig::IPv4Addr &addr);
 
 namespace ViewConfig
 {
@@ -81,6 +83,18 @@ class MACAddr
     friend std::ostream &::operator<<(std::ostream &os, const MACAddr &addr);
 };
 
+class IPv4Addr
+{
+  private:
+    std::array<uint8_t, 4> addr_;
+
+  public:
+    IPv4Addr(const IPv4Addr &) = delete;
+    IPv4Addr(std::array<uint8_t, 4> &&addr): addr_(addr) {}
+    constexpr explicit IPv4Addr(): addr_{0U, 0U, 0U, 0U} {}
+    friend std::ostream &::operator<<(std::ostream &os, const IPv4Addr &addr);
+};
+
 class Data
 {
   public:
@@ -98,7 +112,14 @@ class Data
     Setting<MACAddr> mac_address_;
     Setting<std::string> device_name_;
     Setting<bool> is_dhcp_on_;
+    Setting<IPv4Addr> device_ip_addr4_;
+    Setting<IPv4Addr> device_subnet_mask4_;
+    Setting<IPv4Addr> gateway_ip_addr4_;
+    Setting<IPv4Addr> dns_primary_ip_addr4_;
+    Setting<IPv4Addr> dns_secondary_ip_addr4_;
     Setting<bool> is_proxy_on_;
+    Setting<IPv4Addr> proxy_ip_addr4_;
+    Setting<uint16_t> proxy_port_;
     Setting<NetworkingMode> networking_mode_;
 
     Data(const Data &) = delete;
