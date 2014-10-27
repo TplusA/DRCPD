@@ -31,6 +31,7 @@ class RamList: public ListIface
     ~RamList();
 
     unsigned int get_number_of_items() const override;
+    bool empty() const override { return get_number_of_items() == 0; }
 
     const Item *get_item(unsigned int line) const override;
     void set_parent_list(const ListIface *parent) override;

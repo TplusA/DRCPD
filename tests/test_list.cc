@@ -49,6 +49,7 @@ void cut_teardown(void)
 void test_list_is_empty_on_startup(void)
 {
     cut_assert_equal_uint(0, list->get_number_of_items());
+    cut_assert_true(list->empty());
 }
 
 /*!\test
@@ -61,6 +62,7 @@ void test_add_single_list_item(void)
 
     cut_assert_equal_uint(0, line);
     cut_assert_equal_uint(1, list->get_number_of_items());
+    cut_assert_false(list->empty());
 
     auto item = dynamic_cast<const TextTreeItem *>(list->get_item(line));
 
@@ -81,6 +83,7 @@ static void append_items_to_list(const std::shared_ptr<List::RamList> &l,
     }
 
     cut_assert_equal_uint(expected_size, l->get_number_of_items());
+    cut_assert_false(l->empty());
 }
 
 /*!\test
