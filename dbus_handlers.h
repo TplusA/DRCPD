@@ -4,7 +4,7 @@
 #include <gio/gio.h>
 
 /*!
- * \addtogroup dbus_handlers DBus handlers for signals.
+ * \addtogroup dbus_handlers DBus handlers for signals
  * \ingroup dbus
  */
 /*!@{*/

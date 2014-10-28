@@ -4,7 +4,7 @@
 #include "list.hh"
 
 /*!
- * \addtogroup ram_list Lists with contents held in RAM.
+ * \addtogroup ram_list Lists with contents held in RAM
  * \ingroup list
  */
 /*!@{*/

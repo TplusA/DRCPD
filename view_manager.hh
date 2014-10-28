@@ -6,7 +6,7 @@
 #include "view.hh"
 
 /*!
- * \addtogroup view_manager Management of the various views.
+ * \addtogroup view_manager Management of the various views
  */
 /*!@{*/
 

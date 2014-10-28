@@ -5,7 +5,7 @@
 #include <glib.h>
 
 /*!
- * \addtogroup dbus DBus handling.
+ * \addtogroup dbus DBus handling
  */
 /*!@{*/
 

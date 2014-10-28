@@ -6,7 +6,7 @@
 #include <memory>
 
 /*!
- * \addtogroup list List data model.
+ * \addtogroup list List data model
  */
 /*!@{*/
 
