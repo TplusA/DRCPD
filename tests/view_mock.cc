@@ -163,7 +163,7 @@ ViewIface::InputResult ViewMock::View::input(DrcpCommand command)
     const auto &expect(expectations_->get_next_expectation(__func__));
 
     cppcut_assert_equal(expect.function_id_, MemberFn::input);
-    cppcut_assert_equal((int)expect.arg_command_, (int)command);
+    cppcut_assert_equal(int(expect.arg_command_), int(command));
 
     return expect.retval_input_;
 }
