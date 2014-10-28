@@ -158,19 +158,25 @@ void dbussignal_dcpd_listitem(GDBusProxy *proxy, const gchar *sender_name,
                               const gchar *signal_name, GVariant *parameters,
                               gpointer user_data)
 {
-    msg_info("DCPD ListItem signal from '%s': %s", sender_name, signal_name);
+    static const char iface_name[] = "de.tahifi.Dcpd.ListItem";
+
+    msg_info("%s signal from '%s': %s", iface_name, sender_name, signal_name);
 }
 
 void dbussignal_splay_urlfifo(GDBusProxy *proxy, const gchar *sender_name,
                               const gchar *signal_name, GVariant *parameters,
                               gpointer user_data)
 {
-    msg_info("Streamplayer URLFIFO signal from '%s': %s", sender_name, signal_name);
+    static const char iface_name[] = "de.tahifi.Streamplayer.URLFIFO";
+
+    msg_info("%s signal from '%s': %s", iface_name, sender_name, signal_name);
 }
 
 void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
                                const gchar *signal_name, GVariant *parameters,
                                gpointer user_data)
 {
-    msg_info("Streamplayer Playback signal from '%s': %s", sender_name, signal_name);
+    static const char iface_name[] = "de.tahifi.Streamplayer.Playback";
+
+    msg_info("%s signal from '%s': %s", iface_name, sender_name, signal_name);
 }
