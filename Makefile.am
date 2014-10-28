@@ -30,16 +30,22 @@ drcpd_LDADD = $(noinst_LTLIBRARIES) $(DRCPD_DEPENDENCIES_LIBS)
 drcpd_LDFLAGS = $(LTLIBINTL)
 
 liblist_la_SOURCES = list.hh list.cc ramlist.hh ramlist.cc
+liblist_la_CFLAGS = $(AM_CFLAGS)
+liblist_la_CXXFLAGS = $(AM_CXXFLAGS)
 
 libviews_la_SOURCES = \
     view.hh view_nop.hh view_config.hh view_config.cc \
     view_manager.hh view_manager.cc
+libviews_la_CFLAGS = $(AM_CFLAGS)
+libviews_la_CXXFLAGS = $(AM_CXXFLAGS)
 
 libdbus_handlers_la_SOURCES = dbus_handlers.h dbus_handlers.cc
+libdbus_handlers_la_CFLAGS = $(AM_CFLAGS)
+libdbus_handlers_la_CXXFLAGS = $(AM_CXXFLAGS)
 
 nodist_libdrcpd_dbus_client_la_SOURCES = dcpd_dbus.c dcpd_dbus.h streamplayer_dbus.c streamplayer_dbus.h
-
 libdrcpd_dbus_client_la_CFLAGS = $(CRELAXEDWARNINGS)
+libdrcpd_dbus_client_la_CXXFLAGS = $(CXXRELAXEDWARNINGS)
 
 EXTRA_DIST += dbus_interfaces/extract_documentation.py dbus_interfaces/de_tahifi_dcpd.xml dbus_interfaces/de_tahifi_streamplayer.xml
 

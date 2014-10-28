@@ -12,32 +12,38 @@ AM_LDFLAGS = -module -rpath $(libdir) -avoid-version -no-undefined
 AM_CPPFLAGS = $(CPPCUTTER_CFLAGS)
 AM_CPPFLAGS += -I$(top_srcdir)
 
+AM_CFLAGS = $(CWARNINGS)
+
+AM_CXXFLAGS = $(CXXWARNINGS)
+
 LIBS += $(CPPCUTTER_LIBS)
 
 check_LTLIBRARIES = test_list.la test_listnav.la test_dbus_handlers.la test_view_manager.la
 
 test_list_la_SOURCES = test_list.cc
-
 test_list_la_LIBADD = ../liblist.la
+test_list_la_CFLAGS = $(AM_CFLAGS)
+test_list_la_CXXFLAGS = $(AM_CXXFLAGS)
 
 test_listnav_la_SOURCES = test_listnav.cc
-
 test_listnav_la_LIBADD = ../liblist.la
+test_listnav_la_CFLAGS = $(AM_CFLAGS)
+test_listnav_la_CXXFLAGS = $(AM_CXXFLAGS)
 
 test_dbus_handlers_la_SOURCES = \
     test_dbus_handlers.cc mock_expectation.hh \
     mock_messages.hh mock_messages.cc \
     mock_view_manager.hh mock_view_manager.cc
-
 test_dbus_handlers_la_LIBADD = ../libdbus_handlers.la
-
-test_dbus_handlers_la_CXXFLAGS = $(DRCPD_DEPENDENCIES_CFLAGS)
+test_dbus_handlers_la_CFLAGS = $(DRCPD_DEPENDENCIES_CFLAGS) $(AM_CFLAGS)
+test_dbus_handlers_la_CXXFLAGS = $(DRCPD_DEPENDENCIES_CFLAGS) $(AM_CXXFLAGS)
 
 test_view_manager_la_SOURCES = \
     test_view_manager.cc view_mock.hh view_mock.cc \
     mock_messages.hh mock_messages.cc
-
 test_view_manager_la_LIBADD = ../libviews.la
+test_view_manager_la_CFLAGS = $(AM_CFLAGS)
+test_view_manager_la_CXXFLAGS = $(AM_CXXFLAGS)
 
 CLEANFILES = test_report.xml test_report_junit.xml valgrind.xml
 
