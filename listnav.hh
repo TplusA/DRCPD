@@ -105,7 +105,10 @@ class Nav
      */
     unsigned int selected_line_number_;
 
+  public:
     const unsigned int maximum_number_of_displayed_lines_;
+
+  private:
     const NavItemFilterIface &item_filter_;
 
   public:
@@ -129,24 +132,41 @@ class Nav
             recover_cursor_and_selection();
     }
 
-    bool down()
+    unsigned int distance_to_top() const
     {
+        return selected_line_number_;
+    }
+
+    unsigned int distance_to_bottom() const
+    {
+        return maximum_number_of_displayed_lines_ - selected_line_number_ - 1;
+    }
+
+    bool down(unsigned int count = 1)
+    {
+        if(count == 0)
+            return false;
+
         const bool full_update_required = item_filter_.ensure_consistency();
 
         if(!is_selectable(cursor_))
             recover_cursor_and_selection();
 
-        const bool moved = (cursor_ < item_filter_.get_last_selectable_item());
+        const unsigned int last_selectable = item_filter_.get_last_selectable_item();
+        const bool moved = (cursor_ < last_selectable);
 
         if(!moved && !full_update_required)
             return false;
 
         if(moved)
         {
-            cursor_ = step_forward_selection(cursor_);
+            for(unsigned int i = 0; i < count && cursor_ < last_selectable; ++i)
+            {
+                cursor_ = step_forward_selection(cursor_);
 
-            if(selected_line_number_ < maximum_number_of_displayed_lines_ - 1)
-                ++selected_line_number_;
+                if(selected_line_number_ < maximum_number_of_displayed_lines_ - 1)
+                    ++selected_line_number_;
+            }
         }
 
         if(cursor_ == item_filter_.get_last_selectable_item())
@@ -165,24 +185,31 @@ class Nav
         return moved;
     }
 
-    bool up()
+    bool up(unsigned int count = 1)
     {
+        if(count == 0)
+            return false;
+
         const bool full_update_required = item_filter_.ensure_consistency();
 
         if(!is_selectable(cursor_))
             recover_cursor_and_selection();
 
-        const bool moved = (cursor_ > item_filter_.get_first_selectable_item());
+        const unsigned int first_selectable = item_filter_.get_first_selectable_item();
+        const bool moved = (cursor_ > first_selectable);
 
         if(!moved && !full_update_required)
             return false;
 
         if(moved)
         {
-            cursor_ = step_back_selection(cursor_);
+            for(unsigned int i = 0; i < count && cursor_ > first_selectable; ++i)
+            {
+                cursor_ = step_back_selection(cursor_);
 
-            if(selected_line_number_ > 0)
-                --selected_line_number_;
+                if(selected_line_number_ > 0)
+                    --selected_line_number_;
+            }
         }
 
         if(cursor_ == item_filter_.get_first_selectable_item())

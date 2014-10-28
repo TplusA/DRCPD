@@ -73,14 +73,46 @@ void ViewManager::input_set_fast_wind_factor(double factor)
     msg_info("Need to handle FastWindSetFactor %f", factor);
 }
 
+static void move_cursor_multiple_steps(int steps, DrcpCommand down_cmd,
+                                       DrcpCommand up_cmd, ViewIface &view,
+                                       std::ostream &output_stream)
+{
+    if(steps == 0)
+        return;
+
+    const DrcpCommand command = (steps > 0) ? down_cmd : up_cmd;
+
+    if(steps < 0)
+        steps = -steps;
+
+    ViewIface::InputResult result = ViewIface::InputResult::OK;
+
+    for(/* nothing */; steps > 0; --steps)
+    {
+        const ViewIface::InputResult temp = view.input(command);
+
+        if(temp != ViewIface::InputResult::OK)
+            result = temp;
+
+        if(temp != ViewIface::InputResult::UPDATE_NEEDED)
+           break;
+    }
+
+    handle_input_result(result, view, output_stream);
+}
+
 void ViewManager::input_move_cursor_by_line(int lines)
 {
-    msg_info("Need to move cursor by %d lines", lines);
+    move_cursor_multiple_steps(lines, DrcpCommand::SCROLL_DOWN_ONE,
+                               DrcpCommand::SCROLL_UP_ONE,
+                               *active_view_, *output_stream_);
 }
 
 void ViewManager::input_move_cursor_by_page(int pages)
 {
-    msg_info("Need to move cursor by %d pages", pages);
+    move_cursor_multiple_steps(pages, DrcpCommand::SCROLL_PAGE_DOWN,
+                               DrcpCommand::SCROLL_PAGE_UP,
+                               *active_view_, *output_stream_);
 }
 
 static ViewIface *lookup_view_by_name(ViewManager::views_container_t &container,

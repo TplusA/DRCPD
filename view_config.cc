@@ -207,6 +207,24 @@ ViewIface::InputResult ViewConfig::View::input(DrcpCommand command)
       case DrcpCommand::SCROLL_UP_ONE:
         return navigation_.up() ? InputResult::UPDATE_NEEDED : InputResult::OK;
 
+      case DrcpCommand::SCROLL_PAGE_DOWN:
+      {
+        bool moved =
+            ((navigation_.distance_to_bottom() == 0)
+             ? navigation_.down(navigation_.maximum_number_of_displayed_lines_)
+             : navigation_.down(navigation_.distance_to_bottom()));
+        return moved ? InputResult::UPDATE_NEEDED : InputResult::OK;
+      }
+
+      case DrcpCommand::SCROLL_PAGE_UP:
+      {
+        bool moved =
+            ((navigation_.distance_to_top() == 0)
+             ? navigation_.up(navigation_.maximum_number_of_displayed_lines_)
+             : navigation_.up(navigation_.distance_to_top()));
+        return moved ? InputResult::UPDATE_NEEDED : InputResult::OK;
+      }
+
       default:
         break;
     }
