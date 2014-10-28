@@ -194,12 +194,15 @@ ViewIface::InputResult ViewConfig::View::input(DrcpCommand command)
 {
     switch(command)
     {
+      case DrcpCommand::SELECT_ITEM:
       case DrcpCommand::KEY_OK_ENTER:
         if(auto item = dynamic_cast<const CallbackItem *>(editable_menu_items_.get_item(navigation_.get_cursor())))
         {
             item->activate(this);
             return InputResult::SHOULD_HIDE;
         }
+
+        return InputResult::OK;
 
       case DrcpCommand::SCROLL_DOWN_ONE:
         return navigation_.down() ? InputResult::UPDATE_NEEDED : InputResult::OK;
