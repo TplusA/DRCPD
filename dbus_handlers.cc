@@ -117,7 +117,41 @@ void dbussignal_dcpd_listnav(GDBusProxy *proxy, const gchar *sender_name,
                              const gchar *signal_name, GVariant *parameters,
                              gpointer user_data)
 {
-    msg_info("DCPD ListNavigation signal from '%s': %s", sender_name, signal_name);
+    static const char iface_name[] = "de.tahifi.Dcpd.ListNavigation";
+
+    msg_info("%s signal from '%s': %s", iface_name, sender_name, signal_name);
+
+    auto *mgr = static_cast<ViewManagerIface *>(user_data);
+    assert(mgr != nullptr);
+
+    if(strcmp(signal_name, "LevelUp") == 0)
+        mgr->input(DrcpCommand::GO_BACK_ONE_LEVEL);
+    else if(strcmp(signal_name, "LevelDown") == 0)
+        mgr->input(DrcpCommand::SELECT_ITEM);
+    else if(strcmp(signal_name, "MoveLines") == 0)
+    {
+        check_parameter_assertions(parameters, 1);
+
+        GVariant *lines = g_variant_get_child_value(parameters, 0);
+        assert(lines != nullptr);
+
+        mgr->input_move_cursor_by_line(g_variant_get_int32(lines));
+
+        g_variant_unref(lines);
+    }
+    else if(strcmp(signal_name, "MovePages") == 0)
+    {
+        check_parameter_assertions(parameters, 1);
+
+        GVariant *pages = g_variant_get_child_value(parameters, 0);
+        assert(pages != nullptr);
+
+        mgr->input_move_cursor_by_page(g_variant_get_int32(pages));
+
+        g_variant_unref(pages);
+    }
+    else
+        unknown_signal(iface_name, signal_name, sender_name);
 }
 
 void dbussignal_dcpd_listitem(GDBusProxy *proxy, const gchar *sender_name,

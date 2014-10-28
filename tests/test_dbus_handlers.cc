@@ -230,6 +230,81 @@ void test_dcpd_views_unknown_signal_name(void)
                           "UnsupportedSignalName", nullptr, &mock_view_manager);
 }
 
+/*!\test
+ * Check if de.tahifi.Dcpd.ListNavigation.LevelUp is handled correctly.
+ */
+void test_dcpd_listnav_level_up(void)
+{
+    mock_messages.expect_msg_info_formatted("de.tahifi.Dcpd.ListNavigation signal from ':1.123': LevelUp");
+    mock_view_manager.expect_input(DrcpCommand::GO_BACK_ONE_LEVEL);
+
+    dbussignal_dcpd_listnav(dummy_gdbus_proxy, dummy_sender_name,
+                            "LevelUp", nullptr, &mock_view_manager);
+}
+
+/*!\test
+ * Check if de.tahifi.Dcpd.ListNavigation.LevelDown is handled correctly.
+ */
+void test_dcpd_listnav_level_down(void)
+{
+    mock_messages.expect_msg_info_formatted("de.tahifi.Dcpd.ListNavigation signal from ':1.123': LevelDown");
+    mock_view_manager.expect_input(DrcpCommand::SELECT_ITEM);
+
+    dbussignal_dcpd_listnav(dummy_gdbus_proxy, dummy_sender_name,
+                            "LevelDown", nullptr, &mock_view_manager);
+}
+
+/*!\test
+ * Check if de.tahifi.Dcpd.ListNavigation.MoveLines is handled correctly.
+ */
+void test_dcpd_listnav_move_lines(void)
+{
+    mock_messages.expect_msg_info_formatted("de.tahifi.Dcpd.ListNavigation signal from ':1.123': MoveLines");
+    mock_view_manager.expect_input_move_cursor_by_line(3);
+
+    GVariantBuilder builder;
+    g_variant_builder_init(&builder, G_VARIANT_TYPE("(i)"));
+    g_variant_builder_add(&builder, "i", 3);
+    GVariant *lines = g_variant_builder_end(&builder);
+
+    dbussignal_dcpd_listnav(dummy_gdbus_proxy, dummy_sender_name,
+                            "MoveLines", lines, &mock_view_manager);
+
+    g_variant_unref(lines);
+}
+
+/*!\test
+ * Check if de.tahifi.Dcpd.ListNavigation.MovePages is handled correctly.
+ */
+void test_dcpd_listnav_move_cursor_by_page(void)
+{
+    mock_messages.expect_msg_info_formatted("de.tahifi.Dcpd.ListNavigation signal from ':1.123': MovePages");
+    mock_view_manager.expect_input_move_cursor_by_page(-2);
+
+    GVariantBuilder builder;
+    g_variant_builder_init(&builder, G_VARIANT_TYPE("(i)"));
+    g_variant_builder_add(&builder, "i", -2);
+    GVariant *pages = g_variant_builder_end(&builder);
+
+    dbussignal_dcpd_listnav(dummy_gdbus_proxy, dummy_sender_name,
+                            "MovePages", pages, &mock_view_manager);
+
+    g_variant_unref(pages);
+}
+
+/*!\test
+ * Check if unknown signals on de.tahifi.Dcpd.ListNavigation are handled
+ * correctly.
+ */
+void test_dcpd_listnav_unknown_signal_name(void)
+{
+    mock_messages.expect_msg_info_formatted("de.tahifi.Dcpd.ListNavigation signal from ':1.123': UnsupportedSignalName");
+    mock_messages.expect_msg_error_formatted(ENOSYS, LOG_NOTICE,
+                                             "Got unknown signal de.tahifi.Dcpd.ListNavigation.UnsupportedSignalName from :1.123 (Function not implemented)");
+    dbussignal_dcpd_listnav(dummy_gdbus_proxy, dummy_sender_name,
+                            "UnsupportedSignalName", nullptr, &mock_view_manager);
+}
+
 };
 
 /*!@}*/
