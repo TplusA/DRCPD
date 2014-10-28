@@ -13,6 +13,8 @@ enum class MemberFn
 {
     input,
     input_set_fast_wind_factor,
+    input_move_cursor_by_line,
+    input_move_cursor_by_page,
     activate_view_by_name,
     toggle_views_by_name,
 
@@ -60,25 +62,36 @@ class MockViewManager::Expectation
 
     const DrcpCommand arg_command_;
     const double arg_factor_;
+    const int arg_lines_or_pages_;
     const std::string arg_view_name_;
     const std::string arg_view_name_b_;
 
     explicit Expectation(MemberFn id, DrcpCommand command):
         function_id_(id),
         arg_command_(command),
-        arg_factor_(0.0)
+        arg_factor_(0.0),
+        arg_lines_or_pages_(0)
     {}
 
     explicit Expectation(MemberFn id, double factor):
         function_id_(id),
         arg_command_(DrcpCommand::UNDEFINED_COMMAND),
-        arg_factor_(factor)
+        arg_factor_(factor),
+        arg_lines_or_pages_(0)
+    {}
+
+    explicit Expectation(MemberFn id, int lines_or_pages):
+        function_id_(id),
+        arg_command_(DrcpCommand::UNDEFINED_COMMAND),
+        arg_factor_(0.0),
+        arg_lines_or_pages_(lines_or_pages)
     {}
 
     explicit Expectation(MemberFn id, const char *view_name):
         function_id_(id),
         arg_command_(DrcpCommand::UNDEFINED_COMMAND),
         arg_factor_(0.0),
+        arg_lines_or_pages_(0),
         arg_view_name_(view_name)
     {}
 
@@ -87,6 +100,7 @@ class MockViewManager::Expectation
         function_id_(id),
         arg_command_(DrcpCommand::UNDEFINED_COMMAND),
         arg_factor_(0.0),
+        arg_lines_or_pages_(0),
         arg_view_name_(view_name_a),
         arg_view_name_b_(view_name_b)
     {}
@@ -127,6 +141,16 @@ void MockViewManager::expect_input_set_fast_wind_factor(double factor)
     expectations_->add(Expectation(MemberFn::input_set_fast_wind_factor, factor));
 }
 
+void MockViewManager::expect_input_move_cursor_by_line(int lines)
+{
+    expectations_->add(Expectation(MemberFn::input_move_cursor_by_line, lines));
+}
+
+void MockViewManager::expect_input_move_cursor_by_page(int pages)
+{
+    expectations_->add(Expectation(MemberFn::input_move_cursor_by_page, pages));
+}
+
 void MockViewManager::expect_activate_view_by_name(const char *view_name)
 {
     expectations_->add(Expectation(MemberFn::activate_view_by_name, view_name));
@@ -165,6 +189,22 @@ void MockViewManager::input_set_fast_wind_factor(double factor)
 
     cppcut_assert_equal(expect.function_id_, MemberFn::input_set_fast_wind_factor);
     cppcut_assert_equal(expect.arg_factor_, factor);
+}
+
+void MockViewManager::input_move_cursor_by_line(int lines)
+{
+    const auto &expect(expectations_->get_next_expectation(__func__));
+
+    cppcut_assert_equal(expect.function_id_, MemberFn::input_move_cursor_by_line);
+    cppcut_assert_equal(expect.arg_lines_or_pages_, lines);
+}
+
+void MockViewManager::input_move_cursor_by_page(int pages)
+{
+    const auto &expect(expectations_->get_next_expectation(__func__));
+
+    cppcut_assert_equal(expect.function_id_, MemberFn::input_move_cursor_by_page);
+    cppcut_assert_equal(expect.arg_lines_or_pages_, pages);
 }
 
 void MockViewManager::activate_view_by_name(const char *view_name)

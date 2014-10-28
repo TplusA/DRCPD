@@ -23,6 +23,8 @@ class MockViewManager: public ViewManagerIface
 
     void expect_input(DrcpCommand command);
     void expect_input_set_fast_wind_factor(double factor);
+    void expect_input_move_cursor_by_line(int lines);
+    void expect_input_move_cursor_by_page(int pages);
     void expect_activate_view_by_name(const char *view_name);
     void expect_toggle_views_by_name(const char *view_name_a,
                                      const char *view_name_b);
@@ -31,6 +33,8 @@ class MockViewManager: public ViewManagerIface
     void set_output_stream(std::ostream &os) override;
     void input(DrcpCommand command) override;
     void input_set_fast_wind_factor(double factor) override;
+    void input_move_cursor_by_line(int lines) override;
+    void input_move_cursor_by_page(int pages) override;
     void activate_view_by_name(const char *view_name) override;
     void toggle_views_by_name(const char *view_name_a,
                               const char *view_name_b) override;

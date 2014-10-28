@@ -68,6 +68,16 @@ void ViewManager::input_set_fast_wind_factor(double factor)
     msg_info("Need to handle FastWindSetFactor %f", factor);
 }
 
+void ViewManager::input_move_cursor_by_line(int lines)
+{
+    msg_info("Need to move cursor by %d lines", lines);
+}
+
+void ViewManager::input_move_cursor_by_page(int pages)
+{
+    msg_info("Need to move cursor by %d pages", pages);
+}
+
 static ViewIface *lookup_view_by_name(ViewManager::views_container_t &container,
                                       const char *view_name)
 {
