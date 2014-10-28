@@ -41,8 +41,20 @@ static std::ostream &operator<<(std::ostream &os, const MemberFn id)
         os << "input_set_fast_wind_factor";
         break;
 
+      case MemberFn::input_move_cursor_by_line:
+        os << "input_move_cursor_by_line";
+        break;
+
+      case MemberFn::input_move_cursor_by_page:
+        os << "input_move_cursor_by_page";
+        break;
+
       case MemberFn::activate_view_by_name:
         os << "activate_view_by_name";
+        break;
+
+      case MemberFn::toggle_views_by_name:
+        os << "toggle_views_by_name";
         break;
     }
 
@@ -180,7 +192,7 @@ void MockViewManager::input(DrcpCommand command)
     const auto &expect(expectations_->get_next_expectation(__func__));
 
     cppcut_assert_equal(expect.function_id_, MemberFn::input);
-    cppcut_assert_equal((int)expect.arg_command_, (int)command);
+    cppcut_assert_equal(int(expect.arg_command_), int(command));
 }
 
 void MockViewManager::input_set_fast_wind_factor(double factor)
