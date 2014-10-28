@@ -1,4 +1,5 @@
 #include <cppcutter.h>
+#include <algorithm>
 #include <cassert>
 
 #include "listnav.hh"
@@ -448,9 +449,7 @@ void test_const_iterator_on_empty_list(void)
     List::Nav nav(10, no_filter);
 
     unsigned int count = 0;
-
-    for(auto it : nav)
-        ++count;
+    std::for_each(nav.begin(), nav.end(), [&count](unsigned int dummy){ ++count; });
 
     cppcut_assert_equal(0U, count);
 }
@@ -464,9 +463,8 @@ void test_late_binding_of_navigation_and_filter(void)
     List::Nav nav(4, no_filter);
 
     unsigned int expected_current_line = 0;
-
-    for(auto it : nav)
-        ++expected_current_line;
+    std::for_each(nav.begin(), nav.end(),
+                  [&expected_current_line](unsigned int dummy){ ++expected_current_line; });
 
     /* no list associated with filter, so there is nothing to show */
     cppcut_assert_equal(0U, expected_current_line);
@@ -665,9 +663,8 @@ void test_late_binding_of_navigation_and_filter(void)
     List::Nav nav(4, flags);
 
     unsigned int expected_current_line = 0;
-
-    for(auto it : nav)
-        ++expected_current_line;
+    std::for_each(nav.begin(), nav.end(),
+                  [&expected_current_line](unsigned int dummy){ ++expected_current_line; });
 
     /* no list associated with filter, so there is nothing to show */
     cppcut_assert_equal(0U, expected_current_line);
