@@ -263,4 +263,5 @@ void ViewConfig::View::update_visibility()
         visibility_flags |= FilterFlags::item_invisible_if_proxy_off;
 
     item_flags_.set_visible_mask(visibility_flags);
+    navigation_.check_selection();
 }
