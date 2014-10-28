@@ -37,6 +37,7 @@ class NavItemFilterIface
     }
 
     bool is_tied() const { return list_ != nullptr; }
+    bool is_list_nonempty() const { return is_tied() && !list_->empty(); }
 
     virtual void list_content_changed() = 0;
 
@@ -113,18 +114,26 @@ class Nav
 
     explicit Nav(unsigned int max_display_lines,
                  const NavItemFilterIface &item_filter):
-        cursor_(0),
         first_displayed_item_(0),
-        selected_line_number_(0),
         maximum_number_of_displayed_lines_(max_display_lines),
         item_filter_(item_filter)
-    {}
+    {
+        recover_cursor_and_selection();
+    }
+
+    void check_selection()
+    {
+        (void)item_filter_.ensure_consistency();
+
+        if(!is_selectable(cursor_))
+            recover_cursor_and_selection();
+    }
 
     bool down()
     {
         const bool full_update_required = item_filter_.ensure_consistency();
 
-        if(full_update_required && !is_selectable(cursor_))
+        if(!is_selectable(cursor_))
             recover_cursor_and_selection();
 
         const bool moved = (cursor_ < item_filter_.get_last_selectable_item());
@@ -160,7 +169,7 @@ class Nav
     {
         const bool full_update_required = item_filter_.ensure_consistency();
 
-        if(full_update_required && !is_selectable(cursor_))
+        if(!is_selectable(cursor_))
             recover_cursor_and_selection();
 
         const bool moved = (cursor_ > item_filter_.get_first_selectable_item());
@@ -194,9 +203,7 @@ class Nav
 
     unsigned int get_cursor()
     {
-        if(item_filter_.ensure_consistency() && !is_selectable(cursor_))
-            cursor_ = item_filter_.get_first_selectable_item();
-
+        check_selection();
         return cursor_;
     }
 
@@ -273,12 +280,18 @@ class Nav
   private:
     bool is_visible(unsigned int item) const
     {
-        return item_filter_.is_visible(item_filter_.get_flags_for_item(item));
+        if(item_filter_.is_list_nonempty())
+            return item_filter_.is_visible(item_filter_.get_flags_for_item(item));
+        else
+            return false;
     }
 
     bool is_selectable(unsigned int item) const
     {
-        return item_filter_.is_selectable(item_filter_.get_flags_for_item(item));
+        if(item_filter_.is_list_nonempty())
+            return item_filter_.is_selectable(item_filter_.get_flags_for_item(item));
+        else
+            return false;
     }
 
     unsigned int step_forward_selection(unsigned int item) const
@@ -323,6 +336,13 @@ class Nav
 
     void recover_cursor_and_selection()
     {
+        if(!item_filter_.is_list_nonempty())
+        {
+            cursor_ = 0;
+            selected_line_number_ = 0;
+            return;
+        }
+
         cursor_ = item_filter_.get_first_selectable_item();
         selected_line_number_ = 0;
 

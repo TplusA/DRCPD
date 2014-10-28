@@ -126,7 +126,7 @@ class NavItemFlags: public List::NavItemFilterIface
   private:
     void update_cached_values()
     {
-        if(list_ == nullptr)
+        if(!is_list_nonempty())
         {
             cached_first_selectable_item_ = 0;
             cached_first_visible_item_ = 0;
@@ -532,6 +532,47 @@ void test_navigation_init_with_first_lines_unselectable(void)
 
     cppcut_assert_equal(2U, nav.get_cursor());
     check_display(*list, nav, std::array<unsigned int, 4>({0, 1, 2, 3}));
+}
+
+/*!\test
+ * Navigation should start in second line, with first line displayed first.
+ */
+void test_navigation_init_with_first_lines_unselectable_with_late_list_population(void)
+{
+    List::RamList local_list;
+    NavItemFlags flags(&local_list);
+    List::Nav nav(10, flags);
+
+    cut_assert_false(flags.is_list_nonempty());
+
+    List::append(&local_list, List::TextItem(list_texts[0], false, NavItemFlags::item_is_on_top));
+    List::append(&local_list, List::TextItem(list_texts[1], false, 0));
+    List::append(&local_list, List::TextItem(list_texts[2], false, 0));
+    List::append(&local_list, List::TextItem(list_texts[3], false, 0));
+
+    flags.list_content_changed();
+    cut_assert_true(flags.is_list_nonempty());
+
+    flags.set_selectable_mask(NavItemFlags::item_is_on_top);
+
+    cppcut_assert_equal(1U, nav.get_cursor());
+    check_display(local_list, nav, std::array<unsigned int, 4>({0, 1, 2, 3}));
+}
+
+/*!\test
+ * Navigation should start in first (nonexistent) line, with no lines displayed.
+ */
+void test_navigation_init_with_empty_list(void)
+{
+    List::RamList empty_list;
+    NavItemFlags flags(&empty_list);
+    List::Nav nav(5, flags);
+
+    cut_assert_false(flags.is_list_nonempty());
+    flags.set_selectable_mask(NavItemFlags::item_is_on_top);
+
+    cppcut_assert_equal(0U, nav.get_cursor());
+    check_display(empty_list, nav, std::array<unsigned int, 0>());
 }
 
 /*!\test
