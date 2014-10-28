@@ -45,9 +45,9 @@ class RamList: public ListIface
 };
 
 template <typename T>
-static unsigned int append(RamList *list, T &&item)
+static unsigned int append(RamList *l, T &&item)
 {
-    return list->append(new T(std::move(item)));
+    return l->append(new T(std::move(item)));
 }
 
 };
