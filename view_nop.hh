@@ -3,6 +3,17 @@
 
 #include "view.hh"
 
+/*!
+ * \addtogroup view_nop Dummy view
+ * \ingroup views
+ *
+ * A view without any functionality.
+ *
+ * This view was implemented to avoid the need to handle null pointers in
+ * various locations.
+ */
+/*!@{*/
+
 namespace ViewNop
 {
 
@@ -23,5 +34,7 @@ class View: public ViewIface
 };
 
 };
+
+/*!@}*/
 
 #endif /* !VIEW_NOP_HH */

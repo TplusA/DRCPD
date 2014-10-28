@@ -5,6 +5,25 @@
 
 #include "drcp_commands.hh"
 
+/*!
+ * \addtogroup views Various views with their specific behaviors
+ *
+ * Also known as "the user interface".
+ */
+/*!@{*/
+
+/*!
+ * Interface shared by all views.
+ *
+ * All views are concerned with
+ * - initialization;
+ * - basic input processing;
+ * - focus handling; and
+ * - serialization to DRCP XML.
+ *
+ * These concerns are covered by this interface. Anything beyond is defined by
+ * the specific views.
+ */
 class ViewIface
 {
   private:
@@ -87,5 +106,7 @@ class ViewIface
      */
     virtual void update(std::ostream &os) = 0;
 };
+
+/*!@}*/
 
 #endif /* !VIEW_HH */

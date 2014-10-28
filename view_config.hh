@@ -5,6 +5,14 @@
 #include "ramlist.hh"
 #include "listnav.hh"
 
+/*!
+ * \addtogroup view_config Device configuration menu
+ * \ingroup views
+ *
+ * Configuration options that are visible and mostly changable by the user.
+ */
+/*!@{*/
+
 namespace ViewConfig
 {
     class MACAddr;
@@ -196,5 +204,7 @@ class View: public ViewIface
 };
 
 };
+
+/*!@}*/
 
 #endif /* !VIEW_CONFIG_HH */
