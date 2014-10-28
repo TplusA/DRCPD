@@ -133,7 +133,7 @@ static void populate_view_manager(ViewManager &vm,
         "Fourth",
     };
 
-    for(int i = 0; i < sizeof(names) / sizeof(names[0]); ++i)
+    for(size_t i = 0; i < sizeof(names) / sizeof(names[0]); ++i)
     {
         ViewMock::View *view = new ViewMock::View(names[i]);
 
