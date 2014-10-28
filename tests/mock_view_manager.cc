@@ -200,7 +200,8 @@ void MockViewManager::input_set_fast_wind_factor(double factor)
     const auto &expect(expectations_->get_next_expectation(__func__));
 
     cppcut_assert_equal(expect.function_id_, MemberFn::input_set_fast_wind_factor);
-    cppcut_assert_equal(expect.arg_factor_, factor);
+    cut_assert_true(expect.arg_factor_ <= factor);
+    cut_assert_true(expect.arg_factor_ >= factor);
 }
 
 void MockViewManager::input_move_cursor_by_line(int lines)
