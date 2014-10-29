@@ -52,13 +52,37 @@ class View: public ViewIface
   private:
     /*!
      * Load whole root directory into internal list.
+     *
+     * \returns
+     *     True on success, false on error. In any case the list will have been
+     *     modified (empty on error).
      */
-    void fill_list_from_root();
+    bool fill_list_from_root();
 
     /*!
      * Load whole directory for current list ID into internal list.
+     *
+     * \returns
+     *     True on success, false on error. In any case the list will have been
+     *     modified (empty on error).
      */
-    void fill_list_from_current_list_id();
+    bool fill_list_from_current_list_id();
+
+    /*!
+     * Load whole selected subdirectory into internal list.
+     *
+     * \returns
+     *     True if the list was updated, false if the list remained unchanged.
+     */
+    bool fill_list_from_selected_line();
+
+    /*!
+     * Load whole parent directory into internal list.
+     *
+     * \returns
+     *     True if the list was updated, false if the list remained unchanged.
+     */
+    bool fill_list_from_parent_link();
 };
 
 };

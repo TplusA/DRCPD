@@ -220,6 +220,14 @@ class Nav
         return cursor_;
     }
 
+    /*!
+     * \todo Not implemented yet.
+     */
+    bool set_cursor(unsigned int item)
+    {
+        return false;
+    }
+
     class const_iterator
     {
       private:

@@ -53,15 +53,25 @@ ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command)
     {
       case DrcpCommand::SELECT_ITEM:
       case DrcpCommand::KEY_OK_ENTER:
+        if(file_list_.empty())
+            return InputResult::OK;
+
         if(auto item = dynamic_cast<const FileItem *>(file_list_.get_item(navigation_.get_cursor())))
         {
-            /* TODO: Should play file or enter directory */
-            msg_info("Select %s \"%s\"",
-                     item->is_directory() ? "directory" : "file", item->get_text());
-            return InputResult::SHOULD_HIDE;
+            if(item->is_directory())
+            {
+                if(fill_list_from_selected_line())
+                    return InputResult::UPDATE_NEEDED;
+            }
+            else
+                msg_info("Should add file \"%s\" to Streamplayer queue",
+                         item->get_text());
         }
 
         return InputResult::OK;
+
+      case DrcpCommand::GO_BACK_ONE_LEVEL:
+        return fill_list_from_parent_link() ? InputResult::UPDATE_NEEDED : InputResult::OK;
 
       case DrcpCommand::SCROLL_DOWN_ONE:
         return navigation_.down() ? InputResult::UPDATE_NEEDED : InputResult::OK;
@@ -116,7 +126,7 @@ void ViewFileBrowser::View::update(std::ostream &os)
     serialize(os);
 }
 
-void ViewFileBrowser::View::fill_list_from_root()
+bool ViewFileBrowser::View::fill_list_from_root()
 {
     file_list_.clear();
 
@@ -130,14 +140,15 @@ void ViewFileBrowser::View::fill_list_from_root()
          * hasn't started up yet */
         msg_info("Failed obtaining ID for root list");
         current_list_id_ = 0;
-        return;
+        return false;
     }
 
     current_list_id_ = list_id;
-    fill_list_from_current_list_id();
+
+    return fill_list_from_current_list_id();
 }
 
-void ViewFileBrowser::View::fill_list_from_current_list_id()
+bool ViewFileBrowser::View::fill_list_from_current_list_id()
 {
     assert(current_list_id_ != 0);
 
@@ -157,7 +168,7 @@ void ViewFileBrowser::View::fill_list_from_current_list_id()
         /* D-Bus error, pending */
         msg_error(EAGAIN, LOG_NOTICE,
                   "Failed obtaining contents of list %u", current_list_id_);
-        return;
+        return false;
     }
 
     if(error_code != 0)
@@ -167,7 +178,7 @@ void ViewFileBrowser::View::fill_list_from_current_list_id()
                   "Error reading list %u", current_list_id_);
         current_list_id_ = 0;
         g_variant_unref(out_list);
-        return;
+        return false;
     }
 
     assert(g_variant_type_is_array(g_variant_get_type(out_list)));
@@ -203,4 +214,76 @@ void ViewFileBrowser::View::fill_list_from_current_list_id()
      */
 
     g_variant_unref(out_list);
+
+    return true;
+}
+
+bool ViewFileBrowser::View::fill_list_from_selected_line()
+{
+    if(file_list_.empty())
+        return false;
+
+    guint list_id;
+
+    if(!tdbus_lists_navigation_call_get_list_id_sync(dbus_get_filebroker_lists_navigation_iface(),
+                                                     current_list_id_, navigation_.get_cursor(),
+                                                     &list_id, NULL, NULL))
+    {
+        msg_info("Failed obtaining ID for item %u in list %u",
+                 navigation_.get_cursor(), current_list_id_);
+        return false;
+    }
+
+    if(list_id == 0)
+    {
+        msg_error(EINVAL, LOG_NOTICE,
+                  "Error obtaining ID for item %u in list %u",
+                 navigation_.get_cursor(), current_list_id_);
+        return false;
+    }
+
+    current_list_id_ = list_id;
+
+    if(!fill_list_from_current_list_id())
+        (void)fill_list_from_root();
+
+    return true;
+}
+
+bool ViewFileBrowser::View::fill_list_from_parent_link()
+{
+    if(file_list_.empty())
+        return false;
+
+    guint list_id;
+    guint item_id;
+
+    if(!tdbus_lists_navigation_call_get_parent_link_sync(dbus_get_filebroker_lists_navigation_iface(),
+                                                         current_list_id_, &list_id, &item_id,
+                                                         NULL, NULL))
+    {
+        msg_info("Failed obtaining parent for list %u", current_list_id_);
+        (void)fill_list_from_root();
+        return true;
+    }
+
+    if(list_id == 0)
+    {
+        if(item_id == 1)
+            return false;
+
+        msg_error(EINVAL, LOG_NOTICE,
+                  "Error obtaining parent for list %u", current_list_id_);
+        (void)fill_list_from_root();
+        return true;
+    }
+
+    current_list_id_ = list_id;
+
+    if(fill_list_from_current_list_id())
+        (void)navigation_.set_cursor(item_id);
+    else
+        (void)fill_list_from_root();
+
+    return true;
 }
