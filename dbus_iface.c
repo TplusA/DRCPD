@@ -7,10 +7,8 @@
 #include <assert.h>
 
 #include "dbus_iface.h"
+#include "dbus_iface_deep.h"
 #include "dbus_handlers.h"
-#include "dcpd_dbus.h"
-#include "lists_dbus.h"
-#include "streamplayer_dbus.h"
 #include "messages.h"
 
 struct dbus_data
@@ -144,6 +142,11 @@ static void destroy_notification(gpointer data)
 }
 
 static struct dbus_data dbus_data;
+
+tdbuslistsNavigation *dbus_get_filebroker_lists_navigation_iface(void)
+{
+    return dbus_data.filebroker_lists_navigation_proxy;
+}
 
 int dbus_setup(GMainLoop *loop, bool connect_to_session_bus,
                void *view_manager_iface_for_dbus_handlers)
