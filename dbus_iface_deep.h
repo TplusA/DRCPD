@@ -10,6 +10,8 @@ extern "C" {
 #endif
 
 tdbuslistsNavigation *dbus_get_filebroker_lists_navigation_iface(void);
+tdbussplayURLFIFO *dbus_get_streamplayer_urlfifo_iface(void);
+tdbussplayPlayback *dbus_get_streamplayer_playback_iface(void);
 
 #ifdef __cplusplus
 }

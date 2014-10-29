@@ -148,6 +148,16 @@ tdbuslistsNavigation *dbus_get_filebroker_lists_navigation_iface(void)
     return dbus_data.filebroker_lists_navigation_proxy;
 }
 
+tdbussplayURLFIFO *dbus_get_streamplayer_urlfifo_iface(void)
+{
+    return dbus_data.splay_urlfifo_proxy;
+}
+
+tdbussplayPlayback *dbus_get_streamplayer_playback_iface(void)
+{
+    return dbus_data.splay_playback_proxy;
+}
+
 int dbus_setup(GMainLoop *loop, bool connect_to_session_bus,
                void *view_manager_iface_for_dbus_handlers)
 {
