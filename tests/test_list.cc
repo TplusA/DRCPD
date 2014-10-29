@@ -30,16 +30,17 @@ class TextTreeItem: public List::TreeItem, public List::TextItem
     {}
 };
 
-static std::shared_ptr<List::RamList> list;
+static List::RamList *list;
 
 void cut_setup(void)
 {
-    list.reset(new List::RamList());
-    cut_assert_not_null(list.get());
+    list = new List::RamList();
+    cut_assert_not_null(list);
 }
 
 void cut_teardown(void)
 {
+    delete list;
     list = nullptr;
 }
 
@@ -58,7 +59,7 @@ void test_list_is_empty_on_startup(void)
 void test_add_single_list_item(void)
 {
     unsigned int line =
-        List::append(list.get(), TextTreeItem("Test entry", false, 0));
+        List::append(list, TextTreeItem("Test entry", false, 0));
 
     cut_assert_equal_uint(0, line);
     cut_assert_equal_uint(1, list->get_number_of_items());
@@ -70,15 +71,14 @@ void test_add_single_list_item(void)
     cut_assert_equal_string("Test entry", item->get_text());
 }
 
-static void append_items_to_list(const std::shared_ptr<List::RamList> &l,
-                                 const char *strings[])
+static void append_items_to_list(List::RamList *l, const char *strings[])
 {
     unsigned int old_size = l->get_number_of_items();
     unsigned int expected_size = old_size;
 
     for(const char **s = strings; *s != nullptr; ++s)
     {
-        (void)List::append(l.get(), TextTreeItem(*s, false, 0));
+        (void)List::append(l, TextTreeItem(*s, false, 0));
         ++expected_size;
     }
 
@@ -109,7 +109,7 @@ void test_add_multiple_list_item(void)
  */
 void test_move_down_hierarchy_without_child_list_returns_null_list(void)
 {
-    (void)List::append(list.get(), TextTreeItem("Foo", false, 0));
+    (void)List::append(list, TextTreeItem("Foo", false, 0));
     cut_assert_null(list->down(0));
 }
 
@@ -118,7 +118,7 @@ void test_move_down_hierarchy_without_child_list_returns_null_list(void)
  */
 void test_move_up_hierarchy_without_parent_list_returns_self(void)
 {
-    cut_assert_equal_pointer(list.get(), &list->up());
+    cut_assert_equal_pointer(list, &list->up());
 }
 
 /*!\test
@@ -133,23 +133,25 @@ void test_up_and_down_one_level_of_hierarchy(void)
 
     static const char *more_strings_1[] = { "first", "second", "third", nullptr };
     std::shared_ptr<List::RamList> second_list(new List::RamList());
-    append_items_to_list(second_list, more_strings_1);
+    cppcut_assert_not_null(second_list.get());
+    append_items_to_list(second_list.get(), more_strings_1);
 
     static const char *more_strings_2[] = { "fourth", "fifth", "sixth", nullptr };
     std::shared_ptr<List::RamList> third_list(new List::RamList());
-    append_items_to_list(third_list, more_strings_2);
+    cppcut_assert_not_null(third_list.get());
+    append_items_to_list(third_list.get(), more_strings_2);
 
     cut_assert_true(list->set_child_list(0, second_list));
     cut_assert_true(list->set_child_list(1, third_list));
 
-    cut_assert_equal_pointer(list.get(), &second_list->up());
+    cut_assert_equal_pointer(list, &second_list->up());
     cut_assert_equal_pointer(second_list.get(), list->down(0));
-    cut_assert_equal_pointer(list.get(), &list->down(0)->up());
+    cut_assert_equal_pointer(list, &list->down(0)->up());
     cut_assert_equal_string("second", dynamic_cast<const TextTreeItem *>(list->down(0)->get_item(1))->get_text());
 
-    cut_assert_equal_pointer(list.get(), &third_list->up());
+    cut_assert_equal_pointer(list, &third_list->up());
     cut_assert_equal_pointer(third_list.get(), list->down(1));
-    cut_assert_equal_pointer(list.get(), &list->down(1)->up());
+    cut_assert_equal_pointer(list, &list->down(1)->up());
     cut_assert_equal_string("sixth", dynamic_cast<const TextTreeItem *>(list->down(1)->get_item(2))->get_text());
 }
 
@@ -161,11 +163,11 @@ void test_up_and_down_multiple_levels_of_hierarchy(void)
 {
     static const char *levels[] = { "Level 0", "Level 1", "Level 2", "Level 3", nullptr };
 
-    cut_assert_equal_uint(0, List::append(list.get(), TextTreeItem(levels[0], false, 0)));
+    cut_assert_equal_uint(0, List::append(list, TextTreeItem(levels[0], false, 0)));
 
     size_t idx = 1;
 
-    for(List::RamList *prev = list.get(); levels[idx] != nullptr; ++idx)
+    for(List::RamList *prev = list; levels[idx] != nullptr; ++idx)
     {
         std::shared_ptr<List::ListIface> l(new List::RamList());
         List::RamList *ram_list = static_cast<List::RamList *>(l.get());
@@ -180,10 +182,10 @@ void test_up_and_down_multiple_levels_of_hierarchy(void)
 
     cut_assert_equal_uint(4, idx);
 
-    const List::ListIface *const_prev = list.get();
+    const List::ListIface *const_prev = list;
     idx = 0;
 
-    for(const List::ListIface *l = list.get(); l != nullptr; l = l->down(0), ++idx)
+    for(const List::ListIface *l = list; l != nullptr; l = l->down(0), ++idx)
     {
         cut_assert_equal_pointer(const_prev, &l->up());
 
