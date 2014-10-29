@@ -109,6 +109,7 @@ class ListIface
 
     virtual unsigned int get_number_of_items() const = 0;
     virtual bool empty() const = 0;
+    virtual void clear() = 0;
 
     virtual const Item *get_item(unsigned int line) const = 0;
     virtual void set_parent_list(const ListIface *parent) = 0;

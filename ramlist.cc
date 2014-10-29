@@ -15,6 +15,14 @@ unsigned int List::RamList::get_number_of_items() const
     return items_.size();
 }
 
+void List::RamList::clear()
+{
+    for(auto i : items_)
+        delete i;
+
+    items_.clear();
+}
+
 const List::Item *List::RamList::get_item(unsigned int line) const
 {
     return const_cast<List::RamList *>(this)->get_nonconst_item(line);

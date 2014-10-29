@@ -89,7 +89,7 @@ static void append_items_to_list(List::RamList *l, const char *strings[])
 /*!\test
  * Appending a few items to an empty RAM-based list works.
  */
-void test_add_multiple_list_item(void)
+void test_add_multiple_list_items(void)
 {
     static const char *strings[] = { "first", "second", "foo", "bar", nullptr };
 
@@ -198,6 +198,19 @@ void test_up_and_down_multiple_levels_of_hierarchy(void)
     }
 
     cut_assert_equal_uint(4, idx);
+}
+
+/*!\test
+ * Clearing a list works.
+ */
+void test_clear_flat_list(void)
+{
+    test_add_multiple_list_items();
+    cppcut_assert_operator(0U, <, list->get_number_of_items());
+
+    list->clear();
+    cppcut_assert_equal(0U, list->get_number_of_items());
+    cut_assert_true(list->empty());
 }
 
 };
