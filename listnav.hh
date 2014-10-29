@@ -173,14 +173,7 @@ class Nav
             selected_line_number_ -=
                 item_filter_.get_last_visible_item() - item_filter_.get_last_selectable_item();
 
-        first_displayed_item_ = cursor_;
-
-        for(unsigned int line = 0;
-            line < selected_line_number_ && first_displayed_item_ > item_filter_.get_first_visible_item();
-            ++line)
-        {
-            first_displayed_item_ = step_back_visible(first_displayed_item_);
-        }
+        recover_first_displayed_item_by_cursor();
 
         return moved;
     }
@@ -216,14 +209,7 @@ class Nav
             selected_line_number_ +=
                 item_filter_.get_first_selectable_item() - item_filter_.get_first_visible_item();
 
-        first_displayed_item_ = cursor_;
-
-        for(unsigned int line = 0;
-            line < selected_line_number_ && first_displayed_item_ > item_filter_.get_first_visible_item();
-            ++line)
-        {
-            first_displayed_item_ = step_back_visible(first_displayed_item_);
-        }
+        recover_first_displayed_item_by_cursor();
 
         return moved;
     }
@@ -361,11 +347,24 @@ class Nav
         return item;
     }
 
+    void recover_first_displayed_item_by_cursor()
+    {
+        first_displayed_item_ = cursor_;
+
+        for(unsigned int line = 0;
+            line < selected_line_number_ && first_displayed_item_ > item_filter_.get_first_visible_item();
+            ++line)
+        {
+            first_displayed_item_ = step_back_visible(first_displayed_item_);
+        }
+    }
+
     void recover_cursor_and_selection()
     {
         if(!item_filter_.is_list_nonempty())
         {
             cursor_ = 0;
+            first_displayed_item_ = 0;
             selected_line_number_ = 0;
             return;
         }
@@ -379,6 +378,8 @@ class Nav
         {
             ++selected_line_number_;
         }
+
+        recover_first_displayed_item_by_cursor();
     }
 };
 
