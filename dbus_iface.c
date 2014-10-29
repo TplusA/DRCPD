@@ -17,13 +17,13 @@ struct dbus_data
     guint owner_id;
     int acquired;
 
-    tdbusdcpdPlaybackProxy *dcpd_playback_proxy;
-    tdbusdcpdViewsProxy *dcpd_views_proxy;
-    tdbusdcpdListNavigationProxy *dcpd_list_navigation_proxy;
-    tdbusdcpdListItemProxy *dcpd_list_item_proxy;
+    tdbusdcpdPlayback *dcpd_playback_proxy;
+    tdbusdcpdViews *dcpd_views_proxy;
+    tdbusdcpdListNavigation *dcpd_list_navigation_proxy;
+    tdbusdcpdListItem *dcpd_list_item_proxy;
 
-    tdbussplayURLFIFOProxy *splay_urlfifo_proxy;
-    tdbussplayPlaybackProxy *splay_playback_proxy;
+    tdbussplayURLFIFO *splay_urlfifo_proxy;
+    tdbussplayPlayback *splay_playback_proxy;
 };
 
 static void bus_acquired(GDBusConnection *connection,
@@ -49,28 +49,28 @@ static void connect_signals_dcpd(GDBusConnection *connection,
 {
     GError *error = NULL;
 
-    data->dcpd_playback_proxy = TDBUS_DCPD_PLAYBACK_PROXY(
+    data->dcpd_playback_proxy =
         tdbus_dcpd_playback_proxy_new_sync(connection, flags,
                                            bus_name, object_path,
-                                           NULL, &error));
+                                           NULL, &error);
     handle_error(&error);
 
-    data->dcpd_views_proxy = TDBUS_DCPD_VIEWS_PROXY(
+    data->dcpd_views_proxy =
         tdbus_dcpd_views_proxy_new_sync(connection, flags,
                                         bus_name, object_path,
-                                        NULL, &error));
+                                        NULL, &error);
     handle_error(&error);
 
-    data->dcpd_list_navigation_proxy = TDBUS_DCPD_LIST_NAVIGATION_PROXY(
+    data->dcpd_list_navigation_proxy =
         tdbus_dcpd_list_navigation_proxy_new_sync(connection, flags,
                                                   bus_name, object_path,
-                                                  NULL, &error));
+                                                  NULL, &error);
     handle_error(&error);
 
-    data->dcpd_list_item_proxy = TDBUS_DCPD_LIST_ITEM_PROXY(
+    data->dcpd_list_item_proxy =
         tdbus_dcpd_list_item_proxy_new_sync(connection, flags,
                                             bus_name, object_path,
-                                            NULL, &error));
+                                            NULL, &error);
     handle_error(&error);
 }
 
@@ -82,16 +82,16 @@ static void connect_signals_streamplayer(GDBusConnection *connection,
 {
     GError *error = NULL;
 
-    data->splay_urlfifo_proxy = TDBUS_SPLAY_URLFIFO_PROXY(
+    data->splay_urlfifo_proxy =
         tdbus_splay_urlfifo_proxy_new_sync(connection, flags,
                                            bus_name, object_path,
-                                           NULL, &error));
+                                           NULL, &error);
     handle_error(&error);
 
-    data->splay_playback_proxy = TDBUS_SPLAY_PLAYBACK_PROXY(
+    data->splay_playback_proxy =
         tdbus_splay_playback_proxy_new_sync(connection, flags,
                                             bus_name, object_path,
-                                            NULL, &error));
+                                            NULL, &error);
     handle_error(&error);
 }
 
