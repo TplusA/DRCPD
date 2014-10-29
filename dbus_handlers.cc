@@ -163,6 +163,15 @@ void dbussignal_dcpd_listitem(GDBusProxy *proxy, const gchar *sender_name,
     msg_info("%s signal from '%s': %s", iface_name, sender_name, signal_name);
 }
 
+void dbussignal_lists_navigation(GDBusProxy *proxy, const gchar *sender_name,
+                                 const gchar *signal_name, GVariant *parameters,
+                                 gpointer user_data)
+{
+    static const char iface_name[] = "de.tahifi.Lists.Navigation";
+
+    msg_info("%s signal from '%s': %s", iface_name, sender_name, signal_name);
+}
+
 void dbussignal_splay_urlfifo(GDBusProxy *proxy, const gchar *sender_name,
                               const gchar *signal_name, GVariant *parameters,
                               gpointer user_data)

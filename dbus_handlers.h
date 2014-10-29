@@ -25,6 +25,9 @@ void dbussignal_dcpd_listnav(GDBusProxy *proxy, const gchar *sender_name,
 void dbussignal_dcpd_listitem(GDBusProxy *proxy, const gchar *sender_name,
                               const gchar *signal_name, GVariant *parameters,
                               gpointer user_data);
+void dbussignal_lists_navigation(GDBusProxy *proxy, const gchar *sender_name,
+                                 const gchar *signal_name, GVariant *parameters,
+                                 gpointer user_data);
 void dbussignal_splay_urlfifo(GDBusProxy *proxy, const gchar *sender_name,
                               const gchar *signal_name, GVariant *parameters,
                               gpointer user_data);
