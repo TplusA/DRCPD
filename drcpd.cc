@@ -9,6 +9,8 @@
 #include <glib-unix.h>
 
 #include "i18n.h"
+#include "view_filebrowser.hh"
+#include "view_config.hh"
 #include "view_manager.hh"
 #include "dbus_iface.h"
 #include "messages.h"
@@ -79,6 +81,32 @@ static int process_command_line(int argc, char *argv[],
     return 0;
 }
 
+static void testing(ViewManager &views)
+{
+    static const unsigned int number_of_lines_on_display = 3;
+
+    static ViewConfig::View cfg(number_of_lines_on_display);
+    static ViewFileBrowser::View fs("Filesystem", number_of_lines_on_display,
+                                    DBUS_LISTBROKER_ID_FILESYSTEM);
+    static ViewFileBrowser::View tunein("TuneIn", number_of_lines_on_display,
+                                        DBUS_LISTBROKER_ID_TUNEIN);
+
+    if(!cfg.init())
+        return;
+
+    if(!fs.init())
+        return;
+
+    if(!tunein.init())
+        return;
+
+    views.add_view(&cfg);
+    views.add_view(&fs);
+    views.add_view(&tunein);
+
+    views.activate_view_by_name("TuneIn");
+}
+
 static gboolean signal_handler(gpointer user_data)
 {
     g_main_loop_quit(static_cast<GMainLoop *>(user_data));
@@ -113,11 +141,15 @@ int main(int argc, char *argv[])
 
     static ViewManager view_manager;
 
+    view_manager.set_output_stream(std::cout);
+
     if(dbus_setup(globals.loop, true, static_cast<ViewManagerIface *>(&view_manager)) < 0)
         return EXIT_FAILURE;
 
     g_unix_signal_add(SIGINT, signal_handler, globals.loop);
     g_unix_signal_add(SIGTERM, signal_handler, globals.loop);
+
+    testing(view_manager);
 
     g_main_loop_run(globals.loop);
 
