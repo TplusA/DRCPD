@@ -48,11 +48,12 @@ void ViewFileBrowser::View::defocus()
 }
 
 static void send_selected_file_uri_to_streamplayer(uint32_t list_id,
-                                                   unsigned int item_id)
+                                                   unsigned int item_id,
+                                                   dbus_listbroker_id_t listbroker_id)
 {
     gchar *uri;
 
-    if(!tdbus_lists_navigation_call_get_uri_sync(dbus_get_filebroker_lists_navigation_iface(),
+    if(!tdbus_lists_navigation_call_get_uri_sync(dbus_get_lists_navigation_iface(listbroker_id),
                                                  list_id, item_id, &uri, NULL, NULL))
     {
         msg_info("Failed obtaining URI for item %u in list %u", item_id, list_id);
@@ -107,7 +108,8 @@ ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command)
             }
             else
                 send_selected_file_uri_to_streamplayer(current_list_id_,
-                                                       navigation_.get_cursor());
+                                                       navigation_.get_cursor(),
+                                                       listbroker_id_);
         }
 
         return InputResult::OK;
@@ -174,7 +176,7 @@ bool ViewFileBrowser::View::fill_list_from_root()
 
     guint list_id;
 
-    if(!tdbus_lists_navigation_call_get_list_id_sync(dbus_get_filebroker_lists_navigation_iface(),
+    if(!tdbus_lists_navigation_call_get_list_id_sync(dbus_get_lists_navigation_iface(listbroker_id_),
                                                      0, 0, &list_id,
                                                      NULL, NULL))
     {
@@ -202,7 +204,7 @@ bool ViewFileBrowser::View::fill_list_from_current_list_id()
     guint first_item;
     GVariant *out_list;
 
-    if(!tdbus_lists_navigation_call_get_range_sync(dbus_get_filebroker_lists_navigation_iface(),
+    if(!tdbus_lists_navigation_call_get_range_sync(dbus_get_lists_navigation_iface(listbroker_id_),
                                                    current_list_id_, 0, 0,
                                                    &error_code, &first_item, &out_list,
                                                    NULL, NULL))
@@ -267,7 +269,7 @@ bool ViewFileBrowser::View::fill_list_from_selected_line()
 
     guint list_id;
 
-    if(!tdbus_lists_navigation_call_get_list_id_sync(dbus_get_filebroker_lists_navigation_iface(),
+    if(!tdbus_lists_navigation_call_get_list_id_sync(dbus_get_lists_navigation_iface(listbroker_id_),
                                                      current_list_id_, navigation_.get_cursor(),
                                                      &list_id, NULL, NULL))
     {
@@ -300,7 +302,7 @@ bool ViewFileBrowser::View::fill_list_from_parent_link()
     guint list_id;
     guint item_id;
 
-    if(!tdbus_lists_navigation_call_get_parent_link_sync(dbus_get_filebroker_lists_navigation_iface(),
+    if(!tdbus_lists_navigation_call_get_parent_link_sync(dbus_get_lists_navigation_iface(listbroker_id_),
                                                          current_list_id_, &list_id, &item_id,
                                                          NULL, NULL))
     {

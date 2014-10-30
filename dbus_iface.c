@@ -22,6 +22,7 @@ struct dbus_data
     tdbusdcpdListItem *dcpd_list_item_proxy;
 
     tdbuslistsNavigation *filebroker_lists_navigation_proxy;
+    tdbuslistsNavigation *tuneinbroker_lists_navigation_proxy;
 
     tdbussplayURLFIFO *splay_urlfifo_proxy;
     tdbussplayPlayback *splay_playback_proxy;
@@ -76,14 +77,14 @@ static void connect_signals_dcpd(GDBusConnection *connection,
 }
 
 static void connect_signals_list_broker(GDBusConnection *connection,
-                                        struct dbus_data *data,
+                                        tdbuslistsNavigation **proxy,
                                         GDBusProxyFlags flags,
                                         const char *bus_name,
                                         const char *object_path)
 {
     GError *error = NULL;
 
-    data->filebroker_lists_navigation_proxy =
+    *proxy =
         tdbus_lists_navigation_proxy_new_sync(connection, flags,
                                               bus_name, object_path,
                                               NULL, &error);
@@ -121,8 +122,14 @@ static void name_acquired(GDBusConnection *connection,
 
     connect_signals_dcpd(connection, data, G_DBUS_PROXY_FLAGS_NONE,
                          "de.tahifi.Dcpd", "/de/tahifi/Dcpd");
-    connect_signals_list_broker(connection, data, G_DBUS_PROXY_FLAGS_NONE,
+    connect_signals_list_broker(connection,
+                                &data->filebroker_lists_navigation_proxy,
+                                G_DBUS_PROXY_FLAGS_NONE,
                                 "de.tahifi.FileBroker", "/de/tahifi/FileBroker");
+    connect_signals_list_broker(connection,
+                                &data->tuneinbroker_lists_navigation_proxy,
+                                G_DBUS_PROXY_FLAGS_NONE,
+                                "de.tahifi.TuneInBroker", "/de/tahifi/TuneInBroker");
     connect_signals_streamplayer(connection, data, G_DBUS_PROXY_FLAGS_NONE,
                                  "de.tahifi.Streamplayer", "/de/tahifi/Streamplayer");
 }
@@ -143,9 +150,18 @@ static void destroy_notification(gpointer data)
 
 static struct dbus_data dbus_data;
 
-tdbuslistsNavigation *dbus_get_filebroker_lists_navigation_iface(void)
+tdbuslistsNavigation *dbus_get_lists_navigation_iface(dbus_listbroker_id_t listbroker_id)
 {
-    return dbus_data.filebroker_lists_navigation_proxy;
+    switch(listbroker_id)
+    {
+      case DBUS_LISTBROKER_ID_FILESYSTEM:
+        return dbus_data.filebroker_lists_navigation_proxy;
+
+      case DBUS_LISTBROKER_ID_TUNEIN:
+        return dbus_data.tuneinbroker_lists_navigation_proxy;
+    }
+
+    return NULL;
 }
 
 tdbussplayURLFIFO *dbus_get_streamplayer_urlfifo_iface(void)
@@ -195,6 +211,7 @@ int dbus_setup(GMainLoop *loop, bool connect_to_session_bus,
     assert(dbus_data.dcpd_list_navigation_proxy != NULL);
     assert(dbus_data.dcpd_list_item_proxy != NULL);
     assert(dbus_data.filebroker_lists_navigation_proxy != NULL);
+    assert(dbus_data.tuneinbroker_lists_navigation_proxy != NULL);
     assert(dbus_data.splay_urlfifo_proxy != NULL);
     assert(dbus_data.splay_playback_proxy != NULL);
 
@@ -215,6 +232,10 @@ int dbus_setup(GMainLoop *loop, bool connect_to_session_bus,
                      view_manager_iface_for_dbus_handlers);
 
     g_signal_connect(dbus_data.filebroker_lists_navigation_proxy, "g-signal",
+                     G_CALLBACK(dbussignal_lists_navigation),
+                     view_manager_iface_for_dbus_handlers);
+
+    g_signal_connect(dbus_data.tuneinbroker_lists_navigation_proxy, "g-signal",
                      G_CALLBACK(dbussignal_lists_navigation),
                      view_manager_iface_for_dbus_handlers);
 
@@ -244,6 +265,7 @@ void dbus_shutdown(GMainLoop *loop)
     g_object_unref(dbus_data.dcpd_list_navigation_proxy);
     g_object_unref(dbus_data.dcpd_list_item_proxy);
     g_object_unref(dbus_data.filebroker_lists_navigation_proxy);
+    g_object_unref(dbus_data.tuneinbroker_lists_navigation_proxy);
     g_object_unref(dbus_data.splay_urlfifo_proxy);
     g_object_unref(dbus_data.splay_playback_proxy);
 

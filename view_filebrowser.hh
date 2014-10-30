@@ -4,6 +4,7 @@
 #include "view.hh"
 #include "ramlist.hh"
 #include "listnav.hh"
+#include "dbus_iface.h"
 
 /*!
  * \addtogroup view_filesystem Filesystem browsing
@@ -27,16 +28,20 @@ class View: public ViewIface
     List::NavItemNoFilter item_flags_;
     List::Nav navigation_;
 
+    const dbus_listbroker_id_t listbroker_id_;
+
   public:
     View(const View &) = delete;
 
     View &operator=(const View &) = delete;
 
-    explicit View(const std::string &name, unsigned int max_lines):
+    explicit View(const std::string &name, unsigned int max_lines,
+                  dbus_listbroker_id_t listbroker_id):
         ViewIface(name),
         current_list_id_(0),
         item_flags_(&file_list_),
-        navigation_(max_lines, item_flags_)
+        navigation_(max_lines, item_flags_),
+        listbroker_id_(listbroker_id)
     {}
 
     bool init() override;
