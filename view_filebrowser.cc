@@ -47,6 +47,48 @@ void ViewFileBrowser::View::defocus()
 {
 }
 
+static void send_selected_file_uri_to_streamplayer(uint32_t list_id,
+                                                   unsigned int item_id)
+{
+    gchar *uri;
+
+    if(!tdbus_lists_navigation_call_get_uri_sync(dbus_get_filebroker_lists_navigation_iface(),
+                                                 list_id, item_id, &uri, NULL, NULL))
+    {
+        msg_info("Failed obtaining URI for item %u in list %u", item_id, list_id);
+        return;
+    }
+
+    if(uri[0] == '\0')
+    {
+        msg_info("No URI for item %u in list %u", item_id, list_id);
+        g_free(uri);
+        return;
+    }
+
+    msg_info("URI: \"%s\"", uri);
+
+    gboolean fifo_overflow;
+
+    if(!tdbus_splay_urlfifo_call_push_sync(dbus_get_streamplayer_urlfifo_iface(),
+                                           1234U, uri, 0, "ms", 0, "ms", 0,
+                                           &fifo_overflow, NULL, NULL))
+        msg_error(EIO, LOG_NOTICE, "Failed queuing URI to streamplayer");
+    else
+    {
+        if(fifo_overflow)
+            msg_error(EAGAIN, LOG_INFO, "URL FIFO overflow");
+        else if(!tdbus_splay_playback_call_start_sync(dbus_get_streamplayer_playback_iface(),
+                                                      NULL, NULL))
+            msg_error(EIO, LOG_NOTICE, "Failed sending start playback message");
+        else if(!tdbus_splay_urlfifo_call_next_sync(dbus_get_streamplayer_urlfifo_iface(),
+                                                    NULL, NULL))
+            msg_error(EIO, LOG_NOTICE, "Failed activating queued URI in streamplayer");
+    }
+
+    g_free(uri);
+}
+
 ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command)
 {
     switch(command)
@@ -64,8 +106,8 @@ ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command)
                     return InputResult::UPDATE_NEEDED;
             }
             else
-                msg_info("Should add file \"%s\" to Streamplayer queue",
-                         item->get_text());
+                send_selected_file_uri_to_streamplayer(current_list_id_,
+                                                       navigation_.get_cursor());
         }
 
         return InputResult::OK;
