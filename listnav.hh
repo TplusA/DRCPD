@@ -1,6 +1,8 @@
 #ifndef LISTNAV_HH
 #define LISTNAV_HH
 
+#include <cassert>
+
 #include "list.hh"
 
 /*!
@@ -51,6 +53,8 @@ class NavItemFilterIface
     virtual unsigned int get_first_visible_item() const = 0;
     virtual unsigned int get_last_visible_item() const = 0;
     virtual unsigned int get_flags_for_item(unsigned int item) const = 0;
+    virtual bool map_line_number_to_item(unsigned int line_number,
+                                         unsigned int &item) const = 0;
 };
 
 class NavItemNoFilter: public NavItemFilterIface
@@ -85,6 +89,16 @@ class NavItemNoFilter: public NavItemFilterIface
     unsigned int get_first_visible_item() const override { return 0; }
     unsigned int get_last_visible_item() const override { return number_of_items_minus_1_; }
     unsigned int get_flags_for_item(unsigned int item) const override { return 0; }
+
+    bool map_line_number_to_item(unsigned int line_number,
+                                 unsigned int &item) const override
+    {
+        if(!contains_items_ || line_number > number_of_items_minus_1_)
+            return false;
+
+        item = line_number;
+        return true;
+    }
 };
 
 class Nav
@@ -220,12 +234,18 @@ class Nav
         return cursor_;
     }
 
-    /*!
-     * \todo Not implemented yet.
-     */
-    bool set_cursor(unsigned int item)
+    void set_cursor_by_line_number(unsigned int line_number)
     {
-        return false;
+        if(line_number == 0 || !item_filter_.map_line_number_to_item(line_number, cursor_))
+        {
+            recover_cursor_and_selection();
+        }
+        else
+        {
+            assert(maximum_number_of_displayed_lines_ > 0);
+            selected_line_number_ = (maximum_number_of_displayed_lines_ + 1) / 2 - 1;
+            recover_first_displayed_item_by_cursor();
+        }
     }
 
     class const_iterator

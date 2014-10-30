@@ -281,7 +281,7 @@ bool ViewFileBrowser::View::fill_list_from_parent_link()
     current_list_id_ = list_id;
 
     if(fill_list_from_current_list_id())
-        (void)navigation_.set_cursor(item_id);
+        navigation_.set_cursor_by_line_number(item_id);
     else
         (void)fill_list_from_root();
 

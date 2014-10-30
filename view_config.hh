@@ -164,6 +164,15 @@ class FilterFlags: public List::NavItemFilterIface
     unsigned int get_first_visible_item() const override { return 0U; }
     unsigned int get_last_visible_item() const override { return list_->get_number_of_items() - 1; }
     unsigned int get_flags_for_item(unsigned int item) const override { return list_->get_item(item)->get_flags(); }
+
+    /*!
+     * \todo Not implemented yet.
+     */
+    bool map_line_number_to_item(unsigned int line_number,
+                                 unsigned int &item) const override
+    {
+        return false;
+    }
 };
 
 class View: public ViewIface

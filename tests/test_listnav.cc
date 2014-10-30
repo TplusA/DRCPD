@@ -124,6 +124,15 @@ class NavItemFlags: public List::NavItemFilterIface
         return list_->get_item(item)->get_flags();
     }
 
+    /*!
+     * \todo Not implemented yet.
+     */
+    bool map_line_number_to_item(unsigned int line_number,
+                                 unsigned int &item) const override
+    {
+        return false;
+    }
+
   private:
     void update_cached_values()
     {
