@@ -3,6 +3,7 @@
 #endif /* HAVE_CONFIG_H */
 
 #include <cassert>
+#include <cstring>
 
 #include "view_filebrowser.hh"
 #include "dbus_iface_deep.h"
@@ -47,32 +48,65 @@ void ViewFileBrowser::View::defocus()
 {
 }
 
+static void free_array_of_strings(gchar **const strings)
+{
+    if(strings == NULL)
+        return;
+
+    for(gchar **ptr = strings; *ptr != NULL; ++ptr)
+        g_free(*ptr);
+
+    g_free(strings);
+}
+
 static void send_selected_file_uri_to_streamplayer(uint32_t list_id,
                                                    unsigned int item_id,
                                                    dbus_listbroker_id_t listbroker_id)
 {
-    gchar *uri;
+    gchar **uri_list;
 
-    if(!tdbus_lists_navigation_call_get_uri_sync(dbus_get_lists_navigation_iface(listbroker_id),
-                                                 list_id, item_id, &uri, NULL, NULL))
+    if(!tdbus_lists_navigation_call_get_uris_sync(dbus_get_lists_navigation_iface(listbroker_id),
+                                                  list_id, item_id, &uri_list, NULL, NULL))
     {
         msg_info("Failed obtaining URI for item %u in list %u", item_id, list_id);
         return;
     }
 
-    if(uri[0] == '\0')
+    if(uri_list == NULL || uri_list[0] == NULL)
     {
         msg_info("No URI for item %u in list %u", item_id, list_id);
-        g_free(uri);
+        free_array_of_strings(uri_list);
         return;
     }
 
-    msg_info("URI: \"%s\"", uri);
+    for(gchar **ptr = uri_list; *ptr != NULL; ++ptr)
+        msg_info("URI: \"%s\"", *ptr);
+
+    gchar *selected_uri = NULL;
+
+    for(gchar **ptr = uri_list; *ptr != NULL; ++ptr)
+    {
+        const size_t len = strlen(*ptr);
+
+        if(len < 4)
+            continue;
+
+        const gchar *const suffix = &(*ptr)[len - 4];
+
+        if(strncasecmp(".m3u", suffix, 4) == 0 ||
+           strncasecmp(".pls", suffix, 4) == 0)
+            continue;
+
+        if(selected_uri == NULL)
+            selected_uri = *ptr;
+    }
+
+    msg_info("Queuing URI: \"%s\"", selected_uri);
 
     gboolean fifo_overflow;
 
     if(!tdbus_splay_urlfifo_call_push_sync(dbus_get_streamplayer_urlfifo_iface(),
-                                           1234U, uri, 0, "ms", 0, "ms", 0,
+                                           1234U, selected_uri, 0, "ms", 0, "ms", 0,
                                            &fifo_overflow, NULL, NULL))
         msg_error(EIO, LOG_NOTICE, "Failed queuing URI to streamplayer");
     else
@@ -87,7 +121,7 @@ static void send_selected_file_uri_to_streamplayer(uint32_t list_id,
             msg_error(EIO, LOG_NOTICE, "Failed activating queued URI in streamplayer");
     }
 
-    g_free(uri);
+    free_array_of_strings(uri_list);
 }
 
 ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command)
