@@ -523,10 +523,30 @@ void test_toggle_views_with_same_names_switches_once(void)
 }
 
 /*!\test
- * Toggle requests between two views with an unknown and a known name switch to
- * the known name, nothing more.
+ * Toggle requests between two views with an unknown and a known name (unknown
+ * name in the first position) switch to the known name, nothing more.
  */
-void test_toggle_views_with_one_unknown_name_switches_to_the_known_name(void)
+void test_toggle_views_with_first_unknown_name_switches_to_the_known_name(void)
+{
+    mock_messages->expect_msg_info_formatted("Requested to toggle between views \"Foo\" and \"Third\"");
+    all_mock_views[0]->expect_defocus();
+    all_mock_views[2]->expect_focus();
+    all_mock_views[2]->expect_serialize(*views_output);
+    vm->toggle_views_by_name("Foo", "Third");
+    check_and_clear_ostream("Third serialize\n", *views_output);
+
+    mock_messages->expect_msg_info_formatted("Requested to toggle between views \"Foo\" and \"Third\"");
+    vm->toggle_views_by_name("Foo", "Third");
+
+    mock_messages->expect_msg_info_formatted("Requested to toggle between views \"Foo\" and \"Third\"");
+    vm->toggle_views_by_name("Foo", "Third");
+}
+
+/*!\test
+ * Toggle requests between two views with an unknown and a known name (unknown
+ * name in second position) switch to the known name, nothing more.
+ */
+void test_toggle_views_with_second_unknown_name_switches_to_the_known_name(void)
 {
     mock_messages->expect_msg_info_formatted("Requested to toggle between views \"Third\" and \"Foo\"");
     all_mock_views[0]->expect_defocus();
