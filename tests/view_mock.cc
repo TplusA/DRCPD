@@ -82,7 +82,7 @@ class ViewMock::View::Expectation
     Expectation(Expectation &&) = default;
 };
 
-ViewMock::View::View(const std::string &name):
+ViewMock::View::View(const char *name):
     ViewIface(name),
     ignore_all_(false)
 {

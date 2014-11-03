@@ -31,10 +31,10 @@ class ViewIface
     ViewIface &operator=(const ViewIface &);
 
   public:
-    const std::string name_;
+    const char *const name_;
 
   protected:
-    explicit ViewIface(const std::string &name):
+    explicit ViewIface(const char *name):
         name_(name)
     {}
 

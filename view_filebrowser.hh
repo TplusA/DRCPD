@@ -35,7 +35,7 @@ class View: public ViewIface
 
     View &operator=(const View &) = delete;
 
-    explicit View(const std::string &name, unsigned int max_lines,
+    explicit View(const char *name, unsigned int max_lines,
                   dbus_listbroker_id_t listbroker_id):
         ViewIface(name),
         current_list_id_(0),

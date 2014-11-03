@@ -19,7 +19,7 @@ class View: public ViewIface
     View(const View &) = delete;
     View &operator=(const View &) = delete;
 
-    explicit View(const std::string &name);
+    explicit View(const char *name);
     ~View();
 
     void check() const;

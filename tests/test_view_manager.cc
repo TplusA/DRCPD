@@ -33,7 +33,7 @@ namespace view_manager_tests
 static MockMessages *mock_messages;
 static ViewManager *vm;
 static std::ostringstream views_output;
-static std::string standard_mock_view_name("Mock");
+static const char standard_mock_view_name[] = "Mock";
 
 void cut_setup(void)
 {
@@ -117,7 +117,7 @@ void test_add_view_and_activate(void)
     mock_messages->expect_msg_info_formatted("Requested to activate view \"Mock\"");
     view.expect_focus();
     view.expect_serialize(views_output);
-    vm->activate_view_by_name(standard_mock_view_name.c_str());
+    vm->activate_view_by_name(standard_mock_view_name);
     view.check();
 
     check_and_clear_ostream("Mock serialize\n", views_output);
