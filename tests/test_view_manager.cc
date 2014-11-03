@@ -27,7 +27,7 @@ static void check_and_clear_ostream(const char *string, std::ostringstream &ss)
 }
 
 
-namespace view_manager_tests
+namespace view_manager_tests_basics
 {
 
 static MockMessages *mock_messages;
@@ -125,6 +125,192 @@ void test_add_view_and_activate(void)
     view.check();
 
     check_and_clear_ostream("Mock serialize\n", *views_output);
+}
+
+};
+
+namespace view_manager_tests
+{
+
+static MockMessages *mock_messages;
+static ViewManager *vm;
+static std::ostringstream *views_output;
+static const char standard_mock_view_name[] = "Mock";
+static ViewMock::View *mock_view;
+
+void cut_setup(void)
+{
+    views_output = new std::ostringstream();
+    cppcut_assert_not_null(views_output);
+
+    mock_messages = new MockMessages();
+    cppcut_assert_not_null(mock_messages);
+    mock_messages->init();
+    mock_messages_singleton = mock_messages;
+
+    mock_view = new ViewMock::View(standard_mock_view_name);
+    cppcut_assert_not_null(mock_view);
+    cut_assert_true(mock_view->init());
+
+    vm = new ViewManager();
+    cppcut_assert_not_null(vm);
+    vm->set_output_stream(*views_output);
+    cut_assert_true(vm->add_view(mock_view));
+
+    mock_messages->ignore_all_ = true;
+    mock_view->ignore_all_ = true;
+    vm->activate_view_by_name(standard_mock_view_name);
+    mock_view->ignore_all_ = false;
+    mock_messages->ignore_all_ = false;
+}
+
+void cut_teardown(void)
+{
+    mock_messages->check();
+    mock_view->check();
+    cppcut_assert_equal("", views_output->str().c_str());
+
+    delete vm;
+    delete mock_view;
+    delete mock_messages;
+    delete views_output;
+
+    mock_messages = nullptr;
+    mock_view = nullptr;
+    vm =nullptr;
+    views_output = nullptr;
+}
+
+/*!\test
+ * Requests to move the cursor by zero lines have no effect.
+ */
+void test_move_cursor_by_zero_lines(void)
+{
+    vm->input_move_cursor_by_line(0);
+}
+
+/*!\test
+ * Requests to move the cursor by multiple lines up are transformed into
+ * multiple virtual key presses for the current view.
+ *
+ * There is only a single update call in the end.
+ */
+void test_move_cursor_up_by_multiple_lines(void)
+{
+    mock_view->expect_input_return(DrcpCommand::SCROLL_UP_ONE,
+                                   ViewIface::InputResult::UPDATE_NEEDED);
+    mock_view->expect_input_return(DrcpCommand::SCROLL_UP_ONE,
+                                   ViewIface::InputResult::UPDATE_NEEDED);
+    mock_view->expect_update(*views_output);
+
+    vm->input_move_cursor_by_line(-2);
+
+    check_and_clear_ostream("Mock update\n", *views_output);
+}
+
+/*!\test
+ * Requests to move the cursor by multiple lines down are transformed into
+ * multiple virtual key presses for the current view.
+ *
+ * There is only a single update call in the end.
+ */
+void test_move_cursor_down_by_multiple_lines(void)
+{
+    mock_view->expect_input_return(DrcpCommand::SCROLL_DOWN_ONE,
+                                   ViewIface::InputResult::UPDATE_NEEDED);
+    mock_view->expect_input_return(DrcpCommand::SCROLL_DOWN_ONE,
+                                   ViewIface::InputResult::UPDATE_NEEDED);
+    mock_view->expect_input_return(DrcpCommand::SCROLL_DOWN_ONE,
+                                   ViewIface::InputResult::UPDATE_NEEDED);
+    mock_view->expect_update(*views_output);
+
+    vm->input_move_cursor_by_line(3);
+
+    check_and_clear_ostream("Mock update\n", *views_output);
+}
+
+/*!\test
+ * If the view indicates that after an input nothing has changed, then upwards
+ * cursor movement is stopped.
+ */
+void test_move_cursor_by_multiple_lines_up_stops_at_beginning_of_list(void)
+{
+    mock_view->expect_input_return(DrcpCommand::SCROLL_UP_ONE,
+                                   ViewIface::InputResult::UPDATE_NEEDED);
+    mock_view->expect_input_return(DrcpCommand::SCROLL_UP_ONE,
+                                   ViewIface::InputResult::OK);
+    mock_view->expect_update(*views_output);
+
+    vm->input_move_cursor_by_line(-5);
+
+    check_and_clear_ostream("Mock update\n", *views_output);
+}
+
+/*!\test
+ * If the view indicates that after an input nothing has changed, then
+ * downwards cursor movement is stopped.
+ */
+void test_move_cursor_by_multiple_lines_down_stops_at_end_of_list(void)
+{
+    mock_view->expect_input_return(DrcpCommand::SCROLL_DOWN_ONE,
+                                   ViewIface::InputResult::UPDATE_NEEDED);
+    mock_view->expect_input_return(DrcpCommand::SCROLL_DOWN_ONE,
+                                   ViewIface::InputResult::OK);
+    mock_view->expect_update(*views_output);
+
+    vm->input_move_cursor_by_line(5);
+
+    check_and_clear_ostream("Mock update\n", *views_output);
+}
+
+/*!\test
+ * Requests to move the cursor by zero pages have no effect.
+ */
+void test_move_cursor_by_zero_pages(void)
+{
+    vm->input_move_cursor_by_page(0);
+}
+
+/*!\test
+ * Requests to move the cursor by multiple pages up are transformed into
+ * multiple virtual key presses for the current view.
+ *
+ * There is only a single update call in the end.
+ */
+void test_move_cursor_up_by_multiple_pages(void)
+{
+    mock_view->expect_input_return(DrcpCommand::SCROLL_PAGE_UP,
+                                   ViewIface::InputResult::UPDATE_NEEDED);
+    mock_view->expect_input_return(DrcpCommand::SCROLL_PAGE_UP,
+                                   ViewIface::InputResult::UPDATE_NEEDED);
+    mock_view->expect_input_return(DrcpCommand::SCROLL_PAGE_UP,
+                                   ViewIface::InputResult::UPDATE_NEEDED);
+    mock_view->expect_input_return(DrcpCommand::SCROLL_PAGE_UP,
+                                   ViewIface::InputResult::UPDATE_NEEDED);
+    mock_view->expect_update(*views_output);
+
+    vm->input_move_cursor_by_page(-4);
+
+    check_and_clear_ostream("Mock update\n", *views_output);
+}
+
+/*!\test
+ * Requests to move the cursor by multiple pages down are transformed into
+ * multiple virtual key presses for the current view.
+ *
+ * There is only a single update call in the end.
+ */
+void test_move_cursor_down_by_multiple_pages(void)
+{
+    mock_view->expect_input_return(DrcpCommand::SCROLL_PAGE_DOWN,
+                                   ViewIface::InputResult::UPDATE_NEEDED);
+    mock_view->expect_input_return(DrcpCommand::SCROLL_PAGE_DOWN,
+                                   ViewIface::InputResult::UPDATE_NEEDED);
+    mock_view->expect_update(*views_output);
+
+    vm->input_move_cursor_by_page(2);
+
+    check_and_clear_ostream("Mock update\n", *views_output);
 }
 
 };
