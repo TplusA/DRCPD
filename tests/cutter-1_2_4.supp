@@ -8895,7 +8895,7 @@
    match-leak-kinds: reachable
    fun:calloc
    fun:_dlerror_run
-   fun:dlopen@@GLIBC_2.2.5
+   fun:dlopen@@*
    fun:g_module_open
    obj:/usr/lib/libcutter.so.0.1.0
    fun:g_type_module_use
@@ -16847,7 +16847,7 @@
    fun:dlopen_doit
    fun:_dl_catch_error
    fun:_dlerror_run
-   fun:dlopen@@GLIBC_2.2.5
+   fun:dlopen@@*
    fun:g_module_open
    obj:/usr/lib/libcutter.so.0.1.0
 }
@@ -16865,7 +16865,7 @@
    fun:dlopen_doit
    fun:_dl_catch_error
    fun:_dlerror_run
-   fun:dlopen@@GLIBC_2.2.5
+   fun:dlopen@@*
    fun:g_module_open
 }
 {
@@ -19902,7 +19902,7 @@
    fun:dlopen_doit
    fun:_dl_catch_error
    fun:_dlerror_run
-   fun:dlopen@@GLIBC_2.2.5
+   fun:dlopen@@*
 }
 {
    Cutter internal allocation
@@ -20701,7 +20701,7 @@
    fun:dlopen_doit
    fun:_dl_catch_error
    fun:_dlerror_run
-   fun:dlopen@@GLIBC_2.2.5
+   fun:dlopen@@*
    fun:g_module_open
    obj:/usr/lib/libcutter.so.0.1.0
    fun:g_type_module_use
@@ -21255,7 +21255,7 @@
    fun:dlopen_doit
    fun:_dl_catch_error
    fun:_dlerror_run
-   fun:dlopen@@GLIBC_2.2.5
+   fun:dlopen@@*
    fun:g_module_open
    fun:cut_loader_load_test_cases
    fun:cut_repository_create_test_suite
@@ -21308,7 +21308,7 @@
    fun:dlopen_doit
    fun:_dl_catch_error
    fun:_dlerror_run
-   fun:dlopen@@GLIBC_2.2.5
+   fun:dlopen@@*
    fun:g_module_open
 }
 {
@@ -21342,7 +21342,7 @@
    fun:dlopen_doit
    fun:_dl_catch_error
    fun:_dlerror_run
-   fun:dlopen@@GLIBC_2.2.5
+   fun:dlopen@@*
    fun:g_module_open
 }
 {
@@ -29574,7 +29574,7 @@
    match-leak-kinds: reachable
    fun:calloc
    fun:_dlerror_run
-   fun:dlopen@@GLIBC_2.2.5
+   fun:dlopen@@*
    fun:g_module_open
    obj:/usr/lib/libcutter.so.0.1.0
    fun:g_type_module_use
@@ -36072,7 +36072,7 @@
    fun:dlopen_doit
    fun:_dl_catch_error
    fun:_dlerror_run
-   fun:dlopen@@GLIBC_2.2.5
+   fun:dlopen@@*
    fun:g_module_open
    obj:/usr/lib/libcutter.so.0.1.0
 }
@@ -36090,7 +36090,7 @@
    fun:dlopen_doit
    fun:_dl_catch_error
    fun:_dlerror_run
-   fun:dlopen@@GLIBC_2.2.5
+   fun:dlopen@@*
    fun:g_module_open
 }
 {
@@ -39042,7 +39042,7 @@
    fun:dlopen_doit
    fun:_dl_catch_error
    fun:_dlerror_run
-   fun:dlopen@@GLIBC_2.2.5
+   fun:dlopen@@*
 }
 {
    Cutter internal allocation
@@ -39711,7 +39711,7 @@
    fun:dlopen_doit
    fun:_dl_catch_error
    fun:_dlerror_run
-   fun:dlopen@@GLIBC_2.2.5
+   fun:dlopen@@*
    fun:g_module_open
    obj:/usr/lib/libcutter.so.0.1.0
    fun:g_type_module_use
@@ -40172,7 +40172,7 @@
    fun:dlopen_doit
    fun:_dl_catch_error
    fun:_dlerror_run
-   fun:dlopen@@GLIBC_2.2.5
+   fun:dlopen@@*
    fun:g_module_open
    fun:cut_loader_load_test_cases
    fun:cut_repository_create_test_suite
@@ -40225,7 +40225,7 @@
    fun:dlopen_doit
    fun:_dl_catch_error
    fun:_dlerror_run
-   fun:dlopen@@GLIBC_2.2.5
+   fun:dlopen@@*
    fun:g_module_open
 }
 {
@@ -40259,7 +40259,7 @@
    fun:dlopen_doit
    fun:_dl_catch_error
    fun:_dlerror_run
-   fun:dlopen@@GLIBC_2.2.5
+   fun:dlopen@@*
    fun:g_module_open
 }
 {
@@ -40363,4 +40363,25 @@
    obj:*
    obj:*
    obj:*
+}
+{
+   Cutter internal allocation
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:calloc
+   fun:g_malloc0
+   obj:/usr/lib/x86_64-linux-gnu/libgobject-2.0.so.0.4000.0
+   fun:g_type_register_static
+   fun:g_type_register_static_simple
+}
+{
+   Cutter internal allocation
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:realloc
+   fun:g_realloc
+   obj:/usr/lib/x86_64-linux-gnu/libgobject-2.0.so.0.4000.0
+   fun:g_type_register_static
+   fun:g_type_register_static_simple
 }

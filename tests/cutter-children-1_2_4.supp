@@ -14101,7 +14101,7 @@
    match-leak-kinds: possible
    fun:calloc
    fun:_dl_allocate_tls
-   fun:pthread_create@@GLIBC_2.2.5
+   fun:pthread_create@@*
    obj:/lib/x86_64-linux-gnu/libglib-2.0.so.0.4000.0
    obj:/lib/x86_64-linux-gnu/libglib-2.0.so.0.4000.0
    fun:g_thread_new
@@ -15628,7 +15628,7 @@
    fun:dlopen_doit
    fun:_dl_catch_error
    fun:_dlerror_run
-   fun:dlopen@@GLIBC_2.2.5
+   fun:dlopen@@*
    fun:g_module_open
    fun:cut_loader_load_test_cases
    fun:cut_repository_create_test_suite
@@ -15649,7 +15649,7 @@
    fun:dlopen_doit
    fun:_dl_catch_error
    fun:_dlerror_run
-   fun:dlopen@@GLIBC_2.2.5
+   fun:dlopen@@*
 }
 {
    <insert_a_suppression_name_here>
@@ -15747,7 +15747,7 @@
    fun:dlopen_doit
    fun:_dl_catch_error
    fun:_dlerror_run
-   fun:dlopen@@GLIBC_2.2.5
+   fun:dlopen@@*
    fun:g_module_open
    fun:cut_loader_load_test_cases
    fun:cut_repository_create_test_suite
@@ -15768,5 +15768,45 @@
    fun:dlopen_doit
    fun:_dl_catch_error
    fun:_dlerror_run
-   fun:dlopen@@GLIBC_2.2.5
+   fun:dlopen@@*
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:g_type_create_instance
+   fun:g_param_spec_internal
+   fun:g_param_spec_string
+   obj:/usr/lib/libcutter.so.0.1.0
+   fun:g_type_class_ref
+   fun:g_object_new_valist
+   fun:g_object_new
+   fun:cut_backtrace_entry_new
+   fun:cut_test_context_push_backtrace
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:g_type_create_instance
+   fun:g_param_spec_internal
+   fun:g_param_spec_uint
+   obj:/usr/lib/libcutter.so.0.1.0
+   fun:g_type_class_ref
+   fun:g_object_new_valist
+   fun:g_object_new
+   fun:cut_backtrace_entry_new
+   fun:cut_test_context_push_backtrace
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:calloc
+   fun:g_malloc0
+   fun:g_type_class_ref
+   fun:g_object_new_valist
+   fun:g_object_new
+   fun:cut_backtrace_entry_new
+   fun:cut_test_context_push_backtrace
 }
