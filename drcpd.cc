@@ -14,6 +14,8 @@
 #include "view_manager.hh"
 #include "dbus_iface.h"
 #include "messages.h"
+#include "named_pipe.h"
+#include "os.h"
 
 static struct
 {
@@ -21,15 +23,25 @@ static struct
 }
 globals;
 
+struct files_t
+{
+    struct fifo_pair dcp_fifo;
+    const char *dcp_fifo_in_name;
+    const char *dcp_fifo_out_name;
+};
+
 struct parameters
 {
     bool run_in_foreground;
 };
 
+ssize_t (*os_read)(int fd, void *dest, size_t count) = read;
+ssize_t (*os_write)(int fd, const void *buf, size_t count) = write;
+
 /*!
  * Set up logging, daemonize.
  */
-static int setup(const struct parameters *parameters)
+static int setup(const struct parameters *parameters, struct files_t *files)
 {
     msg_enable_syslog(!parameters->run_in_foreground);
 
@@ -45,7 +57,40 @@ static int setup(const struct parameters *parameters)
         }
     }
 
+    msg_info("Attempting to open named pipes");
+
+    files->dcp_fifo.out_fd = fifo_open(files->dcp_fifo_out_name, true);
+    if(files->dcp_fifo.out_fd < 0)
+        goto error_dcp_fifo_out;
+
+    files->dcp_fifo.in_fd = fifo_open(files->dcp_fifo_in_name, false);
+    if(files->dcp_fifo.in_fd < 0)
+        goto error_dcp_fifo_in;
+
+    globals.loop = g_main_loop_new(NULL, FALSE);
+    if(globals.loop == NULL)
+    {
+        msg_error(ENOMEM, LOG_EMERG, "Failed creating GLib main loop");
+        goto error_main_loop_new;
+    }
+
     return 0;
+
+error_main_loop_new:
+    fifo_close(&files->dcp_fifo.in_fd);
+
+error_dcp_fifo_in:
+    fifo_close(&files->dcp_fifo.out_fd);
+
+error_dcp_fifo_out:
+    globals.loop = NULL;
+    return -1;
+}
+
+static void shutdown(struct files_t *files)
+{
+    fifo_close(&files->dcp_fifo.in_fd);
+    fifo_close(&files->dcp_fifo.out_fd);
 }
 
 static void usage(const char *program_name)
@@ -55,14 +100,33 @@ static void usage(const char *program_name)
         "\n"
         "Options:\n"
         "  --help         Show this help.\n"
-        "  --fg           Run in foreground, don't run as daemon."
+        "  --fg           Run in foreground, don't run as daemon.\n"
+        "  --idcp name    Name of the named pipe the DCP daemon writes to.\n"
+        "  --odcp name    Name of the named pipe the DCP daemon reads from."
         << std::endl;
 }
 
+static bool check_argument(int argc, char *argv[], int &i)
+{
+    if(i + 1 >= argc)
+    {
+        std::cerr << "Option " << argv[i] << " requires an argument." << std::endl;
+        return false;
+    }
+
+    ++i;
+
+    return true;
+}
+
 static int process_command_line(int argc, char *argv[],
-                                struct parameters *parameters)
+                                struct parameters *parameters,
+                                struct files_t *files)
 {
     parameters->run_in_foreground = false;
+
+    files->dcp_fifo_out_name = "/tmp/drcpd_to_dcpd";
+    files->dcp_fifo_in_name = "/tmp/dcpd_to_drcpd";
 
     for(int i = 1; i < argc; ++i)
     {
@@ -70,6 +134,18 @@ static int process_command_line(int argc, char *argv[],
             return 1;
         else if(strcmp(argv[i], "--fg") == 0)
             parameters->run_in_foreground = true;
+        else if(strcmp(argv[i], "--idcp") == 0)
+        {
+            if(!check_argument(argc, argv, i))
+                return -1;
+            files->dcp_fifo_in_name = argv[i];
+        }
+        else if(strcmp(argv[i], "--odcp") == 0)
+        {
+            if(!check_argument(argc, argv, i))
+                return -1;
+            files->dcp_fifo_out_name = argv[i];
+        }
         else
         {
             std::cerr << "Unknown option \"" << argv[i]
@@ -118,8 +194,9 @@ int main(int argc, char *argv[])
     i18n_init();
 
     static struct parameters parameters;
+    static struct files_t files;
 
-    int ret = process_command_line(argc, argv, &parameters);
+    int ret = process_command_line(argc, argv, &parameters, &files);
 
     if(ret == -1)
         return EXIT_FAILURE;
@@ -129,15 +206,8 @@ int main(int argc, char *argv[])
         return EXIT_SUCCESS;
     }
 
-    if(setup(&parameters) < 0)
+    if(setup(&parameters, &files) < 0)
         return EXIT_FAILURE;
-
-    globals.loop = g_main_loop_new(NULL, FALSE);
-    if(globals.loop == NULL)
-    {
-        msg_error(ENOMEM, LOG_EMERG, "Failed creating GLib main loop");
-        return -1;
-    }
 
     static ViewManager view_manager;
 
@@ -155,6 +225,7 @@ int main(int argc, char *argv[])
 
     msg_info("Shutting down");
 
+    shutdown(&files);
     dbus_shutdown(globals.loop);
 
     return EXIT_SUCCESS;
