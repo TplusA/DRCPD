@@ -182,26 +182,29 @@ ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command)
     return InputResult::OK;
 }
 
-void ViewFileBrowser::View::serialize(std::ostream &os)
+void ViewFileBrowser::View::serialize(std::ostream &os, std::ostream *debug_os)
 {
+    if(!debug_os)
+        return;
+
     for(auto it : navigation_)
     {
         auto item = dynamic_cast<const FileItem *>(file_list_.get_item(it));
         assert(item != nullptr);
 
         if(it == navigation_.get_cursor())
-            os << "--> ";
+            *debug_os << "--> ";
         else
-            os << "    ";
+            *debug_os << "    ";
 
-        os << (item->is_directory() ? "Dir " : "File") << " " << it << ": "
-           << item->get_text() << std::endl;
+        *debug_os << (item->is_directory() ? "Dir " : "File") << " " << it << ": "
+                  << item->get_text() << std::endl;
     }
 }
 
-void ViewFileBrowser::View::update(std::ostream &os)
+void ViewFileBrowser::View::update(std::ostream &os, std::ostream *debug_os)
 {
-    serialize(os);
+    serialize(os, debug_os);
 }
 
 bool ViewFileBrowser::View::fill_list_from_root()

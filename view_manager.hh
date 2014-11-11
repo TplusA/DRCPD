@@ -24,6 +24,7 @@ class ViewManagerIface
 
     virtual bool add_view(ViewIface *view) = 0;
     virtual void set_output_stream(std::ostream &os) = 0;
+    virtual void set_debug_stream(std::ostream &os) = 0;
 
     virtual void input(DrcpCommand command) = 0;
     virtual void input_set_fast_wind_factor(double factor) = 0;
@@ -47,12 +48,14 @@ class ViewManager: public ViewManagerIface
 
     ViewIface *active_view_;
     std::ostream *output_stream_;
+    std::ostream *debug_stream_;
 
   public:
     explicit ViewManager();
 
     bool add_view(ViewIface *view) override;
     void set_output_stream(std::ostream &os) override;
+    void set_debug_stream(std::ostream &os) override;
 
     void input(DrcpCommand command) override;
     void input_set_fast_wind_factor(double factor) override;

@@ -34,8 +34,8 @@ class View: public ViewIface
     void focus() override;
     void defocus() override;
     InputResult input(DrcpCommand command) override;
-    void serialize(std::ostream &os) override;
-    void update(std::ostream &os) override;
+    void serialize(std::ostream &os, std::ostream *debug_os) override;
+    void update(std::ostream &os, std::ostream *debug_os) override;
 };
 
 };

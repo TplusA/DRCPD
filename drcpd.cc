@@ -14,7 +14,7 @@
 #include "view_manager.hh"
 #include "dbus_iface.h"
 #include "messages.h"
-#include "named_pipe.h"
+#include "fdstreambuf.hh"
 #include "os.h"
 
 static struct
@@ -209,9 +209,12 @@ int main(int argc, char *argv[])
     if(setup(&parameters, &files) < 0)
         return EXIT_FAILURE;
 
+    static FdStreambuf fd_sbuf(files.dcp_fifo.out_fd);
+    static std::ostream fd_out(&fd_sbuf);
     static ViewManager view_manager;
 
-    view_manager.set_output_stream(std::cout);
+    view_manager.set_output_stream(fd_out);
+    view_manager.set_debug_stream(std::cout);
 
     if(dbus_setup(globals.loop, true, static_cast<ViewManagerIface *>(&view_manager)) < 0)
         return EXIT_FAILURE;
@@ -225,6 +228,7 @@ int main(int argc, char *argv[])
 
     msg_info("Shutting down");
 
+    fd_sbuf.set_fd(-1);
     shutdown(&files);
     dbus_shutdown(globals.loop);
 

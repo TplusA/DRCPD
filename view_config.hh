@@ -203,8 +203,8 @@ class View: public ViewIface
 
     InputResult input(DrcpCommand command) override;
 
-    void serialize(std::ostream &os) override;
-    void update(std::ostream &os) override;
+    void serialize(std::ostream &os, std::ostream *debug_os = nullptr) override;
+    void update(std::ostream &os, std::ostream *debug_os = nullptr) override;
 
     void apply_changed_settings();
 

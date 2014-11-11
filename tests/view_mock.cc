@@ -168,7 +168,7 @@ ViewIface::InputResult ViewMock::View::input(DrcpCommand command)
     return expect.retval_input_;
 }
 
-void ViewMock::View::serialize(std::ostream &os)
+void ViewMock::View::serialize(std::ostream &os, std::ostream *debug_os)
 {
     if(ignore_all_)
         return;
@@ -178,7 +178,7 @@ void ViewMock::View::serialize(std::ostream &os)
     cppcut_assert_equal(expect.function_id_, MemberFn::serialize);
 }
 
-void ViewMock::View::update(std::ostream &os)
+void ViewMock::View::update(std::ostream &os, std::ostream *debug_os)
 {
     if(ignore_all_)
         return;

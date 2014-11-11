@@ -31,6 +31,7 @@ class MockViewManager: public ViewManagerIface
 
     bool add_view(ViewIface *view) override;
     void set_output_stream(std::ostream &os) override;
+    void set_debug_stream(std::ostream &os) override;
     void input(DrcpCommand command) override;
     void input_set_fast_wind_factor(double factor) override;
     void input_move_cursor_by_line(int lines) override;

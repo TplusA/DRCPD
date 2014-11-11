@@ -235,8 +235,11 @@ ViewIface::InputResult ViewConfig::View::input(DrcpCommand command)
     return InputResult::OK;
 }
 
-void ViewConfig::View::serialize(std::ostream &os)
+void ViewConfig::View::serialize(std::ostream &os, std::ostream *debug_os)
 {
+    if(!debug_os)
+        return;
+
     for(auto it : navigation_)
     {
         auto text_item = dynamic_cast<const List::TextItem *>(editable_menu_items_.get_item(it));
@@ -244,24 +247,24 @@ void ViewConfig::View::serialize(std::ostream &os)
         assert(text_item != nullptr);
 
         if(it == navigation_.get_cursor())
-            os << "--> ";
+            *debug_os << "--> ";
         else
-            os << "    ";
+            *debug_os << "    ";
 
-        os << "Item " << it << ": " << text_item->get_text();
+        *debug_os << "Item " << it << ": " << text_item->get_text();
 
         auto setting = dynamic_cast<const SettingItem *>(text_item);
 
         if(setting != nullptr)
-            os << "\t[" << (setting->is_editable() ? 'E' : 'S') << "] " << setting->get();
+            *debug_os << "\t[" << (setting->is_editable() ? 'E' : 'S') << "] " << setting->get();
 
-        os << std::endl;
+        *debug_os << std::endl;
     }
 }
 
-void ViewConfig::View::update(std::ostream &os)
+void ViewConfig::View::update(std::ostream &os, std::ostream *debug_os)
 {
-    serialize(os);
+    serialize(os, debug_os);
 }
 
 /*!
