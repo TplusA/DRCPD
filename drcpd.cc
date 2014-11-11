@@ -17,11 +17,6 @@
 #include "fdstreambuf.hh"
 #include "os.h"
 
-static struct
-{
-    GMainLoop *loop;
-}
-globals;
 
 struct files_t
 {
@@ -41,7 +36,8 @@ ssize_t (*os_write)(int fd, const void *buf, size_t count) = write;
 /*!
  * Set up logging, daemonize.
  */
-static int setup(const struct parameters *parameters, struct files_t *files)
+static int setup(const struct parameters *parameters, struct files_t *files,
+                 GMainLoop **loop)
 {
     msg_enable_syslog(!parameters->run_in_foreground);
 
@@ -67,8 +63,8 @@ static int setup(const struct parameters *parameters, struct files_t *files)
     if(files->dcp_fifo.in_fd < 0)
         goto error_dcp_fifo_in;
 
-    globals.loop = g_main_loop_new(NULL, FALSE);
-    if(globals.loop == NULL)
+    *loop = g_main_loop_new(NULL, FALSE);
+    if(*loop == NULL)
     {
         msg_error(ENOMEM, LOG_EMERG, "Failed creating GLib main loop");
         goto error_main_loop_new;
@@ -83,7 +79,7 @@ error_dcp_fifo_in:
     fifo_close(&files->dcp_fifo.out_fd);
 
 error_dcp_fifo_out:
-    globals.loop = NULL;
+    *loop = NULL;
     return -1;
 }
 
@@ -206,7 +202,9 @@ int main(int argc, char *argv[])
         return EXIT_SUCCESS;
     }
 
-    if(setup(&parameters, &files) < 0)
+    static GMainLoop *loop = NULL;
+
+    if(setup(&parameters, &files, &loop) < 0)
         return EXIT_FAILURE;
 
     static FdStreambuf fd_sbuf(files.dcp_fifo.out_fd);
@@ -216,21 +214,21 @@ int main(int argc, char *argv[])
     view_manager.set_output_stream(fd_out);
     view_manager.set_debug_stream(std::cout);
 
-    if(dbus_setup(globals.loop, true, static_cast<ViewManagerIface *>(&view_manager)) < 0)
+    if(dbus_setup(loop, true, static_cast<ViewManagerIface *>(&view_manager)) < 0)
         return EXIT_FAILURE;
 
-    g_unix_signal_add(SIGINT, signal_handler, globals.loop);
-    g_unix_signal_add(SIGTERM, signal_handler, globals.loop);
+    g_unix_signal_add(SIGINT, signal_handler, loop);
+    g_unix_signal_add(SIGTERM, signal_handler, loop);
 
     testing(view_manager);
 
-    g_main_loop_run(globals.loop);
+    g_main_loop_run(loop);
 
     msg_info("Shutting down");
 
     fd_sbuf.set_fd(-1);
     shutdown(&files);
-    dbus_shutdown(globals.loop);
+    dbus_shutdown(loop);
 
     return EXIT_SUCCESS;
 }
