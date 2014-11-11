@@ -12,6 +12,7 @@ CLEANFILES = README.html
 
 drcpd_SOURCES = \
     drcpd.cc drcp_commands.hh i18n.h i18n.c messages.h messages.c \
+    os.h named_pipe.c named_pipe.h \
     dbus_iface.c dbus_iface.h dbus_iface_deep.h \
     list.hh ramlist.hh listnav.hh \
     view.hh view_nop.hh view_config.hh view_filebrowser.hh view_manager.hh
