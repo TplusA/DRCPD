@@ -29,6 +29,9 @@ void msg_error(int error_code, int priority, const char *error_format, ...)
 void msg_info(const char *format_string, ...)
     __attribute__ ((format (printf, 1, 2)));
 
+
+#define BUG(...) msg_error(0, LOG_CRIT, "BUG: " __VA_ARGS__)
+
 #ifdef __cplusplus
 }
 #endif
