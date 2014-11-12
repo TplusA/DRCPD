@@ -29,6 +29,8 @@ struct dcp_fifo_dispatch_data_t
 {
     files_t *files;
     ViewManagerIface *vm;
+    GSource *timeout_event_source;
+    guint timeout_event_source_id;
 };
 
 struct parameters
@@ -133,8 +135,48 @@ static bool watch_in_fd(struct dcp_fifo_dispatch_data_t *dispatch_data)
     return dispatch_data->files->dcp_fifo_in_event_source_id != 0;
 }
 
-static void dcp_transaction_observer(DcpTransaction::state state)
+static gboolean transaction_timeout_exceeded(gpointer user_data)
 {
+    msg_error(ETIMEDOUT, LOG_CRIT, "DCPD answer timeout exceeded");
+
+    struct dcp_fifo_dispatch_data_t *dispatch_data =
+        static_cast<struct dcp_fifo_dispatch_data_t *>(user_data);
+    assert(dispatch_data != NULL);
+
+    dispatch_data->timeout_event_source_id = 0;
+    dispatch_data->vm->serialization_result(DcpTransaction::TIMEOUT);
+
+    return G_SOURCE_REMOVE;
+}
+
+static void dcp_transaction_observer(DcpTransaction::state state,
+                                     void *user_data)
+{
+    struct dcp_fifo_dispatch_data_t *dispatch_data =
+        static_cast<struct dcp_fifo_dispatch_data_t *>(user_data);
+
+    switch(state)
+    {
+      case DcpTransaction::IDLE:
+        if(dispatch_data->timeout_event_source_id != 0)
+        {
+            g_source_remove(dispatch_data->timeout_event_source_id);
+            dispatch_data->timeout_event_source_id = 0;
+        }
+        break;
+
+      case DcpTransaction::WAIT_FOR_COMMIT:
+        /* we are not going to consider this case because this state is left by
+         * our own internal actions pretty quickly---we assume here that the
+         * views commit their stuff */
+        return;
+
+      case DcpTransaction::WAIT_FOR_ANSWER:
+        assert(dispatch_data->timeout_event_source_id == 0);
+        dispatch_data->timeout_event_source_id =
+            g_source_attach(dispatch_data->timeout_event_source, NULL);
+        break;
+    }
 }
 
 /*!
@@ -292,6 +334,21 @@ static void testing(ViewManager &views)
     views.activate_view_by_name("TuneIn");
 }
 
+static GSource *create_timeout_object(guint timeout_ms, gpointer user_data)
+{
+    GSource *timeout = g_timeout_source_new(timeout_ms);
+
+    if(timeout == NULL)
+    {
+        msg_error(ENOMEM, LOG_EMERG, "Failed allocating timeout event source");
+        return timeout;
+    }
+
+    g_source_set_callback(timeout, transaction_timeout_exceeded, user_data, NULL);
+
+    return timeout;
+}
+
 static gboolean signal_handler(gpointer user_data)
 {
     g_main_loop_quit(static_cast<GMainLoop *>(user_data));
@@ -325,7 +382,8 @@ int main(int argc, char *argv[])
     if(setup(&parameters, &dcp_dispatch_data, &loop) < 0)
         return EXIT_FAILURE;
 
-    static const std::function<void(DcpTransaction::state)> transaction_observer(dcp_transaction_observer);
+    static const std::function<void(DcpTransaction::state)> transaction_observer =
+        std::bind(dcp_transaction_observer, std::placeholders::_1, &dcp_dispatch_data);
     static DcpTransaction dcp_transaction(transaction_observer);
     static FdStreambuf fd_sbuf(files.dcp_fifo.out_fd);
     static std::ostream fd_out(&fd_sbuf);
@@ -335,6 +393,11 @@ int main(int argc, char *argv[])
     view_manager.set_debug_stream(std::cout);
 
     dcp_dispatch_data.vm = &view_manager;
+    dcp_dispatch_data.timeout_event_source =
+        create_timeout_object(2U * 1000U, &dcp_dispatch_data);
+
+    if(dcp_dispatch_data.timeout_event_source == NULL)
+        return EXIT_FAILURE;
 
     if(dbus_setup(loop, true, &view_manager) < 0)
         return EXIT_FAILURE;
