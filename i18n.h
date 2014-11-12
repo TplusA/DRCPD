@@ -19,7 +19,7 @@
 extern "C" {
 #endif
 
-void i18n_init(void);
+void i18n_init(const char *default_language_identifier);
 void i18n_switch_language(const char *language_identifier);
 
 #ifdef __cplusplus

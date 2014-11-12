@@ -357,7 +357,7 @@ static gboolean signal_handler(gpointer user_data)
 
 int main(int argc, char *argv[])
 {
-    i18n_init();
+    i18n_init("en_US.UTF-8");
 
     static struct parameters parameters;
     static struct files_t files;
