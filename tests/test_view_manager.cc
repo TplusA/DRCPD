@@ -31,6 +31,7 @@ namespace view_manager_tests_basics
 {
 
 static MockMessages *mock_messages;
+static DcpTransaction *dcpd;
 static ViewManager *vm;
 static std::ostringstream *views_output;
 static const char standard_mock_view_name[] = "Mock";
@@ -44,7 +45,10 @@ void cut_setup(void)
     mock_messages->init();
     mock_messages_singleton = mock_messages;
 
-    vm = new ViewManager();
+    dcpd = new DcpTransaction;
+    cppcut_assert_not_null(dcpd);
+
+    vm = new ViewManager(*dcpd);
     cppcut_assert_not_null(vm);
     vm->set_output_stream(*views_output);
 }
@@ -56,10 +60,12 @@ void cut_teardown(void)
 
     delete mock_messages;
     delete vm;
+    delete dcpd;
     delete views_output;
 
     mock_messages = nullptr;
     vm =nullptr;
+    dcpd = nullptr;
     views_output = nullptr;
 }
 
@@ -133,6 +139,7 @@ namespace view_manager_tests
 {
 
 static MockMessages *mock_messages;
+static DcpTransaction *dcpd;
 static ViewManager *vm;
 static std::ostringstream *views_output;
 static const char standard_mock_view_name[] = "Mock";
@@ -152,7 +159,10 @@ void cut_setup(void)
     cppcut_assert_not_null(mock_view);
     cut_assert_true(mock_view->init());
 
-    vm = new ViewManager();
+    dcpd = new DcpTransaction;
+    cppcut_assert_not_null(dcpd);
+
+    vm = new ViewManager(*dcpd);
     cppcut_assert_not_null(vm);
     vm->set_output_stream(*views_output);
     cut_assert_true(vm->add_view(mock_view));
@@ -171,6 +181,7 @@ void cut_teardown(void)
     cppcut_assert_equal("", views_output->str().c_str());
 
     delete vm;
+    delete dcpd;
     delete mock_view;
     delete mock_messages;
     delete views_output;
@@ -178,6 +189,7 @@ void cut_teardown(void)
     mock_messages = nullptr;
     mock_view = nullptr;
     vm =nullptr;
+    dcpd = nullptr;
     views_output = nullptr;
 }
 
@@ -343,6 +355,7 @@ static void populate_view_manager(ViewManager &vm,
 
 static MockMessages *mock_messages;
 static std::array<ViewMock::View *, 4> all_mock_views;
+static DcpTransaction *dcpd;
 static ViewManager *vm;
 static std::ostringstream *views_output;
 
@@ -356,7 +369,10 @@ void cut_setup(void)
     mock_messages->init();
     mock_messages_singleton = mock_messages;
 
-    vm = new ViewManager();
+    dcpd = new DcpTransaction;
+    cppcut_assert_not_null(dcpd);
+
+    vm = new ViewManager(*dcpd);
     cppcut_assert_not_null(vm);
 
     mock_messages->ignore_all_ = true;
@@ -381,10 +397,12 @@ void cut_teardown(void)
 
     delete mock_messages;
     delete vm;
+    delete dcpd;
     delete views_output;
 
     mock_messages = nullptr;
     vm = nullptr;
+    dcpd = nullptr;
     views_output = nullptr;
 
     for(auto view: all_mock_views)

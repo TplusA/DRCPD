@@ -3,6 +3,7 @@
 
 #include <ostream>
 
+#include "dcp_transaction.hh"
 #include "drcp_commands.hh"
 
 /*!
@@ -99,12 +100,12 @@ class ViewIface
     /*!
      * Write XML representation of the whole view to given output stream.
      */
-    virtual void serialize(std::ostream &os, std::ostream *debug_os = nullptr) = 0;
+    virtual void serialize(DcpTransaction &dcpd, std::ostream *debug_os = nullptr) = 0;
 
     /*!
      * Write XML representation of parts of the view that need be updated.
      */
-    virtual void update(std::ostream &os, std::ostream *debug_os = nullptr) = 0;
+    virtual void update(DcpTransaction &dcpd, std::ostream *debug_os = nullptr) = 0;
 };
 
 /*!@}*/

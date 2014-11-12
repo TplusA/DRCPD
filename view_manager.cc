@@ -12,10 +12,10 @@ class NopOutputStream: public std::ostream {};
 
 static NopOutputStream nop_ostream;
 
-ViewManager::ViewManager()
+ViewManager::ViewManager(DcpTransaction &dcpd):
+    dcp_transaction_(dcpd)
 {
     active_view_ = &nop_view;
-    output_stream_ = &nop_ostream;
     debug_stream_ = nullptr;
 }
 
@@ -42,7 +42,7 @@ bool ViewManager::add_view(ViewIface *view)
 
 void ViewManager::set_output_stream(std::ostream &os)
 {
-    output_stream_ = &os;
+    dcp_transaction_.set_output_stream(&os);
 }
 
 void ViewManager::set_debug_stream(std::ostream &os)
@@ -51,7 +51,7 @@ void ViewManager::set_debug_stream(std::ostream &os)
 }
 
 static void handle_input_result(ViewIface::InputResult result, ViewIface &view,
-                                std::ostream &output_stream,
+                                DcpTransaction &dcpd,
                                 std::ostream *debug_stream)
 {
     switch(result)
@@ -60,7 +60,7 @@ static void handle_input_result(ViewIface::InputResult result, ViewIface &view,
         break;
 
       case ViewIface::InputResult::UPDATE_NEEDED:
-        view.update(output_stream, debug_stream);
+        view.update(dcpd, debug_stream);
         break;
 
       case ViewIface::InputResult::SHOULD_HIDE:
@@ -73,7 +73,7 @@ void ViewManager::input(DrcpCommand command)
 {
     msg_info("Dispatching DRCP command %d", command);
     handle_input_result(active_view_->input(command), *active_view_,
-                        *output_stream_, debug_stream_);
+                        dcp_transaction_, debug_stream_);
 }
 
 void ViewManager::input_set_fast_wind_factor(double factor)
@@ -83,7 +83,7 @@ void ViewManager::input_set_fast_wind_factor(double factor)
 
 static void move_cursor_multiple_steps(int steps, DrcpCommand down_cmd,
                                        DrcpCommand up_cmd, ViewIface &view,
-                                       std::ostream &output_stream,
+                                       DcpTransaction &dcpd,
                                        std::ostream *debug_stream)
 {
     if(steps == 0)
@@ -107,21 +107,21 @@ static void move_cursor_multiple_steps(int steps, DrcpCommand down_cmd,
            break;
     }
 
-    handle_input_result(result, view, output_stream, debug_stream);
+    handle_input_result(result, view, dcpd, debug_stream);
 }
 
 void ViewManager::input_move_cursor_by_line(int lines)
 {
     move_cursor_multiple_steps(lines, DrcpCommand::SCROLL_DOWN_ONE,
                                DrcpCommand::SCROLL_UP_ONE,
-                               *active_view_, *output_stream_, debug_stream_);
+                               *active_view_, dcp_transaction_, debug_stream_);
 }
 
 void ViewManager::input_move_cursor_by_page(int pages)
 {
     move_cursor_multiple_steps(pages, DrcpCommand::SCROLL_PAGE_DOWN,
                                DrcpCommand::SCROLL_PAGE_UP,
-                               *active_view_, *output_stream_, debug_stream_);
+                               *active_view_, dcp_transaction_, debug_stream_);
 }
 
 static ViewIface *lookup_view_by_name(ViewManager::views_container_t &container,
@@ -147,7 +147,7 @@ void ViewManager::activate_view(ViewIface *view)
 
     active_view_ = view;
     active_view_->focus();
-    active_view_->serialize(*output_stream_, debug_stream_);
+    active_view_->serialize(dcp_transaction_, debug_stream_);
 }
 
 void ViewManager::activate_view_by_name(const char *view_name)

@@ -207,9 +207,10 @@ int main(int argc, char *argv[])
     if(setup(&parameters, &files, &loop) < 0)
         return EXIT_FAILURE;
 
+    static DcpTransaction dcp_transaction;
     static FdStreambuf fd_sbuf(files.dcp_fifo.out_fd);
     static std::ostream fd_out(&fd_sbuf);
-    static ViewManager view_manager;
+    static ViewManager view_manager(dcp_transaction);
 
     view_manager.set_output_stream(fd_out);
     view_manager.set_debug_stream(std::cout);

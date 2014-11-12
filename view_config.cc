@@ -235,7 +235,7 @@ ViewIface::InputResult ViewConfig::View::input(DrcpCommand command)
     return InputResult::OK;
 }
 
-void ViewConfig::View::serialize(std::ostream &os, std::ostream *debug_os)
+void ViewConfig::View::serialize(DcpTransaction &dcpd, std::ostream *debug_os)
 {
     if(!debug_os)
         return;
@@ -262,9 +262,9 @@ void ViewConfig::View::serialize(std::ostream &os, std::ostream *debug_os)
     }
 }
 
-void ViewConfig::View::update(std::ostream &os, std::ostream *debug_os)
+void ViewConfig::View::update(DcpTransaction &dcpd, std::ostream *debug_os)
 {
-    serialize(os, debug_os);
+    serialize(dcpd, debug_os);
 }
 
 /*!

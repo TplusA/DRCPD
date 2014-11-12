@@ -182,7 +182,7 @@ ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command)
     return InputResult::OK;
 }
 
-void ViewFileBrowser::View::serialize(std::ostream &os, std::ostream *debug_os)
+void ViewFileBrowser::View::serialize(DcpTransaction &dcpd, std::ostream *debug_os)
 {
     if(!debug_os)
         return;
@@ -202,9 +202,9 @@ void ViewFileBrowser::View::serialize(std::ostream &os, std::ostream *debug_os)
     }
 }
 
-void ViewFileBrowser::View::update(std::ostream &os, std::ostream *debug_os)
+void ViewFileBrowser::View::update(DcpTransaction &dcpd, std::ostream *debug_os)
 {
-    serialize(os, debug_os);
+    serialize(dcpd, debug_os);
 }
 
 bool ViewFileBrowser::View::fill_list_from_root()

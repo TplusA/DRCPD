@@ -4,6 +4,7 @@
 #include <map>
 
 #include "view.hh"
+#include "dcp_transaction.hh"
 
 /*!
  * \addtogroup view_manager Management of the various views
@@ -47,11 +48,11 @@ class ViewManager: public ViewManagerIface
     views_container_t all_views_;
 
     ViewIface *active_view_;
-    std::ostream *output_stream_;
+    DcpTransaction &dcp_transaction_;
     std::ostream *debug_stream_;
 
   public:
-    explicit ViewManager();
+    explicit ViewManager(DcpTransaction &dcpd);
 
     bool add_view(ViewIface *view) override;
     void set_output_stream(std::ostream &os) override;
