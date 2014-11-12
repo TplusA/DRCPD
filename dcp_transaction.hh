@@ -3,13 +3,11 @@
 
 #include <ostream>
 #include <sstream>
+#include <functional>
 
 class DcpTransaction
 {
-  private:
-    std::ostream *os_;
-    std::ostringstream sstr_;
-
+  public:
     enum state
     {
         IDLE,
@@ -17,6 +15,10 @@ class DcpTransaction
         WAIT_FOR_ANSWER,
     };
 
+  private:
+    const std::function<void(state)> &observer_;
+    std::ostream *os_;
+    std::ostringstream sstr_;
     state state_;
 
   public:
@@ -31,7 +33,8 @@ class DcpTransaction
     DcpTransaction(const DcpTransaction &) = delete;
     DcpTransaction &operator=(const DcpTransaction &) = delete;
 
-    explicit DcpTransaction():
+    explicit DcpTransaction(const std::function<void(state)> &observer):
+        observer_(std::move(observer)),
         os_(nullptr),
         state_(IDLE)
     {}
@@ -70,6 +73,13 @@ class DcpTransaction
      * Abort the transaction, do not send anything.
      */
     bool abort();
+
+  private:
+    void set_state(state s)
+    {
+        state_ = s;
+        observer_(state_);
+    }
 };
 
 #endif /* !DCP_TRANSACTION_HH */

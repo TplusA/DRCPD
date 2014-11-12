@@ -28,6 +28,13 @@ static void check_and_clear_ostream(const char *string, std::ostringstream &ss)
 
 void (*os_abort)(void) = nullptr;
 
+static void dcp_transaction_observer(DcpTransaction::state)
+{
+    /* nothing */
+}
+
+static const std::function<void(DcpTransaction::state)> transaction_observer(dcp_transaction_observer);
+
 namespace view_manager_tests_basics
 {
 
@@ -46,7 +53,7 @@ void cut_setup(void)
     mock_messages->init();
     mock_messages_singleton = mock_messages;
 
-    dcpd = new DcpTransaction;
+    dcpd = new DcpTransaction(transaction_observer);
     cppcut_assert_not_null(dcpd);
 
     vm = new ViewManager(*dcpd);
@@ -160,7 +167,7 @@ void cut_setup(void)
     cppcut_assert_not_null(mock_view);
     cut_assert_true(mock_view->init());
 
-    dcpd = new DcpTransaction;
+    dcpd = new DcpTransaction(transaction_observer);
     cppcut_assert_not_null(dcpd);
 
     vm = new ViewManager(*dcpd);
@@ -370,7 +377,7 @@ void cut_setup(void)
     mock_messages->init();
     mock_messages_singleton = mock_messages;
 
-    dcpd = new DcpTransaction;
+    dcpd = new DcpTransaction(transaction_observer);
     cppcut_assert_not_null(dcpd);
 
     vm = new ViewManager(*dcpd);
@@ -631,7 +638,7 @@ void cut_setup(void)
     cppcut_assert_not_null(mock_view);
     cut_assert_true(mock_view->init());
 
-    dcpd = new DcpTransaction;
+    dcpd = new DcpTransaction(transaction_observer);
     cppcut_assert_not_null(dcpd);
 
     vm = new ViewManager(*dcpd);

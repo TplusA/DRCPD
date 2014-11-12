@@ -23,7 +23,7 @@ bool DcpTransaction::start()
     }
 
     clear_stream(sstr_);
-    state_ = WAIT_FOR_COMMIT;
+    set_state(WAIT_FOR_COMMIT);
 
     return true;
 }
@@ -51,7 +51,7 @@ bool DcpTransaction::commit()
         clear_stream(sstr_);
     }
 
-    state_ = WAIT_FOR_ANSWER;
+    set_state(WAIT_FOR_ANSWER);
 
     return true;
 }
@@ -69,7 +69,7 @@ bool DcpTransaction::done()
     }
 
     clear_stream(sstr_);
-    state_ = IDLE;
+    set_state(IDLE);
 
     return true;
 }
@@ -86,6 +86,8 @@ bool DcpTransaction::abort()
         return false;
     }
 
+    /* not using set_state() because we don't want to invoke the observer
+     * function for the invisible intermediate state */
     state_ = WAIT_FOR_ANSWER;
 
     return done();

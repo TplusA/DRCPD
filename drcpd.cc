@@ -133,6 +133,10 @@ static bool watch_in_fd(struct dcp_fifo_dispatch_data_t *dispatch_data)
     return dispatch_data->files->dcp_fifo_in_event_source_id != 0;
 }
 
+static void dcp_transaction_observer(DcpTransaction::state state)
+{
+}
+
 /*!
  * Set up logging, daemonize.
  */
@@ -321,7 +325,8 @@ int main(int argc, char *argv[])
     if(setup(&parameters, &dcp_dispatch_data, &loop) < 0)
         return EXIT_FAILURE;
 
-    static DcpTransaction dcp_transaction;
+    static const std::function<void(DcpTransaction::state)> transaction_observer(dcp_transaction_observer);
+    static DcpTransaction dcp_transaction(transaction_observer);
     static FdStreambuf fd_sbuf(files.dcp_fifo.out_fd);
     static std::ostream fd_out(&fd_sbuf);
     static ViewManager view_manager(dcp_transaction);
