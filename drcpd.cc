@@ -17,12 +17,18 @@
 #include "fdstreambuf.hh"
 #include "os.h"
 
-
 struct files_t
 {
     struct fifo_pair dcp_fifo;
     const char *dcp_fifo_in_name;
     const char *dcp_fifo_out_name;
+    guint dcp_fifo_in_event_source_id;
+};
+
+struct dcp_fifo_dispatch_data_t
+{
+    files_t *files;
+    ViewManagerIface *vm;
 };
 
 struct parameters
@@ -34,10 +40,104 @@ ssize_t (*os_read)(int fd, void *dest, size_t count) = read;
 ssize_t (*os_write)(int fd, const void *buf, size_t count) = write;
 void (*os_abort)(void) = abort;
 
+static bool try_reopen_fd(int *fd, const char *devname, const char *errorname)
+{
+    if(fifo_reopen(fd, devname, false))
+        return true;
+
+    msg_error(EPIPE, LOG_EMERG,
+              "Failed reopening %s connection, unable to recover. "
+              "Terminating", errorname);
+
+    return false;
+}
+
+static DcpTransaction::Result read_transaction_result(int fd)
+{
+    uint8_t result[3];
+    size_t dummy = 0;
+
+    if(fifo_try_read_to_buffer(result, sizeof(result), &dummy, fd) != 1)
+        return DcpTransaction::IO_ERROR;
+
+    static const char ok_result[] = "OK\n";
+    static const char error_result[] = "FF\n";
+
+    if(memcmp(result, ok_result, sizeof(result)) == 0)
+        return DcpTransaction::OK;
+    else if(memcmp(result, error_result, sizeof(result)) == 0)
+        return DcpTransaction::FAILED;
+
+    msg_error(EINVAL, LOG_ERR,
+              "Received bad data from DCPD: 0x%02x 0x%02x 0x%02x",
+              result[0], result[1], result[2]);
+
+    return DcpTransaction::INVALID_ANSWER;
+}
+
+static bool watch_in_fd(struct dcp_fifo_dispatch_data_t *dispatch_data);
+
+static gboolean dcp_fifo_in_dispatch(int fd, GIOCondition condition,
+                                     gpointer user_data)
+{
+    struct dcp_fifo_dispatch_data_t *const data =
+        static_cast<struct dcp_fifo_dispatch_data_t *>(user_data);
+
+    assert(data != nullptr);
+    assert(fd == data->files->dcp_fifo.in_fd);
+
+    gboolean return_value = G_SOURCE_CONTINUE;
+
+    if((condition & G_IO_IN) != 0)
+        data->vm->serialization_result(read_transaction_result(fd));
+
+    if((condition & G_IO_HUP) != 0)
+    {
+        msg_error(EPIPE, LOG_ERR, "DCP daemon died, need to reopen");
+
+        if(try_reopen_fd(&data->files->dcp_fifo.in_fd,
+                         data->files->dcp_fifo_in_name, "DCP"))
+        {
+            if(data->files->dcp_fifo.in_fd != fd)
+            {
+                if(!watch_in_fd(data))
+                    raise(SIGTERM);
+
+                return_value = G_SOURCE_REMOVE;
+            }
+        }
+        else
+            raise(SIGTERM);
+    }
+
+    if((condition & ~(G_IO_IN | G_IO_HUP)) != 0)
+    {
+        msg_error(EINVAL, LOG_WARNING,
+                  "Unexpected poll() events on DCP fifo %d: %04x",
+                  fd, condition);
+    }
+
+    return return_value;
+}
+
+static bool watch_in_fd(struct dcp_fifo_dispatch_data_t *dispatch_data)
+{
+    dispatch_data->files->dcp_fifo_in_event_source_id =
+        g_unix_fd_add(dispatch_data->files->dcp_fifo.in_fd,
+                      GIOCondition(G_IO_IN | G_IO_PRI | G_IO_ERR | G_IO_HUP | G_IO_NVAL),
+                      dcp_fifo_in_dispatch, dispatch_data);
+
+    if(dispatch_data->files->dcp_fifo_in_event_source_id == 0)
+        msg_error(ENOMEM, LOG_EMERG, "Failed adding DCP in-fd event to main loop");
+
+    return dispatch_data->files->dcp_fifo_in_event_source_id != 0;
+}
+
 /*!
  * Set up logging, daemonize.
  */
-static int setup(const struct parameters *parameters, struct files_t *files,
+static int setup(const struct parameters *parameters,
+                 struct dcp_fifo_dispatch_data_t *dispatch_data,
                  GMainLoop **loop)
 {
     msg_enable_syslog(!parameters->run_in_foreground);
@@ -56,6 +156,8 @@ static int setup(const struct parameters *parameters, struct files_t *files,
 
     msg_info("Attempting to open named pipes");
 
+    struct files_t *const files = dispatch_data->files;
+
     files->dcp_fifo.out_fd = fifo_open(files->dcp_fifo_out_name, true);
     if(files->dcp_fifo.out_fd < 0)
         goto error_dcp_fifo_out;
@@ -71,7 +173,13 @@ static int setup(const struct parameters *parameters, struct files_t *files,
         goto error_main_loop_new;
     }
 
+    if(!watch_in_fd(dispatch_data))
+        goto error_unix_fd_add;
+
     return 0;
+
+error_unix_fd_add:
+    g_main_loop_unref(*loop);
 
 error_main_loop_new:
     fifo_close(&files->dcp_fifo.in_fd);
@@ -205,7 +313,12 @@ int main(int argc, char *argv[])
 
     static GMainLoop *loop = NULL;
 
-    if(setup(&parameters, &files, &loop) < 0)
+    static struct dcp_fifo_dispatch_data_t dcp_dispatch_data =
+    {
+        .files = &files,
+    };
+
+    if(setup(&parameters, &dcp_dispatch_data, &loop) < 0)
         return EXIT_FAILURE;
 
     static DcpTransaction dcp_transaction;
@@ -216,7 +329,9 @@ int main(int argc, char *argv[])
     view_manager.set_output_stream(fd_out);
     view_manager.set_debug_stream(std::cout);
 
-    if(dbus_setup(loop, true, static_cast<ViewManagerIface *>(&view_manager)) < 0)
+    dcp_dispatch_data.vm = &view_manager;
+
+    if(dbus_setup(loop, true, &view_manager) < 0)
         return EXIT_FAILURE;
 
     g_unix_signal_add(SIGINT, signal_handler, loop);
