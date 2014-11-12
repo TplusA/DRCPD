@@ -176,6 +176,9 @@ void ViewMock::View::serialize(DcpTransaction &dcpd, std::ostream *debug_os)
     const auto &expect(expectations_->get_next_expectation(__func__));
 
     cppcut_assert_equal(expect.function_id_, MemberFn::serialize);
+
+    cut_assert_true(dcpd.start());
+    cut_assert_true(dcpd.commit());
 }
 
 void ViewMock::View::update(DcpTransaction &dcpd, std::ostream *debug_os)
@@ -186,4 +189,7 @@ void ViewMock::View::update(DcpTransaction &dcpd, std::ostream *debug_os)
     const auto &expect(expectations_->get_next_expectation(__func__));
 
     cppcut_assert_equal(expect.function_id_, MemberFn::update);
+
+    cut_assert_true(dcpd.start());
+    cut_assert_true(dcpd.commit());
 }

@@ -5,6 +5,7 @@
 #include "view_manager.hh"
 #include "view_nop.hh"
 #include "messages.h"
+#include "os.h"
 
 static ViewNop::View nop_view;
 
@@ -44,6 +45,49 @@ void ViewManager::set_output_stream(std::ostream &os)
 void ViewManager::set_debug_stream(std::ostream &os)
 {
     debug_stream_ = &os;
+}
+
+static void abort_transaction_or_fail_hard(DcpTransaction &t)
+{
+    if(t.abort())
+        return;
+
+    BUG("Failed aborting DCPD transaction, aborting program.");
+    os_abort();
+}
+
+void ViewManager::serialization_result(DcpTransaction::Result result)
+{
+    if(!dcp_transaction_.is_in_progress())
+    {
+        BUG("Received result from DCPD for idle transaction");
+        return;
+    }
+
+    switch(result)
+    {
+      case DcpTransaction::OK:
+        if(dcp_transaction_.done())
+            return;
+
+        BUG("Got OK from DCPD, but failed ending transaction");
+        break;
+
+      case DcpTransaction::FAILED:
+        msg_error(EINVAL, LOG_CRIT, "DCPD failed to handle our transaction");
+        break;
+
+      case DcpTransaction::INVALID_ANSWER:
+        BUG("Got invalid response from DCPD");
+        break;
+
+      case DcpTransaction::IO_ERROR:
+        msg_error(EIO, LOG_CRIT,
+                  "I/O error while trying to get response from DCPD");
+        break;
+    }
+
+    abort_transaction_or_fail_hard(dcp_transaction_);
 }
 
 static void handle_input_result(ViewIface::InputResult result, ViewIface &view,

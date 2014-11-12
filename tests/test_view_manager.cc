@@ -26,6 +26,7 @@ static void check_and_clear_ostream(const char *string, std::ostringstream &ss)
     clear_ostream(ss);
 }
 
+void (*os_abort)(void) = nullptr;
 
 namespace view_manager_tests_basics
 {
@@ -505,6 +506,7 @@ void test_toggle_two_views(void)
     all_mock_views[1]->expect_focus();
     all_mock_views[1]->expect_serialize(*views_output);
     vm->toggle_views_by_name("Second", "Third");
+    vm->serialization_result(DcpTransaction::OK);
     check_and_clear_ostream("Second serialize\n", *views_output);
 
     mock_messages->expect_msg_info_formatted("Requested to toggle between views \"Second\" and \"Third\"");
@@ -512,6 +514,7 @@ void test_toggle_two_views(void)
     all_mock_views[2]->expect_focus();
     all_mock_views[2]->expect_serialize(*views_output);
     vm->toggle_views_by_name("Second", "Third");
+    vm->serialization_result(DcpTransaction::OK);
     check_and_clear_ostream("Third serialize\n", *views_output);
 
 
@@ -520,6 +523,7 @@ void test_toggle_two_views(void)
     all_mock_views[1]->expect_focus();
     all_mock_views[1]->expect_serialize(*views_output);
     vm->toggle_views_by_name("Second", "Third");
+    vm->serialization_result(DcpTransaction::OK);
     check_and_clear_ostream("Second serialize\n", *views_output);
 }
 
@@ -590,6 +594,149 @@ void test_toggle_views_with_two_unknown_names_does_nothing(void)
 
     mock_messages->expect_msg_info_formatted("Requested to toggle between views \"Foo\" and \"Bar\"");
     vm->toggle_views_by_name("Foo", "Bar");
+}
+
+};
+
+/*!
+ * Tests concerning serialization to DCPD and handling the result.
+ *
+ * The tests in this section show that our error handling is---to keep a
+ * positive tone---rather puristic. Errors are detected, but their handling is
+ * mostly restricted to logging them. There should probably some retry after
+ * failure, but we'll only add this if practice shows that it is really
+ * necessary to do so.
+ */
+namespace view_manager_tests_serialization
+{
+
+static MockMessages *mock_messages;
+static DcpTransaction *dcpd;
+static ViewManager *vm;
+static std::ostringstream *views_output;
+static const char standard_mock_view_name[] = "Mock";
+static ViewMock::View *mock_view;
+
+void cut_setup(void)
+{
+    views_output = new std::ostringstream();
+    cppcut_assert_not_null(views_output);
+
+    mock_messages = new MockMessages();
+    cppcut_assert_not_null(mock_messages);
+    mock_messages->init();
+    mock_messages_singleton = mock_messages;
+
+    mock_view = new ViewMock::View(standard_mock_view_name);
+    cppcut_assert_not_null(mock_view);
+    cut_assert_true(mock_view->init());
+
+    dcpd = new DcpTransaction;
+    cppcut_assert_not_null(dcpd);
+
+    vm = new ViewManager(*dcpd);
+    cppcut_assert_not_null(vm);
+    vm->set_output_stream(*views_output);
+    cut_assert_true(vm->add_view(mock_view));
+
+    cut_assert_false(dcpd->is_in_progress());
+}
+
+void cut_teardown(void)
+{
+    mock_messages->check();
+    mock_view->check();
+    cppcut_assert_equal("", views_output->str().c_str());
+    cut_assert_false(dcpd->is_in_progress());
+
+    delete vm;
+    delete dcpd;
+    delete mock_view;
+    delete mock_messages;
+    delete views_output;
+
+    mock_messages = nullptr;
+    mock_view = nullptr;
+    vm =nullptr;
+    dcpd = nullptr;
+    views_output = nullptr;
+}
+
+/*!\test
+ * Receiving a result from DCPD while there is no active transaction is
+ * considered a bug and is logged as such.
+ */
+void test_serialization_result_for_idle_transaction_is_logged(void)
+{
+    mock_messages->expect_msg_error(0, LOG_CRIT, "BUG: Received result from DCPD for idle transaction");
+    vm->serialization_result(DcpTransaction::OK);
+
+    mock_messages->expect_msg_error(0, LOG_CRIT, "BUG: Received result from DCPD for idle transaction");
+    vm->serialization_result(DcpTransaction::FAILED);
+
+    mock_messages->expect_msg_error(0, LOG_CRIT, "BUG: Received result from DCPD for idle transaction");
+    vm->serialization_result(DcpTransaction::INVALID_ANSWER);
+
+    mock_messages->expect_msg_error(0, LOG_CRIT, "BUG: Received result from DCPD for idle transaction");
+    vm->serialization_result(DcpTransaction::IO_ERROR);
+}
+
+static void activate_view()
+{
+    mock_messages->expect_msg_info_formatted("Requested to activate view \"Mock\"");
+    mock_view->expect_focus();
+    mock_view->expect_serialize(*views_output);
+    vm->activate_view_by_name(standard_mock_view_name);
+    check_and_clear_ostream("Mock serialize\n", *views_output);
+}
+
+/*!\test
+ * If DCPD failed to handle our DRCP transaction, then this incident is logged.
+ */
+void test_dcpd_failed(void)
+{
+    activate_view();
+
+    mock_messages->expect_msg_error(EINVAL, LOG_CRIT, "DCPD failed to handle our transaction");
+    vm->serialization_result(DcpTransaction::FAILED);
+}
+
+/*!\test
+ * Reception of junk answers from DCPD during a transaction is considered a bug
+ * and is logged as such.
+ */
+void test_dcpd_invalid_answer(void)
+{
+    activate_view();
+
+    mock_messages->expect_msg_error(0, LOG_CRIT, "BUG: Got invalid response from DCPD");
+    vm->serialization_result(DcpTransaction::INVALID_ANSWER);
+}
+
+/*!\test
+ * Failing hard to read a result back from DCPD during a transaction is logged.
+ */
+void test_hard_io_error(void)
+{
+    activate_view();
+
+    mock_messages->expect_msg_error(EIO, LOG_CRIT, "I/O error while trying to get response from DCPD");
+    vm->serialization_result(DcpTransaction::IO_ERROR);
+}
+
+/*!\test
+ * Failing hard to read a result back from DCPD during a transaction is logged.
+ *
+ * This would happen in case a view starts a transaction, but fails to commit
+ * it. There will be a bug log message, and the transaction will be aborted by
+ * the view manager.
+ */
+void test_unexpected_transaction_state(void)
+{
+    dcpd->start();
+
+    mock_messages->expect_msg_error(0, LOG_CRIT, "BUG: Got OK from DCPD, but failed ending transaction");
+    vm->serialization_result(DcpTransaction::OK);
 }
 
 };

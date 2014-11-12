@@ -20,6 +20,14 @@ class DcpTransaction
     state state_;
 
   public:
+    enum Result
+    {
+        OK = 0,
+        FAILED = 1,
+        INVALID_ANSWER = 2,
+        IO_ERROR = 3,
+    };
+
     DcpTransaction(const DcpTransaction &) = delete;
     DcpTransaction &operator=(const DcpTransaction &) = delete;
 

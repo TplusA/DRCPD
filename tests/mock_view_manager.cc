@@ -11,6 +11,7 @@
 
 enum class MemberFn
 {
+    serialization_result,
     input,
     input_set_fast_wind_factor,
     input_move_cursor_by_line,
@@ -18,7 +19,7 @@ enum class MemberFn
     activate_view_by_name,
     toggle_views_by_name,
 
-    first_valid_member_fn_id = input,
+    first_valid_member_fn_id = serialization_result,
     last_valid_member_fn_id = toggle_views_by_name,
 };
 
@@ -33,6 +34,10 @@ static std::ostream &operator<<(std::ostream &os, const MemberFn id)
 
     switch(id)
     {
+      case MemberFn::serialization_result:
+        os << "serialization_result";
+        break;
+
       case MemberFn::input:
         os << "input";
         break;
@@ -77,26 +82,38 @@ class MockViewManager::Expectation
     const int arg_lines_or_pages_;
     const std::string arg_view_name_;
     const std::string arg_view_name_b_;
+    const DcpTransaction::Result arg_dcp_result_;
+
+    explicit Expectation(MemberFn id, DcpTransaction::Result result):
+        function_id_(id),
+        arg_command_(DrcpCommand::UNDEFINED_COMMAND),
+        arg_factor_(0.0),
+        arg_lines_or_pages_(0),
+        arg_dcp_result_(result)
+    {}
 
     explicit Expectation(MemberFn id, DrcpCommand command):
         function_id_(id),
         arg_command_(command),
         arg_factor_(0.0),
-        arg_lines_or_pages_(0)
+        arg_lines_or_pages_(0),
+        arg_dcp_result_(DcpTransaction::OK)
     {}
 
     explicit Expectation(MemberFn id, double factor):
         function_id_(id),
         arg_command_(DrcpCommand::UNDEFINED_COMMAND),
         arg_factor_(factor),
-        arg_lines_or_pages_(0)
+        arg_lines_or_pages_(0),
+        arg_dcp_result_(DcpTransaction::OK)
     {}
 
     explicit Expectation(MemberFn id, int lines_or_pages):
         function_id_(id),
         arg_command_(DrcpCommand::UNDEFINED_COMMAND),
         arg_factor_(0.0),
-        arg_lines_or_pages_(lines_or_pages)
+        arg_lines_or_pages_(lines_or_pages),
+        arg_dcp_result_(DcpTransaction::OK)
     {}
 
     explicit Expectation(MemberFn id, const char *view_name):
@@ -104,7 +121,8 @@ class MockViewManager::Expectation
         arg_command_(DrcpCommand::UNDEFINED_COMMAND),
         arg_factor_(0.0),
         arg_lines_or_pages_(0),
-        arg_view_name_(view_name)
+        arg_view_name_(view_name),
+        arg_dcp_result_(DcpTransaction::OK)
     {}
 
     explicit Expectation(MemberFn id,
@@ -114,7 +132,8 @@ class MockViewManager::Expectation
         arg_factor_(0.0),
         arg_lines_or_pages_(0),
         arg_view_name_(view_name_a),
-        arg_view_name_b_(view_name_b)
+        arg_view_name_b_(view_name_b),
+        arg_dcp_result_(DcpTransaction::OK)
     {}
 
     Expectation(Expectation &&) = default;
@@ -141,6 +160,11 @@ void MockViewManager::check() const
 {
     cppcut_assert_not_null(expectations_);
     expectations_->check();
+}
+
+void MockViewManager::expect_serialization_result(DcpTransaction::Result result)
+{
+    expectations_->add(Expectation(MemberFn::serialization_result, result));
 }
 
 void MockViewManager::expect_input(DrcpCommand command)
@@ -190,6 +214,14 @@ void MockViewManager::set_output_stream(std::ostream &os)
 void MockViewManager::set_debug_stream(std::ostream &os)
 {
     cut_fail("Not implemented");
+}
+
+void MockViewManager::serialization_result(DcpTransaction::Result result)
+{
+    const auto &expect(expectations_->get_next_expectation(__func__));
+
+    cppcut_assert_equal(expect.function_id_, MemberFn::serialization_result);
+    cppcut_assert_equal(int(expect.arg_dcp_result_), int(result));
 }
 
 void MockViewManager::input(DrcpCommand command)

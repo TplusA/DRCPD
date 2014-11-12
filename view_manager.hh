@@ -27,6 +27,8 @@ class ViewManagerIface
     virtual void set_output_stream(std::ostream &os) = 0;
     virtual void set_debug_stream(std::ostream &os) = 0;
 
+    virtual void serialization_result(DcpTransaction::Result result) = 0;
+
     virtual void input(DrcpCommand command) = 0;
     virtual void input_set_fast_wind_factor(double factor) = 0;
     virtual void input_move_cursor_by_line(int lines) = 0;
@@ -57,6 +59,8 @@ class ViewManager: public ViewManagerIface
     bool add_view(ViewIface *view) override;
     void set_output_stream(std::ostream &os) override;
     void set_debug_stream(std::ostream &os) override;
+
+    void serialization_result(DcpTransaction::Result result) override;
 
     void input(DrcpCommand command) override;
     void input_set_fast_wind_factor(double factor) override;

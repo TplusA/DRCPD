@@ -21,6 +21,7 @@ class MockViewManager: public ViewManagerIface
     void init();
     void check() const;
 
+    void expect_serialization_result(DcpTransaction::Result result);
     void expect_input(DrcpCommand command);
     void expect_input_set_fast_wind_factor(double factor);
     void expect_input_move_cursor_by_line(int lines);
@@ -32,6 +33,7 @@ class MockViewManager: public ViewManagerIface
     bool add_view(ViewIface *view) override;
     void set_output_stream(std::ostream &os) override;
     void set_debug_stream(std::ostream &os) override;
+    void serialization_result(DcpTransaction::Result result) override;
     void input(DrcpCommand command) override;
     void input_set_fast_wind_factor(double factor) override;
     void input_move_cursor_by_line(int lines) override;

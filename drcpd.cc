@@ -32,6 +32,7 @@ struct parameters
 
 ssize_t (*os_read)(int fd, void *dest, size_t count) = read;
 ssize_t (*os_write)(int fd, const void *buf, size_t count) = write;
+void (*os_abort)(void) = abort;
 
 /*!
  * Set up logging, daemonize.
