@@ -8,10 +8,6 @@
 
 static ViewNop::View nop_view;
 
-class NopOutputStream: public std::ostream {};
-
-static NopOutputStream nop_ostream;
-
 ViewManager::ViewManager(DcpTransaction &dcpd):
     dcp_transaction_(dcpd)
 {
