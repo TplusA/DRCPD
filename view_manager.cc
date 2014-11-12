@@ -77,6 +77,10 @@ void ViewManager::serialization_result(DcpTransaction::Result result)
         msg_error(EINVAL, LOG_CRIT, "DCPD failed to handle our transaction");
         break;
 
+      case DcpTransaction::TIMEOUT:
+        BUG("Got no answer from DCPD");
+        break;
+
       case DcpTransaction::INVALID_ANSWER:
         BUG("Got invalid response from DCPD");
         break;

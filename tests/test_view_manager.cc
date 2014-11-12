@@ -682,6 +682,9 @@ void test_serialization_result_for_idle_transaction_is_logged(void)
     vm->serialization_result(DcpTransaction::FAILED);
 
     mock_messages->expect_msg_error(0, LOG_CRIT, "BUG: Received result from DCPD for idle transaction");
+    vm->serialization_result(DcpTransaction::TIMEOUT);
+
+    mock_messages->expect_msg_error(0, LOG_CRIT, "BUG: Received result from DCPD for idle transaction");
     vm->serialization_result(DcpTransaction::INVALID_ANSWER);
 
     mock_messages->expect_msg_error(0, LOG_CRIT, "BUG: Received result from DCPD for idle transaction");
@@ -706,6 +709,22 @@ void test_dcpd_failed(void)
 
     mock_messages->expect_msg_error(EINVAL, LOG_CRIT, "DCPD failed to handle our transaction");
     vm->serialization_result(DcpTransaction::FAILED);
+}
+
+/*!\test
+ * If DCPD did not answer our DRCP transaction within a certain amount of time,
+ * then the transaction is aborted and the incident is logged.
+ *
+ * We consider this case as a bug, either in DCPD, in DRCPD, or both. There
+ * should never be a timeout over a named pipe between any two processes, even
+ * on heavily loaded systems.
+ */
+void test_dcpd_timeout(void)
+{
+    activate_view();
+
+    mock_messages->expect_msg_error(0, LOG_CRIT, "BUG: Got no answer from DCPD");
+    vm->serialization_result(DcpTransaction::TIMEOUT);
 }
 
 /*!\test

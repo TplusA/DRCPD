@@ -26,8 +26,9 @@ class DcpTransaction
     {
         OK = 0,
         FAILED = 1,
-        INVALID_ANSWER = 2,
-        IO_ERROR = 3,
+        TIMEOUT = 2,
+        INVALID_ANSWER = 3,
+        IO_ERROR = 4,
     };
 
     DcpTransaction(const DcpTransaction &) = delete;
