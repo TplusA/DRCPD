@@ -312,10 +312,12 @@ static void testing(ViewManager &views)
 {
     static const unsigned int number_of_lines_on_display = 3;
 
-    static ViewConfig::View cfg(number_of_lines_on_display);
-    static ViewFileBrowser::View fs("Filesystem", number_of_lines_on_display,
+    static ViewConfig::View cfg(N_("Configuration"), number_of_lines_on_display);
+    static ViewFileBrowser::View fs("Filesystem", N_("Local file system"), 1,
+                                    number_of_lines_on_display,
                                     DBUS_LISTBROKER_ID_FILESYSTEM);
-    static ViewFileBrowser::View tunein("TuneIn", number_of_lines_on_display,
+    static ViewFileBrowser::View tunein("TuneIn", N_("TuneIn internet radio"), 3,
+                                        number_of_lines_on_display,
                                         DBUS_LISTBROKER_ID_TUNEIN);
 
     if(!cfg.init())

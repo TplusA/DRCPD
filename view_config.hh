@@ -190,8 +190,8 @@ class View: public ViewIface
 
     View &operator=(const View &) = delete;
 
-    explicit View(unsigned int max_lines):
-        ViewIface("Config"),
+    explicit View(const char *on_screen_name, unsigned int max_lines):
+        ViewIface("Config", on_screen_name, "config", 73U),
         item_flags_(&editable_menu_items_),
         navigation_(max_lines, item_flags_)
     {}

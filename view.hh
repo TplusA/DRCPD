@@ -33,10 +33,32 @@ class ViewIface
 
   public:
     const char *const name_;
+    const char *const on_screen_name_;
+    const char *const drcp_view_id_;
+    const uint8_t drcp_screen_id_;
 
   protected:
-    explicit ViewIface(const char *name):
-        name_(name)
+    /*!
+     * Common ctor for all views.
+     *
+     * \param name
+     *     Internal name for selection over D-Bus and debugging.
+     * \param on_screen_name
+     *     Name as presented to the user. Should be internationalized;
+     *     serialization will push the localized name.
+     * \param drcp_view_id
+     *     View ID as defined in the DRCP specification ("config", "browse",
+     *     "play", etc.).
+     * \param drcp_screen_id
+     *     Numeric screen ID as defined in DRCP specification.
+     */
+    explicit constexpr ViewIface(const char *name, const char *on_screen_name,
+                                 const char *drcp_view_id,
+                                 uint8_t drcp_screen_id):
+        name_(name),
+        on_screen_name_(on_screen_name),
+        drcp_view_id_(drcp_view_id),
+        drcp_screen_id_(drcp_screen_id)
     {}
 
   public:

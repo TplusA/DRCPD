@@ -28,6 +28,7 @@ class View: public ViewIface
     List::NavItemNoFilter item_flags_;
     List::Nav navigation_;
 
+    const uint8_t drcp_browse_id_;
     const dbus_listbroker_id_t listbroker_id_;
 
   public:
@@ -35,12 +36,14 @@ class View: public ViewIface
 
     View &operator=(const View &) = delete;
 
-    explicit View(const char *name, unsigned int max_lines,
+    explicit View(const char *name, const char *on_screen_name,
+                  uint8_t drcp_browse_id, unsigned int max_lines,
                   dbus_listbroker_id_t listbroker_id):
-        ViewIface(name),
+        ViewIface(name, on_screen_name, "browse", 102U),
         current_list_id_(0),
         item_flags_(&file_list_),
         navigation_(max_lines, item_flags_),
+        drcp_browse_id_(drcp_browse_id),
         listbroker_id_(listbroker_id)
     {}
 

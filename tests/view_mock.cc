@@ -83,7 +83,7 @@ class ViewMock::View::Expectation
 };
 
 ViewMock::View::View(const char *name):
-    ViewIface(name),
+    ViewIface(name, "The mock view", "mockview", 200U),
     ignore_all_(false)
 {
     expectations_ = new MockExpectations();
