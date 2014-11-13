@@ -494,6 +494,76 @@ void test_late_binding_of_navigation_and_filter(void)
     cppcut_assert_equal(4U, expected_current_line);
 }
 
+/*!\test
+ * It is possible to query the distance of the selection from the top and
+ * bottom of the display.
+ *
+ * Only the screen size in lines determines the outcome in this case.
+ */
+void test_distance_from_top_and_bottom_in_filled_screen(void)
+{
+    List::NavItemNoFilter no_filter(list);
+    List::Nav nav(3, no_filter);
+
+    cppcut_assert_operator(list->get_number_of_items(), >=, 3U,
+                           cut_message("This test cannot work with so few items. Please fix the test."));
+
+    cppcut_assert_equal(0U, nav.distance_to_top());
+    cppcut_assert_equal(2U, nav.distance_to_bottom());
+    cut_assert_true(nav.down());
+
+    cppcut_assert_equal(1U, nav.distance_to_top());
+    cppcut_assert_equal(1U, nav.distance_to_bottom());
+    cut_assert_true(nav.down());
+
+    cppcut_assert_equal(2U, nav.distance_to_top());
+    cppcut_assert_equal(0U, nav.distance_to_bottom());
+    cut_assert_true(nav.down());
+}
+
+/*!\test
+ * Querying the distance works with very short lists.
+ *
+ * It must be possible to determine the total number of visible items to get
+ * this case right.
+ */
+void test_distance_from_top_and_bottom_in_half_filled_screen(void)
+{
+    List::NavItemNoFilter no_filter(list);
+    List::Nav nav(50, no_filter);
+
+    cppcut_assert_operator(list->get_number_of_items(), <, 50U,
+                           cut_message("This test cannot work with so many items. Please fix the test."));
+
+    cppcut_assert_equal(0U, nav.distance_to_top());
+    cppcut_assert_equal(list->get_number_of_items() - 1, nav.distance_to_bottom());
+    cut_assert_true(nav.down());
+
+    cppcut_assert_equal(1U, nav.distance_to_top());
+    cppcut_assert_equal(list->get_number_of_items() - 2, nav.distance_to_bottom());
+    cut_assert_true(nav.down());
+
+    cppcut_assert_equal(2U, nav.distance_to_top());
+    cppcut_assert_equal(list->get_number_of_items() - 3, nav.distance_to_bottom());
+    cut_assert_true(nav.down());
+}
+
+/*!\test
+ * Distance functions return 0 for empty lists.
+ */
+void test_distance_from_top_and_bottom_in_empty_list(void)
+{
+    List::RamList empty_list;
+
+    cppcut_assert_equal(0U, empty_list.get_number_of_items());
+
+    List::NavItemNoFilter no_filter(&empty_list);
+    List::Nav nav(5, no_filter);
+
+    cppcut_assert_equal(0U, nav.distance_to_top());
+    cppcut_assert_equal(0U, nav.distance_to_bottom());
+}
+
 };
 
 
@@ -858,6 +928,85 @@ void test_navigation_with_odd_and_every_third_line_invisible(void)
     cut_assert_false(nav.up());
     cppcut_assert_equal(2U, nav.get_cursor());
     check_display(*list, nav, std::array<unsigned int, 2>({2, 4}));
+}
+
+/*!\test
+ * It is possible to query the distance of the selection from the top and
+ * bottom of the display.
+ *
+ * Only the screen size in lines determines the outcome in this case.
+ */
+void test_distance_from_top_and_bottom_in_filled_screen(void)
+{
+    NavItemFlags flags(list);
+    List::Nav nav(3, flags);
+
+    flags.set_visible_mask(NavItemFlags::item_is_at_odd_position);
+
+    cppcut_assert_equal(0U, nav.distance_to_top());
+    cppcut_assert_equal(2U, nav.distance_to_bottom());
+    cut_assert_true(nav.down());
+
+    cppcut_assert_equal(1U, nav.distance_to_top());
+    cppcut_assert_equal(1U, nav.distance_to_bottom());
+    cut_assert_true(nav.down());
+
+    cppcut_assert_equal(2U, nav.distance_to_top());
+    cppcut_assert_equal(0U, nav.distance_to_bottom());
+    cut_assert_true(nav.down());
+}
+
+/*!\test
+ * Querying the distance works with very short lists.
+ *
+ * It must be possible to determine the total number of visible items to get
+ * this case right.
+ */
+void test_distance_from_top_and_bottom_in_half_filled_screen(void)
+{
+    NavItemFlags flags(list);
+    List::Nav nav(10, flags);
+
+    flags.set_visible_mask(NavItemFlags::item_is_at_odd_position);
+
+    cppcut_assert_equal(0U, nav.distance_to_top());
+    cppcut_assert_equal(3U, nav.distance_to_bottom());
+    cut_assert_true(nav.down());
+
+    cppcut_assert_equal(1U, nav.distance_to_top());
+    cppcut_assert_equal(2U, nav.distance_to_bottom());
+    cut_assert_true(nav.down());
+
+    cppcut_assert_equal(2U, nav.distance_to_top());
+    cppcut_assert_equal(1U, nav.distance_to_bottom());
+    cut_assert_true(nav.down());
+}
+
+/*!\test
+ * Distance functions return 0 for lists with all items filtered out.
+ */
+void test_distance_from_top_and_bottom_in_filtered_list(void)
+{
+    List::RamList short_list;
+
+    List::append(&short_list, List::TextItem(list_texts[0], false, NavItemFlags::item_is_on_top));
+    List::append(&short_list, List::TextItem(list_texts[1], false, NavItemFlags::item_is_on_top));
+    List::append(&short_list, List::TextItem(list_texts[2], false, NavItemFlags::item_is_on_top));
+
+    NavItemFlags flags(&short_list);
+    List::Nav nav(5, flags);
+
+    cut_assert_true(nav.down());
+
+    cppcut_assert_equal(3U, short_list.get_number_of_items());
+    cppcut_assert_equal(1U, nav.distance_to_top());
+    cppcut_assert_equal(1U, nav.distance_to_bottom());
+
+    flags.set_visible_mask(NavItemFlags::item_is_on_top);
+
+    cppcut_assert_equal(3U, short_list.get_number_of_items());
+    cppcut_assert_equal(0U, nav.distance_to_top());
+    cppcut_assert_equal(0U, nav.distance_to_bottom());
 }
 
 };
