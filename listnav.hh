@@ -282,7 +282,6 @@ class Nav
                                         distance_to_end_of_list - 1;
         }
 
-        assert(selected_line_number_ >= 0);
         assert(selected_line_number_ < maximum_number_of_displayed_lines_);
 
         recover_first_displayed_item_by_cursor();
