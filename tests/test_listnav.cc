@@ -1,6 +1,7 @@
 #include <cppcutter.h>
 #include <algorithm>
 #include <cassert>
+#include <climits>
 
 #include "listnav.hh"
 #include "ramlist.hh"
@@ -515,6 +516,75 @@ void test_late_binding_of_navigation_and_filter(void)
 }
 
 /*!\test
+ * Selection of a line by line number, not item identifier.
+ */
+void test_set_cursor_by_line_number(void)
+{
+    List::NavItemNoFilter no_filter(list);
+    List::Nav nav(4, no_filter);
+
+    cppcut_assert_equal(0U, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 4>({0, 1, 2, 3}));
+
+    nav.set_cursor_by_line_number(1);
+    cppcut_assert_equal(1U, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 4>({0, 1, 2, 3}));
+
+    nav.set_cursor_by_line_number(2);
+    cppcut_assert_equal(2U, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 4>({1, 2, 3, 4}));
+
+    nav.set_cursor_by_line_number(list->get_number_of_items() - 1);
+    cppcut_assert_equal(6U, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 4>({3, 4, 5, 6}));
+
+    nav.set_cursor_by_line_number(0);
+    cppcut_assert_equal(0U, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 4>({0, 1, 2, 3}));
+}
+
+/*!\test
+ * Selection of a non-existent (out of range) line changes nothing.
+ */
+void test_set_cursor_by_invalid_line_number(void)
+{
+    List::NavItemNoFilter no_filter(list);
+    List::Nav nav(4, no_filter);
+
+    cppcut_assert_equal(0U, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 4>({0, 1, 2, 3}));
+
+    nav.set_cursor_by_line_number(list->get_number_of_items() + 1);
+    cppcut_assert_equal(0U, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 4>({0, 1, 2, 3}));
+
+    nav.set_cursor_by_line_number(UINT_MAX);
+    cppcut_assert_equal(0U, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 4>({0, 1, 2, 3}));
+}
+
+/*!\test
+ * Selection of line in empty list changes nothing.
+ */
+void test_set_cursor_in_empty_list(void)
+{
+    List::RamList empty_list;
+    List::NavItemNoFilter no_filter(&empty_list);
+    List::Nav nav(4, no_filter);
+
+    cppcut_assert_equal(0U, nav.get_cursor());
+
+    nav.set_cursor_by_line_number(0);
+    cppcut_assert_equal(0U, nav.get_cursor());
+
+    nav.set_cursor_by_line_number(1);
+    cppcut_assert_equal(0U, nav.get_cursor());
+
+    nav.set_cursor_by_line_number(UINT_MAX);
+    cppcut_assert_equal(0U, nav.get_cursor());
+}
+
+/*!\test
  * It is possible to query the distance of the selection from the top and
  * bottom of the display.
  *
@@ -974,6 +1044,93 @@ void test_get_number_of_visible_items(void)
 
     flags.set_visible_mask(0);
     cppcut_assert_equal(list->get_number_of_items(), nav.get_total_number_of_visible_items());
+}
+
+/*!\test
+ * Selection of a line by line number in filtered list, not item identifier.
+ */
+void test_set_cursor_by_line_number(void)
+{
+    NavItemFlags flags(list);
+    List::Nav nav(3, flags);
+
+    flags.set_visible_mask(NavItemFlags::item_is_at_odd_position);
+
+    cppcut_assert_equal(0U, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 3>({0, 2, 4}));
+
+    nav.set_cursor_by_line_number(1);
+    cppcut_assert_equal(2U, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 3>({0, 2, 4}));
+
+    nav.set_cursor_by_line_number(2);
+    cppcut_assert_equal(4U, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 3>({2, 4, 6}));
+
+    nav.set_cursor_by_line_number(nav.get_total_number_of_visible_items() - 1);
+    cppcut_assert_equal(6U, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 3>({2, 4, 6}));
+
+    nav.set_cursor_by_line_number(0);
+    cppcut_assert_equal(0U, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 3>({0, 2, 4}));
+}
+
+/*!\test
+ * Selection of a non-existent (out of range) line changes nothing.
+ */
+void test_set_cursor_by_invalid_line_number(void)
+{
+    NavItemFlags flags(list);
+    List::Nav nav(4, flags);
+
+    flags.set_visible_mask(NavItemFlags::item_is_at_odd_position);
+
+    cppcut_assert_equal(0U, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 4>({0, 2, 4, 6}));
+
+    nav.set_cursor_by_line_number(nav.get_total_number_of_visible_items());
+    cppcut_assert_equal(0U, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 4>({0, 2, 4, 6}));
+
+    nav.set_cursor_by_line_number(list->get_number_of_items() - 1);
+    cppcut_assert_equal(0U, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 4>({0, 2, 4, 6}));
+
+    nav.set_cursor_by_line_number(UINT_MAX);
+    cppcut_assert_equal(0U, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 4>({0, 2, 4, 6}));
+}
+
+/*!\test
+ * Selection of line in list with all items filtered out changes nothing.
+ */
+void test_set_cursor_in_filtered_list(void)
+{
+    List::RamList short_list;
+
+    List::append(&short_list, List::TextItem(list_texts[0], false, NavItemFlags::item_is_on_top));
+    List::append(&short_list, List::TextItem(list_texts[1], false, NavItemFlags::item_is_on_top));
+    List::append(&short_list, List::TextItem(list_texts[2], false, NavItemFlags::item_is_on_top));
+
+    NavItemFlags flags(&short_list);
+    List::Nav nav(5, flags);
+
+    cut_assert_true(nav.down());
+    cppcut_assert_equal(1U, nav.get_cursor());
+
+    flags.set_visible_mask(NavItemFlags::item_is_on_top);
+
+    cppcut_assert_equal(0U, nav.get_cursor());
+
+    nav.set_cursor_by_line_number(0);
+    cppcut_assert_equal(0U, nav.get_cursor());
+
+    nav.set_cursor_by_line_number(1);
+    cppcut_assert_equal(0U, nav.get_cursor());
+
+    nav.set_cursor_by_line_number(UINT_MAX);
+    cppcut_assert_equal(0U, nav.get_cursor());
 }
 
 /*!\test
