@@ -137,12 +137,25 @@ class NavItemFlags: public List::NavItemFilterIface
         return list_->get_item(item)->get_flags();
     }
 
-    /*!
-     * \todo Not implemented yet.
-     */
     bool map_line_number_to_item(unsigned int line_number,
                                  unsigned int &item) const override
     {
+        const unsigned int n = list_->get_number_of_items();
+
+        for(unsigned int i = 0; i < n; ++i)
+        {
+            const unsigned int flags = list_->get_item(i)->get_flags();
+
+            if(!is_visible(flags))
+                continue;
+
+            if(line_number-- > 0)
+                continue;
+
+            item = i;
+            return true;
+        }
+
         return false;
     }
 
