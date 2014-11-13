@@ -163,6 +163,7 @@ class FilterFlags: public List::NavItemFilterIface
     unsigned int get_last_selectable_item() const override { return list_->get_number_of_items() - 1; }
     unsigned int get_first_visible_item() const override { return 0U; }
     unsigned int get_last_visible_item() const override { return list_->get_number_of_items() - 1; }
+    unsigned int get_total_number_of_visible_items() const override { return list_->get_number_of_items(); }
     unsigned int get_flags_for_item(unsigned int item) const override { return list_->get_item(item)->get_flags(); }
 
     /*!

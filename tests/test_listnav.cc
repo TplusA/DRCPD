@@ -27,6 +27,7 @@ class NavItemFlags: public List::NavItemFilterIface
     unsigned int cached_last_selectable_item_;
     unsigned int cached_first_visible_item_;
     unsigned int cached_last_visible_item_;
+    unsigned int cached_total_number_of_visible_items_;
 
     unsigned int visibility_flags_;
     unsigned int selectability_flags_;
@@ -42,6 +43,7 @@ class NavItemFlags: public List::NavItemFilterIface
         cached_last_selectable_item_(0),
         cached_first_visible_item_(0),
         cached_last_visible_item_(0),
+        cached_total_number_of_visible_items_(0),
         visibility_flags_(0),
         selectability_flags_(0)
     {}
@@ -120,6 +122,14 @@ class NavItemFlags: public List::NavItemFilterIface
         return cached_last_visible_item_;
     }
 
+    unsigned int get_total_number_of_visible_items() const override
+    {
+        if(!are_cached_values_valid_)
+            const_cast<NavItemFlags *>(this)->update_cached_values();
+
+        return cached_total_number_of_visible_items_;
+    }
+
     unsigned int get_flags_for_item(unsigned int item) const override
     {
         assert(list_ != nullptr);
@@ -144,27 +154,26 @@ class NavItemFlags: public List::NavItemFilterIface
             cached_first_visible_item_ = 0;
             cached_last_selectable_item_ = 0;
             cached_last_visible_item_ = 0;
+            cached_total_number_of_visible_items_ = 0;
             are_cached_values_valid_ = true;
             return;
         }
 
         const unsigned int n = list_->get_number_of_items();
+        cppcut_assert_operator(0U, <, n);
 
         cached_first_selectable_item_ = 0;
         cached_first_visible_item_ = 0;
         cached_last_selectable_item_ = n - 1;
         cached_last_visible_item_ = cached_last_selectable_item_;
+        cached_total_number_of_visible_items_ = 0;
 
         bool is_first_selectable_set = false;
         bool is_first_visible_set = false;
         bool is_last_selectable_set = false;
         bool is_last_visible_set = false;
 
-        for(unsigned int i = 0;
-            i < n &&
-            (!is_first_selectable_set || !is_last_selectable_set ||
-             !is_first_visible_set    || !is_last_visible_set);
-            ++i)
+        for(unsigned int i = 0; i < n - i; ++i)
         {
             const unsigned int first_flags = list_->get_item(i)->get_flags();
             const unsigned int last_flags = list_->get_item(n - i - 1)->get_flags();
@@ -175,10 +184,15 @@ class NavItemFlags: public List::NavItemFilterIface
                 is_first_selectable_set = true;
             }
 
-            if(!is_first_visible_set && is_visible(first_flags))
+            if(is_visible(first_flags))
             {
-                cached_first_visible_item_ = i;
-                is_first_visible_set = true;
+                ++cached_total_number_of_visible_items_;
+
+                if(!is_first_visible_set)
+                {
+                    cached_first_visible_item_ = i;
+                    is_first_visible_set = true;
+                }
             }
 
             if(!is_last_selectable_set && is_selectable(last_flags))
@@ -187,10 +201,16 @@ class NavItemFlags: public List::NavItemFilterIface
                 is_last_selectable_set = true;
             }
 
-            if(!is_last_visible_set && is_visible(last_flags))
+            if(is_visible(last_flags))
             {
-                cached_last_visible_item_ = n - i - 1;
-                is_last_visible_set = true;
+                if(i < n - i - 1)
+                    ++cached_total_number_of_visible_items_;
+
+                if(!is_last_visible_set)
+                {
+                    cached_last_visible_item_ = n - i - 1;
+                    is_last_visible_set = true;
+                }
             }
         }
 
@@ -931,6 +951,32 @@ void test_navigation_with_odd_and_every_third_line_invisible(void)
 }
 
 /*!\test
+ * Total number of visible items changes when applying the filter.
+ */
+void test_get_number_of_visible_items(void)
+{
+    NavItemFlags flags(list);
+    List::Nav nav(2, flags);
+
+    cppcut_assert_equal(list->get_number_of_items(), nav.get_total_number_of_visible_items());
+
+    flags.set_visible_mask(NavItemFlags::item_is_at_odd_position);
+    cppcut_assert_equal((list->get_number_of_items() + 1U) / 2U,
+                        nav.get_total_number_of_visible_items());
+
+    flags.set_visible_mask(NavItemFlags::item_is_at_position_divisible_by_3);
+    cppcut_assert_equal((list->get_number_of_items() * 2U) / 3U,
+                        nav.get_total_number_of_visible_items());
+
+    flags.set_visible_mask(NavItemFlags::item_is_at_odd_position |
+                           NavItemFlags::item_is_at_position_divisible_by_3);
+    cppcut_assert_equal(2U, nav.get_total_number_of_visible_items());
+
+    flags.set_visible_mask(0);
+    cppcut_assert_equal(list->get_number_of_items(), nav.get_total_number_of_visible_items());
+}
+
+/*!\test
  * It is possible to query the distance of the selection from the top and
  * bottom of the display.
  *
@@ -942,6 +988,9 @@ void test_distance_from_top_and_bottom_in_filled_screen(void)
     List::Nav nav(3, flags);
 
     flags.set_visible_mask(NavItemFlags::item_is_at_odd_position);
+
+    cppcut_assert_operator(nav.get_total_number_of_visible_items(), >=, 3U,
+                           cut_message("This test cannot work with so few items. Please fix the test."));
 
     cppcut_assert_equal(0U, nav.distance_to_top());
     cppcut_assert_equal(2U, nav.distance_to_bottom());
@@ -968,6 +1017,8 @@ void test_distance_from_top_and_bottom_in_half_filled_screen(void)
     List::Nav nav(10, flags);
 
     flags.set_visible_mask(NavItemFlags::item_is_at_odd_position);
+
+    cppcut_assert_equal(4U, nav.get_total_number_of_visible_items());
 
     cppcut_assert_equal(0U, nav.distance_to_top());
     cppcut_assert_equal(3U, nav.distance_to_bottom());
@@ -999,12 +1050,14 @@ void test_distance_from_top_and_bottom_in_filtered_list(void)
     cut_assert_true(nav.down());
 
     cppcut_assert_equal(3U, short_list.get_number_of_items());
+    cppcut_assert_equal(3U, nav.get_total_number_of_visible_items());
     cppcut_assert_equal(1U, nav.distance_to_top());
     cppcut_assert_equal(1U, nav.distance_to_bottom());
 
     flags.set_visible_mask(NavItemFlags::item_is_on_top);
 
     cppcut_assert_equal(3U, short_list.get_number_of_items());
+    cppcut_assert_equal(0U, nav.get_total_number_of_visible_items());
     cppcut_assert_equal(0U, nav.distance_to_top());
     cppcut_assert_equal(0U, nav.distance_to_bottom());
 }

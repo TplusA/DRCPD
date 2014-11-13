@@ -52,6 +52,7 @@ class NavItemFilterIface
     virtual unsigned int get_last_selectable_item() const = 0;
     virtual unsigned int get_first_visible_item() const = 0;
     virtual unsigned int get_last_visible_item() const = 0;
+    virtual unsigned int get_total_number_of_visible_items() const = 0;
     virtual unsigned int get_flags_for_item(unsigned int item) const = 0;
     virtual bool map_line_number_to_item(unsigned int line_number,
                                          unsigned int &item) const = 0;
@@ -88,6 +89,12 @@ class NavItemNoFilter: public NavItemFilterIface
     unsigned int get_last_selectable_item() const override { return number_of_items_minus_1_; }
     unsigned int get_first_visible_item() const override { return 0; }
     unsigned int get_last_visible_item() const override { return number_of_items_minus_1_; }
+
+    unsigned int get_total_number_of_visible_items() const override
+    {
+        return contains_items_ ? number_of_items_minus_1_ + 1 : 0;
+    }
+
     unsigned int get_flags_for_item(unsigned int item) const override { return 0; }
 
     bool map_line_number_to_item(unsigned int line_number,
@@ -148,12 +155,16 @@ class Nav
 
     unsigned int distance_to_top() const
     {
-        return selected_line_number_;
+        return get_total_number_of_visible_items() > 0 ? selected_line_number_ : 0;
     }
 
     unsigned int distance_to_bottom() const
     {
-        return maximum_number_of_displayed_lines_ - selected_line_number_ - 1;
+        const unsigned int max_items = get_total_number_of_visible_items();
+        if(max_items > 0)
+            return std::min(maximum_number_of_displayed_lines_, max_items) - selected_line_number_ - 1;
+        else
+            return 0;
     }
 
     bool down(unsigned int count = 1)
@@ -232,6 +243,11 @@ class Nav
     {
         check_selection();
         return cursor_;
+    }
+
+    unsigned int get_total_number_of_visible_items() const
+    {
+        return item_filter_.get_total_number_of_visible_items();
     }
 
     void set_cursor_by_line_number(unsigned int line_number)
