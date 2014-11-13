@@ -5,6 +5,7 @@
 
 #include "dcp_transaction.hh"
 #include "drcp_commands.hh"
+#include "i18n.h"
 
 /*!
  * \addtogroup views Various views with their specific behaviors
@@ -121,13 +122,101 @@ class ViewIface
 
     /*!
      * Write XML representation of the whole view to given output stream.
+     *
+     * The base class implementation uses #write_xml_begin(), #write_xml(), and
+     * #write_xml_end() to write XML output to \p dcpd. The \p debug_os stream
+     * is not used. Derived classes may want to override this function to make
+     * use of the \p debug_os stream and call the base implementation from the
+     * overriding function to still get the XML output.
+     *
+     * \param dcpd
+     *     A transaction object to send the XML to.
+     * \param debug_os
+     *     An optional debug output stream to see what's going on (not used in
+     *     base class implementation).
      */
-    virtual void serialize(DcpTransaction &dcpd, std::ostream *debug_os = nullptr) = 0;
+    virtual void serialize(DcpTransaction &dcpd, std::ostream *debug_os = nullptr)
+    {
+        do_serialize(dcpd, true);
+    }
 
     /*!
      * Write XML representation of parts of the view that need be updated.
+     *
+     * This function does the same as #serialize(), but only emits things that
+     * have changed.
      */
-    virtual void update(DcpTransaction &dcpd, std::ostream *debug_os = nullptr) = 0;
+    virtual void update(DcpTransaction &dcpd, std::ostream *debug_os = nullptr)
+    {
+        do_serialize(dcpd, false);
+    }
+
+  private:
+    void do_serialize(DcpTransaction &dcpd, bool is_full_view)
+    {
+        if(!dcpd.start())
+            return;
+
+        if(dcpd.stream() != nullptr &&
+           write_xml_begin(*dcpd.stream(), is_full_view) &&
+           write_xml(*dcpd.stream(), is_full_view) &&
+           write_xml_end(*dcpd.stream(), is_full_view))
+        {
+            (void)dcpd.commit();
+        }
+        else
+            (void)dcpd.abort();
+    }
+
+  protected:
+    /*!
+     * Start writing XML data, opens view or update tag and some generic tags.
+     *
+     * \param os
+     *     Output stream the XML data is written to.
+     * \param is_full_view
+     *     Set to true for sending a full view document, to false for sending
+     *     an update document.
+     *
+     * \returns True to keep going, false to abort the transaction.
+     */
+    virtual bool write_xml_begin(std::ostream &os, bool is_full_view)
+    {
+        os << "<" << (is_full_view ? "view" : "update") << " name=\""
+           << drcp_view_id_ << "\">\n";
+
+        if(is_full_view)
+        {
+            os << "    <text id=\"title\">" << _(on_screen_name_) << "</text>\n";
+            os << "    <text id=\"scrid\">" << int(drcp_screen_id_) << "</text>\n";
+        }
+
+        return true;
+    }
+
+    /*!
+     * Write the view-specific XML body.
+     *
+     * Most deriving classes will want to override this function. The base
+     * implementation does not write anything to the output stream.
+     *
+     * \returns True to keep going, false to abort the transaction.
+     */
+    virtual bool write_xml(std::ostream &os, bool is_full_view)
+    {
+        return true;
+    }
+
+    /*!
+     * End writing XML, close view or update tag opened by #write_xml_begin().
+     *
+     * \returns True to keep going, false to abort the transaction.
+     */
+    virtual bool write_xml_end(std::ostream &os, bool is_full_view)
+    {
+        os << "</" << (is_full_view ? "view" : "update") << ">";
+        return true;
+    }
 };
 
 /*!@}*/

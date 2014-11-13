@@ -237,6 +237,8 @@ ViewIface::InputResult ViewConfig::View::input(DrcpCommand command)
 
 void ViewConfig::View::serialize(DcpTransaction &dcpd, std::ostream *debug_os)
 {
+    ViewIface::serialize(dcpd);
+
     if(!debug_os)
         return;
 
@@ -260,11 +262,6 @@ void ViewConfig::View::serialize(DcpTransaction &dcpd, std::ostream *debug_os)
 
         *debug_os << std::endl;
     }
-}
-
-void ViewConfig::View::update(DcpTransaction &dcpd, std::ostream *debug_os)
-{
-    serialize(dcpd, debug_os);
 }
 
 /*!

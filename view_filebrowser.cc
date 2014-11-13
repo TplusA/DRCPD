@@ -184,6 +184,8 @@ ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command)
 
 void ViewFileBrowser::View::serialize(DcpTransaction &dcpd, std::ostream *debug_os)
 {
+    ViewIface::serialize(dcpd);
+
     if(!debug_os)
         return;
 
@@ -200,11 +202,6 @@ void ViewFileBrowser::View::serialize(DcpTransaction &dcpd, std::ostream *debug_
         *debug_os << (item->is_directory() ? "Dir " : "File") << " " << it << ": "
                   << item->get_text() << std::endl;
     }
-}
-
-void ViewFileBrowser::View::update(DcpTransaction &dcpd, std::ostream *debug_os)
-{
-    serialize(dcpd, debug_os);
 }
 
 bool ViewFileBrowser::View::fill_list_from_root()
