@@ -252,16 +252,40 @@ class Nav
 
     void set_cursor_by_line_number(unsigned int line_number)
     {
-        if(line_number == 0 || !item_filter_.map_line_number_to_item(line_number, cursor_))
+        if(line_number == 0 ||
+           !item_filter_.map_line_number_to_item(line_number, cursor_) ||
+           !item_filter_.is_selectable(item_filter_.get_flags_for_item(cursor_)))
         {
             recover_cursor_and_selection();
+            return;
+        }
+
+        assert(maximum_number_of_displayed_lines_ > 0);
+
+        const unsigned int max_items = get_total_number_of_visible_items();
+        assert(line_number < max_items);
+
+        if(max_items < maximum_number_of_displayed_lines_)
+        {
+            /* very short list, always displayed in full length */
+            selected_line_number_ = line_number;
         }
         else
         {
-            assert(maximum_number_of_displayed_lines_ > 0);
+            /* attempt to center the whole list around the selected line */
             selected_line_number_ = (maximum_number_of_displayed_lines_ + 1) / 2 - 1;
-            recover_first_displayed_item_by_cursor();
+
+            const unsigned int distance_to_end_of_list = max_items - line_number - 1;
+
+            if(distance_to_end_of_list < maximum_number_of_displayed_lines_ - selected_line_number_)
+                selected_line_number_ = maximum_number_of_displayed_lines_ -
+                                        distance_to_end_of_list - 1;
         }
+
+        assert(selected_line_number_ >= 0);
+        assert(selected_line_number_ < maximum_number_of_displayed_lines_);
+
+        recover_first_displayed_item_by_cursor();
     }
 
     class const_iterator
