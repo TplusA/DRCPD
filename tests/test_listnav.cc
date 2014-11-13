@@ -308,6 +308,31 @@ void test_move_down_and_up_within_displayed_lines(void)
 }
 
 /*!\test
+ * Attempting to not move the selection up fails.
+ */
+void test_move_up_by_zero_fails(void)
+{
+    List::NavItemNoFilter no_filter(list);
+    List::Nav nav(3, no_filter);
+
+    cut_assert_true(nav.down());
+    cut_assert_false(nav.up(0));
+    cut_assert_true(nav.up(1));
+}
+
+/*!\test
+ * Attempting to not move the selection down fails.
+ */
+void test_move_down_by_zero_fails(void)
+{
+    List::NavItemNoFilter no_filter(list);
+    List::Nav nav(3, no_filter);
+
+    cut_assert_false(nav.down(0));
+    cut_assert_true(nav.down(1));
+}
+
+/*!\test
  * Moving beyond displayed lines scrolls the list.
  */
 void test_move_down_and_up_with_scrolling(void)
