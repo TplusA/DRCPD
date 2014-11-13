@@ -598,6 +598,61 @@ void test_set_cursor_in_empty_list(void)
 }
 
 /*!\test
+ * Selection of line in very short lists does not move the list.
+ */
+void test_set_cursor_in_half_filled_screen(void)
+{
+    List::NavItemNoFilter no_filter(list);
+    List::Nav nav(50, no_filter);
+
+    cppcut_assert_operator(list->get_number_of_items(), <, 50U,
+                           cut_message("This test cannot work with so many items. Please fix the test."));
+
+    cppcut_assert_equal(0U, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 7>({0, 1, 2, 3, 4, 5, 6}));
+
+    nav.set_cursor_by_line_number(1);
+    cppcut_assert_equal(1U, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 7>({0, 1, 2, 3, 4, 5, 6}));
+
+    nav.set_cursor_by_line_number(5);
+    cppcut_assert_equal(5U, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 7>({0, 1, 2, 3, 4, 5, 6}));
+
+    nav.set_cursor_by_line_number(6);
+    cppcut_assert_equal(6U, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 7>({0, 1, 2, 3, 4, 5, 6}));
+}
+
+/*!\test
+ * Selection of line in list with as many items as there are lines on display.
+ *
+ * This test may catch bugs in some corner cases.
+ */
+void test_set_cursor_in_exactly_fitting_list(void)
+{
+    List::NavItemNoFilter no_filter(list);
+    List::Nav nav(7, no_filter);
+
+    cppcut_assert_equal(7U, list->get_number_of_items());
+
+    cppcut_assert_equal(0U, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 7>({0, 1, 2, 3, 4, 5, 6}));
+
+    nav.set_cursor_by_line_number(1);
+    cppcut_assert_equal(1U, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 7>({0, 1, 2, 3, 4, 5, 6}));
+
+    nav.set_cursor_by_line_number(5);
+    cppcut_assert_equal(5U, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 7>({0, 1, 2, 3, 4, 5, 6}));
+
+    nav.set_cursor_by_line_number(6);
+    cppcut_assert_equal(6U, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 7>({0, 1, 2, 3, 4, 5, 6}));
+}
+
+/*!\test
  * It is possible to query the distance of the selection from the top and
  * bottom of the display.
  *
@@ -1144,6 +1199,70 @@ void test_set_cursor_in_filtered_list(void)
 
     nav.set_cursor_by_line_number(UINT_MAX);
     cppcut_assert_equal(0U, nav.get_cursor());
+}
+
+/*!\test
+ * Selection of line in heavily filtered lists does not move the list.
+ *
+ * There are more items in the list than there are lines on the display, but
+ * filtering makes the displayed list shorter so that it fits entirely to
+ * screen.
+ */
+void test_set_cursor_in_half_filled_screen(void)
+{
+    NavItemFlags flags(list);
+    List::Nav nav(6, flags);
+
+    cppcut_assert_operator(list->get_number_of_items(), >, 6U,
+                           cut_message("This test cannot work with so few items. Please fix the test."));
+
+    flags.set_visible_mask(NavItemFlags::item_is_at_odd_position);
+    cppcut_assert_equal(0U, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 4>({0, 2, 4, 6}));
+
+    nav.set_cursor_by_line_number(1);
+    cppcut_assert_equal(2U, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 4>({0, 2, 4, 6}));
+
+    nav.set_cursor_by_line_number(2);
+    cppcut_assert_equal(4U, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 4>({0, 2, 4, 6}));
+
+    nav.set_cursor_by_line_number(3);
+    cppcut_assert_equal(6U, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 4>({0, 2, 4, 6}));
+}
+
+/*!\test
+ * Selection of line in filtered list with as many items as there are lines on
+ * display.
+ *
+ * This test may catch bugs in some corner cases.
+ */
+void test_set_cursor_in_exactly_fitting_list(void)
+{
+    NavItemFlags flags(list);
+    List::Nav nav(4, flags);
+
+    cppcut_assert_operator(list->get_number_of_items(), >, 4U,
+                           cut_message("This test cannot work with so few items. Please fix the test."));
+
+    flags.set_visible_mask(NavItemFlags::item_is_at_odd_position);
+    cppcut_assert_equal(4U, nav.get_total_number_of_visible_items());
+    cppcut_assert_equal(0U, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 4>({0, 2, 4, 6}));
+
+    nav.set_cursor_by_line_number(1);
+    cppcut_assert_equal(2U, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 4>({0, 2, 4, 6}));
+
+    nav.set_cursor_by_line_number(2);
+    cppcut_assert_equal(4U, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 4>({0, 2, 4, 6}));
+
+    nav.set_cursor_by_line_number(3);
+    cppcut_assert_equal(6U, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 4>({0, 2, 4, 6}));
 }
 
 /*!\test
