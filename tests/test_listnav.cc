@@ -18,6 +18,8 @@ class NavItemFlags: public List::NavItemFilterIface
   public:
     static constexpr unsigned int item_is_on_top = 0x01;
     static constexpr unsigned int item_is_at_bottom = 0x02;
+    static constexpr unsigned int item_is_at_odd_position = 0x04;
+    static constexpr unsigned int item_is_at_position_divisible_by_3 = 0x08;
 
   private:
     bool are_cached_values_valid_;
@@ -690,6 +692,172 @@ void test_late_binding_of_navigation_and_filter(void)
 
     /* first four entries were shown */
     cppcut_assert_equal(4U, expected_current_line);
+}
+
+};
+
+
+namespace list_navigation_tests_with_invisible_items
+{
+
+void cut_setup(void)
+{
+    list = new List::RamList();
+    cppcut_assert_not_null(list);
+
+    int count = 0;
+
+    for(auto t : list_texts)
+    {
+        unsigned int item_flags = 0;
+
+        if((count % 2)!= 0)
+            item_flags |= NavItemFlags::item_is_at_odd_position;
+
+        if((count % 3) == 0)
+            item_flags |= NavItemFlags::item_is_at_position_divisible_by_3;
+
+        if(count == 0)
+            item_flags |= NavItemFlags::item_is_on_top;
+
+        if(count == sizeof(list_texts) / sizeof(list_texts[0]) - 1)
+            item_flags |= NavItemFlags::item_is_at_bottom;
+
+        ++count;
+
+        List::append(list, List::TextItem(t, false, item_flags));
+    }
+}
+
+void cut_teardown(void)
+{
+    delete list;
+    list = nullptr;
+}
+
+/*!\test
+ * Navigation should start in first visible line, corresponding to the second
+ * item in the list.
+ */
+void test_navigation_with_first_line_invisible(void)
+{
+    NavItemFlags flags(list);
+    List::Nav nav(4, flags);
+
+    cppcut_assert_equal(0U, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 4>({0, 1, 2, 3}));
+
+    flags.set_visible_mask(NavItemFlags::item_is_on_top);
+
+    cppcut_assert_equal(1U, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 4>({1, 2, 3, 4}));
+}
+
+/*!\test
+ * Last list item is invisible and therefore neither be seen nor selected.
+ * item in the list.
+ */
+void test_navigation_with_last_line_invisible(void)
+{
+    NavItemFlags flags(list);
+    List::Nav nav(4, flags);
+
+    flags.set_visible_mask(NavItemFlags::item_is_at_bottom);
+
+    cppcut_assert_equal(0U, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 4>({0, 1, 2, 3}));
+
+    cut_assert_true(nav.down());
+    cut_assert_true(nav.down());
+    cut_assert_true(nav.down());
+    cut_assert_true(nav.down());
+    cut_assert_true(nav.down());
+    cppcut_assert_equal(5U, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 4>({2, 3, 4, 5}));
+
+    cut_assert_false(nav.down());
+    cppcut_assert_equal(5U, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 4>({2, 3, 4, 5}));
+}
+
+/*!\test
+ * Every other list item is invisible.
+ */
+void test_navigation_with_odd_lines_invisible(void)
+{
+    NavItemFlags flags(list);
+    List::Nav nav(4, flags);
+
+    flags.set_visible_mask(NavItemFlags::item_is_at_odd_position);
+
+    cppcut_assert_equal(0U, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 4>({0, 2, 4, 6}));
+
+    cut_assert_true(nav.down());
+    cut_assert_true(nav.down());
+    cut_assert_true(nav.down());
+    cppcut_assert_equal(6U, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 4>({0, 2, 4, 6}));
+
+    cut_assert_false(nav.down());
+    cppcut_assert_equal(6U, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 4>({0, 2, 4, 6}));
+}
+
+/*!\test
+ * Every third list item is invisible.
+ */
+void test_navigation_with_every_third_line_invisible(void)
+{
+    NavItemFlags flags(list);
+    List::Nav nav(4, flags);
+
+    flags.set_visible_mask(NavItemFlags::item_is_at_position_divisible_by_3);
+
+    cppcut_assert_equal(1U, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 4>({1, 2, 4, 5}));
+
+    cut_assert_true(nav.down());
+    cut_assert_true(nav.down());
+    cut_assert_true(nav.down());
+    cppcut_assert_equal(5U, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 4>({1, 2, 4, 5}));
+
+    cut_assert_false(nav.down());
+    cppcut_assert_equal(5U, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 4>({1, 2, 4, 5}));
+}
+
+/*!\test
+ * Union of #test_navigation_with_odd_lines_invisible() and
+ * #test_navigation_with_every_third_line_invisible().
+ */
+void test_navigation_with_odd_and_every_third_line_invisible(void)
+{
+    NavItemFlags flags(list);
+    List::Nav nav(4, flags);
+
+    flags.set_visible_mask(NavItemFlags::item_is_at_odd_position |
+                           NavItemFlags::item_is_at_position_divisible_by_3);
+
+    cppcut_assert_equal(2U, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 2>({2, 4}));
+
+    cut_assert_true(nav.down());
+    cppcut_assert_equal(4U, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 2>({2, 4}));
+
+    cut_assert_false(nav.down());
+    cppcut_assert_equal(4U, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 2>({2, 4}));
+
+    cut_assert_true(nav.up());
+    cppcut_assert_equal(2U, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 2>({2, 4}));
+
+    cut_assert_false(nav.up());
+    cppcut_assert_equal(2U, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 2>({2, 4}));
 }
 
 };
