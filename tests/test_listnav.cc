@@ -678,6 +678,61 @@ void test_set_cursor_in_exactly_fitting_list(void)
 }
 
 /*!\test
+ * Get absolute line number for a list item.
+ */
+void test_get_line_number_by_item(void)
+{
+    List::NavItemNoFilter no_filter(list);
+    List::Nav nav(2, no_filter);
+
+    cppcut_assert_equal(0, nav.get_line_number_by_item(0));
+    cppcut_assert_equal(1, nav.get_line_number_by_item(1));
+    cppcut_assert_equal(6, nav.get_line_number_by_item(6));
+}
+
+/*!\test
+ * Getting the absolute line number for a non-existent list item fails.
+ */
+void test_get_line_number_by_item_fails_for_invalid_item(void)
+{
+    List::NavItemNoFilter no_filter(list);
+    List::Nav nav(2, no_filter);
+
+    cppcut_assert_equal(-1, nav.get_line_number_by_item(7));
+    cppcut_assert_equal(-1, nav.get_line_number_by_item(INT_MAX));
+    cppcut_assert_equal(-1, nav.get_line_number_by_item(INT_MAX + 1U));
+    cppcut_assert_equal(-1, nav.get_line_number_by_item(UINT_MAX));
+}
+
+/*!\test
+ * Get absolute line number for the currently selected item.
+ */
+void test_get_line_number_by_cursor(void)
+{
+    List::NavItemNoFilter no_filter(list);
+    List::Nav nav(2, no_filter);
+
+    cppcut_assert_equal(0, nav.get_line_number_by_cursor());
+    cut_assert_true(nav.down());
+    cppcut_assert_equal(1, nav.get_line_number_by_cursor());
+    cut_assert_true(nav.up());
+    cppcut_assert_equal(0, nav.get_line_number_by_cursor());
+}
+
+/*!\test
+ * Getting absolute line numbers for items in an empty list fails.
+ */
+void test_get_line_number_in_empty_list(void)
+{
+    List::RamList empty_list;
+    List::NavItemNoFilter no_filter(&empty_list);
+    List::Nav nav(2, no_filter);
+
+    cppcut_assert_equal(-1, nav.get_line_number_by_item(0));
+    cppcut_assert_equal(-1, nav.get_line_number_by_cursor());
+}
+
+/*!\test
  * It is possible to query the distance of the selection from the top and
  * bottom of the display.
  *
@@ -1288,6 +1343,131 @@ void test_set_cursor_in_exactly_fitting_list(void)
     nav.set_cursor_by_line_number(3);
     cppcut_assert_equal(6U, nav.get_cursor());
     check_display(*list, nav, std::array<unsigned int, 4>({0, 2, 4, 6}));
+}
+
+/*!\test
+ * Get absolute line number for a list item in filtered list.
+ */
+void test_get_line_number_by_item(void)
+{
+    NavItemFlags flags(list);
+    List::Nav nav(10, flags);
+
+    flags.set_visible_mask(NavItemFlags::item_is_at_odd_position);
+    check_display(*list, nav, std::array<unsigned int, 4>({0, 2, 4, 6}));
+
+    cppcut_assert_equal(0, nav.get_line_number_by_item(0));
+    cppcut_assert_equal(1, nav.get_line_number_by_item(2));
+    cppcut_assert_equal(2, nav.get_line_number_by_item(4));
+    cppcut_assert_equal(3, nav.get_line_number_by_item(6));
+}
+
+/*!\test
+ * The absolute line number of list items may be different for different
+ * filters.
+ */
+void test_get_line_number_by_item_changes_with_different_filters(void)
+{
+    NavItemFlags flags(list);
+    List::Nav nav(10, flags);
+
+    flags.set_visible_mask(NavItemFlags::item_is_at_odd_position);
+    check_display(*list, nav, std::array<unsigned int, 4>({0, 2, 4, 6}));
+
+    cppcut_assert_equal(1, nav.get_line_number_by_item(2));
+    cppcut_assert_equal(2, nav.get_line_number_by_item(4));
+
+    flags.set_visible_mask(NavItemFlags::item_is_at_odd_position |
+                           NavItemFlags::item_is_at_position_divisible_by_3);
+    check_display(*list, nav, std::array<unsigned int, 2>({2, 4}));
+
+    cppcut_assert_equal(0, nav.get_line_number_by_item(2));
+    cppcut_assert_equal(1, nav.get_line_number_by_item(4));
+
+    flags.set_visible_mask(0);
+    check_display(*list, nav, std::array<unsigned int, 7>({0, 1, 2, 3, 4, 5, 6}));
+
+    cppcut_assert_equal(2, nav.get_line_number_by_item(2));
+    cppcut_assert_equal(4, nav.get_line_number_by_item(4));
+}
+
+/*!\test
+ * Getting the absolute line number of a list item works if the item was not
+ * filtered out, and fails if the item was filtered out.
+ */
+void test_get_line_number_by_item_fails_or_succeeds_for_different_filters(void)
+{
+    NavItemFlags flags(list);
+    List::Nav nav(10, flags);
+
+    flags.set_visible_mask(NavItemFlags::item_is_at_odd_position);
+    check_display(*list, nav, std::array<unsigned int, 4>({0, 2, 4, 6}));
+
+    cppcut_assert_equal(0, nav.get_line_number_by_item(0));
+    cppcut_assert_equal(3, nav.get_line_number_by_item(6));
+
+    flags.set_visible_mask(NavItemFlags::item_is_at_position_divisible_by_3);
+    check_display(*list, nav, std::array<unsigned int, 4>({1, 2, 4, 5}));
+
+    cppcut_assert_equal(-1, nav.get_line_number_by_item(0));
+    cppcut_assert_equal(-1, nav.get_line_number_by_item(6));
+}
+
+/*!\test
+ * Getting the absolute line number for a non-existent list item fails.
+ */
+void test_get_line_number_by_item_fails_for_invalid_item(void)
+{
+    NavItemFlags flags(list);
+    List::Nav nav(10, flags);
+
+    flags.set_visible_mask(NavItemFlags::item_is_at_odd_position);
+
+    cppcut_assert_equal(-1, nav.get_line_number_by_item(7));
+    cppcut_assert_equal(-1, nav.get_line_number_by_item(INT_MAX));
+    cppcut_assert_equal(-1, nav.get_line_number_by_item(INT_MAX + 1U));
+    cppcut_assert_equal(-1, nav.get_line_number_by_item(UINT_MAX));
+}
+
+/*!\test
+ * Get absolute line number for the currently selected item.
+ */
+void test_get_line_number_by_cursor(void)
+{
+    NavItemFlags flags(list);
+    List::Nav nav(2, flags);
+
+    flags.set_visible_mask(NavItemFlags::item_is_at_odd_position);
+
+    cppcut_assert_equal(0, nav.get_line_number_by_cursor());
+
+    cut_assert_true(nav.down());
+    cppcut_assert_equal(2U, nav.get_cursor());
+    cppcut_assert_equal(1, nav.get_line_number_by_cursor());
+
+    cut_assert_true(nav.up());
+    cppcut_assert_equal(0U, nav.get_cursor());
+    cppcut_assert_equal(0, nav.get_line_number_by_cursor());
+}
+
+/*!\test
+ * Getting absolute line numbers for items in an list with completely filtered
+ * content fails.
+ */
+void test_get_line_number_in_filtered_list(void)
+{
+    List::RamList short_list;
+
+    List::append(&short_list, List::TextItem(list_texts[0], false, NavItemFlags::item_is_on_top));
+    List::append(&short_list, List::TextItem(list_texts[1], false, NavItemFlags::item_is_on_top));
+    List::append(&short_list, List::TextItem(list_texts[2], false, NavItemFlags::item_is_on_top));
+
+    NavItemFlags flags(&short_list);
+    List::Nav nav(2, flags);
+
+    flags.set_visible_mask(NavItemFlags::item_is_on_top);
+
+    cppcut_assert_equal(-1, nav.get_line_number_by_cursor());
 }
 
 /*!\test

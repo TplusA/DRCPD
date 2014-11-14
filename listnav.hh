@@ -287,6 +287,17 @@ class Nav
         recover_first_displayed_item_by_cursor();
     }
 
+    int get_line_number_by_item(unsigned int item) const
+    {
+        /* FIXME: This is obviously wrong for filtered lists */
+        return item;
+    }
+
+    int get_line_number_by_cursor()
+    {
+        return get_line_number_by_item(get_cursor());
+    }
+
     class const_iterator
     {
       private:
