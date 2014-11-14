@@ -159,6 +159,32 @@ class NavItemFlags: public List::NavItemFilterIface
         return false;
     }
 
+    bool map_item_to_line_number(unsigned int item,
+                                 unsigned int &line_number) const override
+    {
+        const unsigned int n = list_->get_number_of_items();
+        unsigned int line = 0;
+
+        for(unsigned int i = 0; i < n; ++i)
+        {
+            const unsigned int flags = list_->get_item(i)->get_flags();
+
+            if(i == item)
+            {
+                if(!is_visible(flags))
+                    return false;
+
+                line_number = line;
+                return true;
+            }
+
+            if(is_visible(flags))
+                ++line;
+        }
+
+        return false;
+    }
+
   private:
     void update_cached_values()
     {

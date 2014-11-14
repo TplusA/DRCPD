@@ -174,6 +174,15 @@ class FilterFlags: public List::NavItemFilterIface
     {
         return false;
     }
+
+    /*!
+     * \todo Not implemented yet.
+     */
+    bool map_item_to_line_number(unsigned int item,
+                                 unsigned int &line_number) const override
+    {
+        return false;
+    }
 };
 
 class View: public ViewIface

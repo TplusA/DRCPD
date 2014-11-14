@@ -1,6 +1,7 @@
 #ifndef LISTNAV_HH
 #define LISTNAV_HH
 
+#include <climits>
 #include <cassert>
 
 #include "list.hh"
@@ -56,6 +57,8 @@ class NavItemFilterIface
     virtual unsigned int get_flags_for_item(unsigned int item) const = 0;
     virtual bool map_line_number_to_item(unsigned int line_number,
                                          unsigned int &item) const = 0;
+    virtual bool map_item_to_line_number(unsigned int item,
+                                         unsigned int &line_number) const = 0;
 };
 
 class NavItemNoFilter: public NavItemFilterIface
@@ -104,6 +107,16 @@ class NavItemNoFilter: public NavItemFilterIface
             return false;
 
         item = line_number;
+        return true;
+    }
+
+    bool map_item_to_line_number(unsigned int item,
+                                 unsigned int &line_number) const override
+    {
+        if(!contains_items_ || item > number_of_items_minus_1_)
+            return false;
+
+        line_number = item;
         return true;
     }
 };
@@ -289,8 +302,12 @@ class Nav
 
     int get_line_number_by_item(unsigned int item) const
     {
-        /* FIXME: This is obviously wrong for filtered lists */
-        return item;
+        unsigned int line_number;
+
+        if(item_filter_.map_item_to_line_number(item, line_number))
+            return line_number <= INT_MAX ? int(line_number) : -1;
+
+        return -1;
     }
 
     int get_line_number_by_cursor()
