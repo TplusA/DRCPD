@@ -29,7 +29,6 @@ struct dcp_fifo_dispatch_data_t
 {
     files_t *files;
     ViewManagerIface *vm;
-    GSource *timeout_event_source;
     guint timeout_event_source_id;
 };
 
@@ -149,6 +148,23 @@ static gboolean transaction_timeout_exceeded(gpointer user_data)
     return G_SOURCE_REMOVE;
 }
 
+static void add_timeout(dcp_fifo_dispatch_data_t *dispatch_data,
+                        guint timeout_ms)
+{
+    assert(dispatch_data->timeout_event_source_id == 0);
+
+    GSource *src = g_timeout_source_new(timeout_ms);
+
+    if(src == NULL)
+        msg_error(ENOMEM, LOG_EMERG, "Failed allocating timeout event source");
+    else
+    {
+        g_source_set_callback(src, transaction_timeout_exceeded,
+                              dispatch_data, NULL);
+        dispatch_data->timeout_event_source_id = g_source_attach(src, NULL);
+    }
+}
+
 static void dcp_transaction_observer(DcpTransaction::state state,
                                      void *user_data)
 {
@@ -172,9 +188,7 @@ static void dcp_transaction_observer(DcpTransaction::state state,
         return;
 
       case DcpTransaction::WAIT_FOR_ANSWER:
-        assert(dispatch_data->timeout_event_source_id == 0);
-        dispatch_data->timeout_event_source_id =
-            g_source_attach(dispatch_data->timeout_event_source, NULL);
+        add_timeout(dispatch_data, 2U * 1000U);
         break;
     }
 }
@@ -336,21 +350,6 @@ static void testing(ViewManager &views)
     views.activate_view_by_name("TuneIn");
 }
 
-static GSource *create_timeout_object(guint timeout_ms, gpointer user_data)
-{
-    GSource *timeout = g_timeout_source_new(timeout_ms);
-
-    if(timeout == NULL)
-    {
-        msg_error(ENOMEM, LOG_EMERG, "Failed allocating timeout event source");
-        return timeout;
-    }
-
-    g_source_set_callback(timeout, transaction_timeout_exceeded, user_data, NULL);
-
-    return timeout;
-}
-
 static gboolean signal_handler(gpointer user_data)
 {
     g_main_loop_quit(static_cast<GMainLoop *>(user_data));
@@ -395,11 +394,7 @@ int main(int argc, char *argv[])
     view_manager.set_debug_stream(std::cout);
 
     dcp_dispatch_data.vm = &view_manager;
-    dcp_dispatch_data.timeout_event_source =
-        create_timeout_object(2U * 1000U, &dcp_dispatch_data);
-
-    if(dcp_dispatch_data.timeout_event_source == NULL)
-        return EXIT_FAILURE;
+    dcp_dispatch_data.timeout_event_source_id = 0;
 
     if(dbus_setup(loop, true, &view_manager) < 0)
         return EXIT_FAILURE;
