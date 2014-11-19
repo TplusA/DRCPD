@@ -40385,3 +40385,71 @@
    fun:g_type_register_static
    fun:g_type_register_static_simple
 }
+{
+   Cutter internal allocation
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:realloc
+   fun:vasprintf
+   fun:asprintf
+   fun:dlerror
+   fun:g_module_symbol
+   fun:cut_loader_load_test_cases
+   fun:cut_repository_create_test_suite
+   fun:cut_run_context_create_test_suite
+   fun:cut_run_context_get_test_suite
+   obj:/usr/lib/libcutter.so.0.1.0
+   fun:cut_runner_run
+   fun:cut_run_context_start
+}
+{
+   Cutter internal allocation
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   fun:_dl_close_worker
+   fun:_dl_open
+   fun:dlopen_doit
+   fun:_dl_catch_error
+   fun:_dlerror_run
+   fun:dlopen@@*
+   fun:g_module_open
+   fun:cut_loader_load_test_cases
+   fun:cut_repository_create_test_suite
+   fun:cut_run_context_create_test_suite
+   fun:cut_run_context_get_test_suite
+}
+{
+   Cutter internal allocation
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   obj:/lib/x86_64-linux-gnu/libglib-2.0.so*
+   obj:/lib/x86_64-linux-gnu/libglib-2.0.so*
+   fun:g_mutex_lock
+   fun:g_logv
+   fun:g_log
+   fun:cut_loader_load_test_cases
+   fun:cut_repository_create_test_suite
+   fun:cut_run_context_create_test_suite
+   fun:cut_run_context_get_test_suite
+   obj:/usr/lib/libcutter.so.0.1.0
+   fun:cut_runner_run
+}
+{
+   Cutter internal allocation
+   Memcheck:Leak
+   match-leak-kinds: reachable
+   fun:malloc
+   obj:/lib/x86_64-linux-gnu/libglib-2.0.so*
+   fun:g_private_get
+   fun:g_logv
+   fun:g_log
+   fun:cut_loader_load_test_cases
+   fun:cut_repository_create_test_suite
+   fun:cut_run_context_create_test_suite
+   fun:cut_run_context_get_test_suite
+   obj:/usr/lib/libcutter.so.0.1.0
+   fun:cut_runner_run
+   fun:cut_run_context_start
+}
