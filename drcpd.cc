@@ -347,7 +347,7 @@ static void testing(ViewManager &views)
     views.add_view(&fs);
     views.add_view(&tunein);
 
-    views.activate_view_by_name("TuneIn");
+    views.activate_view_by_name("Filesystem");
 }
 
 static gboolean signal_handler(gpointer user_data)
