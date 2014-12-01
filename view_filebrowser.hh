@@ -55,6 +55,7 @@ class View: public ViewIface
     InputResult input(DrcpCommand command) override;
 
     void serialize(DcpTransaction &dcpd, std::ostream *debug_os) override;
+    void update(DcpTransaction &dcpd, std::ostream *debug_os) override;
 
   private:
     /*!
@@ -90,6 +91,11 @@ class View: public ViewIface
      *     True if the list was updated, false if the list remained unchanged.
      */
     bool fill_list_from_parent_link();
+
+    /*!
+     * Generate XML document from current state.
+     */
+    bool write_xml(std::ostream &os, bool is_full_view) override;
 };
 
 };

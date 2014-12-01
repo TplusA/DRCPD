@@ -182,6 +182,41 @@ ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command)
     return InputResult::OK;
 }
 
+bool ViewFileBrowser::View::write_xml(std::ostream &os, bool is_full_view)
+{
+    os << "    <text id=\"cbid\">" << int(drcp_browse_id_) << "</text>\n";
+
+    size_t displayed_line = 0;
+
+    for(auto it : navigation_)
+    {
+        auto item = dynamic_cast<const FileItem *>(file_list_.get_item(it));
+        assert(item != nullptr);
+
+        std::string flags;
+
+        if(item->is_directory())
+            flags.push_back('d');
+        else
+            flags.push_back('p');
+
+        if(it == navigation_.get_cursor())
+            flags.push_back('s');
+
+        os << "    <text id=\"line" << displayed_line << "\" flag=\"" << flags << "\">"
+           << item->get_text() << "</text>\n";
+
+        ++displayed_line;
+    }
+
+    os << "    <value id=\"listpos\" min=\"1\" max=\""
+       << navigation_.get_total_number_of_visible_items() << "\">"
+       << navigation_.get_line_number_by_cursor() + 1
+       << "</value>\n";
+
+    return true;
+}
+
 void ViewFileBrowser::View::serialize(DcpTransaction &dcpd, std::ostream *debug_os)
 {
     ViewIface::serialize(dcpd);
@@ -202,6 +237,11 @@ void ViewFileBrowser::View::serialize(DcpTransaction &dcpd, std::ostream *debug_
         *debug_os << (item->is_directory() ? "Dir " : "File") << " " << it << ": "
                   << item->get_text() << std::endl;
     }
+}
+
+void ViewFileBrowser::View::update(DcpTransaction &dcpd, std::ostream *debug_os)
+{
+    serialize(dcpd, debug_os);
 }
 
 bool ViewFileBrowser::View::fill_list_from_root()
