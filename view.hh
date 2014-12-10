@@ -182,7 +182,7 @@ class ViewIface
      */
     virtual bool write_xml_begin(std::ostream &os, bool is_full_view)
     {
-        os << "<" << (is_full_view ? "view" : "update") << " name=\""
+        os << "<" << (is_full_view ? "view" : "update") << " id=\""
            << drcp_view_id_ << "\">\n";
 
         if(is_full_view)
