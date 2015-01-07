@@ -333,6 +333,9 @@ static void testing(ViewManager &views)
     static ViewFileBrowser::View tunein("TuneIn", N_("TuneIn internet radio"), 3,
                                         number_of_lines_on_display,
                                         DBUS_LISTBROKER_ID_TUNEIN);
+    static ViewFileBrowser::View upnp("UPnP", N_("UPnP media servers"), 4,
+                                      number_of_lines_on_display,
+                                      DBUS_LISTBROKER_ID_UPNP);
 
     if(!cfg.init())
         return;
@@ -346,6 +349,7 @@ static void testing(ViewManager &views)
     views.add_view(&cfg);
     views.add_view(&fs);
     views.add_view(&tunein);
+    views.add_view(&upnp);
 
     views.activate_view_by_name("Filesystem");
 }

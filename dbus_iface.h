@@ -17,6 +17,7 @@ typedef enum
 {
     DBUS_LISTBROKER_ID_FILESYSTEM,
     DBUS_LISTBROKER_ID_TUNEIN,
+    DBUS_LISTBROKER_ID_UPNP,
 }
 dbus_listbroker_id_t;
 

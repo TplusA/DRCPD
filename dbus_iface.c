@@ -23,6 +23,7 @@ struct dbus_data
 
     tdbuslistsNavigation *filebroker_lists_navigation_proxy;
     tdbuslistsNavigation *tuneinbroker_lists_navigation_proxy;
+    tdbuslistsNavigation *upnpbroker_lists_navigation_proxy;
 
     tdbussplayURLFIFO *splay_urlfifo_proxy;
     tdbussplayPlayback *splay_playback_proxy;
@@ -130,6 +131,10 @@ static void name_acquired(GDBusConnection *connection,
                                 &data->tuneinbroker_lists_navigation_proxy,
                                 G_DBUS_PROXY_FLAGS_NONE,
                                 "de.tahifi.TuneInBroker", "/de/tahifi/TuneInBroker");
+    connect_signals_list_broker(connection,
+                                &data->upnpbroker_lists_navigation_proxy,
+                                G_DBUS_PROXY_FLAGS_NONE,
+                                "de.tahifi.UPnPBroker", "/de/tahifi/UPnPBroker");
     connect_signals_streamplayer(connection, data, G_DBUS_PROXY_FLAGS_NONE,
                                  "de.tahifi.Streamplayer", "/de/tahifi/Streamplayer");
 }
@@ -159,6 +164,9 @@ tdbuslistsNavigation *dbus_get_lists_navigation_iface(dbus_listbroker_id_t listb
 
       case DBUS_LISTBROKER_ID_TUNEIN:
         return dbus_data.tuneinbroker_lists_navigation_proxy;
+
+      case DBUS_LISTBROKER_ID_UPNP:
+        return dbus_data.upnpbroker_lists_navigation_proxy;
     }
 
     return NULL;
@@ -212,6 +220,7 @@ int dbus_setup(GMainLoop *loop, bool connect_to_session_bus,
     assert(dbus_data.dcpd_list_item_proxy != NULL);
     assert(dbus_data.filebroker_lists_navigation_proxy != NULL);
     assert(dbus_data.tuneinbroker_lists_navigation_proxy != NULL);
+    assert(dbus_data.upnpbroker_lists_navigation_proxy != NULL);
     assert(dbus_data.splay_urlfifo_proxy != NULL);
     assert(dbus_data.splay_playback_proxy != NULL);
 
@@ -236,6 +245,10 @@ int dbus_setup(GMainLoop *loop, bool connect_to_session_bus,
                      view_manager_iface_for_dbus_handlers);
 
     g_signal_connect(dbus_data.tuneinbroker_lists_navigation_proxy, "g-signal",
+                     G_CALLBACK(dbussignal_lists_navigation),
+                     view_manager_iface_for_dbus_handlers);
+
+    g_signal_connect(dbus_data.upnpbroker_lists_navigation_proxy, "g-signal",
                      G_CALLBACK(dbussignal_lists_navigation),
                      view_manager_iface_for_dbus_handlers);
 
@@ -266,6 +279,7 @@ void dbus_shutdown(GMainLoop *loop)
     g_object_unref(dbus_data.dcpd_list_item_proxy);
     g_object_unref(dbus_data.filebroker_lists_navigation_proxy);
     g_object_unref(dbus_data.tuneinbroker_lists_navigation_proxy);
+    g_object_unref(dbus_data.upnpbroker_lists_navigation_proxy);
     g_object_unref(dbus_data.splay_urlfifo_proxy);
     g_object_unref(dbus_data.splay_playback_proxy);
 
