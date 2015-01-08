@@ -1,4 +1,4 @@
-SUBDIRS = po . tests
+SUBDIRS = po . dist tests
 
 ACLOCAL_AMFLAGS = -I m4
 
@@ -7,9 +7,6 @@ bin_PROGRAMS = drcpd
 html_DATA = README.html
 
 EXTRA_DIST = README.md cppcheck_suppressed.txt
-
-dbusservicedir = $(datadir)/dbus-1/services
-dbusservice_DATA = dist/de.tahifi.Drcpd.service
 
 CLEANFILES = README.html
 
