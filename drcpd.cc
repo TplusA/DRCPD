@@ -346,6 +346,9 @@ static void testing(ViewManager &views)
     if(!tunein.init())
         return;
 
+    if(!upnp.init())
+        return;
+
     views.add_view(&cfg);
     views.add_view(&fs);
     views.add_view(&tunein);
