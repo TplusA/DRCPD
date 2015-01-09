@@ -130,6 +130,7 @@ ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command)
     {
       case DrcpCommand::SELECT_ITEM:
       case DrcpCommand::KEY_OK_ENTER:
+      case DrcpCommand::PLAYBACK_START:
         if(file_list_.empty())
             return InputResult::OK;
 
@@ -145,6 +146,13 @@ ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command)
                                                        navigation_.get_cursor(),
                                                        listbroker_id_);
         }
+
+        return InputResult::OK;
+
+      case DrcpCommand::PLAYBACK_STOP:
+        if(!tdbus_splay_playback_call_stop_sync(dbus_get_streamplayer_playback_iface(),
+                                                NULL, NULL))
+            msg_error(EIO, LOG_NOTICE, "Failed sending stop playback message");
 
         return InputResult::OK;
 
