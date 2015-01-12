@@ -23,7 +23,7 @@ class View: public ViewIface
     View(const View &) = delete;
     View &operator=(const View &) = delete;
 
-    explicit View(): ViewIface("#NOP", "", "", 0) {}
+    explicit View(): ViewIface("#NOP", "", "", 0, false) {}
 
     bool init() override { return true; }
     void focus() override {}

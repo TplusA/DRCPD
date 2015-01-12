@@ -37,6 +37,7 @@ class ViewIface
     const char *const on_screen_name_;
     const char *const drcp_view_id_;
     const uint8_t drcp_screen_id_;
+    const bool is_browse_view_;
 
   protected:
     /*!
@@ -52,14 +53,17 @@ class ViewIface
      *     "play", etc.).
      * \param drcp_screen_id
      *     Numeric screen ID as defined in DRCP specification.
+     * \param is_browse_view
+     *     True if the view is a content browser, false otherwise.
      */
     explicit constexpr ViewIface(const char *name, const char *on_screen_name,
                                  const char *drcp_view_id,
-                                 uint8_t drcp_screen_id):
+                                 uint8_t drcp_screen_id, bool is_browse_view):
         name_(name),
         on_screen_name_(on_screen_name),
         drcp_view_id_(drcp_view_id),
-        drcp_screen_id_(drcp_screen_id)
+        drcp_screen_id_(drcp_screen_id),
+        is_browse_view_(is_browse_view)
     {}
 
   public:

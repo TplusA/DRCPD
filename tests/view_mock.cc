@@ -82,8 +82,8 @@ class ViewMock::View::Expectation
     Expectation(Expectation &&) = default;
 };
 
-ViewMock::View::View(const char *name):
-    ViewIface(name, "The mock view", "mockview", 200U),
+ViewMock::View::View(const char *name, bool is_browse_view):
+    ViewIface(name, "The mock view", "mockview", 200U, is_browse_view),
     ignore_all_(false)
 {
     expectations_ = new MockExpectations();

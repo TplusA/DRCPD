@@ -19,7 +19,7 @@ class View: public ViewIface
     View(const View &) = delete;
     View &operator=(const View &) = delete;
 
-    explicit View(const char *name);
+    explicit View(const char *name, bool is_browse_view);
     ~View();
 
     void check() const;

@@ -39,7 +39,7 @@ class View: public ViewIface
     explicit View(const char *name, const char *on_screen_name,
                   uint8_t drcp_browse_id, unsigned int max_lines,
                   dbus_listbroker_id_t listbroker_id):
-        ViewIface(name, on_screen_name, "browse", 102U),
+        ViewIface(name, on_screen_name, "browse", 102U, true),
         current_list_id_(0),
         item_flags_(&file_list_),
         navigation_(max_lines, item_flags_),
