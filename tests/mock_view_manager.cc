@@ -16,6 +16,7 @@ enum class MemberFn
     input_set_fast_wind_factor,
     input_move_cursor_by_line,
     input_move_cursor_by_page,
+    get_view_by_name,
     activate_view_by_name,
     toggle_views_by_name,
 
@@ -56,6 +57,10 @@ static std::ostream &operator<<(std::ostream &os, const MemberFn id)
 
       case MemberFn::activate_view_by_name:
         os << "activate_view_by_name";
+        break;
+
+      case MemberFn::get_view_by_name:
+        os << "get_view_by_name";
         break;
 
       case MemberFn::toggle_views_by_name:
@@ -136,6 +141,14 @@ class MockViewManager::Expectation
         arg_dcp_result_(DcpTransaction::OK)
     {}
 
+    explicit Expectation(MemberFn id):
+        function_id_(id),
+        arg_command_(DrcpCommand::UNDEFINED_COMMAND),
+        arg_factor_(0.0),
+        arg_lines_or_pages_(0),
+        arg_dcp_result_(DcpTransaction::OK)
+    {}
+
     Expectation(Expectation &&) = default;
 };
 
@@ -185,6 +198,11 @@ void MockViewManager::expect_input_move_cursor_by_line(int lines)
 void MockViewManager::expect_input_move_cursor_by_page(int pages)
 {
     expectations_->add(Expectation(MemberFn::input_move_cursor_by_page, pages));
+}
+
+void MockViewManager::expect_get_view_by_name(const char *view_name)
+{
+    expectations_->add(Expectation(MemberFn::get_view_by_name));
 }
 
 void MockViewManager::expect_activate_view_by_name(const char *view_name)
@@ -255,6 +273,14 @@ void MockViewManager::input_move_cursor_by_page(int pages)
 
     cppcut_assert_equal(expect.function_id_, MemberFn::input_move_cursor_by_page);
     cppcut_assert_equal(expect.arg_lines_or_pages_, pages);
+}
+
+ViewIface *MockViewManager::get_view_by_name(const char *view_name)
+{
+    const auto &expect(expectations_->get_next_expectation(__func__));
+
+    cppcut_assert_equal(expect.function_id_, MemberFn::get_view_by_name);
+    return nullptr;
 }
 
 void MockViewManager::activate_view_by_name(const char *view_name)

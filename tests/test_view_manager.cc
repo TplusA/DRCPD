@@ -139,6 +139,27 @@ void test_add_view_and_activate(void)
     check_and_clear_ostream("Mock serialize\n", *views_output);
 }
 
+/*!\test
+ * Look up non-existent view returns null pointer.
+ */
+void test_get_nonexistent_view_by_name_fails(void)
+{
+    cut_assert_null(vm->get_view_by_name("DoesNotExist"));
+}
+
+/*!\test
+ * Look up existent view returns non-null pointer.
+ */
+void test_get_existent_view_by_name_returns_view_interface(void)
+{
+    ViewMock::View view(standard_mock_view_name);
+
+    cut_assert_true(view.init());
+    cut_assert_true(vm->add_view(&view));
+    cut_assert_not_null(vm->get_view_by_name(standard_mock_view_name));
+    view.check();
+}
+
 };
 
 namespace view_manager_tests
@@ -415,6 +436,25 @@ void cut_teardown(void)
         delete view;
 
     all_mock_views.fill(nullptr);
+}
+
+/*!\test
+ * Look up non-existent view in multiple views returns null pointer.
+ */
+void test_get_nonexistent_view_by_name_fails(void)
+{
+    cut_assert_null(vm->get_view_by_name("DoesNotExist"));
+}
+
+/*!\test
+ * Look up existent view in multiple views returns non-null pointer.
+ */
+void test_get_existent_view_by_name_returns_view_interface(void)
+{
+    cut_assert_not_null(vm->get_view_by_name("First"));
+    cut_assert_not_null(vm->get_view_by_name("Second"));
+    cut_assert_not_null(vm->get_view_by_name("Third"));
+    cut_assert_not_null(vm->get_view_by_name("Fourth"));
 }
 
 /*!\test

@@ -194,6 +194,11 @@ void ViewManager::activate_view(ViewIface *view)
     active_view_->serialize(dcp_transaction_, debug_stream_);
 }
 
+ViewIface *ViewManager::get_view_by_name(const char *view_name)
+{
+    return lookup_view_by_name(all_views_, view_name);
+}
+
 void ViewManager::activate_view_by_name(const char *view_name)
 {
     msg_info("Requested to activate view \"%s\"", view_name);
