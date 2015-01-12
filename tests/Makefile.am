@@ -18,7 +18,7 @@ AM_CXXFLAGS = $(CXXWARNINGS)
 
 LIBS += $(CPPCUTTER_LIBS)
 
-check_LTLIBRARIES = test_list.la test_listnav.la test_dbus_handlers.la test_view_manager.la test_dcp_transaction.la
+check_LTLIBRARIES = test_list.la test_listnav.la test_dbus_handlers.la test_view_manager.la test_dcp_transaction.la test_playinfo.la
 
 test_list_la_SOURCES = test_list.cc
 test_list_la_LIBADD = ../liblist.la
@@ -49,6 +49,11 @@ test_dcp_transaction_la_SOURCES = test_dcp_transaction.cc
 test_dcp_transaction_la_LIBADD = ../libdcp_transaction.la
 test_dcp_transaction_la_CFLAGS = $(AM_CFLAGS)
 test_dcp_transaction_la_CXXFLAGS = $(AM_CXXFLAGS)
+
+test_playinfo_la_SOURCES = test_playinfo.cc
+test_playinfo_la_LIBADD = ../libviews.la
+test_playinfo_la_CFLAGS = $(AM_CFLAGS)
+test_playinfo_la_CXXFLAGS = $(AM_CXXFLAGS)
 
 CLEANFILES = test_report.xml test_report_junit.xml valgrind.xml
 
