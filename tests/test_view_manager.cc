@@ -26,8 +26,6 @@ static void check_and_clear_ostream(const char *string, std::ostringstream &ss)
     clear_ostream(ss);
 }
 
-void (*os_abort)(void) = nullptr;
-
 static void dcp_transaction_observer(DcpTransaction::state)
 {
     /* nothing */
