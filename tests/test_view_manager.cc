@@ -520,7 +520,7 @@ void test_input_command_with_no_need_to_refresh(void)
 }
 
 /*!\test
- * Commands sent to view manager is sent to the active view, the view tells
+ * Command sent to view manager is sent to the active view, the view tells
  * that the display content needs be updated.
  */
 void test_input_command_with_need_to_refresh(void)
