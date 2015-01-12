@@ -4,7 +4,6 @@
 
 #include <string.h>
 #include <errno.h>
-#include <assert.h>
 
 #include "dbus_iface.h"
 #include "dbus_iface_deep.h"
@@ -214,15 +213,15 @@ int dbus_setup(GMainLoop *loop, bool connect_to_session_bus,
         return -1;
     }
 
-    assert(dbus_data.dcpd_playback_proxy != NULL);
-    assert(dbus_data.dcpd_views_proxy != NULL);
-    assert(dbus_data.dcpd_list_navigation_proxy != NULL);
-    assert(dbus_data.dcpd_list_item_proxy != NULL);
-    assert(dbus_data.filebroker_lists_navigation_proxy != NULL);
-    assert(dbus_data.tuneinbroker_lists_navigation_proxy != NULL);
-    assert(dbus_data.upnpbroker_lists_navigation_proxy != NULL);
-    assert(dbus_data.splay_urlfifo_proxy != NULL);
-    assert(dbus_data.splay_playback_proxy != NULL);
+    log_assert(dbus_data.dcpd_playback_proxy != NULL);
+    log_assert(dbus_data.dcpd_views_proxy != NULL);
+    log_assert(dbus_data.dcpd_list_navigation_proxy != NULL);
+    log_assert(dbus_data.dcpd_list_item_proxy != NULL);
+    log_assert(dbus_data.filebroker_lists_navigation_proxy != NULL);
+    log_assert(dbus_data.tuneinbroker_lists_navigation_proxy != NULL);
+    log_assert(dbus_data.upnpbroker_lists_navigation_proxy != NULL);
+    log_assert(dbus_data.splay_urlfifo_proxy != NULL);
+    log_assert(dbus_data.splay_playback_proxy != NULL);
 
     g_signal_connect(dbus_data.dcpd_playback_proxy, "g-signal",
                      G_CALLBACK(dbussignal_dcpd_playback),

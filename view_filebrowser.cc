@@ -2,7 +2,6 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-#include <cassert>
 #include <cstring>
 
 #include "view_filebrowser.hh"
@@ -199,7 +198,7 @@ bool ViewFileBrowser::View::write_xml(std::ostream &os, bool is_full_view)
     for(auto it : navigation_)
     {
         auto item = dynamic_cast<const FileItem *>(file_list_.get_item(it));
-        assert(item != nullptr);
+        log_assert(item != nullptr);
 
         std::string flags;
 
@@ -235,7 +234,7 @@ void ViewFileBrowser::View::serialize(DcpTransaction &dcpd, std::ostream *debug_
     for(auto it : navigation_)
     {
         auto item = dynamic_cast<const FileItem *>(file_list_.get_item(it));
-        assert(item != nullptr);
+        log_assert(item != nullptr);
 
         if(it == navigation_.get_cursor())
             *debug_os << "--> ";
@@ -276,7 +275,7 @@ bool ViewFileBrowser::View::fill_list_from_root()
 
 bool ViewFileBrowser::View::fill_list_from_current_list_id()
 {
-    assert(current_list_id_ != 0);
+    log_assert(current_list_id_ != 0);
 
     file_list_.clear();
     item_flags_.list_content_changed();
@@ -307,7 +306,7 @@ bool ViewFileBrowser::View::fill_list_from_current_list_id()
         return false;
     }
 
-    assert(g_variant_type_is_array(g_variant_get_type(out_list)));
+    log_assert(g_variant_type_is_array(g_variant_get_type(out_list)));
 
     GVariantIter iter;
     if(g_variant_iter_init(&iter, out_list) > 0)
@@ -321,7 +320,7 @@ bool ViewFileBrowser::View::fill_list_from_current_list_id()
             g_free(name);
         }
 
-        assert(file_list_.get_number_of_items() == g_variant_n_children(out_list));
+        log_assert(file_list_.get_number_of_items() == g_variant_n_children(out_list));
 
         item_flags_.list_content_changed();
         navigation_.check_selection();

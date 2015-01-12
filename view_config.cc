@@ -4,7 +4,6 @@
 
 #include <iostream>
 #include <iomanip>
-#include <cassert>
 
 #include "view_config.hh"
 #include "i18n.h"
@@ -63,7 +62,7 @@ class SettingItem: public List::TextItem
         setting_(setting),
         is_editable_(setting_is_editable)
     {
-        assert(setting != nullptr);
+        log_assert(setting != nullptr);
     }
 
     bool is_editable() const
@@ -246,7 +245,7 @@ void ViewConfig::View::serialize(DcpTransaction &dcpd, std::ostream *debug_os)
     {
         auto text_item = dynamic_cast<const List::TextItem *>(editable_menu_items_.get_item(it));
 
-        assert(text_item != nullptr);
+        log_assert(text_item != nullptr);
 
         if(it == navigation_.get_cursor())
             *debug_os << "--> ";

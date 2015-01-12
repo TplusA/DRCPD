@@ -4,6 +4,8 @@
 #include <stdbool.h>
 #include <syslog.h>
 
+#include "os.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -29,11 +31,26 @@ void msg_error(int error_code, int priority, const char *error_format, ...)
 void msg_info(const char *format_string, ...)
     __attribute__ ((format (printf, 1, 2)));
 
-
-#define BUG(...) msg_error(0, LOG_CRIT, "BUG: " __VA_ARGS__)
-
 #ifdef __cplusplus
 }
 #endif
+
+#define BUG(...) msg_error(0, LOG_CRIT, "BUG: " __VA_ARGS__)
+
+#ifdef NDEBUG
+#define log_assert(EXPR) do {} while(0)
+#else /* !NDEBUG */
+#define log_assert(EXPR) \
+    do \
+    { \
+        if(!(EXPR)) \
+        { \
+            msg_error(0, LOG_EMERG, "Assertion failed at %s:%d: " #EXPR, \
+                      __FILE__, __LINE__); \
+            os_abort(); \
+        } \
+    } \
+    while(0)
+#endif /* NDEBUG */
 
 #endif /* !MESSAGES_H */

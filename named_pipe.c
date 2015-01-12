@@ -7,7 +7,6 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
-#include <assert.h>
 
 #include "named_pipe.h"
 #include "messages.h"
@@ -85,7 +84,7 @@ int fifo_write_from_buffer(const uint8_t *src, size_t count, int fd)
             return -1;
         }
 
-        assert((size_t)len <= count);
+        log_assert((size_t)len <= count);
 
         src += len;
         count -= len;
@@ -116,7 +115,7 @@ int fifo_try_read_to_buffer(uint8_t *dest, size_t count, size_t *dest_pos,
             break;
         }
 
-        assert((size_t)len <= count);
+        log_assert((size_t)len <= count);
 
         dest += len;
         count -= len;

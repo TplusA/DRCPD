@@ -83,8 +83,8 @@ static gboolean dcp_fifo_in_dispatch(int fd, GIOCondition condition,
     struct dcp_fifo_dispatch_data_t *const data =
         static_cast<struct dcp_fifo_dispatch_data_t *>(user_data);
 
-    assert(data != nullptr);
-    assert(fd == data->files->dcp_fifo.in_fd);
+    log_assert(data != nullptr);
+    log_assert(fd == data->files->dcp_fifo.in_fd);
 
     gboolean return_value = G_SOURCE_CONTINUE;
 
@@ -139,7 +139,7 @@ static gboolean transaction_timeout_exceeded(gpointer user_data)
 
     struct dcp_fifo_dispatch_data_t *dispatch_data =
         static_cast<struct dcp_fifo_dispatch_data_t *>(user_data);
-    assert(dispatch_data != NULL);
+    log_assert(dispatch_data != NULL);
 
     dispatch_data->timeout_event_source_id = 0;
     dispatch_data->vm->serialization_result(DcpTransaction::TIMEOUT);
@@ -150,7 +150,7 @@ static gboolean transaction_timeout_exceeded(gpointer user_data)
 static void add_timeout(dcp_fifo_dispatch_data_t *dispatch_data,
                         guint timeout_ms)
 {
-    assert(dispatch_data->timeout_event_source_id == 0);
+    log_assert(dispatch_data->timeout_event_source_id == 0);
 
     GSource *src = g_timeout_source_new(timeout_ms);
 

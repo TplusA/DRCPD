@@ -1,6 +1,5 @@
 #include <cppcutter.h>
 #include <algorithm>
-#include <cassert>
 #include <climits>
 
 #include "listnav.hh"
@@ -133,7 +132,7 @@ class NavItemFlags: public List::NavItemFilterIface
 
     unsigned int get_flags_for_item(unsigned int item) const override
     {
-        assert(list_ != nullptr);
+        log_assert(list_ != nullptr);
         return list_->get_item(item)->get_flags();
     }
 

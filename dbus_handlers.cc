@@ -3,7 +3,6 @@
 #endif /* HAVE_CONFIG_H */
 
 #include <cstring>
-#include <cassert>
 #include <cerrno>
 
 #include "dbus_handlers.h"
@@ -20,11 +19,11 @@ static void unknown_signal(const char *iface_name, const char *signal_name,
 static void check_parameter_assertions(GVariant *parameters,
                                        guint expected_number_of_parameters)
 {
-    /* we may use assert() here because the GDBus code is supposed to do
+    /* we may use #log_assert() here because the GDBus code is supposed to do
      * any type checks before calling us---here, we just make sure we can
      * trust those type checks */
-    assert(g_variant_type_is_tuple(g_variant_get_type(parameters)));
-    assert(g_variant_n_children(parameters) == expected_number_of_parameters);
+    log_assert(g_variant_type_is_tuple(g_variant_get_type(parameters)));
+    log_assert(g_variant_n_children(parameters) == expected_number_of_parameters);
 }
 
 void dbussignal_dcpd_playback(GDBusProxy *proxy, const gchar *sender_name,
@@ -36,7 +35,7 @@ void dbussignal_dcpd_playback(GDBusProxy *proxy, const gchar *sender_name,
     msg_info("%s signal from '%s': %s", iface_name, sender_name, signal_name);
 
     auto *mgr = static_cast<ViewManagerIface *>(user_data);
-    assert(mgr != nullptr);
+    log_assert(mgr != nullptr);
 
     if(strcmp(signal_name, "Start") == 0)
         mgr->input(DrcpCommand::PLAYBACK_START);
@@ -59,7 +58,7 @@ void dbussignal_dcpd_playback(GDBusProxy *proxy, const gchar *sender_name,
         check_parameter_assertions(parameters, 1);
 
         GVariant *val = g_variant_get_child_value(parameters, 0);
-        assert(val != nullptr);
+        log_assert(val != nullptr);
 
         mgr->input_set_fast_wind_factor(g_variant_get_double(val));
         g_variant_unref(val);
@@ -81,14 +80,14 @@ void dbussignal_dcpd_views(GDBusProxy *proxy, const gchar *sender_name,
     msg_info("%s signal from '%s': %s", iface_name, sender_name, signal_name);
 
     auto *mgr = static_cast<ViewManagerIface *>(user_data);
-    assert(mgr != nullptr);
+    log_assert(mgr != nullptr);
 
     if(strcmp(signal_name, "Open") == 0)
     {
         check_parameter_assertions(parameters, 1);
 
         GVariant *view_name = g_variant_get_child_value(parameters, 0);
-        assert(view_name != nullptr);
+        log_assert(view_name != nullptr);
 
         mgr->activate_view_by_name(g_variant_get_string(view_name, NULL));
 
@@ -100,8 +99,8 @@ void dbussignal_dcpd_views(GDBusProxy *proxy, const gchar *sender_name,
 
         GVariant *first_view_name = g_variant_get_child_value(parameters, 0);
         GVariant *second_view_name = g_variant_get_child_value(parameters, 1);
-        assert(first_view_name != nullptr);
-        assert(second_view_name != nullptr);
+        log_assert(first_view_name != nullptr);
+        log_assert(second_view_name != nullptr);
 
         mgr->toggle_views_by_name(g_variant_get_string(first_view_name, NULL),
                                   g_variant_get_string(second_view_name, NULL));
@@ -122,7 +121,7 @@ void dbussignal_dcpd_listnav(GDBusProxy *proxy, const gchar *sender_name,
     msg_info("%s signal from '%s': %s", iface_name, sender_name, signal_name);
 
     auto *mgr = static_cast<ViewManagerIface *>(user_data);
-    assert(mgr != nullptr);
+    log_assert(mgr != nullptr);
 
     if(strcmp(signal_name, "LevelUp") == 0)
         mgr->input(DrcpCommand::GO_BACK_ONE_LEVEL);
@@ -133,7 +132,7 @@ void dbussignal_dcpd_listnav(GDBusProxy *proxy, const gchar *sender_name,
         check_parameter_assertions(parameters, 1);
 
         GVariant *lines = g_variant_get_child_value(parameters, 0);
-        assert(lines != nullptr);
+        log_assert(lines != nullptr);
 
         mgr->input_move_cursor_by_line(g_variant_get_int32(lines));
 
@@ -144,7 +143,7 @@ void dbussignal_dcpd_listnav(GDBusProxy *proxy, const gchar *sender_name,
         check_parameter_assertions(parameters, 1);
 
         GVariant *pages = g_variant_get_child_value(parameters, 0);
-        assert(pages != nullptr);
+        log_assert(pages != nullptr);
 
         mgr->input_move_cursor_by_page(g_variant_get_int32(pages));
 

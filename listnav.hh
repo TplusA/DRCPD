@@ -2,9 +2,9 @@
 #define LISTNAV_HH
 
 #include <climits>
-#include <cassert>
 
 #include "list.hh"
+#include "messages.h"
 
 /*!
  * \addtogroup list_navigation List navigation
@@ -273,10 +273,10 @@ class Nav
             return;
         }
 
-        assert(maximum_number_of_displayed_lines_ > 0);
+        log_assert(maximum_number_of_displayed_lines_ > 0);
 
         const unsigned int max_items = get_total_number_of_visible_items();
-        assert(line_number < max_items);
+        log_assert(line_number < max_items);
 
         if(max_items < maximum_number_of_displayed_lines_)
         {
@@ -295,7 +295,7 @@ class Nav
                                         distance_to_end_of_list - 1;
         }
 
-        assert(selected_line_number_ < maximum_number_of_displayed_lines_);
+        log_assert(selected_line_number_ < maximum_number_of_displayed_lines_);
 
         recover_first_displayed_item_by_cursor();
     }
