@@ -535,15 +535,63 @@ void test_input_command_with_need_to_refresh(void)
 }
 
 /*!\test
- * Commands sent to view manager is sent to the active view, the view tells
- * that it should be removed from screen.
+ * Current view indicates it needs to be hidden, but the request is ignored
+ * because there is no previous browse view.
  */
-void test_input_command_with_need_to_hide_view(void)
+void test_input_command_with_need_to_hide_view_may_fail(void)
 {
     mock_messages->expect_msg_info("Dispatching DRCP command %d");
     all_mock_views[0]->expect_input_return(DrcpCommand::PLAYBACK_START,
                                            ViewIface::InputResult::SHOULD_HIDE);
+    vm->input(DrcpCommand::PLAYBACK_START);
+}
+
+/*!\test
+ * Current non-browse view indicates it needs to be hidden, works because there
+ * is a previous browse view.
+ */
+void test_input_command_with_need_to_hide_nonbrowse_view(void)
+{
+    /* switch over from first to a non-browser view */
+    mock_messages->expect_msg_info_formatted("Requested to activate view \"Third\"");
     all_mock_views[0]->expect_defocus();
+    all_mock_views[2]->expect_focus();
+    all_mock_views[2]->expect_serialize(*views_output);
+    vm->activate_view_by_name("Third");
+    check_and_clear_ostream("Third serialize\n", *views_output);
+    vm->serialization_result(DcpTransaction::OK);
+
+    /* hide request from active view, view manager switches back to previous
+     * browse view in turn (view "First") */
+    mock_messages->expect_msg_info("Dispatching DRCP command %d");
+    all_mock_views[2]->expect_input_return(DrcpCommand::PLAYBACK_START,
+                                           ViewIface::InputResult::SHOULD_HIDE);
+    all_mock_views[2]->expect_defocus();
+    all_mock_views[0]->expect_focus();
+    all_mock_views[0]->expect_serialize(*views_output);
+    vm->input(DrcpCommand::PLAYBACK_START);
+    check_and_clear_ostream("First serialize\n", *views_output);
+}
+
+/*!\test
+ * Current browse view indicates it needs to be hidden, but this never works
+ * because browse views are expected to actively switch between views.
+ */
+void test_input_command_with_need_to_hide_browse_view_never_works(void)
+{
+    /* switch over from first to a non-browser view */
+    mock_messages->expect_msg_info_formatted("Requested to activate view \"Second\"");
+    all_mock_views[0]->expect_defocus();
+    all_mock_views[1]->expect_focus();
+    all_mock_views[1]->expect_serialize(*views_output);
+    vm->activate_view_by_name("Second");
+    check_and_clear_ostream("Second serialize\n", *views_output);
+    vm->serialization_result(DcpTransaction::OK);
+
+    /* hide request from active view, but view manager won't switch focus */
+    mock_messages->expect_msg_info("Dispatching DRCP command %d");
+    all_mock_views[1]->expect_input_return(DrcpCommand::PLAYBACK_START,
+                                           ViewIface::InputResult::SHOULD_HIDE);
     vm->input(DrcpCommand::PLAYBACK_START);
 }
 

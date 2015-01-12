@@ -51,6 +51,7 @@ class ViewManager: public ViewManagerIface
     views_container_t all_views_;
 
     ViewIface *active_view_;
+    ViewIface *last_browse_view_;
     DcpTransaction &dcp_transaction_;
     std::ostream *debug_stream_;
 
@@ -74,6 +75,7 @@ class ViewManager: public ViewManagerIface
 
   private:
     void activate_view(ViewIface *view);
+    void handle_input_result(ViewIface::InputResult result, ViewIface &view);
 };
 
 /*!@}*/
