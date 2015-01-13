@@ -15,7 +15,7 @@ drcpd_SOURCES = \
     os.c os.h named_pipe.c named_pipe.h fdstreambuf.hh \
     dbus_iface.c dbus_iface.h dbus_iface_deep.h \
     list.hh ramlist.hh listnav.hh \
-    view.hh view_nop.hh view_config.hh view_filebrowser.hh view_manager.hh \
+    view.hh view_nop.hh view_config.hh view_filebrowser.hh view_manager.hh xmlescape.hh \
     playinfo.hh
 
 AM_CPPFLAGS = -DLOCALEDIR=\"$(localedir)\"

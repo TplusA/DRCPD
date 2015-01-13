@@ -6,6 +6,7 @@
 
 #include "view_filebrowser.hh"
 #include "dbus_iface_deep.h"
+#include "xmlescape.hh"
 #include "messages.h"
 
 class FileItem: public List::TextItem
@@ -211,7 +212,7 @@ bool ViewFileBrowser::View::write_xml(std::ostream &os, bool is_full_view)
             flags.push_back('s');
 
         os << "    <text id=\"line" << displayed_line << "\" flag=\"" << flags << "\">"
-           << item->get_text() << "</text>\n";
+           << XmlEscape(item->get_text()) << "</text>\n";
 
         ++displayed_line;
     }

@@ -6,6 +6,7 @@
 #include "dcp_transaction.hh"
 #include "drcp_commands.hh"
 #include "i18n.h"
+#include "xmlescape.hh"
 
 /*!
  * \addtogroup views Various views with their specific behaviors
@@ -191,7 +192,7 @@ class ViewIface
 
         if(is_full_view)
         {
-            os << "    <text id=\"title\">" << _(on_screen_name_) << "</text>\n";
+            os << "    <text id=\"title\">" << XmlEscape(_(on_screen_name_)) << "</text>\n";
             os << "    <text id=\"scrid\">" << int(drcp_screen_id_) << "</text>\n";
         }
 
