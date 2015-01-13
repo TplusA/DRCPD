@@ -39,3 +39,12 @@ void PlayInfo::MetaData::add(const char *key, const char *value)
         }
     }
 }
+
+bool PlayInfo::MetaData::operator==(const MetaData &other) const
+{
+    for(size_t i = 0; i < values_.size(); ++i)
+        if(values_[i] != other.values_[i])
+            return false;
+
+    return true;
+}

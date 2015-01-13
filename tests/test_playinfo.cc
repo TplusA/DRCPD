@@ -32,7 +32,7 @@ void cut_teardown()
  */
 void test_allocated_playinfo_data_is_all_empty()
 {
-    cut_assert_false(data->is_stream_playing_);
+    cppcut_assert_equal(PlayInfo::Data::STREAM_STOPPED, data->assumed_stream_state_);
 
     for(auto s : data->meta_data_.values_)
         cut_assert_true(s.empty());

@@ -3,6 +3,7 @@
 
 #include <array>
 #include <string>
+#include <chrono>
 
 /*!
  * \addtogroup view_play_playinfo Data for player view
@@ -43,6 +44,8 @@ class MetaData
 
     void clear();
     void add(const char *key, const char *value);
+
+    bool operator==(const MetaData &other) const;
 };
 
 /*!
@@ -54,12 +57,23 @@ class Data
     Data(const Data &) = delete;
     Data &operator=(const Data &) = delete;
 
-    bool is_stream_playing_;
+    enum StreamState
+    {
+        STREAM_STOPPED,
+        STREAM_PLAYING,
+        STREAM_PAUSED,
+    };
+
+    StreamState assumed_stream_state_;
     std::string url_;
     MetaData meta_data_;
+    std::chrono::milliseconds stream_position_;
+    std::chrono::milliseconds stream_duration_;
 
     explicit Data():
-        is_stream_playing_(false)
+        assumed_stream_state_(STREAM_STOPPED),
+        stream_position_(-1),
+        stream_duration_(-1)
     {
         meta_data_.clear();
     }
