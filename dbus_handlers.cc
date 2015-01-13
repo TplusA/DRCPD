@@ -7,6 +7,7 @@
 
 #include "dbus_handlers.h"
 #include "view_manager.hh"
+#include "view_play.hh"
 #include "messages.h"
 
 static void unknown_signal(const char *iface_name, const char *signal_name,
@@ -180,6 +181,71 @@ void dbussignal_splay_urlfifo(GDBusProxy *proxy, const gchar *sender_name,
     msg_info("%s signal from '%s': %s", iface_name, sender_name, signal_name);
 }
 
+static ViewPlay::Iface *get_play_view(ViewManagerIface *mgr)
+{
+    ViewIface *view = mgr->get_view_by_name("Play");
+    log_assert(view != nullptr);
+
+    return static_cast<ViewPlay::View *>(view);
+}
+
+static void process_meta_data(ViewPlay::Iface *playinfo, GVariant *parameters,
+                              guint expected_number_of_parameters,
+                              guint meta_data_parameter_index)
+{
+    check_parameter_assertions(parameters, expected_number_of_parameters);
+
+    GVariant *meta_data = g_variant_get_child_value(parameters,
+                                                    meta_data_parameter_index);
+    log_assert(meta_data != nullptr);
+
+    playinfo->meta_data_add_begin();
+
+    GVariantIter iter;
+    if(g_variant_iter_init(&iter, meta_data) > 0)
+    {
+        gchar *key;
+        gchar *value;
+
+        while(g_variant_iter_next(&iter, "(ss)", &key, &value))
+        {
+            playinfo->meta_data_add(key, value);
+            g_free(key);
+            g_free(value);
+        }
+    }
+
+    playinfo->meta_data_add_end();
+
+    g_variant_unref(meta_data);
+}
+
+static void parse_stream_position(GVariant *parameters,
+                                  guint value_index, guint units_index,
+                                  std::chrono::milliseconds &ms)
+{
+    GVariant *val = g_variant_get_child_value(parameters, value_index);
+    log_assert(val != nullptr);
+    int64_t time_value = g_variant_get_int64(val);
+    g_variant_unref(val);
+
+    if(time_value < 0)
+        time_value = -1;
+
+    val = g_variant_get_child_value(parameters, units_index);
+    log_assert(val != nullptr);
+    const gchar *units = g_variant_get_string(val, NULL);
+
+    if(strcmp(units, "s") == 0)
+        ms = std::chrono::milliseconds(std::chrono::seconds(time_value));
+    else if(strcmp(units, "ms") == 0)
+        ms = std::chrono::milliseconds(time_value);
+    else
+        ms = std::chrono::milliseconds(-1);
+
+    g_variant_unref(val);
+}
+
 void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
                                const gchar *signal_name, GVariant *parameters,
                                gpointer user_data)
@@ -187,4 +253,41 @@ void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
     static const char iface_name[] = "de.tahifi.Streamplayer.Playback";
 
     msg_info("%s signal from '%s': %s", iface_name, sender_name, signal_name);
+
+    auto *mgr = static_cast<ViewManagerIface *>(user_data);
+    log_assert(mgr != nullptr);
+
+    if(strcmp(signal_name, "NowPlaying") == 0)
+    {
+        auto *playinfo = get_play_view(mgr);
+        process_meta_data(playinfo, parameters, 4, 3);
+        playinfo->notify_stream_start(0, "", false);
+        mgr->activate_view_by_name("Play");
+    }
+    else if(strcmp(signal_name, "MetaDataChanged") == 0)
+    {
+        auto *playinfo = get_play_view(mgr);
+        process_meta_data(playinfo, parameters, 1, 0);
+    }
+    else if(strcmp(signal_name, "Stopped") == 0)
+    {
+        auto *playinfo = get_play_view(mgr);
+        playinfo->notify_stream_stop();
+    }
+    else if(strcmp(signal_name, "Paused") == 0)
+    {
+        auto *playinfo = get_play_view(mgr);
+        playinfo->notify_stream_pause();
+    }
+    else if(strcmp(signal_name, "PositionChanged") == 0)
+    {
+        check_parameter_assertions(parameters, 4);
+        auto *playinfo = get_play_view(mgr);
+        std::chrono::milliseconds position, duration;
+        parse_stream_position(parameters, 0, 1, position);
+        parse_stream_position(parameters, 2, 3, duration);
+        playinfo->notify_stream_position_changed(position, duration);
+    }
+    else
+        unknown_signal(iface_name, signal_name, sender_name);
 }

@@ -12,6 +12,7 @@
 #include "view_filebrowser.hh"
 #include "view_config.hh"
 #include "view_manager.hh"
+#include "view_play.hh"
 #include "view_signals_glib.hh"
 #include "dbus_iface.h"
 #include "messages.h"
@@ -336,6 +337,7 @@ static void testing(ViewManager &views, ViewSignalsIface *view_signals)
     static ViewFileBrowser::View upnp("UPnP", N_("UPnP media servers"), 4,
                                       number_of_lines_on_display,
                                       DBUS_LISTBROKER_ID_UPNP, view_signals);
+    static ViewPlay::View play(N_("Stream information"), number_of_lines_on_display, view_signals);
 
     if(!cfg.init())
         return;
@@ -349,10 +351,14 @@ static void testing(ViewManager &views, ViewSignalsIface *view_signals)
     if(!upnp.init())
         return;
 
+    if(!play.init())
+        return;
+
     views.add_view(&cfg);
     views.add_view(&fs);
     views.add_view(&tunein);
     views.add_view(&upnp);
+    views.add_view(&play);
 
     views.activate_view_by_name("Filesystem");
 }
