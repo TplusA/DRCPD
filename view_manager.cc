@@ -7,7 +7,7 @@
 #include "messages.h"
 #include "os.h"
 
-static ViewNop::View nop_view;
+static ViewNop::View nop_view(nullptr);
 
 ViewManager::ViewManager(DcpTransaction &dcpd):
     dcp_transaction_(dcpd)
@@ -239,4 +239,15 @@ void ViewManager::toggle_views_by_name(const char *view_name_a,
         next_view = view_a;
 
     activate_view(next_view);
+}
+
+bool ViewManager::is_active_view(const ViewIface *view) const
+{
+    return view == active_view_;
+}
+
+void ViewManager::update_view_if_active(const ViewIface *view) const
+{
+    if(is_active_view(view))
+        active_view_->update(dcp_transaction_, debug_stream_);
 }

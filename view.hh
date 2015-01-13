@@ -5,6 +5,7 @@
 
 #include "dcp_transaction.hh"
 #include "drcp_commands.hh"
+#include "view_signals.hh"
 #include "i18n.h"
 #include "xmlescape.hh"
 
@@ -41,6 +42,8 @@ class ViewIface
     const bool is_browse_view_;
 
   protected:
+    ViewSignalsIface *const view_signals_;
+
     /*!
      * Common ctor for all views.
      *
@@ -56,15 +59,20 @@ class ViewIface
      *     Numeric screen ID as defined in DRCP specification.
      * \param is_browse_view
      *     True if the view is a content browser, false otherwise.
+     * \param view_signals
+     *     Object that should be notified in case a view needs to communicate
+     *     some information.
      */
     explicit constexpr ViewIface(const char *name, const char *on_screen_name,
                                  const char *drcp_view_id,
-                                 uint8_t drcp_screen_id, bool is_browse_view):
+                                 uint8_t drcp_screen_id, bool is_browse_view,
+                                 ViewSignalsIface *view_signals):
         name_(name),
         on_screen_name_(on_screen_name),
         drcp_view_id_(drcp_view_id),
         drcp_screen_id_(drcp_screen_id),
-        is_browse_view_(is_browse_view)
+        is_browse_view_(is_browse_view),
+        view_signals_(view_signals)
     {}
 
   public:

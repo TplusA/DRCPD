@@ -14,6 +14,20 @@
  */
 /*!@{*/
 
+class DummyViewSignals: public ViewSignalsIface
+{
+  public:
+    DummyViewSignals(const DummyViewSignals &) = delete;
+    DummyViewSignals &operator=(const DummyViewSignals &) = delete;
+
+    explicit DummyViewSignals() {}
+
+    void request_display_update(ViewIface *view) override
+    {
+        cut_fail("Unexpected call of request_display_update()");
+    }
+};
+
 static void clear_ostream(std::ostringstream &ss)
 {
     ss.str("");
@@ -41,6 +55,7 @@ static DcpTransaction *dcpd;
 static ViewManager *vm;
 static std::ostringstream *views_output;
 static const char standard_mock_view_name[] = "Mock";
+static DummyViewSignals dummy_view_signals;
 
 void cut_setup(void)
 {
@@ -88,7 +103,7 @@ void test_add_nullptr_view_fails(void)
  */
 void test_add_nop_view_fails(void)
 {
-    ViewNop::View view;
+    ViewNop::View view(&dummy_view_signals);
 
     cut_assert_true(view.init());
     cut_assert_false(vm->add_view(&view));
@@ -99,7 +114,7 @@ void test_add_nop_view_fails(void)
  */
 void test_add_view(void)
 {
-    ViewMock::View view(standard_mock_view_name, false);
+    ViewMock::View view(standard_mock_view_name, false, &dummy_view_signals);
 
     cut_assert_true(view.init());
     cut_assert_true(vm->add_view(&view));
@@ -111,7 +126,7 @@ void test_add_view(void)
  */
 void test_add_views_with_same_name_fails(void)
 {
-    ViewMock::View view(standard_mock_view_name, false);
+    ViewMock::View view(standard_mock_view_name, false, &dummy_view_signals);
 
     cut_assert_true(view.init());
     cut_assert_true(vm->add_view(&view));
@@ -124,7 +139,7 @@ void test_add_views_with_same_name_fails(void)
  */
 void test_add_view_and_activate(void)
 {
-    ViewMock::View view(standard_mock_view_name, false);
+    ViewMock::View view(standard_mock_view_name, false, &dummy_view_signals);
 
     cut_assert_true(view.init());
     cut_assert_true(vm->add_view(&view));
@@ -152,7 +167,7 @@ void test_get_nonexistent_view_by_name_fails(void)
  */
 void test_get_existent_view_by_name_returns_view_interface(void)
 {
-    ViewMock::View view(standard_mock_view_name, false);
+    ViewMock::View view(standard_mock_view_name, false, &dummy_view_signals);
 
     cut_assert_true(view.init());
     cut_assert_true(vm->add_view(&view));
@@ -171,6 +186,7 @@ static ViewManager *vm;
 static std::ostringstream *views_output;
 static const char standard_mock_view_name[] = "Mock";
 static ViewMock::View *mock_view;
+static DummyViewSignals dummy_view_signals;
 
 void cut_setup(void)
 {
@@ -182,7 +198,7 @@ void cut_setup(void)
     mock_messages->init();
     mock_messages_singleton = mock_messages;
 
-    mock_view = new ViewMock::View(standard_mock_view_name, false);
+    mock_view = new ViewMock::View(standard_mock_view_name, false, &dummy_view_signals);
     cppcut_assert_not_null(mock_view);
     cut_assert_true(mock_view->init());
 
@@ -357,6 +373,8 @@ void test_move_cursor_down_by_multiple_pages(void)
 namespace view_manager_tests_multiple_views
 {
 
+static DummyViewSignals dummy_view_signals;
+
 static void populate_view_manager(ViewManager &vm,
                                   std::array<ViewMock::View *, 4> &all_views)
 {
@@ -376,7 +394,8 @@ static void populate_view_manager(ViewManager &vm,
     for(size_t i = 0; i < sizeof(names) / sizeof(names[0]); ++i)
     {
         ViewMock::View *view =
-            new ViewMock::View(names[i].name, names[i].is_browse_view);
+            new ViewMock::View(names[i].name, names[i].is_browse_view,
+                               &dummy_view_signals);
 
         cut_assert_true(view->init());
         cut_assert_true(vm.add_view(view));
@@ -715,6 +734,7 @@ static ViewManager *vm;
 static std::ostringstream *views_output;
 static const char standard_mock_view_name[] = "Mock";
 static ViewMock::View *mock_view;
+static DummyViewSignals dummy_view_signals;
 
 void cut_setup(void)
 {
@@ -726,7 +746,7 @@ void cut_setup(void)
     mock_messages->init();
     mock_messages_singleton = mock_messages;
 
-    mock_view = new ViewMock::View(standard_mock_view_name, false);
+    mock_view = new ViewMock::View(standard_mock_view_name, false, &dummy_view_signals);
     cppcut_assert_not_null(mock_view);
     cut_assert_true(mock_view->init());
 

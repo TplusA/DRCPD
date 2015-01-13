@@ -37,6 +37,8 @@ class ViewManagerIface
     virtual void activate_view_by_name(const char *view_name) = 0;
     virtual void toggle_views_by_name(const char *view_name_a,
                                       const char *view_name_b) = 0;
+    virtual bool is_active_view(const ViewIface *view) const = 0;
+    virtual void update_view_if_active(const ViewIface *view) const = 0;
 };
 
 class ViewManager: public ViewManagerIface
@@ -72,6 +74,8 @@ class ViewManager: public ViewManagerIface
     void activate_view_by_name(const char *view_name) override;
     void toggle_views_by_name(const char *view_name_a,
                               const char *view_name_b) override;
+    bool is_active_view(const ViewIface *view) const override;
+    void update_view_if_active(const ViewIface *view) const override;
 
   private:
     void activate_view(ViewIface *view);

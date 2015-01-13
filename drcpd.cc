@@ -12,6 +12,7 @@
 #include "view_filebrowser.hh"
 #include "view_config.hh"
 #include "view_manager.hh"
+#include "view_signals_glib.hh"
 #include "dbus_iface.h"
 #include "messages.h"
 #include "fdstreambuf.hh"
@@ -321,20 +322,20 @@ static int process_command_line(int argc, char *argv[],
     return 0;
 }
 
-static void testing(ViewManager &views)
+static void testing(ViewManager &views, ViewSignalsIface *view_signals)
 {
     static const unsigned int number_of_lines_on_display = 3;
 
-    static ViewConfig::View cfg(N_("Configuration"), number_of_lines_on_display);
+    static ViewConfig::View cfg(N_("Configuration"), number_of_lines_on_display, view_signals);
     static ViewFileBrowser::View fs("Filesystem", N_("Local file system"), 1,
                                     number_of_lines_on_display,
-                                    DBUS_LISTBROKER_ID_FILESYSTEM);
+                                    DBUS_LISTBROKER_ID_FILESYSTEM, view_signals);
     static ViewFileBrowser::View tunein("TuneIn", N_("TuneIn internet radio"), 3,
                                         number_of_lines_on_display,
-                                        DBUS_LISTBROKER_ID_TUNEIN);
+                                        DBUS_LISTBROKER_ID_TUNEIN, view_signals);
     static ViewFileBrowser::View upnp("UPnP", N_("UPnP media servers"), 4,
                                       number_of_lines_on_display,
-                                      DBUS_LISTBROKER_ID_UPNP);
+                                      DBUS_LISTBROKER_ID_UPNP, view_signals);
 
     if(!cfg.init())
         return;
@@ -408,7 +409,10 @@ int main(int argc, char *argv[])
     g_unix_signal_add(SIGINT, signal_handler, loop);
     g_unix_signal_add(SIGTERM, signal_handler, loop);
 
-    testing(view_manager);
+    ViewSignalsGLib view_signals(view_manager);
+    view_signals.connect_to_main_loop(loop);
+
+    testing(view_manager, &view_signals);
 
     g_main_loop_run(loop);
 

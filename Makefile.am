@@ -16,6 +16,7 @@ drcpd_SOURCES = \
     dbus_iface.c dbus_iface.h dbus_iface_deep.h \
     list.hh ramlist.hh listnav.hh \
     view.hh view_nop.hh view_config.hh view_filebrowser.hh view_manager.hh xmlescape.hh \
+    view_signals_glib.cc view_signals.hh view_signals_glib.hh \
     playinfo.hh
 
 AM_CPPFLAGS = -DLOCALEDIR=\"$(localedir)\"
@@ -39,7 +40,8 @@ libviews_la_SOURCES = \
     view.hh view_nop.hh view_config.hh view_config.cc \
     view_filebrowser.hh view_filebrowser.cc \
     playinfo.hh playinfo.cc \
-    view_manager.hh view_manager.cc
+    view_manager.hh view_manager.cc \
+    view_signals.hh
 libviews_la_CFLAGS = $(AM_CFLAGS)
 libviews_la_CXXFLAGS = $(AM_CXXFLAGS)
 

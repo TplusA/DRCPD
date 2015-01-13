@@ -300,3 +300,14 @@ void MockViewManager::toggle_views_by_name(const char *view_name_a,
     cppcut_assert_equal(expect.arg_view_name_, std::string(view_name_a));
     cppcut_assert_equal(expect.arg_view_name_b_, std::string(view_name_b));
 }
+
+bool MockViewManager::is_active_view(const ViewIface *view) const
+{
+    cut_fail("Not implemented");
+    return false;
+}
+
+void MockViewManager::update_view_if_active(const ViewIface *view) const
+{
+    cut_fail("Not implemented");
+}
