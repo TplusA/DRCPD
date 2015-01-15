@@ -45,6 +45,7 @@ class MockViewManager: public ViewManagerIface
                               const char *view_name_b) override;
     bool is_active_view(const ViewIface *view) const override;
     void update_view_if_active(const ViewIface *view) const override;
+    void hide_view_if_active(const ViewIface *view) override;
 };
 
 #endif /* !MOCK_VIEW_MANAGER_HH */

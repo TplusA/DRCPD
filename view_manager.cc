@@ -251,3 +251,9 @@ void ViewManager::update_view_if_active(const ViewIface *view) const
     if(is_active_view(view))
         active_view_->update(dcp_transaction_, debug_stream_);
 }
+
+void ViewManager::hide_view_if_active(const ViewIface *view)
+{
+    if(is_active_view(view))
+        handle_input_result(ViewIface::InputResult::SHOULD_HIDE, *active_view_);
+}

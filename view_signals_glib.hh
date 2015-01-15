@@ -13,9 +13,10 @@ class ViewSignalsGLib: public ViewSignalsIface
     {
         NONE = 0,
         DISPLAY_UPDATE_REQUEST,
+        HIDE_VIEW_REQUEST,
     };
 
-    const ViewManagerIface &vm_;
+    ViewManagerIface &vm_;
 
     guint source_id_;
     GMainContext *ctx_;
@@ -45,6 +46,7 @@ class ViewSignalsGLib: public ViewSignalsIface
     void dispatch();
 
     void request_display_update(ViewIface *view) override;
+    void request_hide_view(ViewIface *view) override;
 
   private:
     void reset()

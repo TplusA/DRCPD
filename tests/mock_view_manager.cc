@@ -311,3 +311,8 @@ void MockViewManager::update_view_if_active(const ViewIface *view) const
 {
     cut_fail("Not implemented");
 }
+
+void MockViewManager::hide_view_if_active(const ViewIface *view)
+{
+    cut_fail("Not implemented");
+}

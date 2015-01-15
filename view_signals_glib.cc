@@ -30,6 +30,10 @@ void ViewSignalsGLib::dispatch()
       case DISPLAY_UPDATE_REQUEST:
         vm_.update_view_if_active(view_);
         break;
+
+      case HIDE_VIEW_REQUEST:
+        vm_.hide_view_if_active(view_);
+        break;
     }
 
     reset();
@@ -43,6 +47,16 @@ void ViewSignalsGLib::request_display_update(ViewIface *view)
         return;
 
     send(view, DISPLAY_UPDATE_REQUEST);
+}
+
+void ViewSignalsGLib::request_hide_view(ViewIface *view)
+{
+    log_assert(view != nullptr);
+
+    if(!vm_.is_active_view(view))
+        return;
+
+    send(view, HIDE_VIEW_REQUEST);
 }
 
 struct ViewSignalSource
