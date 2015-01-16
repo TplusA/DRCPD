@@ -9,19 +9,15 @@
 class ViewSignalsGLib: public ViewSignalsIface
 {
   private:
-    enum signal_t
-    {
-        NONE = 0,
-        DISPLAY_UPDATE_REQUEST,
-        HIDE_VIEW_REQUEST,
-    };
+    static constexpr uint16_t signal_display_update_request    = 1U << 0;
+    static constexpr uint16_t signal_request_hide_view         = 1U << 1;
 
     ViewManagerIface &vm_;
 
     guint source_id_;
     GMainContext *ctx_;
     ViewIface *view_;
-    signal_t signal_;
+    uint16_t signal_;
 
   public:
     ViewSignalsGLib(const ViewSignalsGLib &) = delete;
@@ -32,7 +28,7 @@ class ViewSignalsGLib: public ViewSignalsIface
         source_id_(0),
         ctx_(nullptr),
         view_(nullptr),
-        signal_(NONE)
+        signal_(0)
     {}
 
     virtual ~ViewSignalsGLib()
@@ -51,13 +47,16 @@ class ViewSignalsGLib: public ViewSignalsIface
   private:
     void reset()
     {
-        send(nullptr, NONE);
+        send(nullptr, 0);
     }
 
-    void send(ViewIface *view, signal_t sig)
+    void send(ViewIface *view, uint16_t sig)
     {
+        if(view != view_ || view == nullptr)
+            signal_ = 0;
+
         view_ = view;
-        signal_ = sig;
+        signal_ |= sig;
         g_main_context_wakeup(ctx_);
     }
 };

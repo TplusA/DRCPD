@@ -16,27 +16,34 @@ void ViewSignalsGLib::remove_from_main_loop()
 
 bool ViewSignalsGLib::check() const
 {
-    return (signal_ != NONE) ? TRUE : FALSE;
+    return (signal_ != 0) ? TRUE : FALSE;
 }
 
 void ViewSignalsGLib::dispatch()
 {
-    switch(signal_)
+    if(signal_ == 0)
     {
-      case NONE:
         BUG("Attempted to dispatch empty signal");
-        break;
-
-      case DISPLAY_UPDATE_REQUEST:
-        vm_.update_view_if_active(view_);
-        break;
-
-      case HIDE_VIEW_REQUEST:
-        vm_.hide_view_if_active(view_);
-        break;
+        reset();
+        return;
     }
 
-    reset();
+    bool success = false;
+
+    if((signal_ & signal_display_update_request) != 0)
+    {
+        vm_.update_view_if_active(view_);
+        success = true;
+    }
+
+    if(!success && (signal_ & signal_request_hide_view) != 0)
+    {
+        vm_.hide_view_if_active(view_);
+        success = true;
+    }
+
+    if(success)
+        reset();
 }
 
 void ViewSignalsGLib::request_display_update(ViewIface *view)
@@ -46,7 +53,7 @@ void ViewSignalsGLib::request_display_update(ViewIface *view)
     if(!vm_.is_active_view(view))
         return;
 
-    send(view, DISPLAY_UPDATE_REQUEST);
+    send(view, signal_display_update_request);
 }
 
 void ViewSignalsGLib::request_hide_view(ViewIface *view)
@@ -56,7 +63,7 @@ void ViewSignalsGLib::request_hide_view(ViewIface *view)
     if(!vm_.is_active_view(view))
         return;
 
-    send(view, HIDE_VIEW_REQUEST);
+    send(view, signal_request_hide_view);
 }
 
 struct ViewSignalSource
