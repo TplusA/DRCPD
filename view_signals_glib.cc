@@ -16,13 +16,23 @@ void ViewSignalsGLib::remove_from_main_loop()
 
 bool ViewSignalsGLib::check() const
 {
-    return (is_display_update_needed_for_view_ != nullptr) ? TRUE : FALSE;
+    return (signal_ != NONE) ? TRUE : FALSE;
 }
 
 void ViewSignalsGLib::dispatch()
 {
-    vm_.update_view_if_active(is_display_update_needed_for_view_);
-    is_display_update_needed_for_view_ = nullptr;
+    switch(signal_)
+    {
+      case NONE:
+        BUG("Attempted to dispatch empty signal");
+        break;
+
+      case DISPLAY_UPDATE_REQUEST:
+        vm_.update_view_if_active(view_);
+        break;
+    }
+
+    reset();
 }
 
 void ViewSignalsGLib::request_display_update(ViewIface *view)
@@ -32,8 +42,7 @@ void ViewSignalsGLib::request_display_update(ViewIface *view)
     if(!vm_.is_active_view(view))
         return;
 
-    is_display_update_needed_for_view_ = view;
-    g_main_context_wakeup(ctx_);
+    send(view, DISPLAY_UPDATE_REQUEST);
 }
 
 struct ViewSignalSource
