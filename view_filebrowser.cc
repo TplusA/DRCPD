@@ -225,12 +225,12 @@ bool ViewFileBrowser::View::write_xml(std::ostream &os, bool is_full_view)
     return true;
 }
 
-void ViewFileBrowser::View::serialize(DcpTransaction &dcpd, std::ostream *debug_os)
+bool ViewFileBrowser::View::serialize(DcpTransaction &dcpd, std::ostream *debug_os)
 {
-    ViewIface::serialize(dcpd);
+    const bool retval = ViewIface::serialize(dcpd);
 
     if(!debug_os)
-        return;
+        return retval;
 
     for(auto it : navigation_)
     {
@@ -245,11 +245,13 @@ void ViewFileBrowser::View::serialize(DcpTransaction &dcpd, std::ostream *debug_
         *debug_os << (item->is_directory() ? "Dir " : "File") << " " << it << ": "
                   << item->get_text() << std::endl;
     }
+
+    return retval;
 }
 
-void ViewFileBrowser::View::update(DcpTransaction &dcpd, std::ostream *debug_os)
+bool ViewFileBrowser::View::update(DcpTransaction &dcpd, std::ostream *debug_os)
 {
-    serialize(dcpd, debug_os);
+    return serialize(dcpd, debug_os);
 }
 
 bool ViewFileBrowser::View::fill_list_from_root()

@@ -170,10 +170,10 @@ ViewIface::InputResult ViewMock::View::input(DrcpCommand command)
     return expect.retval_input_;
 }
 
-void ViewMock::View::serialize(DcpTransaction &dcpd, std::ostream *debug_os)
+bool ViewMock::View::serialize(DcpTransaction &dcpd, std::ostream *debug_os)
 {
     if(ignore_all_)
-        return;
+        return true;
 
     const auto &expect(expectations_->get_next_expectation(__func__));
 
@@ -181,12 +181,14 @@ void ViewMock::View::serialize(DcpTransaction &dcpd, std::ostream *debug_os)
 
     cut_assert_true(dcpd.start());
     cut_assert_true(dcpd.commit());
+
+    return true;
 }
 
-void ViewMock::View::update(DcpTransaction &dcpd, std::ostream *debug_os)
+bool ViewMock::View::update(DcpTransaction &dcpd, std::ostream *debug_os)
 {
     if(ignore_all_)
-        return;
+        return true;
 
     const auto &expect(expectations_->get_next_expectation(__func__));
 
@@ -194,4 +196,6 @@ void ViewMock::View::update(DcpTransaction &dcpd, std::ostream *debug_os)
 
     cut_assert_true(dcpd.start());
     cut_assert_true(dcpd.commit());
+
+    return true;
 }

@@ -159,17 +159,18 @@ bool ViewPlay::View::write_xml(std::ostream &os, bool is_full_view)
     return true;
 }
 
-void ViewPlay::View::serialize(DcpTransaction &dcpd, std::ostream *debug_os)
+bool ViewPlay::View::serialize(DcpTransaction &dcpd, std::ostream *debug_os)
 {
     if(!is_visible_)
         BUG("serializing invisible ViewPlay::View");
 
-    ViewIface::serialize(dcpd);
+    const bool retval = ViewIface::serialize(dcpd);
 
-    update_flags_ = 0;
+    if(retval)
+        update_flags_ = 0;
 
     if(!debug_os)
-        return;
+        return retval;
 
     /* matches enum #PlayInfo::Data::StreamState */
     static const char *stream_state_string[] =
@@ -185,9 +186,11 @@ void ViewPlay::View::serialize(DcpTransaction &dcpd, std::ostream *debug_os)
 
     for(size_t i = 0; i < info_.meta_data_.values_.size(); ++i)
         *debug_os << "  " << i << ": \"" << info_.meta_data_.values_[i] << "\"" << std::endl;
+
+    return retval;
 }
 
-void ViewPlay::View::update(DcpTransaction &dcpd, std::ostream *debug_os)
+bool ViewPlay::View::update(DcpTransaction &dcpd, std::ostream *debug_os)
 {
     if(!is_visible_)
         BUG("updating invisible ViewPlay::View");
@@ -195,10 +198,15 @@ void ViewPlay::View::update(DcpTransaction &dcpd, std::ostream *debug_os)
     if(update_flags_ == 0)
         BUG("display update requested, but nothing to update");
 
-    if((update_flags_ & update_flags_need_full_update) != 0)
-        serialize(dcpd, debug_os);
-    else
-        ViewIface::update(dcpd, debug_os);
+    bool retval;
 
-    update_flags_ = 0;
+    if((update_flags_ & update_flags_need_full_update) != 0)
+        retval = serialize(dcpd, debug_os);
+    else
+        retval = ViewIface::update(dcpd, debug_os);
+
+    if(retval)
+        update_flags_ = 0;
+
+    return retval;
 }

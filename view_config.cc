@@ -234,12 +234,12 @@ ViewIface::InputResult ViewConfig::View::input(DrcpCommand command)
     return InputResult::OK;
 }
 
-void ViewConfig::View::serialize(DcpTransaction &dcpd, std::ostream *debug_os)
+bool ViewConfig::View::serialize(DcpTransaction &dcpd, std::ostream *debug_os)
 {
-    ViewIface::serialize(dcpd);
+    const bool retval = ViewIface::serialize(dcpd);
 
     if(!debug_os)
-        return;
+        return retval;
 
     for(auto it : navigation_)
     {
@@ -261,6 +261,8 @@ void ViewConfig::View::serialize(DcpTransaction &dcpd, std::ostream *debug_os)
 
         *debug_os << std::endl;
     }
+
+    return retval;
 }
 
 /*!

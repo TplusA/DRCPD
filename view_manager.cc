@@ -246,10 +246,20 @@ bool ViewManager::is_active_view(const ViewIface *view) const
     return view == active_view_;
 }
 
-void ViewManager::update_view_if_active(const ViewIface *view) const
+bool ViewManager::update_view_if_active(const ViewIface *view) const
 {
     if(is_active_view(view))
-        active_view_->update(dcp_transaction_, debug_stream_);
+        return active_view_->update(dcp_transaction_, debug_stream_);
+    else
+        return true;
+}
+
+bool ViewManager::serialize_view_if_active(const ViewIface *view) const
+{
+    if(is_active_view(view))
+        return active_view_->serialize(dcp_transaction_, debug_stream_);
+    else
+        return true;
 }
 
 void ViewManager::hide_view_if_active(const ViewIface *view)

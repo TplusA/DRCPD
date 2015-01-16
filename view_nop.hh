@@ -31,8 +31,8 @@ class View: public ViewIface
     void focus() override {}
     void defocus() override {}
     InputResult input(DrcpCommand command) override { return InputResult::SHOULD_HIDE; }
-    void serialize(DcpTransaction &dcpd, std::ostream *debug_os) override {}
-    void update(DcpTransaction &dcpd, std::ostream *debug_os) override {}
+    bool serialize(DcpTransaction &dcpd, std::ostream *debug_os) override { return true; }
+    bool update(DcpTransaction &dcpd, std::ostream *debug_os) override { return true; }
 };
 
 };
