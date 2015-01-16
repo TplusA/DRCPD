@@ -151,9 +151,9 @@ bool ViewPlay::View::write_xml(std::ostream &os, bool is_full_view)
             "pause",
         };
 
-        os << "    <icon id=\""
+        os << "    <icon id=\"play\">"
            << play_icon[info_.assumed_stream_state_]
-           << "\">play</icon>\n";
+           << "</icon>\n";
     }
 
     return true;
