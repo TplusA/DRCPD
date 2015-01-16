@@ -81,7 +81,7 @@ void ViewPlay::View::notify_stream_stop()
     msg_info("Play view: stream stopped, %s",
              is_visible_ ? "send screen update" : "but view is invisible");
 
-    display_update(update_flags_playback_state);
+    view_signals_->request_hide_view(this);
 }
 
 void ViewPlay::View::notify_stream_pause()
