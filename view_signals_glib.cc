@@ -2,6 +2,8 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
+#include <sched.h>
+
 #include "view_signals_glib.hh"
 #include "messages.h"
 
@@ -30,11 +32,12 @@ void ViewSignalsGLib::dispatch()
 
     bool success = false;
 
-    if((signal_ & signal_display_update_request) != 0)
-    {
-        vm_.update_view_if_active(view_);
-        success = true;
-    }
+    if((signal_ & (signal_display_serialize_request |
+                   signal_display_serialize_pending)) != 0)
+        success = vm_.serialize_view_if_active(view_);
+    else if((signal_ & (signal_display_update_request |
+                        signal_display_update_pending)) != 0)
+        success = vm_.update_view_if_active(view_);
 
     if(!success && (signal_ & signal_request_hide_view) != 0)
     {
@@ -64,6 +67,22 @@ void ViewSignalsGLib::request_hide_view(ViewIface *view)
         return;
 
     send(view, signal_request_hide_view);
+}
+
+void ViewSignalsGLib::display_serialize_pending(ViewIface *view)
+{
+    log_assert(view != nullptr);
+    log_assert(vm_.is_active_view(view));
+    send(view, signal_display_serialize_pending);
+    sched_yield();
+}
+
+void ViewSignalsGLib::display_update_pending(ViewIface *view)
+{
+    log_assert(view != nullptr);
+    log_assert(vm_.is_active_view(view));
+    send(view, signal_display_update_pending);
+    sched_yield();
 }
 
 struct ViewSignalSource

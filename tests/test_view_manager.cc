@@ -31,6 +31,16 @@ class DummyViewSignals: public ViewSignalsIface
     {
         cut_fail("Unexpected call of request_hide_view()");
     }
+
+    void display_serialize_pending(ViewIface *view)
+    {
+        cut_fail("Unexpected call of display_serialize_pending()");
+    }
+
+    void display_update_pending(ViewIface *view) override
+    {
+        cut_fail("Unexpected call of display_update_pending()");
+    }
 };
 
 static void clear_ostream(std::ostringstream &ss)

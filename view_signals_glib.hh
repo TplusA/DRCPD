@@ -40,6 +40,8 @@ class ViewSignalsGLib: public ViewSignalsIface
 
     void request_display_update(ViewIface *view) override;
     void request_hide_view(ViewIface *view) override;
+    void display_update_pending(ViewIface *view) override;
+    void display_serialize_pending(ViewIface *view) override;
 
   private:
     void reset()

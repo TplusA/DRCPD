@@ -173,7 +173,14 @@ class ViewIface
     bool do_serialize(DcpTransaction &dcpd, bool is_full_view)
     {
         if(!dcpd.start())
+        {
+            if(is_full_view)
+                view_signals_->display_serialize_pending(this);
+            else
+                view_signals_->display_update_pending(this);
+
             return false;
+        }
 
         if(dcpd.stream() != nullptr &&
            write_xml_begin(*dcpd.stream(), is_full_view) &&
