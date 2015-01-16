@@ -1,11 +1,16 @@
 #ifndef VIEW_SIGNALS_HH
 #define VIEW_SIGNALS_HH
 
+#include <inttypes.h>
+
 class ViewIface;
 
 class ViewSignalsIface
 {
   protected:
+    static constexpr uint16_t signal_display_update_request    = 1U << 0;
+    static constexpr uint16_t signal_request_hide_view         = 1U << 1;
+
     explicit ViewSignalsIface() {}
 
   public:

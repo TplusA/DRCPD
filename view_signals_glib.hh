@@ -9,9 +9,6 @@
 class ViewSignalsGLib: public ViewSignalsIface
 {
   private:
-    static constexpr uint16_t signal_display_update_request    = 1U << 0;
-    static constexpr uint16_t signal_request_hide_view         = 1U << 1;
-
     ViewManagerIface &vm_;
 
     guint source_id_;
