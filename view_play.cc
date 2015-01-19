@@ -2,6 +2,8 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
+#include <cstdlib>
+
 #include "view_play.hh"
 #include "dbus_iface_deep.h"
 #include "xmlescape.hh"
@@ -211,4 +213,39 @@ bool ViewPlay::View::update(DcpTransaction &dcpd, std::ostream *debug_os)
     return retval;
 }
 
-const PlayInfo::Reformatters ViewPlay::meta_data_reformatters;
+static const std::string reformat_bitrate(const char *in)
+{
+    log_assert(in != NULL);
+
+    bool failed = false;
+    unsigned long result;
+
+    if(in[0] < '0' || in[0] > '9')
+        failed = true;
+
+    if(!failed)
+    {
+        char *endptr = NULL;
+
+        result = strtoul(in, &endptr, 10);
+        failed = (*endptr != '\0' || (result == ULONG_MAX && errno == ERANGE) || result > UINT32_MAX);
+    }
+
+    if(failed)
+    {
+        msg_error(EINVAL, LOG_NOTICE,
+                  "Invalid bitrate string: \"%s\", leaving as is", in);
+        return in;
+    }
+
+    result = (result + 500UL) / 1000UL;
+    std::ostringstream os;
+    os << result;
+
+    return os.str();
+}
+
+const PlayInfo::Reformatters ViewPlay::meta_data_reformatters =
+{
+    .bitrate = reformat_bitrate,
+};

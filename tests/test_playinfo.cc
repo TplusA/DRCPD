@@ -2,6 +2,7 @@
 
 #include "playinfo.hh"
 #include "view_play.hh"
+#include "mock_messages.hh"
 
 /*!
  * \addtogroup playinfo_tests Unit tests
@@ -14,17 +15,29 @@
 namespace playinfo_tests
 {
 
+static MockMessages *mock_messages;
+
 static PlayInfo::Data *data;
 static PlayInfo::Reformatters no_reformat;
 
 void cut_setup()
 {
+    mock_messages = new MockMessages;
+    cppcut_assert_not_null(mock_messages);
+    mock_messages->init();
+    mock_messages_singleton = mock_messages;
+
     data = new PlayInfo::Data;
     cut_assert_not_null(data);
 }
 
 void cut_teardown()
 {
+    mock_messages->check();
+    mock_messages_singleton = nullptr;
+    delete mock_messages;
+    mock_messages = nullptr;
+
     delete data;
     data = nullptr;
 }
@@ -55,7 +68,8 @@ static void check_single_meta_data(const std::string &expected, PlayInfo::MetaDa
         if(i != id)
             cut_assert_true(data->meta_data_.values_[i].empty());
         else
-            cut_assert_false(data->meta_data_.values_[i].empty());
+            cppcut_assert_equal(expected.empty(),
+                                data->meta_data_.values_[i].empty());
     }
 }
 
@@ -134,6 +148,70 @@ void test_set_nominal_bitrate()
 
     data->meta_data_.add("nominal-bitrate", expected.c_str(), no_reformat);
     check_single_meta_data(expected, PlayInfo::MetaData::BITRATE_NOM);
+}
+
+/*!\test
+ * Bitrate information should rounded to kb/s.
+ */
+void test_set_nominal_bitrate_rounded_to_kbit_per_sec()
+{
+    using string_pair_t = std::pair<const char *, const char *>;
+
+    static const std::array<string_pair_t, 12> test_data =
+    {
+        string_pair_t("160000", "160"),
+        string_pair_t("159999", "160"),
+        string_pair_t("159500", "160"),
+        string_pair_t("159499", "159"),
+        string_pair_t("128000", "128"),
+        string_pair_t("128001", "128"),
+        string_pair_t("128499", "128"),
+        string_pair_t("128500", "129"),
+        string_pair_t("500", "1"),
+        string_pair_t("499", "0"),
+        string_pair_t("0", "0"),
+        string_pair_t("4294967295", "4294967"),
+    };
+
+    for(auto const &pair : test_data)
+    {
+        data->meta_data_.add("nominal-bitrate", pair.first,
+                             ViewPlay::meta_data_reformatters);
+        check_single_meta_data(pair.second, PlayInfo::MetaData::BITRATE_NOM);
+    }
+}
+
+/*!\test
+ * Invalid bitrate strings are left unchanged by reformatter.
+ */
+void test_set_maximum_bitrate_attempt_rounding_funny_values()
+{
+    static const std::array<const char *, 14> invalid_strings =
+    {
+        "a160000",
+        "160000a",
+        "a160000a",
+        " 160000",
+        "160000 ",
+        " 160000 ",
+        "160k",
+        "abc",
+        "-1",
+        "-192000",
+        "0-1",
+        "0-192000",
+        "",
+        "4294967296",
+    };
+
+    for(auto const &s : invalid_strings)
+    {
+        mock_messages->expect_msg_error(EINVAL, LOG_NOTICE,
+                                        "Invalid bitrate string: \"%s\", leaving as is");
+        data->meta_data_.add("maximum-bitrate", s,
+                             ViewPlay::meta_data_reformatters);
+        check_single_meta_data(s, PlayInfo::MetaData::BITRATE_MAX);
+    }
 }
 
 /*!\test

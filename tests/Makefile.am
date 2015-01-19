@@ -50,7 +50,9 @@ test_dcp_transaction_la_LIBADD = ../libdcp_transaction.la
 test_dcp_transaction_la_CFLAGS = $(AM_CFLAGS)
 test_dcp_transaction_la_CXXFLAGS = $(AM_CXXFLAGS)
 
-test_playinfo_la_SOURCES = test_playinfo.cc
+test_playinfo_la_SOURCES = \
+    test_playinfo.cc \
+    mock_messages.hh mock_messages.cc
 test_playinfo_la_LIBADD = ../libviews.la
 test_playinfo_la_CFLAGS = $(AM_CFLAGS)
 test_playinfo_la_CXXFLAGS = $(AM_CXXFLAGS)
