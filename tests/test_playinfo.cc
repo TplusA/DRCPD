@@ -1,6 +1,7 @@
 #include <cppcutter.h>
 
 #include "playinfo.hh"
+#include "view_play.hh"
 
 /*!
  * \addtogroup playinfo_tests Unit tests
@@ -14,6 +15,7 @@ namespace playinfo_tests
 {
 
 static PlayInfo::Data *data;
+static PlayInfo::Reformatters no_reformat;
 
 void cut_setup()
 {
@@ -64,7 +66,7 @@ void test_set_title()
 {
     static const std::string expected = "Ich will brennen";
 
-    data->meta_data_.add("title", expected.c_str());
+    data->meta_data_.add("title", expected.c_str(), no_reformat);
     check_single_meta_data(expected, PlayInfo::MetaData::TITLE);
 }
 
@@ -75,7 +77,7 @@ void test_set_artist()
 {
     static const std::string expected = "Deine Lakaien";
 
-    data->meta_data_.add("artist", expected.c_str());
+    data->meta_data_.add("artist", expected.c_str(), no_reformat);
     check_single_meta_data(expected, PlayInfo::MetaData::ARTIST);
 }
 
@@ -86,7 +88,7 @@ void test_set_album()
 {
     static const std::string expected = "Zombieland";
 
-    data->meta_data_.add("album", expected.c_str());
+    data->meta_data_.add("album", expected.c_str(), no_reformat);
     check_single_meta_data(expected, PlayInfo::MetaData::ALBUM);
 }
 
@@ -97,7 +99,7 @@ void test_set_audio_codec()
 {
     static const std::string expected = "MPEG 1 Audio, Layer 3 (MP3)";
 
-    data->meta_data_.add("audio-codec", expected.c_str());
+    data->meta_data_.add("audio-codec", expected.c_str(), no_reformat);
     check_single_meta_data(expected, PlayInfo::MetaData::CODEC);
 }
 
@@ -108,7 +110,7 @@ void test_set_minimum_bitrate()
 {
     static const std::string expected = "158315";
 
-    data->meta_data_.add("minimum-bitrate", expected.c_str());
+    data->meta_data_.add("minimum-bitrate", expected.c_str(), no_reformat);
     check_single_meta_data(expected, PlayInfo::MetaData::BITRATE_MIN);
 }
 
@@ -119,7 +121,7 @@ void test_set_maximum_bitrate()
 {
     static const std::string expected = "159862";
 
-    data->meta_data_.add("maximum-bitrate", expected.c_str());
+    data->meta_data_.add("maximum-bitrate", expected.c_str(), no_reformat);
     check_single_meta_data(expected, PlayInfo::MetaData::BITRATE_MAX);
 }
 
@@ -130,7 +132,7 @@ void test_set_nominal_bitrate()
 {
     static const std::string expected = "160000";
 
-    data->meta_data_.add("nominal-bitrate", expected.c_str());
+    data->meta_data_.add("nominal-bitrate", expected.c_str(), no_reformat);
     check_single_meta_data(expected, PlayInfo::MetaData::BITRATE_NOM);
 }
 
@@ -139,13 +141,13 @@ void test_set_nominal_bitrate()
  */
 void test_clear_meta_data()
 {
-    data->meta_data_.add("title",           "a");
-    data->meta_data_.add("artist",          "b");
-    data->meta_data_.add("album",           "c");
-    data->meta_data_.add("audio-codec",     "d");
-    data->meta_data_.add("minimum-bitrate", "e");
-    data->meta_data_.add("maximum-bitrate", "f");
-    data->meta_data_.add("nominal-bitrate", "g");
+    data->meta_data_.add("title",           "a", no_reformat);
+    data->meta_data_.add("artist",          "b", no_reformat);
+    data->meta_data_.add("album",           "c", no_reformat);
+    data->meta_data_.add("audio-codec",     "d", no_reformat);
+    data->meta_data_.add("minimum-bitrate", "e", no_reformat);
+    data->meta_data_.add("maximum-bitrate", "f", no_reformat);
+    data->meta_data_.add("nominal-bitrate", "g", no_reformat);
 
     /* all set */
     for(auto s : data->meta_data_.values_)

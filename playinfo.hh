@@ -4,6 +4,7 @@
 #include <array>
 #include <string>
 #include <chrono>
+#include <functional>
 
 /*!
  * \addtogroup view_play_playinfo Data for player view
@@ -15,6 +16,14 @@
 
 namespace PlayInfo
 {
+
+struct Reformatters
+{
+    using fn_t =  std::function<const std::string(const char *in)>;
+
+    const fn_t bitrate;
+};
+
 
 /*!
  * Stream meta data POD as obtained from Streamplayer.
@@ -43,7 +52,7 @@ class MetaData
     std::array<std::string, METADATA_ID_LAST + 1> values_;
 
     void clear();
-    void add(const char *key, const char *value);
+    void add(const char *key, const char *value, const Reformatters &reformat);
 
     bool operator==(const MetaData &other) const;
 };

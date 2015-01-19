@@ -210,3 +210,5 @@ bool ViewPlay::View::update(DcpTransaction &dcpd, std::ostream *debug_os)
 
     return retval;
 }
+
+const PlayInfo::Reformatters ViewPlay::meta_data_reformatters;

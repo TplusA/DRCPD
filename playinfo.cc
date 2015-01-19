@@ -12,11 +12,19 @@ void PlayInfo::MetaData::clear()
         values_[i].clear();
 }
 
-void PlayInfo::MetaData::add(const char *key, const char *value)
+void PlayInfo::MetaData::add(const char *key, const char *value,
+                             const Reformatters &reformat)
 {
     static const struct
     {
+        /*!
+         * A key a sent by Streamplayer, thus GStreamer.
+         */
         const char *const key;
+
+        /*!
+         * Internally used ID for GStreamer keys.
+         */
         PlayInfo::MetaData::ID id;
     }
     key_to_id[METADATA_ID_LAST + 1] =
@@ -34,6 +42,24 @@ void PlayInfo::MetaData::add(const char *key, const char *value)
     {
         if(strcmp(key, entry.key) == 0)
         {
+            switch(entry.id)
+            {
+              case BITRATE_MIN:
+              case BITRATE_MAX:
+              case BITRATE_NOM:
+                if(!reformat.bitrate)
+                    break;
+
+                values_[entry.id] = reformat.bitrate(value);
+                return;
+
+              case TITLE:
+              case ARTIST:
+              case ALBUM:
+              case CODEC:
+                break;
+            }
+
             values_[entry.id] = value;
             return;
         }

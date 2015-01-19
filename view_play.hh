@@ -38,6 +38,8 @@ class Iface
     virtual void meta_data_add_end() = 0;
 };
 
+extern const PlayInfo::Reformatters meta_data_reformatters;
+
 class View: public ViewIface, public ViewPlay::Iface
 {
   private:
@@ -86,7 +88,7 @@ class View: public ViewIface, public ViewPlay::Iface
 
     void meta_data_add(const char *key, const char *value) override
     {
-        incoming_meta_data_.add(key, value);
+        incoming_meta_data_.add(key, value, meta_data_reformatters);
     }
 
     void meta_data_add_end() override
