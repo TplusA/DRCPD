@@ -151,7 +151,7 @@ void test_set_nominal_bitrate()
 }
 
 /*!\test
- * Bitrate information should rounded to kb/s.
+ * Bitrate information should be rounded to kb/s.
  */
 void test_set_nominal_bitrate_rounded_to_kbit_per_sec()
 {
