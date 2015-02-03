@@ -42,10 +42,15 @@ AC_CHECK_PROGS([DPKG_BUILDPACKAGE], [dpkg-buildpackage])
 AC_CHECK_PROGS([DPKG_ARCHITECTURE], [dpkg-architecture])
 AC_CHECK_PROGS([XSLTPROC], [xsltproc])
 AC_CHECK_PROGS([VALGRIND], [valgrind])
+
+m4_ifdef([AC_CHECK_CUTTER],
+[
 AC_CHECK_CUTTER
 AC_CHECK_CPPCUTTER
 AC_CHECK_GCUTTER
 AC_CHECK_COVERAGE
+],
+[ac_cv_use_cutter=no])
 
 # Checks for libraries.
 PKG_CHECK_MODULES([DRCPD_DEPENDENCIES], [glib-2.0 >= 2.36 gmodule-2.0 gio-2.0 gio-unix-2.0 >= 2.36 gthread-2.0])
@@ -53,6 +58,8 @@ PKG_CHECK_MODULES([DRCPD_DEPENDENCIES], [glib-2.0 >= 2.36 gmodule-2.0 gio-2.0 gi
 # Checks for header files.
 AC_CHECK_HEADERS([libintl.h locale.h stdlib.h])
 
+m4_ifdef([AC_CHECK_CUTTER],
+[
 save_CPPFLAGS="$CPPFLAGS"
 CPPFLAGS="$pkg_cv_CUTTER_CFLAGS"
 AC_CHECK_HEADER([cutter.h], [], [ac_cv_use_cutter=no])
@@ -64,6 +71,7 @@ CPPFLAGS="$pkg_cv_CPPCUTTER_CFLAGS"
 AC_CHECK_HEADER([cppcutter.h], [], [ac_cv_use_cutter=no])
 CPPFLAGS="$save_CPPFLAGS"
 AC_LANG_POP([C++])
+])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_CHECK_HEADER_STDBOOL
