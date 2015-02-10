@@ -55,6 +55,7 @@ struct dcp_fifo_dispatch_data_t
 struct parameters
 {
     bool run_in_foreground;
+    bool connect_to_session_dbus;
 };
 
 ssize_t (*os_read)(int fd, void *dest, size_t count) = read;
@@ -286,7 +287,9 @@ static void usage(const char *program_name)
         "  --help         Show this help.\n"
         "  --fg           Run in foreground, don't run as daemon.\n"
         "  --idcp name    Name of the named pipe the DCP daemon writes to.\n"
-        "  --odcp name    Name of the named pipe the DCP daemon reads from."
+        "  --odcp name    Name of the named pipe the DCP daemon reads from.\n"
+        "  --session-dbus Connect to session D-Bus.\n"
+        "  --system-dbus  Connect to system D-Bus."
         << std::endl;
 }
 
@@ -308,6 +311,7 @@ static int process_command_line(int argc, char *argv[],
                                 struct files_t *files)
 {
     parameters->run_in_foreground = false;
+    parameters->connect_to_session_dbus = false;
 
     files->dcp_fifo_out_name = "/tmp/drcpd_to_dcpd";
     files->dcp_fifo_in_name = "/tmp/dcpd_to_drcpd";
@@ -330,6 +334,10 @@ static int process_command_line(int argc, char *argv[],
                 return -1;
             files->dcp_fifo_out_name = argv[i];
         }
+        else if(strcmp(argv[i], "--session-dbus") == 0)
+            parameters->connect_to_session_dbus = true;
+        else if(strcmp(argv[i], "--system-dbus") == 0)
+            parameters->connect_to_session_dbus = false;
         else
         {
             std::cerr << "Unknown option \"" << argv[i]
@@ -427,7 +435,7 @@ int main(int argc, char *argv[])
     dcp_dispatch_data.vm = &view_manager;
     dcp_dispatch_data.timeout_event_source_id = 0;
 
-    if(dbus_setup(loop, true, &view_manager) < 0)
+    if(dbus_setup(loop, parameters.connect_to_session_dbus, &view_manager) < 0)
         return EXIT_FAILURE;
 
     g_unix_signal_add(SIGINT, signal_handler, loop);
