@@ -311,7 +311,7 @@ static int process_command_line(int argc, char *argv[],
                                 struct files_t *files)
 {
     parameters->run_in_foreground = false;
-    parameters->connect_to_session_dbus = false;
+    parameters->connect_to_session_dbus = true;
 
     files->dcp_fifo_out_name = "/tmp/drcpd_to_dcpd";
     files->dcp_fifo_in_name = "/tmp/dcpd_to_drcpd";
