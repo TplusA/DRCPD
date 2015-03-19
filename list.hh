@@ -35,10 +35,6 @@ class ListIface;
 
 class Item
 {
-  private:
-    Item(const Item &);
-    Item &operator=(const Item &);
-
   protected:
     unsigned int flags_;
 
@@ -47,6 +43,8 @@ class Item
     {}
 
   public:
+    Item(const Item &) = delete;
+    Item &operator=(const Item &) = delete;
     explicit Item(Item &&) = default;
 
     virtual ~Item() {}
@@ -59,14 +57,12 @@ class Item
 
 class TreeItem: virtual public Item
 {
-  private:
-    TreeItem(const TreeItem &);
-    TreeItem &operator=(const TreeItem &);
-
   protected:
     std::shared_ptr<ListIface> child_list_;
 
   public:
+    TreeItem(const TreeItem &) = delete;
+    TreeItem &operator=(const TreeItem &) = delete;
     explicit TreeItem(TreeItem &&) = default;
 
     explicit TreeItem(unsigned int flags):
@@ -87,15 +83,13 @@ class TreeItem: virtual public Item
 
 class TextItem: virtual public Item
 {
-  private:
-    TextItem(const TextItem &);
-    TextItem &operator=(const TextItem &);
-
   protected:
     std::string text_;
     bool text_is_translatable_;
 
   public:
+    TextItem(const TextItem &) = delete;
+    TextItem &operator=(const TextItem &) = delete;
     explicit TextItem(TextItem &&) = default;
 
     explicit TextItem(unsigned int flags):
@@ -115,14 +109,13 @@ class TextItem: virtual public Item
 
 class ListIface
 {
-  private:
-    ListIface(const ListIface &);
-    ListIface &operator=(const ListIface &);
-
   protected:
     explicit ListIface() {}
 
   public:
+    ListIface(const ListIface &) = delete;
+    ListIface &operator=(const ListIface &) = delete;
+
     virtual ~ListIface() {}
 
     virtual unsigned int get_number_of_items() const = 0;

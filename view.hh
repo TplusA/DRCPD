@@ -48,10 +48,6 @@
  */
 class ViewIface
 {
-  private:
-    ViewIface(const ViewIface &);
-    ViewIface &operator=(const ViewIface &);
-
   public:
     const char *const name_;
     const char *const on_screen_name_;
@@ -94,6 +90,9 @@ class ViewIface
     {}
 
   public:
+    ViewIface(const ViewIface &) = delete;
+    ViewIface &operator=(const ViewIface &) = delete;
+
     /*!
      * How to proceed after processing a DRC command.
      */

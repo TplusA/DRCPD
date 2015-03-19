@@ -36,15 +36,15 @@ namespace List
 class RamList: public ListIface
 {
   private:
-    RamList(const RamList &);
-    RamList &operator=(const RamList &);
-
     const ListIface *parent_list_;
     std::vector<Item *> items_;
 
     Item *get_nonconst_item(unsigned int line);
 
   public:
+    RamList(const RamList &) = delete;
+    RamList &operator=(const RamList &) = delete;
+
     explicit RamList(): parent_list_(this) {}
     ~RamList();
 

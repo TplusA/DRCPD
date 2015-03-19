@@ -63,13 +63,12 @@ std::ostream &operator<<(std::ostream &os, const ViewConfig::IPv4Addr &addr)
 class SettingItem: public List::TextItem
 {
   private:
-    SettingItem(const SettingItem &);
-    SettingItem &operator=(const SettingItem &);
-
     ViewConfig::SettingBase *const setting_;
     bool is_editable_;
 
   public:
+    SettingItem(const SettingItem &) = delete;
+    SettingItem &operator=(const SettingItem &) = delete;
     explicit SettingItem(SettingItem &&) = default;
 
     explicit SettingItem(const char *text, unsigned int flags,
@@ -97,14 +96,13 @@ class SettingItem: public List::TextItem
 class CallbackItem: public List::TextItem
 {
   private:
-    CallbackItem(const CallbackItem &);
-    CallbackItem &operator=(const CallbackItem &);
-
     typedef void (*callback_t)(ViewConfig::View *);
 
     const callback_t fn_;
 
   public:
+    CallbackItem(const CallbackItem &) = delete;
+    CallbackItem &operator=(const CallbackItem &) = delete;
     explicit CallbackItem(CallbackItem &&) = default;
 
     explicit CallbackItem(const char *text, unsigned int flags,

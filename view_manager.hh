@@ -31,14 +31,13 @@
 
 class ViewManagerIface
 {
-  private:
-    ViewManagerIface(const ViewManagerIface &);
-    ViewManagerIface &operator=(const ViewManagerIface &);
-
   protected:
     explicit ViewManagerIface() {}
 
   public:
+    ViewManagerIface(const ViewManagerIface &) = delete;
+    ViewManagerIface &operator=(const ViewManagerIface &) = delete;
+
     virtual ~ViewManagerIface() {}
 
     virtual bool add_view(ViewIface *view) = 0;
@@ -67,9 +66,6 @@ class ViewManager: public ViewManagerIface
     typedef std::map<const std::string, ViewIface *> views_container_t;
 
   private:
-    ViewManager(const ViewManager &);
-    ViewManager &operator=(const ViewManager &);
-
     views_container_t all_views_;
 
     ViewIface *active_view_;
@@ -78,6 +74,9 @@ class ViewManager: public ViewManagerIface
     std::ostream *debug_stream_;
 
   public:
+    ViewManager(const ViewManager &) = delete;
+    ViewManager &operator=(const ViewManager &) = delete;
+
     explicit ViewManager(DcpTransaction &dcpd);
 
     bool add_view(ViewIface *view) override;
