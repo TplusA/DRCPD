@@ -10,4 +10,5 @@ m4/
 po/
 *.md
 *.supp
+*.taghl
 *.xml

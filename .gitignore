@@ -6,4 +6,5 @@
 /config.h.in~
 /configure
 /m4/
+/*.taghl
 Makefile.in
