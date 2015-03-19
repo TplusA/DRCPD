@@ -386,7 +386,7 @@ static void testing(ViewManager &views, ViewSignalsIface *view_signals)
     views.add_view(&upnp);
     views.add_view(&play);
 
-    views.activate_view_by_name("Filesystem");
+    views.activate_view_by_name("UPnP");
 }
 
 static gboolean signal_handler(gpointer user_data)
