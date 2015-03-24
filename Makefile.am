@@ -18,7 +18,7 @@ drcpd_SOURCES = \
     view.hh view_nop.hh view_manager.hh xmlescape.hh \
     view_config.hh view_filebrowser.hh view_play.hh \
     view_signals_glib.cc view_signals.hh view_signals_glib.hh \
-    playinfo.hh
+    playinfo.hh idtypes.hh
 
 AM_CPPFLAGS = -DLOCALEDIR=\"$(localedir)\"
 AM_CPPFLAGS += $(DRCPD_DEPENDENCIES_CFLAGS)
@@ -33,7 +33,7 @@ drcpd_LDADD = $(noinst_LTLIBRARIES) $(DRCPD_DEPENDENCIES_LIBS)
 
 drcpd_LDFLAGS = $(LTLIBINTL)
 
-liblist_la_SOURCES = list.hh list.cc ramlist.hh ramlist.cc
+liblist_la_SOURCES = list.hh list.cc ramlist.hh ramlist.cc idtypes.hh
 liblist_la_CFLAGS = $(AM_CFLAGS)
 liblist_la_CXXFLAGS = $(AM_CXXFLAGS)
 
@@ -42,7 +42,7 @@ libviews_la_SOURCES = \
     view_filebrowser.hh view_filebrowser.cc \
     view_play.hh view_play.cc playinfo.hh playinfo.cc \
     view_manager.hh view_manager.cc \
-    view_signals.hh
+    view_signals.hh idtypes.hh
 libviews_la_CFLAGS = $(AM_CFLAGS)
 libviews_la_CXXFLAGS = $(AM_CXXFLAGS)
 

@@ -23,6 +23,8 @@
 #include <vector>
 #include <memory>
 
+#include "idtypes.hh"
+
 /*!
  * \addtogroup list List data model
  */

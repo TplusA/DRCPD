@@ -23,6 +23,7 @@
 #include "ramlist.hh"
 #include "listnav.hh"
 #include "dbus_iface.h"
+#include "idtypes.hh"
 
 /*!
  * \addtogroup view_filesystem Filesystem browsing
@@ -40,7 +41,7 @@ namespace ViewFileBrowser
 class View: public ViewIface
 {
   private:
-    uint32_t current_list_id_;
+    ID::List current_list_id_;
 
     List::RamList file_list_;
     List::NavItemNoFilter item_flags_;
