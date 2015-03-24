@@ -162,12 +162,6 @@ class ListIface
     virtual void clear() = 0;
 
     virtual const Item *get_item(unsigned int line) const = 0;
-    virtual void set_parent_list(const ListIface *parent) = 0;
-    virtual bool set_child_list(unsigned int line,
-                                const std::shared_ptr<ListIface> &list) = 0;
-
-    virtual const ListIface &up() const = 0;
-    virtual const ListIface *down(unsigned int line) const = 0;
 };
 
 };
