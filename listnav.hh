@@ -33,6 +33,9 @@
 namespace List
 {
 
+/*!
+ * Filter interface used by #List::Nav for hiding list contents.
+ */
 class NavItemFilterIface
 {
   protected:
@@ -79,6 +82,9 @@ class NavItemFilterIface
                                          unsigned int &line_number) const = 0;
 };
 
+/*!
+ * A filter that allows any list item to pass through.
+ */
 class NavItemNoFilter: public NavItemFilterIface
 {
   private:
@@ -139,6 +145,22 @@ class NavItemNoFilter: public NavItemFilterIface
     }
 };
 
+/*!
+ * Navigational state on a list with custom filtering.
+ *
+ * Objects of this class maintain the state of incremental, interactive
+ * read-only list accesses in form of a cursor that points to the currently
+ * selected list item, and a list item that is "on top" for displaying
+ * purposes.
+ *
+ * These list accesses are usually initiated by a user who is browsing through
+ * some list using a line-oriented graphical user interface.
+ *
+ * A #List::Nav object does not access the list content itself (though its
+ * associated filter may do), it only operates on properties of the browsed
+ * list, such as number of elements in that list. Therefore, browsing is
+ * possible even if the list contents are not or only partially available.
+ */
 class Nav
 {
   private:
@@ -333,6 +355,14 @@ class Nav
         return get_line_number_by_item(get_cursor());
     }
 
+    /*!
+     * Forward iterator over list items.
+     *
+     * The iterator enumerates indices of list items that are not filtered out
+     * by the filter associated with the #List::Nav object, from top to bottom.
+     * As long as the associated filter does not access any list contents, the
+     * iterator only operates on the list indices.
+     */
     class const_iterator
     {
       private:

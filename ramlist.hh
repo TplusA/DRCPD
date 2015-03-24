@@ -32,6 +32,9 @@ namespace List
 
 /*!
  * A list with all list items stored in RAM.
+ *
+ * Before this list can be navigated in a meaningful way, is must be filled
+ * with content (see #List::append() and #List::RamList::append()).
  */
 class RamList: public ListIface
 {
@@ -63,6 +66,18 @@ class RamList: public ListIface
     unsigned int append(Item *item);
 };
 
+/*!
+ * Append some item to a #List::RamList.
+ *
+ * This little helper function creates a new object and moves the given object
+ * into the allocated space. There should be no overhead in terms of temporary
+ * objects.
+ *
+ * \todo
+ *     This may be inefficient if the move semantics do not work as they should
+ *     and suddenly a copy ctor gets invoked, plus the memory allocation should
+ *     probably use a memory pool. Time (and profiling) will tell.
+ */
 template <typename T>
 static unsigned int append(RamList *l, T &&item)
 {

@@ -33,6 +33,21 @@ namespace List
 
 class ListIface;
 
+/*!
+ * Base class for items in lists that implement #List::ListIface.
+ *
+ * This class merely provides a generic handle to items and manages list- and
+ * item-specific flags. These flags are used to statically assign an item to
+ * one or more categories by setting the bits corresponding to these categories
+ * when the item is created.
+ *
+ * The specific categories and their meaning are defined by application
+ * context, but usually they are used to control the visibility of items by a
+ * filter implementing #List::NavItemFilterIface that knows how to interpret
+ * the flags. Such a filter can use any suitable application state to check
+ * whether or not items of certain categories should be shown or filtered out
+ * at the time the filter is applied.
+ */
 class Item
 {
   protected:
@@ -55,6 +70,15 @@ class Item
     }
 };
 
+/*!
+ * A list item with a child list (see #List::ListIface).
+ *
+ * This is usually too simple to be useful, so more useful classes may be
+ * derived from this class.
+ *
+ * Derived classes may want to mix this class with #List::TextItem to get an
+ * item with a text label and a child list.
+ */
 class TreeItem: virtual public Item
 {
   protected:
@@ -81,6 +105,15 @@ class TreeItem: virtual public Item
     }
 };
 
+/*!
+ * A simple text item.
+ *
+ * This is usually too simple to be useful, so more useful classes may be
+ * derived from this class.
+ *
+ * Derived classes may want to mix this class with #List::TreeItem to get an
+ * item with a text label and a child list.
+ */
 class TextItem: virtual public Item
 {
   protected:
@@ -107,6 +140,11 @@ class TextItem: virtual public Item
     const char *get_text() const;
 };
 
+/*!
+ * Generic interface to lists of #List::Item elements.
+ *
+ * This is a pure interface class.
+ */
 class ListIface
 {
   protected:
