@@ -50,10 +50,11 @@ class ListIface;
  */
 class Item
 {
-  protected:
-    unsigned int flags_;
+  private:
+    const unsigned int flags_;
 
-    explicit Item(unsigned int flags):
+  protected:
+    constexpr explicit Item(unsigned int flags):
         flags_(flags)
     {}
 
