@@ -63,6 +63,9 @@ class RamList: public ListIface
 
     void clear();
     unsigned int append(Item *item);
+    void replace(unsigned int line, Item *item);
+    void shift_up(unsigned int count);
+    void shift_down(unsigned int count);
 };
 
 /*!
