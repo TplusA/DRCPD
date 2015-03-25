@@ -50,16 +50,22 @@ class FileItem: public List::TextItem
     }
 };
 
+List::Item *ViewFileBrowser::construct_file_item(const char *name,
+                                                 bool is_directory)
+{
+    return new FileItem(name, 0, is_directory);
+}
+
 bool ViewFileBrowser::View::init()
 {
-    fill_list_from_root();
+    point_to_root_directory();
     return true;
 }
 
 void ViewFileBrowser::View::focus()
 {
     if(!current_list_id_.is_valid())
-        fill_list_from_root();
+        (void)point_to_root_directory();
 }
 
 void ViewFileBrowser::View::defocus()
@@ -79,11 +85,11 @@ static void free_array_of_strings(gchar **const strings)
 
 static void send_selected_file_uri_to_streamplayer(ID::List list_id,
                                                    unsigned int item_id,
-                                                   dbus_listbroker_id_t listbroker_id)
+                                                   tdbuslistsNavigation *proxy)
 {
     gchar **uri_list;
 
-    if(!tdbus_lists_navigation_call_get_uris_sync(dbus_get_lists_navigation_iface(listbroker_id),
+    if(!tdbus_lists_navigation_call_get_uris_sync(proxy,
                                                   list_id.get_raw_id(), item_id,
                                                   &uri_list, NULL, NULL))
     {
@@ -157,13 +163,13 @@ ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command)
         {
             if(item->is_directory())
             {
-                if(fill_list_from_selected_line())
+                if(point_to_child_directory())
                     return InputResult::UPDATE_NEEDED;
             }
             else
                 send_selected_file_uri_to_streamplayer(current_list_id_,
                                                        navigation_.get_cursor(),
-                                                       listbroker_id_);
+                                                       file_list_.get_dbus_proxy());
         }
 
         return InputResult::OK;
@@ -176,7 +182,7 @@ ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command)
         return InputResult::OK;
 
       case DrcpCommand::GO_BACK_ONE_LEVEL:
-        return fill_list_from_parent_link() ? InputResult::UPDATE_NEEDED : InputResult::OK;
+        return point_to_parent_link() ? InputResult::UPDATE_NEEDED : InputResult::OK;
 
       case DrcpCommand::SCROLL_DOWN_ONE:
         return navigation_.down() ? InputResult::UPDATE_NEEDED : InputResult::OK;
@@ -273,106 +279,44 @@ bool ViewFileBrowser::View::update(DcpTransaction &dcpd, std::ostream *debug_os)
     return serialize(dcpd, debug_os);
 }
 
-bool ViewFileBrowser::View::fill_list_from_root()
+bool ViewFileBrowser::View::enter_list_at(ID::List list_id, unsigned int line)
 {
-    file_list_.clear();
+    if(!file_list_.enter_list(list_id, line))
+        return false;
 
+    current_list_id_ = list_id;
+    item_flags_.list_content_changed();
+    navigation_.set_cursor_by_line_number(line);
+
+    return true;
+}
+
+bool ViewFileBrowser::View::point_to_root_directory()
+{
     guint list_id;
 
-    if(!tdbus_lists_navigation_call_get_list_id_sync(dbus_get_lists_navigation_iface(listbroker_id_),
+    if(!tdbus_lists_navigation_call_get_list_id_sync(file_list_.get_dbus_proxy(),
                                                      0, 0, &list_id,
                                                      NULL, NULL))
     {
-        /* this is not a hard error, it may only mean that the file broker
+        /* this is not a hard error, it may only mean that the list broker
          * hasn't started up yet */
         msg_info("Failed obtaining ID for root list");
         current_list_id_ = ID::List();
         return false;
     }
 
-    current_list_id_ = ID::List(list_id);
-
-    return fill_list_from_current_list_id();
+    return enter_list_at(ID::List(list_id), 0);
 }
 
-bool ViewFileBrowser::View::fill_list_from_current_list_id()
-{
-    log_assert(current_list_id_.is_valid());
-
-    file_list_.clear();
-    item_flags_.list_content_changed();
-    navigation_.check_selection();
-
-    guchar error_code;
-    guint first_item;
-    GVariant *out_list;
-
-    if(!tdbus_lists_navigation_call_get_range_sync(dbus_get_lists_navigation_iface(listbroker_id_),
-                                                   current_list_id_.get_raw_id(), 0, 0,
-                                                   &error_code, &first_item, &out_list,
-                                                   NULL, NULL))
-    {
-        /* D-Bus error, pending */
-        msg_error(EAGAIN, LOG_NOTICE,
-                  "Failed obtaining contents of list %u", current_list_id_.get_raw_id());
-        return false;
-    }
-
-    if(error_code != 0)
-    {
-        /* method error, stop trying */
-        msg_error((error_code == 2) ? EIO : EINVAL, LOG_INFO,
-                  "Error reading list %u", current_list_id_.get_raw_id());
-        current_list_id_ = ID::List();
-        g_variant_unref(out_list);
-        return false;
-    }
-
-    log_assert(g_variant_type_is_array(g_variant_get_type(out_list)));
-
-    GVariantIter iter;
-    if(g_variant_iter_init(&iter, out_list) > 0)
-    {
-        gchar *name;
-        gboolean is_directory;
-
-        while(g_variant_iter_next(&iter, "(sb)", &name, &is_directory))
-        {
-            List::append(&file_list_, FileItem(name, 0, !!is_directory));
-            g_free(name);
-        }
-
-        log_assert(file_list_.get_number_of_items() == g_variant_n_children(out_list));
-
-        item_flags_.list_content_changed();
-        navigation_.check_selection();
-    }
-
-    /*!
-     * \todo At this point, the \b complete file list is an RAM at least
-     *     \e three times: once in our RAM list we have just filled here, once
-     *     in the \c GVariant \c out_list we got over D-Bus, and once inside
-     *     the \e FileBroker process. There is also a chance that the list also
-     *     resides in the Linux VFS cache. This is clearly unnecessary. Instead
-     *     of a simple RAM list, a list with partial content should be used
-     *     here. The list should contain the displayed part, plus some extra
-     *     entries before and after the displayed part to reduce
-     *     user-expeciencable latencies.
-     */
-
-    g_variant_unref(out_list);
-
-    return true;
-}
-
-bool ViewFileBrowser::View::fill_list_from_selected_line()
+bool ViewFileBrowser::View::point_to_child_directory()
 {
     if(file_list_.empty())
         return false;
 
     guint list_id;
 
-    if(!tdbus_lists_navigation_call_get_list_id_sync(dbus_get_lists_navigation_iface(listbroker_id_),
+    if(!tdbus_lists_navigation_call_get_list_id_sync(file_list_.get_dbus_proxy(),
                                                      current_list_id_.get_raw_id(),
                                                      navigation_.get_cursor(),
                                                      &list_id, NULL, NULL))
@@ -390,15 +334,13 @@ bool ViewFileBrowser::View::fill_list_from_selected_line()
         return false;
     }
 
-    current_list_id_ = ID::List(list_id);
-
-    if(!fill_list_from_current_list_id())
-        (void)fill_list_from_root();
-
-    return true;
+    if(enter_list_at(ID::List(list_id), 0))
+        return true;
+    else
+        return point_to_root_directory();
 }
 
-bool ViewFileBrowser::View::fill_list_from_parent_link()
+bool ViewFileBrowser::View::point_to_parent_link()
 {
     if(file_list_.empty())
         return false;
@@ -406,14 +348,13 @@ bool ViewFileBrowser::View::fill_list_from_parent_link()
     guint list_id;
     guint item_id;
 
-    if(!tdbus_lists_navigation_call_get_parent_link_sync(dbus_get_lists_navigation_iface(listbroker_id_),
+    if(!tdbus_lists_navigation_call_get_parent_link_sync(file_list_.get_dbus_proxy(),
                                                          current_list_id_.get_raw_id(),
                                                          &list_id, &item_id,
                                                          NULL, NULL))
     {
         msg_info("Failed obtaining parent for list %u", current_list_id_.get_raw_id());
-        (void)fill_list_from_root();
-        return true;
+        return point_to_root_directory();
     }
 
     if(list_id == 0)
@@ -423,16 +364,11 @@ bool ViewFileBrowser::View::fill_list_from_parent_link()
 
         msg_error(EINVAL, LOG_NOTICE,
                   "Error obtaining parent for list %u", current_list_id_.get_raw_id());
-        (void)fill_list_from_root();
-        return true;
+        return point_to_root_directory();
     }
 
-    current_list_id_ = ID::List(list_id);
-
-    if(fill_list_from_current_list_id())
-        navigation_.set_cursor_by_line_number(item_id);
+    if(enter_list_at(ID::List(list_id), item_id))
+        return true;
     else
-        (void)fill_list_from_root();
-
-    return true;
+        return point_to_root_directory();
 }

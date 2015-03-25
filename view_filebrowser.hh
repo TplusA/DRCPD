@@ -20,9 +20,10 @@
 #define VIEW_FILEBROWSER_HH
 
 #include "view.hh"
-#include "ramlist.hh"
+#include "dbuslist.hh"
 #include "listnav.hh"
 #include "dbus_iface.h"
+#include "dbus_iface_deep.h"
 #include "idtypes.hh"
 
 /*!
@@ -38,17 +39,18 @@
 namespace ViewFileBrowser
 {
 
+List::Item *construct_file_item(const char *name, bool is_directory);
+
 class View: public ViewIface
 {
   private:
     ID::List current_list_id_;
 
-    List::RamList file_list_;
+    List::DBusList file_list_;
     List::NavItemNoFilter item_flags_;
     List::Nav navigation_;
 
     const uint8_t drcp_browse_id_;
-    const dbus_listbroker_id_t listbroker_id_;
 
   public:
     View(const View &) = delete;
@@ -61,10 +63,11 @@ class View: public ViewIface
                   ViewSignalsIface *view_signals):
         ViewIface(name, on_screen_name, "browse", 102U, true, view_signals),
         current_list_id_(0),
+        file_list_(dbus_get_lists_navigation_iface(listbroker_id), max_lines,
+                   construct_file_item),
         item_flags_(&file_list_),
         navigation_(max_lines, item_flags_),
-        drcp_browse_id_(drcp_browse_id),
-        listbroker_id_(listbroker_id)
+        drcp_browse_id_(drcp_browse_id)
     {}
 
     bool init() override;
@@ -79,22 +82,21 @@ class View: public ViewIface
 
   private:
     /*!
+     * Change cursor or enter new list.
+     *
+     * After moving the cursor, this function notifies the list filter and
+     * updates the navigation state.
+     */
+    bool enter_list_at(ID::List list_id, unsigned int line);
+
+    /*!
      * Load whole root directory into internal list.
      *
      * \returns
      *     True on success, false on error. In any case the list will have been
      *     modified (empty on error).
      */
-    bool fill_list_from_root();
-
-    /*!
-     * Load whole directory for current list ID into internal list.
-     *
-     * \returns
-     *     True on success, false on error. In any case the list will have been
-     *     modified (empty on error).
-     */
-    bool fill_list_from_current_list_id();
+    bool point_to_root_directory();
 
     /*!
      * Load whole selected subdirectory into internal list.
@@ -102,7 +104,7 @@ class View: public ViewIface
      * \returns
      *     True if the list was updated, false if the list remained unchanged.
      */
-    bool fill_list_from_selected_line();
+    bool point_to_child_directory();
 
     /*!
      * Load whole parent directory into internal list.
@@ -110,7 +112,7 @@ class View: public ViewIface
      * \returns
      *     True if the list was updated, false if the list remained unchanged.
      */
-    bool fill_list_from_parent_link();
+    bool point_to_parent_link();
 
     /*!
      * Generate XML document from current state.
