@@ -342,9 +342,6 @@ bool ViewFileBrowser::View::point_to_child_directory()
 
 bool ViewFileBrowser::View::point_to_parent_link()
 {
-    if(file_list_.empty())
-        return false;
-
     guint list_id;
     guint item_id;
 
