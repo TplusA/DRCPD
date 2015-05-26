@@ -54,17 +54,17 @@ class IDType_
         return Traits::is_valid(id_);
     }
 
-    bool operator<(const IDType_<Traits> other) const
+    bool operator<(const IDType_<Traits> &other) const
     {
         return id_ < other.id_;
     }
 
-    bool operator!=(const IDType_<Traits> other) const
+    bool operator!=(const IDType_<Traits> &other) const
     {
         return id_ != other.id_;
     }
 
-    bool operator==(const IDType_<Traits> other) const
+    bool operator==(const IDType_<Traits> &other) const
     {
         return id_ == other.id_;
     }
