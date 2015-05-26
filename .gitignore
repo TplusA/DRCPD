@@ -6,5 +6,7 @@
 /config.h.in~
 /configure
 /m4/
+/cscope.out
+/tags
 /*.taghl
 Makefile.in
