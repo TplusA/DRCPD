@@ -224,20 +224,21 @@ bool ViewFileBrowser::View::write_xml(std::ostream &os, bool is_full_view)
     for(auto it : navigation_)
     {
         auto item = dynamic_cast<const FileItem *>(file_list_.get_item(it));
-        log_assert(item != nullptr);
-
         std::string flags;
 
-        if(item->is_directory())
-            flags.push_back('d');
-        else
-            flags.push_back('p');
+        if(item != nullptr)
+        {
+            if(item->is_directory())
+                flags.push_back('d');
+            else
+                flags.push_back('p');
+        }
 
         if(it == navigation_.get_cursor())
             flags.push_back('s');
 
         os << "    <text id=\"line" << displayed_line << "\" flag=\"" << flags << "\">"
-           << XmlEscape(item->get_text()) << "</text>\n";
+           << XmlEscape(item != nullptr ? item->get_text() : "-----") << "</text>\n";
 
         ++displayed_line;
     }
@@ -260,15 +261,17 @@ bool ViewFileBrowser::View::serialize(DcpTransaction &dcpd, std::ostream *debug_
     for(auto it : navigation_)
     {
         auto item = dynamic_cast<const FileItem *>(file_list_.get_item(it));
-        log_assert(item != nullptr);
 
         if(it == navigation_.get_cursor())
             *debug_os << "--> ";
         else
             *debug_os << "    ";
 
-        *debug_os << (item->is_directory() ? "Dir " : "File") << " " << it << ": "
-                  << item->get_text() << std::endl;
+        if(item != nullptr)
+            *debug_os << (item->is_directory() ? "Dir " : "File") << " " << it << ": "
+                      << item->get_text() << std::endl;
+        else
+            *debug_os << "*NULL ENTRY* " << it << std::endl;
     }
 
     return retval;
