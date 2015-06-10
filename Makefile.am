@@ -18,9 +18,12 @@ drcpd_SOURCES = \
     view.hh view_nop.hh view_manager.hh xmlescape.hh \
     view_config.hh view_filebrowser.hh view_play.hh \
     view_signals_glib.cc view_signals.hh view_signals_glib.hh \
-    playinfo.hh idtypes.hh
+    playinfo.hh idtypes.hh \
+    dbus_interfaces/de_tahifi_lists_errors.hh \
+    dbus_interfaces/de_tahifi_lists_errors.h
 
 AM_CPPFLAGS = -DLOCALEDIR=\"$(localedir)\"
+AM_CPPFLAGS += -Idbus_interfaces
 AM_CPPFLAGS += $(DRCPD_DEPENDENCIES_CFLAGS)
 
 AM_CFLAGS = $(CWARNINGS)

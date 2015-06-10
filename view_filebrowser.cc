@@ -88,12 +88,23 @@ static void send_selected_file_uri_to_streamplayer(ID::List list_id,
                                                    tdbuslistsNavigation *proxy)
 {
     gchar **uri_list;
+    guchar error_code;
 
     if(!tdbus_lists_navigation_call_get_uris_sync(proxy,
                                                   list_id.get_raw_id(), item_id,
+                                                  &error_code,
                                                   &uri_list, NULL, NULL))
     {
         msg_info("Failed obtaining URI for item %u in list %u", item_id, list_id.get_raw_id());
+        return;
+    }
+
+    if(error_code != 0)
+    {
+        msg_error(0, LOG_NOTICE,
+                  "Got error code %u instead of URI for item %u in list %u",
+                  error_code, item_id, list_id.get_raw_id());
+        free_array_of_strings(uri_list);
         return;
     }
 
@@ -297,10 +308,11 @@ bool ViewFileBrowser::View::enter_list_at(ID::List list_id, unsigned int line)
 bool ViewFileBrowser::View::point_to_root_directory()
 {
     guint list_id;
+    guchar error_code;
 
     if(!tdbus_lists_navigation_call_get_list_id_sync(file_list_.get_dbus_proxy(),
-                                                     0, 0, &list_id,
-                                                     NULL, NULL))
+                                                     0, 0, &error_code,
+                                                     &list_id, NULL, NULL))
     {
         /* this is not a hard error, it may only mean that the list broker
          * hasn't started up yet */
@@ -309,7 +321,13 @@ bool ViewFileBrowser::View::point_to_root_directory()
         return false;
     }
 
-    return enter_list_at(ID::List(list_id), 0);
+    if(error_code == 0)
+        return enter_list_at(ID::List(list_id), 0);
+
+    msg_error(0, LOG_NOTICE,
+              "Got error for root list ID, error code %u", error_code);
+
+    return false;
 }
 
 bool ViewFileBrowser::View::point_to_child_directory()
@@ -318,10 +336,12 @@ bool ViewFileBrowser::View::point_to_child_directory()
         return false;
 
     guint list_id;
+    guchar error_code;
 
     if(!tdbus_lists_navigation_call_get_list_id_sync(file_list_.get_dbus_proxy(),
                                                      current_list_id_.get_raw_id(),
                                                      navigation_.get_cursor(),
+                                                     &error_code,
                                                      &list_id, NULL, NULL))
     {
         msg_info("Failed obtaining ID for item %u in list %u",
@@ -332,8 +352,9 @@ bool ViewFileBrowser::View::point_to_child_directory()
     if(list_id == 0)
     {
         msg_error(EINVAL, LOG_NOTICE,
-                  "Error obtaining ID for item %u in list %u",
-                 navigation_.get_cursor(), current_list_id_.get_raw_id());
+                  "Error obtaining ID for item %u in list %u, error code %u",
+                  navigation_.get_cursor(), current_list_id_.get_raw_id(),
+                  error_code);
         return false;
     }
 
