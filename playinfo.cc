@@ -56,7 +56,7 @@ void PlayInfo::MetaData::add(const char *key, const char *value,
         { "nominal-bitrate", BITRATE_NOM, },
     };
 
-    for(auto entry : key_to_id)
+    for(const auto &entry : key_to_id)
     {
         if(strcmp(key, entry.key) == 0)
         {
