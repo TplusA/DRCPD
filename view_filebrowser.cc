@@ -24,31 +24,9 @@
 
 #include "view_filebrowser.hh"
 #include "dbus_iface_deep.h"
+#include "view_filebrowser_utils.hh"
 #include "xmlescape.hh"
 #include "messages.h"
-
-class FileItem: public List::TextItem
-{
-  private:
-    bool is_directory_;
-
-  public:
-    FileItem(const FileItem &) = delete;
-    FileItem &operator=(const FileItem &) = delete;
-    explicit FileItem(FileItem &&) = default;
-
-    explicit FileItem(const char *text, unsigned int flags,
-                      bool item_is_directory):
-        List::Item(flags),
-        List::TextItem(text, true, flags),
-        is_directory_(item_is_directory)
-    {}
-
-    bool is_directory() const
-    {
-        return is_directory_;
-    }
-};
 
 List::Item *ViewFileBrowser::construct_file_item(const char *name,
                                                  bool is_directory)
@@ -293,72 +271,22 @@ bool ViewFileBrowser::View::update(DcpTransaction &dcpd, std::ostream *debug_os)
     return serialize(dcpd, debug_os);
 }
 
-bool ViewFileBrowser::View::enter_list_at(ID::List list_id, unsigned int line)
-{
-    if(!file_list_.enter_list(list_id, line))
-        return false;
-
-    current_list_id_ = list_id;
-    item_flags_.list_content_changed();
-    navigation_.set_cursor_by_line_number(line);
-
-    return true;
-}
-
 bool ViewFileBrowser::View::point_to_root_directory()
 {
-    guint list_id;
-    guchar error_code;
-
-    if(!tdbus_lists_navigation_call_get_list_id_sync(file_list_.get_dbus_proxy(),
-                                                     0, 0, &error_code,
-                                                     &list_id, NULL, NULL))
-    {
-        /* this is not a hard error, it may only mean that the list broker
-         * hasn't started up yet */
-        msg_info("Failed obtaining ID for root list");
-        current_list_id_ = ID::List();
-        return false;
-    }
-
-    if(error_code == 0)
-        return enter_list_at(ID::List(list_id), 0);
-
-    msg_error(0, LOG_NOTICE,
-              "Got error for root list ID, error code %u", error_code);
-
-    return false;
+    return go_to_root_directory(file_list_, current_list_id_,
+                                item_flags_, navigation_);
 }
 
 bool ViewFileBrowser::View::point_to_child_directory()
 {
-    if(file_list_.empty())
+    ID::List list_id =
+        get_child_item_id(file_list_, current_list_id_, navigation_);
+
+    if(!list_id.is_valid())
         return false;
 
-    guint list_id;
-    guchar error_code;
-
-    if(!tdbus_lists_navigation_call_get_list_id_sync(file_list_.get_dbus_proxy(),
-                                                     current_list_id_.get_raw_id(),
-                                                     navigation_.get_cursor(),
-                                                     &error_code,
-                                                     &list_id, NULL, NULL))
-    {
-        msg_info("Failed obtaining ID for item %u in list %u",
-                 navigation_.get_cursor(), current_list_id_.get_raw_id());
-        return false;
-    }
-
-    if(list_id == 0)
-    {
-        msg_error(EINVAL, LOG_NOTICE,
-                  "Error obtaining ID for item %u in list %u, error code %u",
-                  navigation_.get_cursor(), current_list_id_.get_raw_id(),
-                  error_code);
-        return false;
-    }
-
-    if(enter_list_at(ID::List(list_id), 0))
+    if(enter_list_at(file_list_, current_list_id_, item_flags_, navigation_,
+                     ID::List(list_id), 0))
         return true;
     else
         return point_to_root_directory();
@@ -366,29 +294,19 @@ bool ViewFileBrowser::View::point_to_child_directory()
 
 bool ViewFileBrowser::View::point_to_parent_link()
 {
-    guint list_id;
-    guint item_id;
+    unsigned int item_id;
+    ID::List list_id = get_parent_link_id(file_list_, current_list_id_, item_id);
 
-    if(!tdbus_lists_navigation_call_get_parent_link_sync(file_list_.get_dbus_proxy(),
-                                                         current_list_id_.get_raw_id(),
-                                                         &list_id, &item_id,
-                                                         NULL, NULL))
-    {
-        msg_info("Failed obtaining parent for list %u", current_list_id_.get_raw_id());
-        return point_to_root_directory();
-    }
-
-    if(list_id == 0)
+    if(!list_id.is_valid())
     {
         if(item_id == 1)
             return false;
-
-        msg_error(EINVAL, LOG_NOTICE,
-                  "Error obtaining parent for list %u", current_list_id_.get_raw_id());
-        return point_to_root_directory();
+        else
+            return point_to_root_directory();
     }
 
-    if(enter_list_at(ID::List(list_id), item_id))
+    if(enter_list_at(file_list_, current_list_id_, item_flags_, navigation_,
+                     ID::List(list_id), item_id))
         return true;
     else
         return point_to_root_directory();

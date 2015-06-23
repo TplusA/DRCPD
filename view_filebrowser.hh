@@ -82,14 +82,6 @@ class View: public ViewIface
 
   private:
     /*!
-     * Change cursor or enter new list.
-     *
-     * After moving the cursor, this function notifies the list filter and
-     * updates the navigation state.
-     */
-    bool enter_list_at(ID::List list_id, unsigned int line);
-
-    /*!
      * Load whole root directory into internal list.
      *
      * \returns
@@ -118,6 +110,29 @@ class View: public ViewIface
      * Generate XML document from current state.
      */
     bool write_xml(std::ostream &os, bool is_full_view) override;
+};
+
+class FileItem: public List::TextItem
+{
+  private:
+    bool is_directory_;
+
+  public:
+    FileItem(const FileItem &) = delete;
+    FileItem &operator=(const FileItem &) = delete;
+    explicit FileItem(FileItem &&) = default;
+
+    explicit FileItem(const char *text, unsigned int flags,
+                      bool item_is_directory):
+        List::Item(flags),
+        List::TextItem(text, true, flags),
+        is_directory_(item_is_directory)
+    {}
+
+    bool is_directory() const
+    {
+        return is_directory_;
+    }
 };
 
 };
