@@ -61,6 +61,11 @@ class RamList: public ListIface
 
     const Item *get_item(unsigned int line) const override;
 
+    ID::List get_list_id() const override
+    {
+        return ID::List();
+    }
+
     void clear();
     unsigned int append(Item *item);
     void replace(unsigned int line, Item *item);

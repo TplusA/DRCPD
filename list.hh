@@ -164,6 +164,7 @@ class ListIface
     virtual bool enter_list(ID::List list_id, unsigned int line) = 0;
 
     virtual const Item *get_item(unsigned int line) const = 0;
+    virtual ID::List get_list_id() const = 0;
 };
 
 };
