@@ -286,7 +286,7 @@ bool ViewFileBrowser::View::point_to_child_directory()
         return false;
 
     if(enter_list_at(file_list_, current_list_id_, item_flags_, navigation_,
-                     ID::List(list_id), 0))
+                     list_id, 0))
         return true;
     else
         return point_to_root_directory();
@@ -306,7 +306,7 @@ bool ViewFileBrowser::View::point_to_parent_link()
     }
 
     if(enter_list_at(file_list_, current_list_id_, item_flags_, navigation_,
-                     ID::List(list_id), item_id))
+                     list_id, item_id))
         return true;
     else
         return point_to_root_directory();
