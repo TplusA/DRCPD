@@ -51,6 +51,7 @@ class ViewManagerIface
     virtual void input_move_cursor_by_line(int lines) = 0;
     virtual void input_move_cursor_by_page(int pages) = 0;
     virtual ViewIface *get_view_by_name(const char *view_name) = 0;
+    virtual ViewIface *get_playback_initiator_view() const = 0;
     virtual void activate_view_by_name(const char *view_name) = 0;
     virtual void toggle_views_by_name(const char *view_name_a,
                                       const char *view_name_b) = 0;
@@ -90,6 +91,7 @@ class ViewManager: public ViewManagerIface
     void input_move_cursor_by_line(int lines) override;
     void input_move_cursor_by_page(int pages) override;
     ViewIface *get_view_by_name(const char *view_name) override;
+    ViewIface *get_playback_initiator_view() const override;
     void activate_view_by_name(const char *view_name) override;
     void toggle_views_by_name(const char *view_name_a,
                               const char *view_name_b) override;

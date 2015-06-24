@@ -20,6 +20,7 @@
 #define VIEW_HH
 
 #include <ostream>
+#include <chrono>
 
 #include "dcp_transaction.hh"
 #include "drcp_commands.hh"
@@ -185,6 +186,34 @@ class ViewIface
     {
         return do_serialize(dcpd, false);
     }
+
+    /*!
+     * Called when a stream has started playing.
+     */
+    virtual void notify_stream_start(uint32_t id, const std::string &url,
+                                     bool url_fifo_is_full)
+    {}
+
+    /*!
+     * Called when streamplayer has stopped playing.
+     */
+    virtual void notify_stream_stop() {}
+
+    /*!
+     * Called when the playing stream is paused.
+     */
+    virtual void notify_stream_pause() {}
+
+    /*!
+     * Called when a stream position has changed.
+     */
+    virtual void notify_stream_position_changed(const std::chrono::milliseconds &position,
+                                                const std::chrono::milliseconds &duration)
+    {}
+
+    virtual void meta_data_add_begin() {}
+    virtual void meta_data_add(const char *key, const char *value) {}
+    virtual void meta_data_add_end() {}
 
   private:
     bool do_serialize(DcpTransaction &dcpd, bool is_full_view)

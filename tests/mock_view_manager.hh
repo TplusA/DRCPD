@@ -45,6 +45,7 @@ class MockViewManager: public ViewManagerIface
     void expect_input_move_cursor_by_line(int lines);
     void expect_input_move_cursor_by_page(int pages);
     void expect_get_view_by_name(const char *view_name);
+    void expect_get_playback_initiator_view();
     void expect_activate_view_by_name(const char *view_name);
     void expect_toggle_views_by_name(const char *view_name_a,
                                      const char *view_name_b);
@@ -58,6 +59,7 @@ class MockViewManager: public ViewManagerIface
     void input_move_cursor_by_line(int lines) override;
     void input_move_cursor_by_page(int pages) override;
     ViewIface *get_view_by_name(const char *view_name) override;
+    ViewIface *get_playback_initiator_view() const override;
     void activate_view_by_name(const char *view_name) override;
     void toggle_views_by_name(const char *view_name_a,
                               const char *view_name_b) override;

@@ -33,32 +33,9 @@
 namespace ViewPlay
 {
 
-class Iface
-{
-  protected:
-    explicit Iface() {}
-
-  public:
-    Iface(const Iface &) = delete;
-    Iface &operator=(const Iface &) = delete;
-
-    virtual ~Iface() {}
-
-    virtual void notify_stream_start(uint32_t id, const std::string &url,
-                                     bool url_fifo_is_full) = 0;
-    virtual void notify_stream_stop() = 0;
-    virtual void notify_stream_pause() = 0;
-    virtual void notify_stream_position_changed(const std::chrono::milliseconds &position,
-                                                const std::chrono::milliseconds &duration) = 0;
-
-    virtual void meta_data_add_begin() = 0;
-    virtual void meta_data_add(const char *key, const char *value) = 0;
-    virtual void meta_data_add_end() = 0;
-};
-
 extern const PlayInfo::Reformatters meta_data_reformatters;
 
-class View: public ViewIface, public ViewPlay::Iface
+class View: public ViewIface
 {
   private:
     static constexpr uint16_t update_flags_need_full_update = 1U << 0;

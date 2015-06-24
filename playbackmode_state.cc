@@ -107,7 +107,7 @@ static SendStatus send_selected_file_uri_to_streamplayer(ID::List list_id,
     SendStatus ret;
 
     if(!tdbus_splay_urlfifo_call_push_sync(dbus_get_streamplayer_urlfifo_iface(),
-                                           1234U, selected_uri, 0, "ms", 0, "ms", 0,
+                                           1234U, selected_uri, 0, "ms", 0, "ms", -1,
                                            &fifo_overflow, NULL, NULL))
     {
         msg_error(EIO, LOG_NOTICE, "Failed queuing URI to streamplayer");
@@ -124,12 +124,6 @@ static SendStatus send_selected_file_uri_to_streamplayer(ID::List list_id,
                                                       NULL, NULL))
         {
             msg_error(EIO, LOG_NOTICE, "Failed sending start playback message");
-            ret = SendStatus::PLAYBACK_FAILURE;
-        }
-        else if(!tdbus_splay_urlfifo_call_next_sync(dbus_get_streamplayer_urlfifo_iface(),
-                                                    NULL, NULL))
-        {
-            msg_error(EIO, LOG_NOTICE, "Failed activating queued URI in streamplayer");
             ret = SendStatus::PLAYBACK_FAILURE;
         }
         else
@@ -345,6 +339,7 @@ void Playback::State::revert()
     if(mode_.get() != Mode::FINISHED)
         msg_error(0, LOG_NOTICE, "Stopped directory traversal due to failure.");
 
+    msg_info("Finished sending URIs from list to streamplayer");
     msg_info("Entered %u directories, played %u streams, failed playing %u streams",
              number_of_directories_entered_,
              number_of_streams_played_, number_of_streams_skipped_);

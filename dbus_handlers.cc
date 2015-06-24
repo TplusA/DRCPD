@@ -199,15 +199,15 @@ void dbussignal_splay_urlfifo(GDBusProxy *proxy, const gchar *sender_name,
     msg_info("%s signal from '%s': %s", iface_name, sender_name, signal_name);
 }
 
-static ViewPlay::Iface *get_play_view(ViewManagerIface *mgr)
+static ViewIface *get_play_view(ViewManagerIface *mgr)
 {
     ViewIface *view = mgr->get_view_by_name("Play");
     log_assert(view != nullptr);
 
-    return static_cast<ViewPlay::View *>(view);
+    return view;
 }
 
-static void process_meta_data(ViewPlay::Iface *playinfo, GVariant *parameters,
+static void process_meta_data(ViewIface *playinfo, GVariant *parameters,
                               guint expected_number_of_parameters,
                               guint meta_data_parameter_index)
 {
@@ -281,6 +281,10 @@ void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
         process_meta_data(playinfo, parameters, 4, 3);
         playinfo->notify_stream_start(0, "", false);
         mgr->activate_view_by_name("Play");
+
+        auto *view = mgr->get_playback_initiator_view();
+        if(view != nullptr && view != playinfo)
+            view->notify_stream_start(0, "", false);
     }
     else if(strcmp(signal_name, "MetaDataChanged") == 0)
     {
@@ -291,6 +295,10 @@ void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
     {
         auto *playinfo = get_play_view(mgr);
         playinfo->notify_stream_stop();
+
+        auto *view = mgr->get_playback_initiator_view();
+        if(view != nullptr && view != playinfo)
+            view->notify_stream_stop();
     }
     else if(strcmp(signal_name, "Paused") == 0)
     {

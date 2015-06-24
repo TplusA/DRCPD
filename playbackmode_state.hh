@@ -70,12 +70,12 @@ class State
 
     bool start(unsigned int start_line);
     void enqueue_next();
+    void revert();
 
   private:
     bool try_start();
     bool try_descend();
     bool find_next(const List::TextItem *directory);
-    void revert();
 };
 
 };

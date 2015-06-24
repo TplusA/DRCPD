@@ -195,6 +195,18 @@ bool ViewFileBrowser::View::update(DcpTransaction &dcpd, std::ostream *debug_os)
     return serialize(dcpd, debug_os);
 }
 
+void ViewFileBrowser::View::notify_stream_start(uint32_t id,
+                                                const std::string &url,
+                                                bool url_fifo_is_full)
+{
+    playback_current_state_.enqueue_next();
+}
+
+void ViewFileBrowser::View::notify_stream_stop()
+{
+    playback_current_state_.revert();
+}
+
 static bool go_to_root_directory(List::DBusList &file_list,
                                  ID::List &current_list_id,
                                  List::NavItemNoFilter &item_flags,
