@@ -20,10 +20,7 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-#include <cstring>
-
 #include "view_filebrowser.hh"
-#include "dbus_iface_deep.h"
 #include "view_filebrowser_utils.hh"
 #include "xmlescape.hh"
 #include "messages.h"
@@ -50,101 +47,12 @@ void ViewFileBrowser::View::defocus()
 {
 }
 
-static void free_array_of_strings(gchar **const strings)
-{
-    if(strings == NULL)
-        return;
-
-    for(gchar **ptr = strings; *ptr != NULL; ++ptr)
-        g_free(*ptr);
-
-    g_free(strings);
-}
-
-static void send_selected_file_uri_to_streamplayer(ID::List list_id,
-                                                   unsigned int item_id,
-                                                   tdbuslistsNavigation *proxy)
-{
-    gchar **uri_list;
-    guchar error_code;
-
-    if(!tdbus_lists_navigation_call_get_uris_sync(proxy,
-                                                  list_id.get_raw_id(), item_id,
-                                                  &error_code,
-                                                  &uri_list, NULL, NULL))
-    {
-        msg_info("Failed obtaining URI for item %u in list %u", item_id, list_id.get_raw_id());
-        return;
-    }
-
-    if(error_code != 0)
-    {
-        msg_error(0, LOG_NOTICE,
-                  "Got error code %u instead of URI for item %u in list %u",
-                  error_code, item_id, list_id.get_raw_id());
-        free_array_of_strings(uri_list);
-        return;
-    }
-
-    if(uri_list == NULL || uri_list[0] == NULL)
-    {
-        msg_info("No URI for item %u in list %u", item_id, list_id.get_raw_id());
-        free_array_of_strings(uri_list);
-        return;
-    }
-
-    for(gchar **ptr = uri_list; *ptr != NULL; ++ptr)
-        msg_info("URI: \"%s\"", *ptr);
-
-    gchar *selected_uri = NULL;
-
-    for(gchar **ptr = uri_list; *ptr != NULL; ++ptr)
-    {
-        const size_t len = strlen(*ptr);
-
-        if(len < 4)
-            continue;
-
-        const gchar *const suffix = &(*ptr)[len - 4];
-
-        if(strncasecmp(".m3u", suffix, 4) == 0 ||
-           strncasecmp(".pls", suffix, 4) == 0)
-            continue;
-
-        if(selected_uri == NULL)
-            selected_uri = *ptr;
-    }
-
-    msg_info("Queuing URI: \"%s\"", selected_uri);
-
-    gboolean fifo_overflow;
-
-    if(!tdbus_splay_urlfifo_call_push_sync(dbus_get_streamplayer_urlfifo_iface(),
-                                           1234U, selected_uri, 0, "ms", 0, "ms", 0,
-                                           &fifo_overflow, NULL, NULL))
-        msg_error(EIO, LOG_NOTICE, "Failed queuing URI to streamplayer");
-    else
-    {
-        if(fifo_overflow)
-            msg_error(EAGAIN, LOG_INFO, "URL FIFO overflow");
-        else if(!tdbus_splay_playback_call_start_sync(dbus_get_streamplayer_playback_iface(),
-                                                      NULL, NULL))
-            msg_error(EIO, LOG_NOTICE, "Failed sending start playback message");
-        else if(!tdbus_splay_urlfifo_call_next_sync(dbus_get_streamplayer_urlfifo_iface(),
-                                                    NULL, NULL))
-            msg_error(EIO, LOG_NOTICE, "Failed activating queued URI in streamplayer");
-    }
-
-    free_array_of_strings(uri_list);
-}
-
 ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command)
 {
     switch(command)
     {
       case DrcpCommand::SELECT_ITEM:
       case DrcpCommand::KEY_OK_ENTER:
-      case DrcpCommand::PLAYBACK_START:
         if(file_list_.empty())
             return InputResult::OK;
 
@@ -156,10 +64,26 @@ ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command)
                     return InputResult::UPDATE_NEEDED;
             }
             else
-                send_selected_file_uri_to_streamplayer(current_list_id_,
-                                                       navigation_.get_cursor(),
-                                                       file_list_.get_dbus_proxy());
+                command = DrcpCommand::PLAYBACK_START;
         }
+
+        if(command != DrcpCommand::PLAYBACK_START)
+            return InputResult::OK;
+
+        /* fall-through: command was changed to #DrcpCommand::PLAYBACK_START
+         *               because the item below the cursor was not a
+         *               directory */
+
+      case DrcpCommand::PLAYBACK_START:
+        if(file_list_.empty())
+            return InputResult::OK;
+
+        playback_current_mode_.activate_selected_mode();
+
+        if(playback_current_state_.start(navigation_.get_line_number_by_cursor()))
+            playback_current_state_.enqueue_next();
+        else
+            playback_current_mode_.deactivate();
 
         return InputResult::OK;
 
@@ -269,6 +193,35 @@ bool ViewFileBrowser::View::serialize(DcpTransaction &dcpd, std::ostream *debug_
 bool ViewFileBrowser::View::update(DcpTransaction &dcpd, std::ostream *debug_os)
 {
     return serialize(dcpd, debug_os);
+}
+
+static bool go_to_root_directory(List::DBusList &file_list,
+                                 ID::List &current_list_id,
+                                 List::NavItemNoFilter &item_flags,
+                                 List::Nav &navigation)
+{
+    guint list_id;
+    guchar error_code;
+
+    if(!tdbus_lists_navigation_call_get_list_id_sync(file_list.get_dbus_proxy(),
+                                                     0, 0, &error_code,
+                                                     &list_id, NULL, NULL))
+    {
+        /* this is not a hard error, it may only mean that the list broker
+         * hasn't started up yet */
+        msg_info("Failed obtaining ID for root list");
+        current_list_id = ID::List();
+        return false;
+    }
+
+    if(error_code == 0)
+        return ViewFileBrowser::enter_list_at(file_list, current_list_id, item_flags,
+                                              navigation, ID::List(list_id), 0);
+
+    msg_error(0, LOG_NOTICE,
+              "Got error for root list ID, error code %u", error_code);
+
+    return false;
 }
 
 bool ViewFileBrowser::View::point_to_root_directory()

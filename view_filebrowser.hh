@@ -20,8 +20,8 @@
 #define VIEW_FILEBROWSER_HH
 
 #include "view.hh"
+#include "playbackmode_state.hh"
 #include "dbuslist.hh"
-#include "listnav.hh"
 #include "dbus_iface.h"
 #include "dbus_iface_deep.h"
 #include "idtypes.hh"
@@ -52,6 +52,9 @@ class View: public ViewIface
 
     const uint8_t drcp_browse_id_;
 
+    Playback::CurrentMode playback_current_mode_;
+    Playback::State playback_current_state_;
+
   public:
     View(const View &) = delete;
 
@@ -60,6 +63,7 @@ class View: public ViewIface
     explicit View(const char *name, const char *on_screen_name,
                   uint8_t drcp_browse_id, unsigned int max_lines,
                   dbus_listbroker_id_t listbroker_id,
+                  Playback::Mode default_playback_mode,
                   ViewSignalsIface *view_signals):
         ViewIface(name, on_screen_name, "browse", 102U, true, view_signals),
         current_list_id_(0),
@@ -67,7 +71,9 @@ class View: public ViewIface
                    construct_file_item),
         item_flags_(&file_list_),
         navigation_(max_lines, item_flags_),
-        drcp_browse_id_(drcp_browse_id)
+        drcp_browse_id_(drcp_browse_id),
+        playback_current_mode_(default_playback_mode),
+        playback_current_state_(&file_list_, playback_current_mode_)
     {}
 
     bool init() override;

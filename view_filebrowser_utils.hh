@@ -51,38 +51,10 @@ static bool enter_list_at(List::DBusList &file_list, ID::List &current_list_id,
     return true;
 }
 
-static bool go_to_root_directory(List::DBusList &file_list,
-                                 ID::List &current_list_id,
-                                 List::NavItemNoFilter &item_flags,
-                                 List::Nav &navigation)
-{
-    guint list_id;
-    guchar error_code;
-
-    if(!tdbus_lists_navigation_call_get_list_id_sync(file_list.get_dbus_proxy(),
-                                                     0, 0, &error_code,
-                                                     &list_id, NULL, NULL))
-    {
-        /* this is not a hard error, it may only mean that the list broker
-         * hasn't started up yet */
-        msg_info("Failed obtaining ID for root list");
-        current_list_id = ID::List();
-        return false;
-    }
-
-    if(error_code == 0)
-        return enter_list_at(file_list, current_list_id, item_flags,
-                             navigation, ID::List(list_id), 0);
-
-    msg_error(0, LOG_NOTICE,
-              "Got error for root list ID, error code %u", error_code);
-
-    return false;
-}
-
 static ID::List get_child_item_id(const List::DBusList &file_list,
                                   ID::List current_list_id,
-                                  List::Nav &navigation)
+                                  List::Nav &navigation,
+                                  bool suppress_error_if_file = false)
 {
     if(file_list.empty())
         return ID::List();
@@ -101,7 +73,7 @@ static ID::List get_child_item_id(const List::DBusList &file_list,
         return ID::List();
     }
 
-    if(list_id == 0)
+    if(list_id == 0 && !suppress_error_if_file)
     {
         msg_error(EINVAL, LOG_NOTICE,
                   "Error obtaining ID for item %u in list %u, error code %u",
