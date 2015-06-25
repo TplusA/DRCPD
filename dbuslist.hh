@@ -106,6 +106,7 @@ class DBusList: public ListIface
     bool enter_list(ID::List list_id, unsigned int line) override;
 
     const Item *get_item(unsigned int line) const override;
+    virtual ID::List get_list_id() const override { return window_.list_id_; }
 
     tdbuslistsNavigation *get_dbus_proxy() const { return dbus_proxy_; }
 

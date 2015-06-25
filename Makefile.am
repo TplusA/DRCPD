@@ -16,9 +16,10 @@ drcpd_SOURCES = \
     dbus_iface.c dbus_iface.h dbus_iface_deep.h \
     list.hh ramlist.hh dbuslist.hh listnav.hh \
     view.hh view_nop.hh view_manager.hh xmlescape.hh \
-    view_config.hh view_filebrowser.hh view_play.hh \
+    view_config.hh view_filebrowser.hh view_filebrowser_utils.hh view_play.hh \
     view_signals_glib.cc view_signals.hh view_signals_glib.hh \
     playinfo.hh idtypes.hh \
+    playbackmode.hh playbackmode_state.hh \
     dbus_interfaces/de_tahifi_lists_errors.hh \
     dbus_interfaces/de_tahifi_lists_errors.h
 
@@ -42,10 +43,11 @@ liblist_la_CXXFLAGS = $(AM_CXXFLAGS)
 
 libviews_la_SOURCES = \
     view.hh view_nop.hh view_config.hh view_config.cc \
-    view_filebrowser.hh view_filebrowser.cc \
+    view_filebrowser.hh view_filebrowser_utils.hh view_filebrowser.cc \
     view_play.hh view_play.cc playinfo.hh playinfo.cc \
     view_manager.hh view_manager.cc \
-    view_signals.hh idtypes.hh
+    view_signals.hh idtypes.hh \
+    playbackmode.hh playbackmode_state.hh playbackmode_state.cc
 libviews_la_CFLAGS = $(AM_CFLAGS)
 libviews_la_CXXFLAGS = $(AM_CXXFLAGS)
 

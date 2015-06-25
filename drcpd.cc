@@ -356,13 +356,19 @@ static void testing(ViewManager &views, ViewSignalsIface *view_signals)
     static ViewConfig::View cfg(N_("Configuration"), number_of_lines_on_display, view_signals);
     static ViewFileBrowser::View fs("Filesystem", N_("Local file system"), 1,
                                     number_of_lines_on_display,
-                                    DBUS_LISTBROKER_ID_FILESYSTEM, view_signals);
+                                    DBUS_LISTBROKER_ID_FILESYSTEM,
+                                    Playback::Mode::LINEAR,
+                                    view_signals);
     static ViewFileBrowser::View tunein("TuneIn", N_("TuneIn internet radio"), 3,
                                         number_of_lines_on_display,
-                                        DBUS_LISTBROKER_ID_TUNEIN, view_signals);
+                                        DBUS_LISTBROKER_ID_TUNEIN,
+                                        Playback::Mode::LINEAR,
+                                        view_signals);
     static ViewFileBrowser::View upnp("UPnP", N_("UPnP media servers"), 4,
                                       number_of_lines_on_display,
-                                      DBUS_LISTBROKER_ID_UPNP, view_signals);
+                                      DBUS_LISTBROKER_ID_UPNP,
+                                      Playback::Mode::LINEAR,
+                                      view_signals);
     static ViewPlay::View play(N_("Stream information"), number_of_lines_on_display, view_signals);
 
     if(!cfg.init())

@@ -20,35 +20,10 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-#include <cstring>
-
 #include "view_filebrowser.hh"
-#include "dbus_iface_deep.h"
+#include "view_filebrowser_utils.hh"
 #include "xmlescape.hh"
 #include "messages.h"
-
-class FileItem: public List::TextItem
-{
-  private:
-    bool is_directory_;
-
-  public:
-    FileItem(const FileItem &) = delete;
-    FileItem &operator=(const FileItem &) = delete;
-    explicit FileItem(FileItem &&) = default;
-
-    explicit FileItem(const char *text, unsigned int flags,
-                      bool item_is_directory):
-        List::Item(flags),
-        List::TextItem(text, true, flags),
-        is_directory_(item_is_directory)
-    {}
-
-    bool is_directory() const
-    {
-        return is_directory_;
-    }
-};
 
 List::Item *ViewFileBrowser::construct_file_item(const char *name,
                                                  bool is_directory)
@@ -72,101 +47,12 @@ void ViewFileBrowser::View::defocus()
 {
 }
 
-static void free_array_of_strings(gchar **const strings)
-{
-    if(strings == NULL)
-        return;
-
-    for(gchar **ptr = strings; *ptr != NULL; ++ptr)
-        g_free(*ptr);
-
-    g_free(strings);
-}
-
-static void send_selected_file_uri_to_streamplayer(ID::List list_id,
-                                                   unsigned int item_id,
-                                                   tdbuslistsNavigation *proxy)
-{
-    gchar **uri_list;
-    guchar error_code;
-
-    if(!tdbus_lists_navigation_call_get_uris_sync(proxy,
-                                                  list_id.get_raw_id(), item_id,
-                                                  &error_code,
-                                                  &uri_list, NULL, NULL))
-    {
-        msg_info("Failed obtaining URI for item %u in list %u", item_id, list_id.get_raw_id());
-        return;
-    }
-
-    if(error_code != 0)
-    {
-        msg_error(0, LOG_NOTICE,
-                  "Got error code %u instead of URI for item %u in list %u",
-                  error_code, item_id, list_id.get_raw_id());
-        free_array_of_strings(uri_list);
-        return;
-    }
-
-    if(uri_list == NULL || uri_list[0] == NULL)
-    {
-        msg_info("No URI for item %u in list %u", item_id, list_id.get_raw_id());
-        free_array_of_strings(uri_list);
-        return;
-    }
-
-    for(gchar **ptr = uri_list; *ptr != NULL; ++ptr)
-        msg_info("URI: \"%s\"", *ptr);
-
-    gchar *selected_uri = NULL;
-
-    for(gchar **ptr = uri_list; *ptr != NULL; ++ptr)
-    {
-        const size_t len = strlen(*ptr);
-
-        if(len < 4)
-            continue;
-
-        const gchar *const suffix = &(*ptr)[len - 4];
-
-        if(strncasecmp(".m3u", suffix, 4) == 0 ||
-           strncasecmp(".pls", suffix, 4) == 0)
-            continue;
-
-        if(selected_uri == NULL)
-            selected_uri = *ptr;
-    }
-
-    msg_info("Queuing URI: \"%s\"", selected_uri);
-
-    gboolean fifo_overflow;
-
-    if(!tdbus_splay_urlfifo_call_push_sync(dbus_get_streamplayer_urlfifo_iface(),
-                                           1234U, selected_uri, 0, "ms", 0, "ms", 0,
-                                           &fifo_overflow, NULL, NULL))
-        msg_error(EIO, LOG_NOTICE, "Failed queuing URI to streamplayer");
-    else
-    {
-        if(fifo_overflow)
-            msg_error(EAGAIN, LOG_INFO, "URL FIFO overflow");
-        else if(!tdbus_splay_playback_call_start_sync(dbus_get_streamplayer_playback_iface(),
-                                                      NULL, NULL))
-            msg_error(EIO, LOG_NOTICE, "Failed sending start playback message");
-        else if(!tdbus_splay_urlfifo_call_next_sync(dbus_get_streamplayer_urlfifo_iface(),
-                                                    NULL, NULL))
-            msg_error(EIO, LOG_NOTICE, "Failed activating queued URI in streamplayer");
-    }
-
-    free_array_of_strings(uri_list);
-}
-
 ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command)
 {
     switch(command)
     {
       case DrcpCommand::SELECT_ITEM:
       case DrcpCommand::KEY_OK_ENTER:
-      case DrcpCommand::PLAYBACK_START:
         if(file_list_.empty())
             return InputResult::OK;
 
@@ -178,10 +64,26 @@ ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command)
                     return InputResult::UPDATE_NEEDED;
             }
             else
-                send_selected_file_uri_to_streamplayer(current_list_id_,
-                                                       navigation_.get_cursor(),
-                                                       file_list_.get_dbus_proxy());
+                command = DrcpCommand::PLAYBACK_START;
         }
+
+        if(command != DrcpCommand::PLAYBACK_START)
+            return InputResult::OK;
+
+        /* fall-through: command was changed to #DrcpCommand::PLAYBACK_START
+         *               because the item below the cursor was not a
+         *               directory */
+
+      case DrcpCommand::PLAYBACK_START:
+        if(file_list_.empty())
+            return InputResult::OK;
+
+        playback_current_mode_.activate_selected_mode();
+
+        if(playback_current_state_.start(navigation_.get_line_number_by_cursor()))
+            playback_current_state_.enqueue_next();
+        else
+            playback_current_mode_.deactivate();
 
         return InputResult::OK;
 
@@ -293,38 +195,43 @@ bool ViewFileBrowser::View::update(DcpTransaction &dcpd, std::ostream *debug_os)
     return serialize(dcpd, debug_os);
 }
 
-bool ViewFileBrowser::View::enter_list_at(ID::List list_id, unsigned int line)
+void ViewFileBrowser::View::notify_stream_start(uint32_t id,
+                                                const std::string &url,
+                                                bool url_fifo_is_full)
 {
-    if(!file_list_.enter_list(list_id, line))
-        return false;
-
-    current_list_id_ = list_id;
-    item_flags_.list_content_changed();
-    navigation_.set_cursor_by_line_number(line);
-
-    return true;
+    playback_current_state_.enqueue_next();
 }
 
-bool ViewFileBrowser::View::point_to_root_directory()
+void ViewFileBrowser::View::notify_stream_stop()
+{
+    playback_current_state_.revert();
+}
+
+static bool go_to_root_directory(List::DBusList &file_list,
+                                 ID::List &current_list_id,
+                                 List::NavItemNoFilter &item_flags,
+                                 List::Nav &navigation)
 {
     guint list_id;
     guchar error_code;
 
-    if(!tdbus_lists_navigation_call_get_list_id_sync(file_list_.get_dbus_proxy(),
+    if(!tdbus_lists_navigation_call_get_list_id_sync(file_list.get_dbus_proxy(),
                                                      0, 0, &error_code,
                                                      &list_id, NULL, NULL))
     {
         /* this is not a hard error, it may only mean that the list broker
          * hasn't started up yet */
         msg_info("Failed obtaining ID for root list");
-        current_list_id_ = ID::List();
+        current_list_id = ID::List();
         return false;
     }
 
     if(error_code == 0)
     {
         if(list_id > 0)
-            return enter_list_at(ID::List(list_id), 0);
+            return ViewFileBrowser::enter_list_at(file_list, current_list_id,
+                                                  item_flags,
+                                                  navigation, ID::List(list_id), 0);
 
         BUG("Got invalid list ID for root list, but no error code");
     }
@@ -335,35 +242,22 @@ bool ViewFileBrowser::View::point_to_root_directory()
     return false;
 }
 
+bool ViewFileBrowser::View::point_to_root_directory()
+{
+    return go_to_root_directory(file_list_, current_list_id_,
+                                item_flags_, navigation_);
+}
+
 bool ViewFileBrowser::View::point_to_child_directory()
 {
-    if(file_list_.empty())
+    ID::List list_id =
+        get_child_item_id(file_list_, current_list_id_, navigation_);
+
+    if(!list_id.is_valid())
         return false;
 
-    guint list_id;
-    guchar error_code;
-
-    if(!tdbus_lists_navigation_call_get_list_id_sync(file_list_.get_dbus_proxy(),
-                                                     current_list_id_.get_raw_id(),
-                                                     navigation_.get_cursor(),
-                                                     &error_code,
-                                                     &list_id, NULL, NULL))
-    {
-        msg_info("Failed obtaining ID for item %u in list %u",
-                 navigation_.get_cursor(), current_list_id_.get_raw_id());
-        return false;
-    }
-
-    if(list_id == 0)
-    {
-        msg_error(EINVAL, LOG_NOTICE,
-                  "Error obtaining ID for item %u in list %u, error code %u",
-                  navigation_.get_cursor(), current_list_id_.get_raw_id(),
-                  error_code);
-        return false;
-    }
-
-    if(enter_list_at(ID::List(list_id), 0))
+    if(enter_list_at(file_list_, current_list_id_, item_flags_, navigation_,
+                     list_id, 0))
         return true;
     else
         return point_to_root_directory();
@@ -371,29 +265,19 @@ bool ViewFileBrowser::View::point_to_child_directory()
 
 bool ViewFileBrowser::View::point_to_parent_link()
 {
-    guint list_id;
-    guint item_id;
+    unsigned int item_id;
+    ID::List list_id = get_parent_link_id(file_list_, current_list_id_, item_id);
 
-    if(!tdbus_lists_navigation_call_get_parent_link_sync(file_list_.get_dbus_proxy(),
-                                                         current_list_id_.get_raw_id(),
-                                                         &list_id, &item_id,
-                                                         NULL, NULL))
-    {
-        msg_info("Failed obtaining parent for list %u", current_list_id_.get_raw_id());
-        return point_to_root_directory();
-    }
-
-    if(list_id == 0)
+    if(!list_id.is_valid())
     {
         if(item_id == 1)
             return false;
-
-        msg_error(EINVAL, LOG_NOTICE,
-                  "Error obtaining parent for list %u", current_list_id_.get_raw_id());
-        return point_to_root_directory();
+        else
+            return point_to_root_directory();
     }
 
-    if(enter_list_at(ID::List(list_id), item_id))
+    if(enter_list_at(file_list_, current_list_id_, item_flags_, navigation_,
+                     list_id, item_id))
         return true;
     else
         return point_to_root_directory();

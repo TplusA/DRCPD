@@ -20,8 +20,8 @@
 #define VIEW_FILEBROWSER_HH
 
 #include "view.hh"
+#include "playbackmode_state.hh"
 #include "dbuslist.hh"
-#include "listnav.hh"
 #include "dbus_iface.h"
 #include "dbus_iface_deep.h"
 #include "idtypes.hh"
@@ -52,6 +52,9 @@ class View: public ViewIface
 
     const uint8_t drcp_browse_id_;
 
+    Playback::CurrentMode playback_current_mode_;
+    Playback::State playback_current_state_;
+
   public:
     View(const View &) = delete;
 
@@ -60,6 +63,7 @@ class View: public ViewIface
     explicit View(const char *name, const char *on_screen_name,
                   uint8_t drcp_browse_id, unsigned int max_lines,
                   dbus_listbroker_id_t listbroker_id,
+                  Playback::Mode default_playback_mode,
                   ViewSignalsIface *view_signals):
         ViewIface(name, on_screen_name, "browse", 102U, true, view_signals),
         current_list_id_(0),
@@ -67,7 +71,9 @@ class View: public ViewIface
                    construct_file_item),
         item_flags_(&file_list_),
         navigation_(max_lines, item_flags_),
-        drcp_browse_id_(drcp_browse_id)
+        drcp_browse_id_(drcp_browse_id),
+        playback_current_mode_(default_playback_mode),
+        playback_current_state_(&file_list_, playback_current_mode_)
     {}
 
     bool init() override;
@@ -80,15 +86,11 @@ class View: public ViewIface
     bool serialize(DcpTransaction &dcpd, std::ostream *debug_os) override;
     bool update(DcpTransaction &dcpd, std::ostream *debug_os) override;
 
-  private:
-    /*!
-     * Change cursor or enter new list.
-     *
-     * After moving the cursor, this function notifies the list filter and
-     * updates the navigation state.
-     */
-    bool enter_list_at(ID::List list_id, unsigned int line);
+    void notify_stream_start(uint32_t id, const std::string &url,
+                             bool url_fifo_is_full) override;
+    void notify_stream_stop() override;
 
+  private:
     /*!
      * Load whole root directory into internal list.
      *
@@ -118,6 +120,29 @@ class View: public ViewIface
      * Generate XML document from current state.
      */
     bool write_xml(std::ostream &os, bool is_full_view) override;
+};
+
+class FileItem: public List::TextItem
+{
+  private:
+    bool is_directory_;
+
+  public:
+    FileItem(const FileItem &) = delete;
+    FileItem &operator=(const FileItem &) = delete;
+    explicit FileItem(FileItem &&) = default;
+
+    explicit FileItem(const char *text, unsigned int flags,
+                      bool item_is_directory):
+        List::Item(flags),
+        List::TextItem(text, true, flags),
+        is_directory_(item_is_directory)
+    {}
+
+    bool is_directory() const
+    {
+        return is_directory_;
+    }
 };
 
 };
