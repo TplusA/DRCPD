@@ -322,10 +322,15 @@ bool ViewFileBrowser::View::point_to_root_directory()
     }
 
     if(error_code == 0)
-        return enter_list_at(ID::List(list_id), 0);
+    {
+        if(list_id > 0)
+            return enter_list_at(ID::List(list_id), 0);
 
-    msg_error(0, LOG_NOTICE,
-              "Got error for root list ID, error code %u", error_code);
+        BUG("Got invalid list ID for root list, but no error code");
+    }
+    else
+        msg_error(0, LOG_NOTICE,
+                  "Got error for root list ID, error code %u", error_code);
 
     return false;
 }
