@@ -101,6 +101,8 @@ class DBusList: public ListIface
         number_of_items_(0)
     {}
 
+    void clone_state(const DBusList &src);
+
     unsigned int get_number_of_items() const override;
     bool empty() const override;
     bool enter_list(ID::List list_id, unsigned int line) override;

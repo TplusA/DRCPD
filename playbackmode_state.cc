@@ -142,13 +142,13 @@ bool Playback::State::try_start()
 
     navigation_.set_cursor_by_line_number(start_list_line_);
 
-    auto item = dynamic_cast<const ViewFileBrowser::FileItem *>(dbus_list_object_->get_item(navigation_.get_cursor()));
+    auto item = dynamic_cast<const ViewFileBrowser::FileItem *>(dbus_list_.get_item(navigation_.get_cursor()));
     if(item == nullptr)
         return false;
 
     if(item->is_directory())
     {
-        if(!ViewFileBrowser::enter_list_at(*dbus_list_object_, current_list_id_,
+        if(!ViewFileBrowser::enter_list_at(dbus_list_, current_list_id_,
                                            item_flags_, navigation_,
                                            start_list_id_, start_list_line_))
             return false;
@@ -172,18 +172,21 @@ bool Playback::State::try_start()
     return true;
 }
 
-bool Playback::State::start(unsigned int start_line)
+bool Playback::State::start(const List::DBusList &user_list,
+                            unsigned int start_line)
 {
     if(mode_.get() == Playback::Mode::NONE)
         return false;
 
-    user_list_id_ = dbus_list_object_->get_list_id();
+    user_list_id_ = user_list.get_list_id();
     user_list_line_ = start_line;
 
     directory_depth_ = 1;
     number_of_streams_played_ = 0;
     number_of_streams_skipped_ = 0;
     number_of_directories_entered_ = 0;
+
+    dbus_list_.clone_state(user_list);
 
     if(try_start())
         return true;
@@ -200,7 +203,7 @@ void Playback::State::enqueue_next()
 
     while(true)
     {
-        auto item = dynamic_cast<const ViewFileBrowser::FileItem *>(dbus_list_object_->get_item(navigation_.get_cursor()));
+        auto item = dynamic_cast<const ViewFileBrowser::FileItem *>(dbus_list_.get_item(navigation_.get_cursor()));
 
         if(!item)
         {
@@ -218,7 +221,7 @@ void Playback::State::enqueue_next()
 
             switch(send_selected_file_uri_to_streamplayer(current_list_id_,
                                                           navigation_.get_cursor(),
-                                                          dbus_list_object_->get_dbus_proxy()))
+                                                          dbus_list_.get_dbus_proxy()))
             {
               case SendStatus::OK:
                 /* stream URI is in FIFO now */
@@ -264,11 +267,11 @@ bool Playback::State::try_descend()
     }
 
     ID::List list_id =
-        ViewFileBrowser::get_child_item_id(*dbus_list_object_,
+        ViewFileBrowser::get_child_item_id(dbus_list_,
                                            current_list_id_, navigation_, true);
 
     if(list_id.is_valid() &&
-       ViewFileBrowser::enter_list_at(*dbus_list_object_, current_list_id_,
+       ViewFileBrowser::enter_list_at(dbus_list_, current_list_id_,
                                       item_flags_, navigation_, list_id, 0))
     {
         ++number_of_directories_entered_;
@@ -325,7 +328,7 @@ bool Playback::State::find_next(const List::TextItem *directory)
         /* end of directory reached, go up again */
         unsigned int item_id;
         const ID::List list_id =
-            ViewFileBrowser::get_parent_link_id(*dbus_list_object_,
+            ViewFileBrowser::get_parent_link_id(dbus_list_,
                                                 current_list_id_, item_id);
 
         if(!list_id.is_valid())
@@ -334,7 +337,7 @@ bool Playback::State::find_next(const List::TextItem *directory)
             break;
         }
 
-        if(!ViewFileBrowser::enter_list_at(*dbus_list_object_, current_list_id_,
+        if(!ViewFileBrowser::enter_list_at(dbus_list_, current_list_id_,
                                            item_flags_, navigation_,
                                            list_id, item_id))
         {
@@ -359,7 +362,7 @@ void Playback::State::revert()
              number_of_directories_entered_,
              number_of_streams_played_, number_of_streams_skipped_);
 
-    dbus_list_object_->enter_list(user_list_id_, user_list_line_);
+    dbus_list_.enter_list(user_list_id_, user_list_line_);
 
     user_list_id_ = ID::List();
     start_list_id_ = ID::List();

@@ -44,9 +44,16 @@ List::Item *construct_file_item(const char *name, bool is_directory);
 class View: public ViewIface
 {
   private:
+    static constexpr unsigned int assumed_streamplayer_fifo_size = 4;
+
     ID::List current_list_id_;
 
+    /* list for the user */
     List::DBusList file_list_;
+
+    /* list for the automatic directory traversal */
+    List::DBusList traversal_list_;
+
     List::NavItemNoFilter item_flags_;
     List::Nav navigation_;
 
@@ -67,13 +74,17 @@ class View: public ViewIface
                   ViewSignalsIface *view_signals):
         ViewIface(name, on_screen_name, "browse", 102U, true, view_signals),
         current_list_id_(0),
-        file_list_(dbus_get_lists_navigation_iface(listbroker_id), max_lines,
+        file_list_(dbus_get_lists_navigation_iface(listbroker_id),
+                   max_lines,
                    construct_file_item),
+        traversal_list_(dbus_get_lists_navigation_iface(listbroker_id),
+                        assumed_streamplayer_fifo_size + 1,
+                        construct_file_item),
         item_flags_(&file_list_),
         navigation_(max_lines, item_flags_),
         drcp_browse_id_(drcp_browse_id),
         playback_current_mode_(default_playback_mode),
-        playback_current_state_(&file_list_, playback_current_mode_)
+        playback_current_state_(traversal_list_, playback_current_mode_)
     {}
 
     bool init() override;

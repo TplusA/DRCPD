@@ -80,7 +80,8 @@ ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command)
 
         playback_current_mode_.activate_selected_mode();
 
-        if(playback_current_state_.start(navigation_.get_line_number_by_cursor()))
+        if(playback_current_state_.start(file_list_,
+                                         navigation_.get_line_number_by_cursor()))
             playback_current_state_.enqueue_next();
         else
             playback_current_mode_.deactivate();

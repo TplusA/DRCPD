@@ -23,6 +23,13 @@
 #include "dbuslist.hh"
 #include "messages.h"
 
+void List::DBusList::clone_state(const List::DBusList &src)
+{
+    number_of_items_ = src.number_of_items_;
+    window_.list_id_ = src.window_.list_id_;
+    fill_cache_from_scratch(src.window_.first_item_line_);
+}
+
 unsigned int List::DBusList::get_number_of_items() const
 {
     return number_of_items_;

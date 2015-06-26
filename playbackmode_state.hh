@@ -31,6 +31,7 @@ class State
   private:
     static constexpr unsigned int max_directory_depth = 512;
 
+    List::DBusList &dbus_list_;
     List::NavItemNoFilter item_flags_;
     List::Nav navigation_;
     CurrentMode &mode_;
@@ -43,8 +44,6 @@ class State
     ID::List start_list_id_;
     unsigned int start_list_line_;
 
-    List::DBusList *const dbus_list_object_;
-
     ID::List current_list_id_;
     unsigned int directory_depth_;
     unsigned int number_of_streams_played_;
@@ -55,20 +54,20 @@ class State
     State(const State &) = delete;
     State &operator=(const State &) = delete;
 
-    explicit State(List::DBusList *const file_list, CurrentMode &mode):
-        item_flags_(file_list),
+    explicit State(List::DBusList &traversal_list, CurrentMode &mode):
+        dbus_list_(traversal_list),
+        item_flags_(&traversal_list),
         navigation_(1, item_flags_),
         mode_(mode),
         user_list_line_(0),
         start_list_line_(0),
-        dbus_list_object_(file_list),
         directory_depth_(1),
         number_of_streams_played_(0),
         number_of_streams_skipped_(0),
         number_of_directories_entered_(0)
     {}
 
-    bool start(unsigned int start_line);
+    bool start(const List::DBusList &user_list, unsigned int start_line);
     void enqueue_next();
     void revert();
 
