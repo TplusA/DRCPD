@@ -140,19 +140,34 @@ bool Playback::State::try_start()
     start_list_id_ = user_list_id_;
     start_list_line_ = user_list_line_;
 
-    if(!ViewFileBrowser::enter_list_at(*dbus_list_object_, current_list_id_,
-                                       item_flags_, navigation_,
-                                       start_list_id_, start_list_line_))
+    navigation_.set_cursor_by_line_number(start_list_line_);
+
+    auto item = dynamic_cast<const ViewFileBrowser::FileItem *>(dbus_list_object_->get_item(navigation_.get_cursor()));
+    if(item == nullptr)
         return false;
 
-    if(!try_descend())
-        return true;
+    if(item->is_directory())
+    {
+        if(!ViewFileBrowser::enter_list_at(*dbus_list_object_, current_list_id_,
+                                           item_flags_, navigation_,
+                                           start_list_id_, start_list_line_))
+            return false;
 
-    start_list_id_ = current_list_id_;
-    start_list_line_ = 0;
+        if(!try_descend())
+            return true;
 
-    directory_depth_ = 1;
-    number_of_directories_entered_ = 0;
+        start_list_id_ = current_list_id_;
+        start_list_line_ = 0;
+
+        directory_depth_ = 1;
+        number_of_directories_entered_ = 0;
+    }
+    else
+    {
+        current_list_id_ = start_list_id_;
+        item_flags_.list_content_changed();
+        navigation_.set_cursor_by_line_number(start_list_line_);
+    }
 
     return true;
 }
