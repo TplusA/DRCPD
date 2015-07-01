@@ -36,6 +36,7 @@
 #include "messages.h"
 #include "fdstreambuf.hh"
 #include "os.h"
+#include "versioninfo.h"
 
 struct files_t
 {
@@ -60,6 +61,23 @@ struct parameters
 
 ssize_t (*os_read)(int fd, void *dest, size_t count) = read;
 ssize_t (*os_write)(int fd, const void *buf, size_t count) = write;
+
+static void show_version_info(void)
+{
+    printf("%s\n"
+           "Revision %s%s\n"
+           "         %s+%d, %s\n",
+           PACKAGE_STRING,
+           VCS_FULL_HASH, VCS_WC_MODIFIED ? " (tained)" : "",
+           VCS_TAG, VCS_TICK, VCS_DATE);
+}
+
+static void log_version_info(void)
+{
+    msg_info("Rev %s%s, %s+%d, %s",
+             VCS_FULL_HASH, VCS_WC_MODIFIED ? " (tained)" : "",
+             VCS_TAG, VCS_TICK, VCS_DATE);
+}
 
 static bool try_reopen_fd(int *fd, const char *devname, const char *errorname)
 {
@@ -234,6 +252,8 @@ static int setup(const struct parameters *parameters,
         }
     }
 
+    log_version_info();
+
     msg_info("Attempting to open named pipes");
 
     struct files_t *const files = dispatch_data->files;
@@ -285,6 +305,7 @@ static void usage(const char *program_name)
         "\n"
         "Options:\n"
         "  --help         Show this help.\n"
+        "  --version      Print version information to stdout.\n"
         "  --fg           Run in foreground, don't run as daemon.\n"
         "  --idcp name    Name of the named pipe the DCP daemon writes to.\n"
         "  --odcp name    Name of the named pipe the DCP daemon reads from.\n"
@@ -320,6 +341,8 @@ static int process_command_line(int argc, char *argv[],
     {
         if(strcmp(argv[i], "--help") == 0)
             return 1;
+        else if(strcmp(argv[i], "--version") == 0)
+            return 2;
         else if(strcmp(argv[i], "--fg") == 0)
             parameters->run_in_foreground = true;
         else if(strcmp(argv[i], "--idcp") == 0)
@@ -415,6 +438,11 @@ int main(int argc, char *argv[])
     else if(ret == 1)
     {
         usage(argv[0]);
+        return EXIT_SUCCESS;
+    }
+    else if(ret == 2)
+    {
+        show_version_info();
         return EXIT_SUCCESS;
     }
 
