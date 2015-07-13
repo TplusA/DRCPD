@@ -187,7 +187,7 @@ bool List::DBusList::scroll_to_line(unsigned int line)
     unsigned int cache_list_replace_index;
 
     if(line >= window_.first_item_line_ + number_of_prefetched_items_ &&
-       line < window_.first_item_line_ + 2U * number_of_prefetched_items_)
+       line < window_.first_item_line_ + 2U * number_of_prefetched_items_ - 1)
     {
         /* requested line is below current window, but we can just
          * scroll down a bit */
@@ -196,7 +196,8 @@ bool List::DBusList::scroll_to_line(unsigned int line)
         fetch_head = line + 1U - gap;
         cache_list_replace_index = window_.items_.get_number_of_items() - gap;
     }
-    else if(line + number_of_prefetched_items_ > window_.first_item_line_)
+    else if(line < window_.first_item_line_ &&
+            line + number_of_prefetched_items_ > window_.first_item_line_)
     {
         /* requested line is above current window, but we can just
          * scroll up a bit */
