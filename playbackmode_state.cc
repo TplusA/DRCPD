@@ -264,7 +264,7 @@ bool Playback::State::try_descend()
 {
     if(directory_depth_ >= max_directory_depth)
     {
-        msg_info("Maximum directory depth of %u reached, not going any further down",
+        msg_info("Maximum directory depth of %u reached, not going down any further",
                  max_directory_depth);
         return false;
     }
