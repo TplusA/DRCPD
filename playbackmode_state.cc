@@ -113,7 +113,7 @@ static SendStatus send_selected_file_uri_to_streamplayer(ID::List list_id,
                                            1234U, selected_uri, 0, "ms", 0, "ms", -1,
                                            &fifo_overflow, NULL, NULL))
     {
-        msg_error(EIO, LOG_NOTICE, "Failed queuing URI to streamplayer");
+        msg_error(0, LOG_NOTICE, "Failed queuing URI to streamplayer");
         ret = SendStatus::FIFO_FAILURE;
     }
     else
@@ -126,7 +126,7 @@ static SendStatus send_selected_file_uri_to_streamplayer(ID::List list_id,
         else if(!tdbus_splay_playback_call_start_sync(dbus_get_streamplayer_playback_iface(),
                                                       NULL, NULL))
         {
-            msg_error(EIO, LOG_NOTICE, "Failed sending start playback message");
+            msg_error(0, LOG_NOTICE, "Failed sending start playback message");
             ret = SendStatus::PLAYBACK_FAILURE;
         }
         else

@@ -227,7 +227,7 @@ int dbus_setup(GMainLoop *loop, bool connect_to_session_bus,
 
     if(dbus_data.acquired < 0)
     {
-        msg_error(EPIPE, LOG_EMERG, "Failed acquiring D-Bus name");
+        msg_error(0, LOG_EMERG, "Failed acquiring D-Bus name");
         return -1;
     }
 

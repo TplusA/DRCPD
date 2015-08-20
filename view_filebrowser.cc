@@ -91,7 +91,7 @@ ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command)
       case DrcpCommand::PLAYBACK_STOP:
         if(!tdbus_splay_playback_call_stop_sync(dbus_get_streamplayer_playback_iface(),
                                                 NULL, NULL))
-            msg_error(EIO, LOG_NOTICE, "Failed sending stop playback message");
+            msg_error(0, LOG_NOTICE, "Failed sending stop playback message");
 
         return InputResult::OK;
 

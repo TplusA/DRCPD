@@ -52,7 +52,7 @@ ViewIface::InputResult ViewPlay::View::input(DrcpCommand command)
           case PlayInfo::Data::STREAM_PLAYING:
             if(!tdbus_splay_playback_call_pause_sync(dbus_get_streamplayer_playback_iface(),
                                                      NULL, NULL))
-                msg_error(EIO, LOG_NOTICE, "Failed sending pause playback message");
+                msg_error(0, LOG_NOTICE, "Failed sending pause playback message");
 
             break;
 
@@ -60,7 +60,7 @@ ViewIface::InputResult ViewPlay::View::input(DrcpCommand command)
           case PlayInfo::Data::STREAM_PAUSED:
             if(!tdbus_splay_playback_call_start_sync(dbus_get_streamplayer_playback_iface(),
                                                      NULL, NULL))
-                msg_error(EIO, LOG_NOTICE, "Failed sending start playback message");
+                msg_error(0, LOG_NOTICE, "Failed sending start playback message");
 
             break;
         }
@@ -70,7 +70,7 @@ ViewIface::InputResult ViewPlay::View::input(DrcpCommand command)
       case DrcpCommand::PLAYBACK_STOP:
         if(!tdbus_splay_playback_call_stop_sync(dbus_get_streamplayer_playback_iface(),
                                                 NULL, NULL))
-            msg_error(EIO, LOG_NOTICE, "Failed sending stop playback message");
+            msg_error(0, LOG_NOTICE, "Failed sending stop playback message");
 
         break;
 

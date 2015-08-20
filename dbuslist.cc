@@ -55,7 +55,7 @@ static bool query_list_size(tdbuslistsNavigation *proxy, ID::List list_id,
                                                      &error_code, &first_item,
                                                      &size, NULL, NULL))
     {
-        msg_error(EAGAIN, LOG_NOTICE,
+        msg_error(0, LOG_NOTICE,
                   "Failed obtaining size of list %u", list_id.get_raw_id());
         return false;
     }
@@ -82,7 +82,7 @@ static bool query_list_size(tdbuslistsNavigation *proxy, ID::List list_id,
       case ListError::Code::NET_IO:
       case ListError::Code::PROTOCOL:
       case ListError::Code::AUTHENTICATION:
-        msg_error(EIO, LOG_NOTICE,
+        msg_error(0, LOG_NOTICE,
                   "Error while obtaining size of list ID %u: %s",
                   list_id.get_raw_id(), error.to_string());
         return false;
@@ -134,7 +134,7 @@ static bool fetch_window(tdbuslistsNavigation *proxy, ID::List list_id,
                                                    &error_code, &first_item,
                                                    out_list, NULL, NULL))
     {
-        msg_error(EAGAIN, LOG_NOTICE,
+        msg_error(0, LOG_NOTICE,
                   "Failed obtaining contents of list %u", list_id.get_raw_id());
         return false;
     }
@@ -144,9 +144,7 @@ static bool fetch_window(tdbuslistsNavigation *proxy, ID::List list_id,
     if(error_code != ListError::Code::OK)
     {
         /* method error, stop trying */
-        msg_error((error_code == ListError::Code::INVALID_ID) ? EINVAL : EIO,
-                  LOG_INFO,
-                  "Error reading list %u: %s",
+        msg_error(0, LOG_INFO, "Error reading list %u: %s",
                   list_id.get_raw_id(), error.to_string());
         g_variant_unref(*out_list);
         return false;

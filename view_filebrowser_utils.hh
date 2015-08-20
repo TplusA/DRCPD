@@ -78,7 +78,7 @@ static ID::List get_child_item_id(const List::DBusList &file_list,
 
     if(list_id == 0 && !suppress_error_if_file)
     {
-        msg_error(EINVAL, LOG_NOTICE,
+        msg_error(0, LOG_NOTICE,
                   "Error obtaining ID for item %u in list %u, error code %s",
                   navigation.get_cursor(), current_list_id.get_raw_id(),
                   error.to_string());
@@ -112,7 +112,7 @@ static ID::List get_parent_link_id(const List::DBusList &file_list,
     if(list_id == 0)
     {
         if(item_id != 1)
-            msg_error(EINVAL, LOG_NOTICE,
+            msg_error(0, LOG_NOTICE,
                       "Error obtaining parent for list %u", current_list_id.get_raw_id());
 
         return ID::List();
