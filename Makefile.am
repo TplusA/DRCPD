@@ -23,8 +23,10 @@ drcpd_SOURCES = \
     dbus_interfaces/de_tahifi_lists_errors.hh \
     dbus_interfaces/de_tahifi_lists_errors.h
 
+DBUS_IFACES = $(top_srcdir)/dbus_interfaces
+
 AM_CPPFLAGS = -DLOCALEDIR=\"$(localedir)\"
-AM_CPPFLAGS += -Idbus_interfaces
+AM_CPPFLAGS += -I$(DBUS_IFACES)
 AM_CPPFLAGS += $(DRCPD_DEPENDENCIES_CFLAGS)
 
 AM_CFLAGS = $(CWARNINGS)
@@ -81,27 +83,27 @@ de_tahifi_dcpd.h: dcpd_dbus.stamp
 de_tahifi_dcpd.md: dcpd_dbus.stamp
 dcpd_dbus.c: dcpd_dbus.stamp
 dcpd_dbus.h: dcpd_dbus.stamp
-dcpd_dbus.stamp: dbus_interfaces/de_tahifi_dcpd.xml
+dcpd_dbus.stamp: $(DBUS_IFACES)/de_tahifi_dcpd.xml
 	$(GDBUS_CODEGEN) --generate-c-code=dcpd_dbus --c-namespace tdbus_dcpd --interface-prefix de.tahifi.Dcpd. $<
-	$(abs_srcdir)/dbus_interfaces/extract_documentation.py -i $< -o de_tahifi_dcpd.md -H de_tahifi_dcpd.h -c tdbus_dcpd -s de.tahifi.Dcpd. -n 'DCPD' -x methods
+	$(DBUS_IFACES)/extract_documentation.py -i $< -o de_tahifi_dcpd.md -H de_tahifi_dcpd.h -c tdbus_dcpd -s de.tahifi.Dcpd. -n 'DCPD' -x methods
 	touch $@
 
 de_tahifi_lists.h: lists_dbus.stamp
 de_tahifi_lists.md: lists_dbus.stamp
 lists_dbus.c: lists_dbus.stamp
 lists_dbus.h: lists_dbus.stamp
-lists_dbus.stamp: dbus_interfaces/de_tahifi_lists.xml
+lists_dbus.stamp: $(DBUS_IFACES)/de_tahifi_lists.xml
 	$(GDBUS_CODEGEN) --generate-c-code=lists_dbus --c-namespace tdbus_lists --interface-prefix de.tahifi.Lists. $<
-	$(abs_srcdir)/dbus_interfaces/extract_documentation.py -i $< -o de_tahifi_lists.md -H de_tahifi_lists.h -c tdbus_lists -s de.tahifi.Lists. -n 'Lists'
+	$(DBUS_IFACES)/extract_documentation.py -i $< -o de_tahifi_lists.md -H de_tahifi_lists.h -c tdbus_lists -s de.tahifi.Lists. -n 'Lists'
 	touch $@
 
 de_tahifi_streamplayer.h: streamplayer_dbus.stamp
 de_tahifi_streamplayer.md: streamplayer_dbus.stamp
 streamplayer_dbus.c: streamplayer_dbus.stamp
 streamplayer_dbus.h: streamplayer_dbus.stamp
-streamplayer_dbus.stamp: dbus_interfaces/de_tahifi_streamplayer.xml
+streamplayer_dbus.stamp: $(DBUS_IFACES)/de_tahifi_streamplayer.xml
 	$(GDBUS_CODEGEN) --generate-c-code=streamplayer_dbus --c-namespace tdbus_splay --interface-prefix de.tahifi.Streamplayer. $<
-	$(abs_srcdir)/dbus_interfaces/extract_documentation.py -i $< -o de_tahifi_streamplayer.md -H de_tahifi_streamplayer.h -c tdbus_splay -s de.tahifi.Streamplayer. -n 'Streamplayer'
+	$(DBUS_IFACES)/extract_documentation.py -i $< -o de_tahifi_streamplayer.md -H de_tahifi_streamplayer.h -c tdbus_splay -s de.tahifi.Streamplayer. -n 'Streamplayer'
 	touch $@
 
 
