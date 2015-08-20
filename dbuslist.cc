@@ -21,7 +21,10 @@
 #endif /* HAVE_CONFIG_H */
 
 #include "dbuslist.hh"
+#include "de_tahifi_lists_errors.hh"
 #include "messages.h"
+
+constexpr const char *ListError::names_[];
 
 void List::DBusList::clone_state(const List::DBusList &src)
 {
@@ -57,22 +60,36 @@ static bool query_list_size(tdbuslistsNavigation *proxy, ID::List list_id,
         return false;
     }
 
-    if(error_code == 0)
+    const ListError error(error_code);
+
+    switch(error.get())
     {
+      case ListError::Code::OK:
         log_assert(first_item == 0);
         list_size = size;
         return true;
-    }
 
-    if(error_code == 1)
+      case ListError::Code::INTERNAL:
+        break;
+
+      case ListError::Code::INVALID_ID:
         msg_error(EINVAL, LOG_NOTICE,
                   "Invalid list ID %u", list_id.get_raw_id());
-    else if(error_code == 2)
-        msg_error(EIO, LOG_NOTICE, "Error while obtaining size of list ID %u",
-                  list_id.get_raw_id());
-    else
-        BUG("Unknown error code while obtaining size of list ID %u",
-            list_id.get_raw_id());
+        return false;
+
+      case ListError::Code::INTERRUPTED:
+      case ListError::Code::PHYSICAL_MEDIA_IO:
+      case ListError::Code::NET_IO:
+      case ListError::Code::PROTOCOL:
+      case ListError::Code::AUTHENTICATION:
+        msg_error(EIO, LOG_NOTICE,
+                  "Error while obtaining size of list ID %u: %s",
+                  list_id.get_raw_id(), error.to_string());
+        return false;
+    }
+
+    BUG("Unknown error code %u while obtaining size of list ID %u",
+        error_code, list_id.get_raw_id());
 
     return false;
 }
@@ -122,11 +139,15 @@ static bool fetch_window(tdbuslistsNavigation *proxy, ID::List list_id,
         return false;
     }
 
-    if(error_code != 0)
+    const ListError error(error_code);
+
+    if(error_code != ListError::Code::OK)
     {
         /* method error, stop trying */
-        msg_error((error_code == 2) ? EIO : EINVAL, LOG_INFO,
-                  "Error reading list %u", list_id.get_raw_id());
+        msg_error((error_code == ListError::Code::INVALID_ID) ? EINVAL : EIO,
+                  LOG_INFO,
+                  "Error reading list %u: %s",
+                  list_id.get_raw_id(), error.to_string());
         g_variant_unref(*out_list);
         return false;
     }

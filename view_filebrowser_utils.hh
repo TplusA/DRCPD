@@ -20,6 +20,7 @@
 #define VIEW_FILEBROWSER_UTILS_HH
 
 #include "dbuslist.hh"
+#include "de_tahifi_lists_errors.hh"
 #include "listnav.hh"
 
 /*!
@@ -73,12 +74,14 @@ static ID::List get_child_item_id(const List::DBusList &file_list,
         return ID::List();
     }
 
+    const ListError error(error_code);
+
     if(list_id == 0 && !suppress_error_if_file)
     {
         msg_error(EINVAL, LOG_NOTICE,
-                  "Error obtaining ID for item %u in list %u, error code %u",
+                  "Error obtaining ID for item %u in list %u, error code %s",
                   navigation.get_cursor(), current_list_id.get_raw_id(),
-                  error_code);
+                  error.to_string());
         return ID::List();
     }
     else

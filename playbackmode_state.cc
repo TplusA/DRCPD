@@ -26,6 +26,7 @@
 #include "view_filebrowser.hh"
 #include "view_filebrowser_utils.hh"
 #include "dbus_iface_deep.h"
+#include "de_tahifi_lists_errors.hh"
 
 enum class SendStatus
 {
@@ -63,11 +64,13 @@ static SendStatus send_selected_file_uri_to_streamplayer(ID::List list_id,
         return SendStatus::NO_URI;
     }
 
-    if(error_code != 0)
+    const ListError error(error_code);
+
+    if(error != ListError::Code::OK)
     {
         msg_error(0, LOG_NOTICE,
-                  "Got error code %u instead of URI for item %u in list %u",
-                  error_code, item_id, list_id.get_raw_id());
+                  "Got error %s instead of URI for item %u in list %u",
+                  error.to_string(), item_id, list_id.get_raw_id());
         free_array_of_strings(uri_list);
         return SendStatus::NO_URI;
     }

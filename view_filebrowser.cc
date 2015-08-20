@@ -227,7 +227,9 @@ static bool go_to_root_directory(List::DBusList &file_list,
         return false;
     }
 
-    if(error_code == 0)
+    const ListError error(error_code);
+
+    if(error == ListError::Code::OK)
     {
         if(list_id > 0)
             return ViewFileBrowser::enter_list_at(file_list, current_list_id,
@@ -238,7 +240,7 @@ static bool go_to_root_directory(List::DBusList &file_list,
     }
     else
         msg_error(0, LOG_NOTICE,
-                  "Got error for root list ID, error code %u", error_code);
+                  "Got error for root list ID, error code %s", error.to_string());
 
     return false;
 }
