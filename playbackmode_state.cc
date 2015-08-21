@@ -233,10 +233,12 @@ void Playback::State::enqueue_next()
 
               case SendStatus::NO_URI:
                 /* that's life... just ignore this entry */
+                ++number_of_streams_skipped_;
                 break;
 
               case SendStatus::FIFO_FAILURE:
                 /* trying to put something into the FIFO failed hard */
+                ++number_of_streams_skipped_;
                 revert();
 
                 return;
@@ -247,6 +249,7 @@ void Playback::State::enqueue_next()
 
               case SendStatus::PLAYBACK_FAILURE:
                 /* so let's ignore it */
+                ++number_of_streams_skipped_;
                 break;
             }
         }
