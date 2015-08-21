@@ -23,6 +23,7 @@
 #include "lists_dbus.h"
 #include "ramlist.hh"
 #include "messages.h"
+#include "dbuslist_exception.hh"
 
 /*!
  * \addtogroup dbus_list Lists with contents filled directly from D-Bus
@@ -101,21 +102,21 @@ class DBusList: public ListIface
         number_of_items_(0)
     {}
 
-    void clone_state(const DBusList &src);
+    void clone_state(const DBusList &src) throw(List::DBusListException);
 
     unsigned int get_number_of_items() const override;
     bool empty() const override;
-    bool enter_list(ID::List list_id, unsigned int line) override;
+    void enter_list(ID::List list_id, unsigned int line) throw(List::DBusListException) override;
 
-    const Item *get_item(unsigned int line) const override;
+    const Item *get_item(unsigned int line) const throw(List::DBusListException) override;
     virtual ID::List get_list_id() const override { return window_.list_id_; }
 
     tdbuslistsNavigation *get_dbus_proxy() const { return dbus_proxy_; }
 
   private:
     bool is_line_cached(unsigned int line) const;
-    bool scroll_to_line(unsigned int line);
-    bool fill_cache_from_scratch(unsigned int line);
+    bool scroll_to_line(unsigned int line) throw(List::DBusListException);
+    void fill_cache_from_scratch(unsigned int line) throw(List::DBusListException);
 };
 
 };

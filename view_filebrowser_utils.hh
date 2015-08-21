@@ -37,25 +37,22 @@ namespace ViewFileBrowser
  * After moving the cursor, this function notifies the list filter and
  * updates the navigation state.
  */
-static bool enter_list_at(List::DBusList &file_list, ID::List &current_list_id,
+static void enter_list_at(List::DBusList &file_list,
                           List::NavItemNoFilter &item_flags,
                           List::Nav &navigation,
                           ID::List list_id, unsigned int line)
+    throw(List::DBusListException)
 {
-    if(!file_list.enter_list(list_id, line))
-        return false;
-
-    current_list_id = list_id;
+    file_list.enter_list(list_id, line);
     item_flags.list_content_changed();
     navigation.set_cursor_by_line_number(line);
-
-    return true;
 }
 
 static ID::List get_child_item_id(const List::DBusList &file_list,
                                   ID::List current_list_id,
                                   List::Nav &navigation,
                                   bool suppress_error_if_file = false)
+    throw(List::DBusListException)
 {
     if(file_list.empty())
         return ID::List();
@@ -71,7 +68,8 @@ static ID::List get_child_item_id(const List::DBusList &file_list,
     {
         msg_info("Failed obtaining ID for item %u in list %u",
                  navigation.get_cursor(), current_list_id.get_raw_id());
-        return ID::List();
+
+        throw List::DBusListException(ListError::Code::INTERNAL, true);
     }
 
     const ListError error(error_code);
@@ -82,6 +80,10 @@ static ID::List get_child_item_id(const List::DBusList &file_list,
                   "Error obtaining ID for item %u in list %u, error code %s",
                   navigation.get_cursor(), current_list_id.get_raw_id(),
                   error.to_string());
+
+        if(error != ListError::Code::OK)
+            throw List::DBusListException(error);
+
         return ID::List();
     }
     else
@@ -90,10 +92,10 @@ static ID::List get_child_item_id(const List::DBusList &file_list,
 
 static ID::List get_parent_link_id(const List::DBusList &file_list,
                                    ID::List current_list_id,
-                                   unsigned int &item_id_arg)
+                                   unsigned int &item_id)
+    throw(List::DBusListException)
 {
     guint list_id;
-    guint item_id;
 
     if(!tdbus_lists_navigation_call_get_parent_link_sync(file_list.get_dbus_proxy(),
                                                          current_list_id.get_raw_id(),
@@ -102,23 +104,22 @@ static ID::List get_parent_link_id(const List::DBusList &file_list,
     {
         msg_info("Failed obtaining parent for list %u", current_list_id.get_raw_id());
 
-        item_id_arg = 2;
-
-        return ID::List();
+        throw List::DBusListException(ListError::Code::INTERNAL, true);
     }
 
-    item_id_arg = item_id;
-
-    if(list_id == 0)
-    {
-        if(item_id != 1)
-            msg_error(0, LOG_NOTICE,
-                      "Error obtaining parent for list %u", current_list_id.get_raw_id());
-
-        return ID::List();
-    }
-    else
+    if(list_id != 0)
         return ID::List(list_id);
+
+    if(item_id == 1)
+    {
+        /* requested parent of root node */
+        return ID::List();
+    }
+
+    msg_error(0, LOG_NOTICE,
+              "Error obtaining parent for list %u", current_list_id.get_raw_id());
+
+    throw List::DBusListException(ListError::Code::INVALID_ID);
 }
 
 };

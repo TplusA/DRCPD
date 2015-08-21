@@ -72,9 +72,9 @@ class State
     void revert();
 
   private:
-    bool try_start();
-    bool try_descend();
-    bool find_next(const List::TextItem *directory);
+    bool try_start() throw(List::DBusListException);
+    bool try_descend() throw(List::DBusListException);
+    bool find_next(const List::TextItem *directory) throw(List::DBusListException);
 };
 
 };

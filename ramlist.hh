@@ -53,10 +53,9 @@ class RamList: public ListIface
     unsigned int get_number_of_items() const override;
     bool empty() const override { return get_number_of_items() == 0; }
 
-    bool enter_list(ID::List list_id, unsigned int line) override
+    void enter_list(ID::List list_id, unsigned int line) override
     {
         clear();
-        return true;
     }
 
     const Item *get_item(unsigned int line) const override;

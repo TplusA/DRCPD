@@ -33,7 +33,7 @@ List::Item *ViewFileBrowser::construct_file_item(const char *name,
 
 bool ViewFileBrowser::View::init()
 {
-    point_to_root_directory();
+    (void)point_to_root_directory();
     return true;
 }
 
@@ -56,7 +56,18 @@ ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command)
         if(file_list_.empty())
             return InputResult::OK;
 
-        if(auto item = dynamic_cast<const FileItem *>(file_list_.get_item(navigation_.get_cursor())))
+        const FileItem *item;
+
+        try
+        {
+            item = dynamic_cast<decltype(item)>(file_list_.get_item(navigation_.get_cursor()));
+        }
+        catch(const List::DBusListException &e)
+        {
+            item = nullptr;
+        }
+
+        if(item)
         {
             if(item->is_directory())
             {
@@ -137,7 +148,17 @@ bool ViewFileBrowser::View::write_xml(std::ostream &os, bool is_full_view)
 
     for(auto it : navigation_)
     {
-        auto item = dynamic_cast<const FileItem *>(file_list_.get_item(it));
+        const FileItem *item;
+
+        try
+        {
+            item = dynamic_cast<decltype(item)>(file_list_.get_item(it));
+        }
+        catch(const List::DBusListException &e)
+        {
+            item = nullptr;
+        }
+
         std::string flags;
 
         if(item != nullptr)
@@ -174,7 +195,16 @@ bool ViewFileBrowser::View::serialize(DcpTransaction &dcpd, std::ostream *debug_
 
     for(auto it : navigation_)
     {
-        auto item = dynamic_cast<const FileItem *>(file_list_.get_item(it));
+        const FileItem *item;
+
+        try
+        {
+            item = dynamic_cast<decltype(item)>(file_list_.get_item(it));
+        }
+        catch(const List::DBusListException &e)
+        {
+            item = nullptr;
+        }
 
         if(it == navigation_.get_cursor())
             *debug_os << "--> ";
@@ -208,10 +238,10 @@ void ViewFileBrowser::View::notify_stream_stop()
     playback_current_state_.revert();
 }
 
-static bool go_to_root_directory(List::DBusList &file_list,
-                                 ID::List &current_list_id,
-                                 List::NavItemNoFilter &item_flags,
-                                 List::Nav &navigation)
+static ID::List go_to_root_directory(List::DBusList &file_list,
+                                     List::NavItemNoFilter &item_flags,
+                                     List::Nav &navigation)
+    throw(List::DBusListException)
 {
     guint list_id;
     guchar error_code;
@@ -223,65 +253,140 @@ static bool go_to_root_directory(List::DBusList &file_list,
         /* this is not a hard error, it may only mean that the list broker
          * hasn't started up yet */
         msg_info("Failed obtaining ID for root list");
-        current_list_id = ID::List();
-        return false;
+
+        throw List::DBusListException(ListError::Code::INTERNAL, true);
     }
 
     const ListError error(error_code);
 
-    if(error == ListError::Code::OK)
+    if(error != ListError::Code::OK)
     {
-        if(list_id > 0)
-            return ViewFileBrowser::enter_list_at(file_list, current_list_id,
-                                                  item_flags,
-                                                  navigation, ID::List(list_id), 0);
-
-        BUG("Got invalid list ID for root list, but no error code");
-    }
-    else
         msg_error(0, LOG_NOTICE,
                   "Got error for root list ID, error code %s", error.to_string());
 
-    return false;
+        throw List::DBusListException(error);
+    }
+
+    if(list_id == 0)
+    {
+        BUG("Got invalid list ID for root list, but no error code");
+
+        throw List::DBusListException(ListError::Code::INVALID_ID);
+    }
+
+    const ID::List id(list_id);
+
+    ViewFileBrowser::enter_list_at(file_list, item_flags, navigation, id, 0);
+
+    return id;
 }
 
 bool ViewFileBrowser::View::point_to_root_directory()
 {
-    return go_to_root_directory(file_list_, current_list_id_,
-                                item_flags_, navigation_);
+    try
+    {
+        current_list_id_ =
+            go_to_root_directory(file_list_, item_flags_, navigation_);
+
+        return true;
+    }
+    catch(const List::DBusListException &e)
+    {
+        /* uh-oh... */
+        if(!e.is_dbus_error())
+            current_list_id_ = ID::List();
+    }
+
+    return false;
 }
 
 bool ViewFileBrowser::View::point_to_child_directory()
 {
-    ID::List list_id =
-        get_child_item_id(file_list_, current_list_id_, navigation_);
+    try
+    {
+        ID::List list_id =
+            get_child_item_id(file_list_, current_list_id_, navigation_);
 
-    if(!list_id.is_valid())
-        return false;
+        if(!list_id.is_valid())
+            return false;
 
-    if(enter_list_at(file_list_, current_list_id_, item_flags_, navigation_,
-                     list_id, 0))
+        enter_list_at(file_list_, item_flags_, navigation_, list_id, 0);
+        current_list_id_ = list_id;
+
         return true;
-    else
-        return point_to_root_directory();
+    }
+    catch(const List::DBusListException &e)
+    {
+        if(e.is_dbus_error())
+        {
+            /* probably just a temporary problem */
+            return false;
+        }
+
+        switch(e.get())
+        {
+          case ListError::Code::INTERRUPTED:
+          case ListError::Code::PHYSICAL_MEDIA_IO:
+          case ListError::Code::NET_IO:
+          case ListError::Code::PROTOCOL:
+          case ListError::Code::AUTHENTICATION:
+            /* problem: stay right there where you are */
+            msg_info("Go to child list error, stay here: %s", e.what());
+            return false;
+
+          case ListError::Code::OK:
+          case ListError::Code::INTERNAL:
+          case ListError::Code::INVALID_ID:
+            /* funny problem: better return to root directory */
+            msg_info("Go to child list error, try go to root: %s", e.what());
+            break;
+        }
+    }
+
+    return point_to_root_directory();
 }
 
 bool ViewFileBrowser::View::point_to_parent_link()
 {
-    unsigned int item_id;
-    ID::List list_id = get_parent_link_id(file_list_, current_list_id_, item_id);
-
-    if(!list_id.is_valid())
+    try
     {
-        if(item_id == 1)
+        unsigned int item_id;
+        ID::List list_id =
+            get_parent_link_id(file_list_, current_list_id_, item_id);
+
+        if(list_id.is_valid())
+        {
+            enter_list_at(file_list_, item_flags_, navigation_, list_id, item_id);
+            current_list_id_ = list_id;
+
+            return true;
+        }
+    }
+    catch(const List::DBusListException &e)
+    {
+        if(e.is_dbus_error())
+        {
+            /* probably just a temporary problem */
             return false;
-        else
-            return point_to_root_directory();
+        }
+
+        switch(e.get())
+        {
+          case ListError::Code::INTERRUPTED:
+          case ListError::Code::PHYSICAL_MEDIA_IO:
+          case ListError::Code::NET_IO:
+          case ListError::Code::PROTOCOL:
+          case ListError::Code::AUTHENTICATION:
+            /* problem: stay right there where you are */
+            return false;
+
+          case ListError::Code::OK:
+          case ListError::Code::INTERNAL:
+          case ListError::Code::INVALID_ID:
+            /* funny problem: better return to root directory */
+            break;
+        }
     }
 
-    if(enter_list_at(file_list_, current_list_id_, item_flags_, navigation_,
-                     list_id, item_id))
-        return true;
-    else
-        return point_to_root_directory();
+    return point_to_root_directory();
 }

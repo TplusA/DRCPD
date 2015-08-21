@@ -27,6 +27,7 @@
 constexpr const char *ListError::names_[];
 
 void List::DBusList::clone_state(const List::DBusList &src)
+    throw(List::DBusListException)
 {
     number_of_items_ = src.number_of_items_;
     window_.list_id_ = src.window_.list_id_;
@@ -43,8 +44,9 @@ bool List::DBusList::empty() const
     return number_of_items_ == 0;
 }
 
-static bool query_list_size(tdbuslistsNavigation *proxy, ID::List list_id,
-                            unsigned int &list_size)
+static unsigned int query_list_size(tdbuslistsNavigation *proxy,
+                                    ID::List list_id)
+    throw(List::DBusListException)
 {
     guchar error_code;
     guint first_item;
@@ -57,7 +59,8 @@ static bool query_list_size(tdbuslistsNavigation *proxy, ID::List list_id,
     {
         msg_error(0, LOG_NOTICE,
                   "Failed obtaining size of list %u", list_id.get_raw_id());
-        return false;
+
+        throw List::DBusListException(ListError::Code::INTERNAL, true);
     }
 
     const ListError error(error_code);
@@ -66,8 +69,7 @@ static bool query_list_size(tdbuslistsNavigation *proxy, ID::List list_id,
     {
       case ListError::Code::OK:
         log_assert(first_item == 0);
-        list_size = size;
-        return true;
+        return size;
 
       case ListError::Code::INTERNAL:
         break;
@@ -75,7 +77,7 @@ static bool query_list_size(tdbuslistsNavigation *proxy, ID::List list_id,
       case ListError::Code::INVALID_ID:
         msg_error(EINVAL, LOG_NOTICE,
                   "Invalid list ID %u", list_id.get_raw_id());
-        return false;
+        break;
 
       case ListError::Code::INTERRUPTED:
       case ListError::Code::PHYSICAL_MEDIA_IO:
@@ -85,32 +87,29 @@ static bool query_list_size(tdbuslistsNavigation *proxy, ID::List list_id,
         msg_error(0, LOG_NOTICE,
                   "Error while obtaining size of list ID %u: %s",
                   list_id.get_raw_id(), error.to_string());
-        return false;
+        break;
     }
 
-    BUG("Unknown error code %u while obtaining size of list ID %u",
-        error_code, list_id.get_raw_id());
+    if(error.get() == ListError::Code::INTERNAL)
+        BUG("Unknown error code %u while obtaining size of list ID %u",
+            error_code, list_id.get_raw_id());
 
-    return false;
+    throw List::DBusListException(error);
 }
 
-bool List::DBusList::enter_list(ID::List list_id, unsigned int line)
+void List::DBusList::enter_list(ID::List list_id, unsigned int line)
+    throw(List::DBusListException)
 {
     log_assert(list_id.is_valid());
 
     if(list_id != window_.list_id_)
-    {
-        if(!query_list_size(dbus_proxy_, list_id, number_of_items_))
-            return false;
-    }
+        number_of_items_ = query_list_size(dbus_proxy_, list_id);
     else if(line == window_.first_item_line_)
-        return true;
+        return;
 
     window_.list_id_ = list_id;
     window_.first_item_line_ = line;
     window_.items_.clear();
-
-    return true;
 }
 
 bool List::DBusList::is_line_cached(unsigned int line) const
@@ -119,9 +118,10 @@ bool List::DBusList::is_line_cached(unsigned int line) const
             line - window_.first_item_line_ < window_.items_.get_number_of_items());
 }
 
-static bool fetch_window(tdbuslistsNavigation *proxy, ID::List list_id,
+static void fetch_window(tdbuslistsNavigation *proxy, ID::List list_id,
                          unsigned int line, unsigned int count,
                          GVariant **out_list)
+    throw(List::DBusListException)
 {
     msg_info("Fetch %u lines of list %u, starting at %u",
              count, list_id.get_raw_id(), line);
@@ -136,7 +136,8 @@ static bool fetch_window(tdbuslistsNavigation *proxy, ID::List list_id,
     {
         msg_error(0, LOG_NOTICE,
                   "Failed obtaining contents of list %u", list_id.get_raw_id());
-        return false;
+
+        throw List::DBusListException(ListError::Code::INTERNAL, true);
     }
 
     const ListError error(error_code);
@@ -147,12 +148,11 @@ static bool fetch_window(tdbuslistsNavigation *proxy, ID::List list_id,
         msg_error(0, LOG_INFO, "Error reading list %u: %s",
                   list_id.get_raw_id(), error.to_string());
         g_variant_unref(*out_list);
-        return false;
+
+        throw List::DBusListException(error);
     }
 
     log_assert(g_variant_type_is_array(g_variant_get_type(*out_list)));
-
-    return true;
 }
 
 static void fill_cache_list(List::RamList &items,
@@ -196,6 +196,7 @@ static void fill_cache_list(List::RamList &items,
  * fetching data that is already known.
  */
 bool List::DBusList::scroll_to_line(unsigned int line)
+    throw(List::DBusListException)
 {
     if(window_.items_.get_number_of_items() == 0)
         return false;
@@ -241,9 +242,7 @@ bool List::DBusList::scroll_to_line(unsigned int line)
 
     GVariant *out_list;
 
-    if(!fetch_window(dbus_proxy_, window_.list_id_, fetch_head, gap,
-                     &out_list))
-        return false;
+    fetch_window(dbus_proxy_, window_.list_id_, fetch_head, gap, &out_list);
 
     log_assert(g_variant_n_children(out_list) == gap);
 
@@ -264,16 +263,16 @@ bool List::DBusList::scroll_to_line(unsigned int line)
 /*!
  * Fetch full window.
  */
-bool List::DBusList::fill_cache_from_scratch(unsigned int line)
+void List::DBusList::fill_cache_from_scratch(unsigned int line)
+    throw(List::DBusListException)
 {
     window_.first_item_line_ = line;
     window_.items_.clear();
 
     GVariant *out_list;
 
-    if(!fetch_window(dbus_proxy_, window_.list_id_, window_.first_item_line_,
-                     number_of_prefetched_items_, &out_list))
-        return false;
+    fetch_window(dbus_proxy_, window_.list_id_, window_.first_item_line_,
+                 number_of_prefetched_items_, &out_list);
 
     log_assert(g_variant_n_children(out_list) <= number_of_prefetched_items_);
 
@@ -282,11 +281,10 @@ bool List::DBusList::fill_cache_from_scratch(unsigned int line)
     log_assert(g_variant_n_children(out_list) == window_.items_.get_number_of_items());
 
     g_variant_unref(out_list);
-
-    return true;
 }
 
 const List::Item *List::DBusList::get_item(unsigned int line) const
+    throw(List::DBusListException)
 {
     log_assert(window_.list_id_.is_valid());
 
@@ -296,11 +294,8 @@ const List::Item *List::DBusList::get_item(unsigned int line) const
     if(is_line_cached(line))
         return window_[line];
 
-    if(const_cast<List::DBusList *>(this)->scroll_to_line(line))
-        return window_[line];
+    if(!const_cast<List::DBusList *>(this)->scroll_to_line(line))
+        const_cast<List::DBusList *>(this)->fill_cache_from_scratch(line);
 
-    if(const_cast<List::DBusList *>(this)->fill_cache_from_scratch(line))
-        return window_[line];
-    else
-        return nullptr;
+    return window_[line];
 }

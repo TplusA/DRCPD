@@ -32,6 +32,7 @@ enum class SendStatus
 {
     OK,
     NO_URI,
+    BROKER_FAILURE,
     FIFO_FAILURE,
     FIFO_FULL,
     PLAYBACK_FAILURE,
@@ -48,6 +49,12 @@ static void free_array_of_strings(gchar **const strings)
     g_free(strings);
 }
 
+/*!
+ * Try to fill up the streamplayer FIFO.
+ *
+ * No exception thrown in here because the caller needs to react to specific
+ * situations.
+ */
 static SendStatus send_selected_file_uri_to_streamplayer(ID::List list_id,
                                                          unsigned int item_id,
                                                          tdbuslistsNavigation *proxy)
@@ -61,7 +68,7 @@ static SendStatus send_selected_file_uri_to_streamplayer(ID::List list_id,
                                                   &uri_list, NULL, NULL))
     {
         msg_info("Failed obtaining URI for item %u in list %u", item_id, list_id.get_raw_id());
-        return SendStatus::NO_URI;
+        return SendStatus::BROKER_FAILURE;
     }
 
     const ListError error(error_code);
@@ -72,7 +79,7 @@ static SendStatus send_selected_file_uri_to_streamplayer(ID::List list_id,
                   "Got error %s instead of URI for item %u in list %u",
                   error.to_string(), item_id, list_id.get_raw_id());
         free_array_of_strings(uri_list);
-        return SendStatus::NO_URI;
+        return SendStatus::BROKER_FAILURE;
     }
 
     if(uri_list == NULL || uri_list[0] == NULL)
@@ -139,6 +146,7 @@ static SendStatus send_selected_file_uri_to_streamplayer(ID::List list_id,
 }
 
 bool Playback::State::try_start()
+    throw(List::DBusListException)
 {
     start_list_id_ = user_list_id_;
     start_list_line_ = user_list_line_;
@@ -151,10 +159,10 @@ bool Playback::State::try_start()
 
     if(item->is_directory())
     {
-        if(!ViewFileBrowser::enter_list_at(dbus_list_, current_list_id_,
-                                           item_flags_, navigation_,
-                                           start_list_id_, start_list_line_))
-            return false;
+        ViewFileBrowser::enter_list_at(dbus_list_, item_flags_, navigation_,
+                                       start_list_id_, start_list_line_);
+
+        current_list_id_ = start_list_id_;
 
         if(!try_descend())
             return true;
@@ -189,10 +197,21 @@ bool Playback::State::start(const List::DBusList &user_list,
     number_of_streams_skipped_ = 0;
     number_of_directories_entered_ = 0;
 
-    dbus_list_.clone_state(user_list);
+    try
+    {
+        dbus_list_.clone_state(user_list);
 
-    if(try_start())
-        return true;
+        if(try_start())
+            return true;
+
+        msg_error(0, LOG_NOTICE, "Failed start playing");
+    }
+    catch(const List::DBusListException &e)
+    {
+        msg_error(0, LOG_NOTICE,
+                  "Failed start playing, got hard %s error: %s",
+                  e.is_dbus_error() ? "D-Bus" : "list retrieval", e.what());
+    }
 
     current_list_id_ = ID::List();
 
@@ -206,12 +225,32 @@ void Playback::State::enqueue_next()
 
     while(true)
     {
-        auto item = dynamic_cast<const ViewFileBrowser::FileItem *>(dbus_list_.get_item(navigation_.get_cursor()));
+        const ViewFileBrowser::FileItem *item;
+
+        try
+        {
+            item = dynamic_cast<decltype(item)>(dbus_list_.get_item(navigation_.get_cursor()));
+        }
+        catch(const List::DBusListException &e)
+        {
+            msg_info("Enqueue next failed (1): %s %d", e.what(), e.is_dbus_error());
+            revert();
+
+            return;
+        }
 
         if(!item)
         {
-            if(find_next(nullptr))
-                continue;
+            try
+            {
+                if(find_next(nullptr))
+                    continue;
+            }
+            catch(const List::DBusListException &e)
+            {
+                /* revert and return below */
+                msg_info("Enqueue next failed (2): %s %d", e.what(), e.is_dbus_error());
+            }
 
             revert();
 
@@ -236,6 +275,7 @@ void Playback::State::enqueue_next()
                 ++number_of_streams_skipped_;
                 break;
 
+              case SendStatus::BROKER_FAILURE:
               case SendStatus::FIFO_FAILURE:
                 /* trying to put something into the FIFO failed hard */
                 ++number_of_streams_skipped_;
@@ -254,16 +294,25 @@ void Playback::State::enqueue_next()
             }
         }
 
-        if(!find_next(item))
+        try
         {
-            revert();
-
-            return;
+            if(find_next(item))
+                continue;
         }
+        catch(const List::DBusListException &e)
+        {
+            /* revert and return below */
+            msg_info("Enqueue next failed (3): %s %d", e.what(), e.is_dbus_error());
+        }
+
+        revert();
+
+        return;
     }
 }
 
 bool Playback::State::try_descend()
+    throw(List::DBusListException)
 {
     if(directory_depth_ >= max_directory_depth)
     {
@@ -276,18 +325,20 @@ bool Playback::State::try_descend()
         ViewFileBrowser::get_child_item_id(dbus_list_,
                                            current_list_id_, navigation_, true);
 
-    if(list_id.is_valid() &&
-       ViewFileBrowser::enter_list_at(dbus_list_, current_list_id_,
-                                      item_flags_, navigation_, list_id, 0))
-    {
-        ++number_of_directories_entered_;
-        return true;
-    }
+    if(!list_id.is_valid())
+        return false;
 
-    return false;
+    ViewFileBrowser::enter_list_at(dbus_list_,
+                                   item_flags_, navigation_, list_id, 0);
+
+    current_list_id_ = list_id;
+    ++number_of_directories_entered_;
+
+    return true;
 }
 
 bool Playback::State::find_next(const List::TextItem *directory)
+    throw(List::DBusListException)
 {
     if(!mode_.is_playing())
         return false;
@@ -343,13 +394,9 @@ bool Playback::State::find_next(const List::TextItem *directory)
             break;
         }
 
-        if(!ViewFileBrowser::enter_list_at(dbus_list_, current_list_id_,
-                                           item_flags_, navigation_,
-                                           list_id, item_id))
-        {
-            BUG("Failed moving up to parent list during directory traversal.");
-            break;
-        }
+        ViewFileBrowser::enter_list_at(dbus_list_, item_flags_, navigation_,
+                                       list_id, item_id);
+        current_list_id_ = list_id;
     }
 
     return false;
@@ -368,7 +415,14 @@ void Playback::State::revert()
              number_of_directories_entered_,
              number_of_streams_played_, number_of_streams_skipped_);
 
-    dbus_list_.enter_list(user_list_id_, user_list_line_);
+    try
+    {
+        dbus_list_.enter_list(user_list_id_, user_list_line_);
+    }
+    catch(const List::DBusListException &e)
+    {
+        msg_info("Failed resetting traversal list to start position: %s", e.what());
+    }
 
     user_list_id_ = ID::List();
     start_list_id_ = ID::List();
