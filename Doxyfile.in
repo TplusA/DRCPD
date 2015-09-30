@@ -797,6 +797,7 @@ EXCLUDE                = \
     @abs_builddir@/dcpd_dbus.c \
     @abs_builddir@/lists_dbus.c \
     @abs_builddir@/streamplayer_dbus.c \
+    @abs_builddir@/power_dbus.c \
     @abs_srcdir@/dbus_interfaces/*.xml
 
 # The EXCLUDE_SYMLINKS tag can be used to select whether or not files or
