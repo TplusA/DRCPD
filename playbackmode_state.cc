@@ -151,6 +151,7 @@ bool Playback::State::try_start()
     start_list_id_ = user_list_id_;
     start_list_line_ = user_list_line_;
 
+    item_flags_.list_content_changed();
     navigation_.set_cursor_by_line_number(start_list_line_);
 
     auto item = dynamic_cast<const ViewFileBrowser::FileItem *>(dbus_list_.get_item(navigation_.get_cursor()));
@@ -174,11 +175,7 @@ bool Playback::State::try_start()
         number_of_directories_entered_ = 0;
     }
     else
-    {
         current_list_id_ = start_list_id_;
-        item_flags_.list_content_changed();
-        navigation_.set_cursor_by_line_number(start_list_line_);
-    }
 
     return true;
 }
