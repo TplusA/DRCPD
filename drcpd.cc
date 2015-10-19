@@ -385,7 +385,7 @@ static void testing(ViewManager &views, ViewSignalsIface *view_signals)
     static ViewFileBrowser::View tunein("TuneIn", N_("TuneIn internet radio"), 3,
                                         number_of_lines_on_display,
                                         DBUS_LISTBROKER_ID_TUNEIN,
-                                        Playback::Mode::LINEAR,
+                                        Playback::Mode::SINGLE_TRACK,
                                         view_signals);
     static ViewFileBrowser::View upnp("UPnP", N_("UPnP media servers"), 4,
                                       number_of_lines_on_display,
