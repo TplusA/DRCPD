@@ -57,7 +57,8 @@ static void free_array_of_strings(gchar **const strings)
  */
 static SendStatus send_selected_file_uri_to_streamplayer(ID::List list_id,
                                                          unsigned int item_id,
-                                                         tdbuslistsNavigation *proxy)
+                                                         tdbuslistsNavigation *proxy,
+                                                         bool play_immediately)
 {
     gchar **uri_list;
     guchar error_code;
@@ -114,11 +115,14 @@ static SendStatus send_selected_file_uri_to_streamplayer(ID::List list_id,
     msg_info("Queuing URI: \"%s\"", selected_uri);
 
     gboolean fifo_overflow;
+    gboolean is_playing;
     SendStatus ret;
 
     if(!tdbus_splay_urlfifo_call_push_sync(dbus_get_streamplayer_urlfifo_iface(),
-                                           1234U, selected_uri, 0, "ms", 0, "ms", -1,
-                                           &fifo_overflow, NULL, NULL))
+                                           1234U, selected_uri, 0, "ms", 0, "ms",
+                                           play_immediately ? -2 : -1,
+                                           &fifo_overflow, &is_playing,
+                                           NULL, NULL))
     {
         msg_error(0, LOG_NOTICE, "Failed queuing URI to streamplayer");
         ret = SendStatus::FIFO_FAILURE;
@@ -130,7 +134,8 @@ static SendStatus send_selected_file_uri_to_streamplayer(ID::List list_id,
             msg_error(EAGAIN, LOG_INFO, "URL FIFO overflow");
             ret = SendStatus::FIFO_FULL;
         }
-        else if(!tdbus_splay_playback_call_start_sync(dbus_get_streamplayer_playback_iface(),
+        else if(!is_playing &&
+                !tdbus_splay_playback_call_start_sync(dbus_get_streamplayer_playback_iface(),
                                                       NULL, NULL))
         {
             msg_error(0, LOG_NOTICE, "Failed sending start playback message");
@@ -218,7 +223,7 @@ bool Playback::State::start(const List::DBusList &user_list,
     return false;
 }
 
-void Playback::State::enqueue_next()
+void Playback::State::enqueue_next(bool skip_to_next)
 {
     if(!mode_.is_playing())
         return;
@@ -263,7 +268,8 @@ void Playback::State::enqueue_next()
 
             switch(send_selected_file_uri_to_streamplayer(current_list_id_,
                                                           navigation_.get_cursor(),
-                                                          dbus_list_.get_dbus_proxy()))
+                                                          dbus_list_.get_dbus_proxy(),
+                                                          skip_to_next))
             {
               case SendStatus::OK:
                 /* stream URI is in FIFO now */

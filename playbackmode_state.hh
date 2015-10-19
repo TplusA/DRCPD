@@ -68,7 +68,7 @@ class State
     {}
 
     bool start(const List::DBusList &user_list, unsigned int start_line);
-    void enqueue_next();
+    void enqueue_next(bool skip_to_next);
     void revert();
 
   private:

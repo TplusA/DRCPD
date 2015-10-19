@@ -93,7 +93,7 @@ ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command)
 
         if(playback_current_state_.start(file_list_,
                                          navigation_.get_line_number_by_cursor()))
-            playback_current_state_.enqueue_next();
+            playback_current_state_.enqueue_next(true);
         else
             playback_current_mode_.deactivate();
 
@@ -230,7 +230,7 @@ void ViewFileBrowser::View::notify_stream_start(uint32_t id,
                                                 const std::string &url,
                                                 bool url_fifo_is_full)
 {
-    playback_current_state_.enqueue_next();
+    playback_current_state_.enqueue_next(false);
 }
 
 void ViewFileBrowser::View::notify_stream_stop()
