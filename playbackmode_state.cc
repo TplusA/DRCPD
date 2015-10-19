@@ -160,6 +160,9 @@ bool Playback::State::try_start()
 
     if(item->is_directory())
     {
+        if(mode_.get() != Playback::Mode::LINEAR)
+            return false;
+
         ViewFileBrowser::enter_list_at(dbus_list_, item_flags_, navigation_,
                                        start_list_id_, start_list_line_);
 
