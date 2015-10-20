@@ -1,3 +1,19 @@
+2015-11-03  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 1.3 released.
+
+	* TuneIn view: Default playback mode in single track mode, not linear
+	  scan with directory traversals.
+
+	* Playback: Pressing OK or Play on a stream immediately plays that
+	  stream. Pressing Stop beforehand is not required anymore.
+
+	  Requires streamplayer 1.3 because of D-Bus interface changes.
+
+	* Playback: Playing a directory is not allowed in single track mode.
+
+	* Playback: Fix playback of most streams from a list.
+
 2015-08-25  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 1.2 released.
