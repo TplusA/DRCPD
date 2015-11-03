@@ -65,23 +65,17 @@ libdbus_handlers_la_CXXFLAGS = $(AM_CXXFLAGS)
 nodist_libdrcpd_dbus_client_la_SOURCES = \
     dcpd_dbus.c dcpd_dbus.h \
     lists_dbus.c lists_dbus.h \
-    streamplayer_dbus.c streamplayer_dbus.h \
-    power_dbus.c power_dbus.h
+    streamplayer_dbus.c streamplayer_dbus.h
 libdrcpd_dbus_client_la_CFLAGS = $(CRELAXEDWARNINGS)
 libdrcpd_dbus_client_la_CXXFLAGS = $(CXXRELAXEDWARNINGS)
 
-EXTRA_DIST += \
-    dbus_interfaces/extract_documentation.py \
-    dbus_interfaces/de_tahifi_dcpd.xml \
-    dbus_interfaces/de_tahifi_lists.xml \
-    dbus_interfaces/de_tahifi_streamplayer.xml \
-    dbus_interfaces/de_tahifi_power.xml
+EXTRA_DIST += dbus_interfaces/extract_documentation.py dbus_interfaces/de_tahifi_dcpd.xml dbus_interfaces/de_tahifi_lists.xml dbus_interfaces/de_tahifi_streamplayer.xml
 
 BUILT_SOURCES = $(nodist_libdrcpd_dbus_client_la_SOURCES) \
-    de_tahifi_dcpd.h         de_tahifi_dcpd.md         dcpd_dbus.stamp \
-    de_tahifi_lists.h        de_tahifi_lists.md        lists_dbus.stamp \
-    de_tahifi_streamplayer.h de_tahifi_streamplayer.md streamplayer_dbus.stamp \
-    de_tahifi_power.h        de_tahifi_power.md        power_dbus.stamp
+    de_tahifi_dcpd.h de_tahifi_dcpd.md \
+    de_tahifi_lists.h de_tahifi_lists.md \
+    de_tahifi_streamplayer.h de_tahifi_streamplayer.md \
+    dcpd_dbus.stamp lists_dbus.stamp streamplayer_dbus.stamp
 
 CLEANFILES += $(BUILT_SOURCES)
 
@@ -111,15 +105,6 @@ streamplayer_dbus.h: streamplayer_dbus.stamp
 streamplayer_dbus.stamp: $(DBUS_IFACES)/de_tahifi_streamplayer.xml
 	$(GDBUS_CODEGEN) --generate-c-code=streamplayer_dbus --c-namespace tdbus_splay --interface-prefix de.tahifi.Streamplayer. $<
 	$(DBUS_IFACES)/extract_documentation.py -i $< -o de_tahifi_streamplayer.md -H de_tahifi_streamplayer.h -c tdbus_splay -s de.tahifi.Streamplayer. -n 'Streamplayer'
-	touch $@
-
-de_tahifi_power.h: power_dbus.stamp
-de_tahifi_power.md: power_dbus.stamp
-power_dbus.c: power_dbus.stamp
-power_dbus.h: power_dbus.stamp
-power_dbus.stamp: $(DBUS_IFACES)/de_tahifi_power.xml
-	$(GDBUS_CODEGEN) --generate-c-code=power_dbus --c-namespace tdbus_power --interface-prefix de.tahifi.Power. $<
-	$(DBUS_IFACES)/extract_documentation.py -i $< -o de_tahifi_power.md -H de_tahifi_power.h -c tdbus_power -s de.tahifi.Power. -n 'Power'
 	touch $@
 
 
