@@ -127,6 +127,36 @@ void ViewPlay::View::notify_stream_position_changed(const std::chrono::milliseco
     display_update(update_flags_stream_position);
 }
 
+static const std::string mk_alt_track_name(const PlayInfo::MetaData &meta_data,
+                                           size_t max_length)
+{
+    log_assert(max_length > 0);
+
+    const std::string &alt_track =
+        (meta_data.values_[PlayInfo::MetaData::INTERNAL_DRCPD_TITLE].empty()
+         ? meta_data.values_[PlayInfo::MetaData::INTERNAL_DRCPD_URL]
+         : meta_data.values_[PlayInfo::MetaData::INTERNAL_DRCPD_TITLE]);
+
+    if(!alt_track.empty())
+    {
+        const glong len = g_utf8_strlen(alt_track.c_str(), -1);
+
+        if(len > 0)
+        {
+            if(size_t(len) <= max_length)
+                return alt_track;
+
+            const gchar *const end = g_utf8_offset_to_pointer(alt_track.c_str(), max_length);
+            const ptrdiff_t num_of_bytes = end - alt_track.c_str();
+
+            if(num_of_bytes > 0)
+                return std::string(alt_track, 0, num_of_bytes);
+        }
+    }
+
+    return std::string("NO NAME", max_length);
+}
+
 bool ViewPlay::View::write_xml(std::ostream &os, bool is_full_view)
 {
     if(is_full_view)
@@ -139,6 +169,9 @@ bool ViewPlay::View::write_xml(std::ostream &os, bool is_full_view)
            << "</text>\n";
         os << "    <text id=\"track\">"
            << XmlEscape(info_.meta_data_.values_[PlayInfo::MetaData::TITLE])
+           << "</text>\n";
+        os << "   <text id=\"alttrack\">"
+           << XmlEscape(mk_alt_track_name(info_.meta_data_, 20))
            << "</text>\n";
         os << "    <text id=\"album\">"
            << XmlEscape(info_.meta_data_.values_[PlayInfo::MetaData::ALBUM])
