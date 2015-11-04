@@ -274,6 +274,9 @@ void Playback::State::enqueue_next(bool skip_to_next)
               case SendStatus::OK:
                 /* stream URI is in FIFO now */
                 ++number_of_streams_played_;
+
+                /* next stream, if any, shouldn't be skipped to */
+                skip_to_next = false;
                 break;
 
               case SendStatus::NO_URI:
