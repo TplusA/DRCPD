@@ -19,8 +19,11 @@
 #ifndef VIEW_FILEBROWSER_HH
 #define VIEW_FILEBROWSER_HH
 
+#include <memory>
+
 #include "view.hh"
 #include "playbackmode_state.hh"
+#include "streaminfo.hh"
 #include "dbuslist.hh"
 #include "dbus_iface.h"
 #include "dbus_iface_deep.h"
@@ -62,6 +65,8 @@ class View: public ViewIface
     Playback::CurrentMode playback_current_mode_;
     Playback::State playback_current_state_;
 
+    std::shared_ptr<StreamInfo> stream_info_;
+
   public:
     View(const View &) = delete;
 
@@ -71,7 +76,8 @@ class View: public ViewIface
                   uint8_t drcp_browse_id, unsigned int max_lines,
                   dbus_listbroker_id_t listbroker_id,
                   Playback::Mode default_playback_mode,
-                  ViewSignalsIface *view_signals):
+                  ViewSignalsIface *view_signals,
+                  std::shared_ptr<StreamInfo> stream_info):
         ViewIface(name, on_screen_name, "browse", 102U, true, view_signals),
         current_list_id_(0),
         file_list_(dbus_get_lists_navigation_iface(listbroker_id),
@@ -84,7 +90,8 @@ class View: public ViewIface
         navigation_(max_lines, item_flags_),
         drcp_browse_id_(drcp_browse_id),
         playback_current_mode_(default_playback_mode),
-        playback_current_state_(traversal_list_, playback_current_mode_)
+        playback_current_state_(traversal_list_, playback_current_mode_),
+        stream_info_(stream_info)
     {}
 
     bool init() override;

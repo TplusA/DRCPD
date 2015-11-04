@@ -57,6 +57,7 @@ static void free_array_of_strings(gchar **const strings)
  */
 static SendStatus send_selected_file_uri_to_streamplayer(ID::List list_id,
                                                          unsigned int item_id,
+                                                         uint16_t stream_id,
                                                          tdbuslistsNavigation *proxy,
                                                          bool play_immediately)
 {
@@ -119,7 +120,8 @@ static SendStatus send_selected_file_uri_to_streamplayer(ID::List list_id,
     SendStatus ret;
 
     if(!tdbus_splay_urlfifo_call_push_sync(dbus_get_streamplayer_urlfifo_iface(),
-                                           1234U, selected_uri, 0, "ms", 0, "ms",
+                                           stream_id, selected_uri,
+                                           0, "ms", 0, "ms",
                                            play_immediately ? -2 : -1,
                                            &fifo_overflow, &is_playing,
                                            NULL, NULL))
@@ -223,7 +225,7 @@ bool Playback::State::start(const List::DBusList &user_list,
     return false;
 }
 
-void Playback::State::enqueue_next(bool skip_to_next)
+void Playback::State::enqueue_next(StreamInfo &sinfo, bool skip_to_next)
 {
     if(!mode_.is_playing())
         return;
@@ -264,12 +266,21 @@ void Playback::State::enqueue_next(bool skip_to_next)
 
         if(!item->is_directory())
         {
+            const uint16_t fallback_title_id = sinfo.insert(item->get_text());
+
             item = nullptr;
 
-            switch(send_selected_file_uri_to_streamplayer(current_list_id_,
-                                                          navigation_.get_cursor(),
-                                                          dbus_list_.get_dbus_proxy(),
-                                                          skip_to_next))
+            const auto send_status =
+                send_selected_file_uri_to_streamplayer(current_list_id_,
+                                                       navigation_.get_cursor(),
+                                                       fallback_title_id,
+                                                       dbus_list_.get_dbus_proxy(),
+                                                       skip_to_next);
+
+            if(send_status != SendStatus::OK)
+                sinfo.forget(fallback_title_id);
+
+            switch(send_status)
             {
               case SendStatus::OK:
                 /* stream URI is in FIFO now */

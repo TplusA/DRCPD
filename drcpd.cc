@@ -381,18 +381,20 @@ static void testing(ViewManager &views, ViewSignalsIface *view_signals)
                                     number_of_lines_on_display,
                                     DBUS_LISTBROKER_ID_FILESYSTEM,
                                     Playback::Mode::LINEAR,
-                                    view_signals);
+                                    view_signals, views.get_stream_info());
     static ViewFileBrowser::View tunein("TuneIn", N_("TuneIn internet radio"), 3,
                                         number_of_lines_on_display,
                                         DBUS_LISTBROKER_ID_TUNEIN,
                                         Playback::Mode::SINGLE_TRACK,
-                                        view_signals);
+                                        view_signals, views.get_stream_info());
     static ViewFileBrowser::View upnp("UPnP", N_("UPnP media servers"), 4,
                                       number_of_lines_on_display,
                                       DBUS_LISTBROKER_ID_UPNP,
                                       Playback::Mode::LINEAR,
-                                      view_signals);
-    static ViewPlay::View play(N_("Stream information"), number_of_lines_on_display, view_signals);
+                                      view_signals, views.get_stream_info());
+    static ViewPlay::View play(N_("Stream information"),
+                               number_of_lines_on_display,
+                               view_signals, views.get_stream_info());
 
     if(!cfg.init())
         return;

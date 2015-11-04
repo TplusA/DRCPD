@@ -72,6 +72,8 @@ ViewIface::InputResult ViewPlay::View::input(DrcpCommand command)
                                                 NULL, NULL))
             msg_error(0, LOG_NOTICE, "Failed sending stop playback message");
 
+        stream_info_->clear();
+
         break;
 
       case DrcpCommand::GO_BACK_ONE_LEVEL:

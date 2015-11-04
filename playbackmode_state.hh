@@ -21,6 +21,7 @@
 
 #include "playbackmode.hh"
 #include "listnav.hh"
+#include "streaminfo.hh"
 #include "dbuslist.hh"
 
 namespace Playback
@@ -68,7 +69,7 @@ class State
     {}
 
     bool start(const List::DBusList &user_list, unsigned int start_line);
-    void enqueue_next(bool skip_to_next);
+    void enqueue_next(StreamInfo &sinfo, bool skip_to_next);
     void revert();
 
   private:

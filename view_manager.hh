@@ -20,9 +20,11 @@
 #define VIEW_MANAGER_HH
 
 #include <map>
+#include <memory>
 
 #include "view.hh"
 #include "dcp_transaction.hh"
+#include "streaminfo.hh"
 
 /*!
  * \addtogroup view_manager Management of the various views
@@ -59,6 +61,8 @@ class ViewManagerIface
     virtual bool serialize_view_if_active(const ViewIface *view) const = 0;
     virtual bool update_view_if_active(const ViewIface *view) const = 0;
     virtual void hide_view_if_active(const ViewIface *view) = 0;
+
+    virtual std::shared_ptr<StreamInfo> get_stream_info() = 0;
 };
 
 class ViewManager: public ViewManagerIface
@@ -73,6 +77,7 @@ class ViewManager: public ViewManagerIface
     ViewIface *last_browse_view_;
     DcpTransaction &dcp_transaction_;
     std::ostream *debug_stream_;
+    std::shared_ptr<StreamInfo> stream_info_;
 
   public:
     ViewManager(const ViewManager &) = delete;
@@ -99,6 +104,8 @@ class ViewManager: public ViewManagerIface
     bool serialize_view_if_active(const ViewIface *view) const override;
     bool update_view_if_active(const ViewIface *view) const override;
     void hide_view_if_active(const ViewIface *view) override;
+
+    std::shared_ptr<StreamInfo> get_stream_info() override;
 
   private:
     void activate_view(ViewIface *view);

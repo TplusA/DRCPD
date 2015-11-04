@@ -93,7 +93,7 @@ ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command)
 
         if(playback_current_state_.start(file_list_,
                                          navigation_.get_line_number_by_cursor()))
-            playback_current_state_.enqueue_next(true);
+            playback_current_state_.enqueue_next(*stream_info_, true);
         else
             playback_current_mode_.deactivate();
 
@@ -103,6 +103,8 @@ ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command)
         if(!tdbus_splay_playback_call_stop_sync(dbus_get_streamplayer_playback_iface(),
                                                 NULL, NULL))
             msg_error(0, LOG_NOTICE, "Failed sending stop playback message");
+
+        stream_info_->clear();
 
         return InputResult::OK;
 
@@ -230,7 +232,7 @@ void ViewFileBrowser::View::notify_stream_start(uint32_t id,
                                                 const std::string &url,
                                                 bool url_fifo_is_full)
 {
-    playback_current_state_.enqueue_next(false);
+    playback_current_state_.enqueue_next(*stream_info_, false);
 }
 
 void ViewFileBrowser::View::notify_stream_stop()

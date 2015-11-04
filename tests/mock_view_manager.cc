@@ -359,3 +359,9 @@ void MockViewManager::hide_view_if_active(const ViewIface *view)
 {
     cut_fail("Not implemented");
 }
+
+std::shared_ptr<StreamInfo> MockViewManager::get_stream_info()
+{
+    cut_fail("Not implemented");
+    return nullptr;
+}
