@@ -22,9 +22,10 @@
 #include "de_tahifi_lists_errors.hh"
 
 /*!
- * \addtogroup dbus_list_exception Exception possibly thrown while reading
- *                                 lists from D-Bus
+ * \addtogroup dbus_list_exception Exception for reading lists from D-Bus
  * \ingroup dbus_list
+ *
+ * This exception is possibly thrown while reading lists from D-Bus.
  */
 /*!@{*/
 
