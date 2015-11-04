@@ -26,7 +26,6 @@
 #include "mock_view_manager.hh"
 #include "mock_messages.hh"
 
-
 /*!
  * \addtogroup dbus_handlers_tests Unit tests
  * \ingroup dbus_handlers
