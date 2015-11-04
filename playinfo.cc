@@ -24,9 +24,11 @@
 
 #include "playinfo.hh"
 
-void PlayInfo::MetaData::clear()
+void PlayInfo::MetaData::clear(bool is_update)
 {
-    for(size_t i = 0; i < values_.size(); ++i)
+    const size_t last = is_update ? METADATA_ID_LAST_REGULAR : METADATA_ID_LAST;
+
+    for(size_t i = 0; i <= last; ++i)
         values_[i].clear();
 }
 
@@ -54,6 +56,8 @@ void PlayInfo::MetaData::add(const char *key, const char *value,
         { "minimum-bitrate", BITRATE_MIN, },
         { "maximum-bitrate", BITRATE_MAX, },
         { "nominal-bitrate", BITRATE_NOM, },
+        { "x-drcpd-title",   INTERNAL_DRCPD_TITLE, },
+        { "x-drcpd-url",     INTERNAL_DRCPD_URL, },
     };
 
     for(const auto &entry : key_to_id)
@@ -68,17 +72,27 @@ void PlayInfo::MetaData::add(const char *key, const char *value,
                 if(!reformat.bitrate)
                     break;
 
-                values_[entry.id] = reformat.bitrate(value);
+                if(value != NULL)
+                    values_[entry.id] = reformat.bitrate(value);
+                else
+                    values_[entry.id].clear();
+
                 return;
 
               case TITLE:
               case ARTIST:
               case ALBUM:
               case CODEC:
+              case INTERNAL_DRCPD_TITLE:
+              case INTERNAL_DRCPD_URL:
                 break;
             }
 
-            values_[entry.id] = value;
+            if(value != NULL)
+                values_[entry.id] = value;
+            else
+                values_[entry.id].clear();
+
             return;
         }
     }

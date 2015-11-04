@@ -209,7 +209,8 @@ static ViewIface *get_play_view(ViewManagerIface *mgr)
 
 static void process_meta_data(ViewIface *playinfo, GVariant *parameters,
                               guint expected_number_of_parameters,
-                              guint meta_data_parameter_index)
+                              guint meta_data_parameter_index,
+                              bool is_update)
 {
     check_parameter_assertions(parameters, expected_number_of_parameters);
 
@@ -217,7 +218,7 @@ static void process_meta_data(ViewIface *playinfo, GVariant *parameters,
                                                     meta_data_parameter_index);
     log_assert(meta_data != nullptr);
 
-    playinfo->meta_data_add_begin();
+    playinfo->meta_data_add_begin(is_update);
 
     GVariantIter iter;
     if(g_variant_iter_init(&iter, meta_data) > 0)
@@ -278,7 +279,7 @@ void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
     if(strcmp(signal_name, "NowPlaying") == 0)
     {
         auto *playinfo = get_play_view(mgr);
-        process_meta_data(playinfo, parameters, 4, 3);
+        process_meta_data(playinfo, parameters, 4, 3, false);
         playinfo->notify_stream_start(0, "", false);
         mgr->activate_view_by_name("Play");
 
@@ -289,7 +290,7 @@ void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
     else if(strcmp(signal_name, "MetaDataChanged") == 0)
     {
         auto *playinfo = get_play_view(mgr);
-        process_meta_data(playinfo, parameters, 1, 0);
+        process_meta_data(playinfo, parameters, 1, 0, true);
     }
     else if(strcmp(signal_name, "Stopped") == 0)
     {

@@ -83,9 +83,9 @@ class View: public ViewIface
     void notify_stream_position_changed(const std::chrono::milliseconds &position,
                                         const std::chrono::milliseconds &duration) override;
 
-    void meta_data_add_begin() override
+    void meta_data_add_begin(bool is_update) override
     {
-        incoming_meta_data_.clear();
+        incoming_meta_data_.clear(is_update);
     }
 
     void meta_data_add(const char *key, const char *value) override
@@ -96,11 +96,11 @@ class View: public ViewIface
     void meta_data_add_end() override
     {
         if(incoming_meta_data_ == info_.meta_data_)
-            incoming_meta_data_.clear();
+            incoming_meta_data_.clear(true);
         else
         {
             info_.meta_data_ = incoming_meta_data_;
-            incoming_meta_data_.clear();
+            incoming_meta_data_.clear(true);
             display_update(update_flags_meta_data);
         }
     }

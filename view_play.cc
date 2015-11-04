@@ -89,7 +89,6 @@ ViewIface::InputResult ViewPlay::View::input(DrcpCommand command)
 void ViewPlay::View::notify_stream_start(uint32_t id, const std::string &url,
                                          bool url_fifo_is_full)
 {
-    info_.url_ = url;
     info_.assumed_stream_state_ = PlayInfo::Data::STREAM_PLAYING;
     msg_info("Play view: stream started, %s",
              is_visible_ ? "send screen update" : "but view is invisible");
@@ -202,7 +201,9 @@ bool ViewPlay::View::serialize(DcpTransaction &dcpd, std::ostream *debug_os)
         "paused",
     };
 
-    *debug_os << "URL: \"" << info_.url_ << "\" ("
+    *debug_os << "URL: \""
+              << info_.meta_data_.values_[PlayInfo::MetaData::INTERNAL_DRCPD_URL]
+              << "\" ("
               << stream_state_string[info_.assumed_stream_state_]
               << ")" << std::endl;
 

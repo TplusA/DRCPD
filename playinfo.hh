@@ -59,7 +59,13 @@ class MetaData
         BITRATE_MAX,
         BITRATE_NOM,
 
-        METADATA_ID_LAST = BITRATE_NOM
+        /* internal tags */
+        INTERNAL_DRCPD_TITLE,
+        INTERNAL_DRCPD_URL,
+
+        METADATA_ID_LAST_REGULAR = BITRATE_NOM,
+        METADATA_ID_FIRST_INTERNAL = INTERNAL_DRCPD_TITLE,
+        METADATA_ID_LAST = INTERNAL_DRCPD_URL,
     };
 
     MetaData(const MetaData &) = delete;
@@ -69,7 +75,7 @@ class MetaData
 
     std::array<std::string, METADATA_ID_LAST + 1> values_;
 
-    void clear();
+    void clear(bool is_update);
     void add(const char *key, const char *value, const Reformatters &reformat);
 
     bool operator==(const MetaData &other) const;
@@ -92,7 +98,6 @@ class Data
     };
 
     StreamState assumed_stream_state_;
-    std::string url_;
     MetaData meta_data_;
     std::chrono::milliseconds stream_position_;
     std::chrono::milliseconds stream_duration_;
@@ -102,7 +107,7 @@ class Data
         stream_position_(-1),
         stream_duration_(-1)
     {
-        meta_data_.clear();
+        meta_data_.clear(false);
     }
 };
 

@@ -173,6 +173,28 @@ void test_set_nominal_bitrate()
 }
 
 /*!\test
+ * Set internal fallback title.
+ */
+void test_set_internal_fallback_title()
+{
+    static const std::string expected = "Some name obtained from a List Broker";
+
+    data->meta_data_.add("x-drcpd-title", expected.c_str(), no_reformat);
+    check_single_meta_data(expected, PlayInfo::MetaData::INTERNAL_DRCPD_TITLE);
+}
+
+/*!\test
+ * Set internal URL.
+ */
+void test_set_internal_url()
+{
+    static const std::string expected = "Some URL obtained from a List Broker";
+
+    data->meta_data_.add("x-drcpd-url", expected.c_str(), no_reformat);
+    check_single_meta_data(expected, PlayInfo::MetaData::INTERNAL_DRCPD_URL);
+}
+
+/*!\test
  * Bitrate information should be rounded to kb/s.
  */
 void test_set_nominal_bitrate_rounded_to_kbit_per_sec()
@@ -237,9 +259,9 @@ void test_set_maximum_bitrate_attempt_rounding_funny_values()
 }
 
 /*!\test
- * Clear meta data works as expected.
+ * Clear regular meta data works as expected.
  */
-void test_clear_meta_data()
+void test_clear_regular_meta_data()
 {
     data->meta_data_.add("title",           "a", no_reformat);
     data->meta_data_.add("artist",          "b", no_reformat);
@@ -250,14 +272,62 @@ void test_clear_meta_data()
     data->meta_data_.add("nominal-bitrate", "g", no_reformat);
 
     /* all set */
-    for(auto s : data->meta_data_.values_)
-        cut_assert_false(s.empty());
+    for(size_t i = 0; i <= PlayInfo::MetaData::METADATA_ID_LAST_REGULAR; ++i)
+        cut_assert_false(data->meta_data_.values_[i].empty());
 
-    data->meta_data_.clear();
+    for(size_t i = PlayInfo::MetaData::METADATA_ID_FIRST_INTERNAL;
+        i <= PlayInfo::MetaData::METADATA_ID_LAST;
+        ++i)
+        cut_assert_true(data->meta_data_.values_[i].empty());
+
+    data->meta_data_.clear(true);
 
     /* none set */
-    for(auto s : data->meta_data_.values_)
-        cut_assert_true(s.empty());
+    for(size_t i = 0; i <= PlayInfo::MetaData::METADATA_ID_LAST_REGULAR; ++i)
+        cut_assert_true(data->meta_data_.values_[i].empty());
+
+    for(size_t i = PlayInfo::MetaData::METADATA_ID_FIRST_INTERNAL;
+        i <= PlayInfo::MetaData::METADATA_ID_LAST;
+        ++i)
+        cut_assert_true(data->meta_data_.values_[i].empty());
+}
+
+/*!\test
+ * Clear meta data (including extended fallback title and URL) works as
+ * expected.
+ */
+void test_clear_meta_data()
+{
+    data->meta_data_.add("artist",        "a", no_reformat);
+    data->meta_data_.add("audio-codec",   "b", no_reformat);
+    data->meta_data_.add("x-drcpd-title", "c", no_reformat);
+    data->meta_data_.add("x-drcpd-url",   "d", no_reformat);
+
+    cut_assert_true(data->meta_data_.values_[PlayInfo::MetaData::TITLE].empty());
+    cut_assert_false(data->meta_data_.values_[PlayInfo::MetaData::ARTIST].empty());
+    cut_assert_true(data->meta_data_.values_[PlayInfo::MetaData::ALBUM].empty());
+    cut_assert_false(data->meta_data_.values_[PlayInfo::MetaData::CODEC].empty());
+    cut_assert_false(data->meta_data_.values_[PlayInfo::MetaData::INTERNAL_DRCPD_TITLE].empty());
+    cut_assert_false(data->meta_data_.values_[PlayInfo::MetaData::INTERNAL_DRCPD_URL].empty());
+
+    data->meta_data_.clear(true);
+
+    /* none set except internal data */
+    for(size_t i = 0; i <= PlayInfo::MetaData::METADATA_ID_LAST_REGULAR; ++i)
+        cut_assert_true(data->meta_data_.values_[i].empty());
+
+    for(size_t i = PlayInfo::MetaData::METADATA_ID_FIRST_INTERNAL;
+        i <= PlayInfo::MetaData::METADATA_ID_LAST;
+        ++i)
+        cut_assert_false(data->meta_data_.values_[i].empty());
+
+    /* none set */
+    data->meta_data_.clear(false);
+
+    for(size_t i = PlayInfo::MetaData::METADATA_ID_FIRST_INTERNAL;
+        i <= PlayInfo::MetaData::METADATA_ID_LAST;
+        ++i)
+        cut_assert_true(data->meta_data_.values_[i].empty());
 }
 
 };

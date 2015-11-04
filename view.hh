@@ -211,7 +211,7 @@ class ViewIface
                                                 const std::chrono::milliseconds &duration)
     {}
 
-    virtual void meta_data_add_begin() {}
+    virtual void meta_data_add_begin(bool is_update) {}
     virtual void meta_data_add(const char *key, const char *value) {}
     virtual void meta_data_add_end() {}
 
