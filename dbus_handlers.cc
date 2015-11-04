@@ -208,12 +208,11 @@ static ViewIface *get_play_view(ViewManagerIface *mgr)
 }
 
 static void process_meta_data(ViewIface *playinfo, GVariant *parameters,
-                              guint expected_number_of_parameters,
                               guint meta_data_parameter_index,
-                              bool is_update)
+                              bool is_update,
+                              const std::string *fallback_title = NULL,
+                              const char *url = NULL)
 {
-    check_parameter_assertions(parameters, expected_number_of_parameters);
-
     GVariant *meta_data = g_variant_get_child_value(parameters,
                                                     meta_data_parameter_index);
     log_assert(meta_data != nullptr);
@@ -232,6 +231,25 @@ static void process_meta_data(ViewIface *playinfo, GVariant *parameters,
             g_free(key);
             g_free(value);
         }
+    }
+
+    if(!is_update)
+    {
+        if(fallback_title == NULL)
+        {
+            BUG("No fallback title available for stream");
+            playinfo->meta_data_add("x-drcpd-title", NULL);
+        }
+        else
+            playinfo->meta_data_add("x-drcpd-title", fallback_title->c_str());
+
+        if(url == NULL)
+        {
+            BUG("No URL available for stream");
+            playinfo->meta_data_add("x-drcpd-url", NULL);
+        }
+        else
+            playinfo->meta_data_add("x-drcpd-url", url);
     }
 
     playinfo->meta_data_add_end();
@@ -265,6 +283,38 @@ static void parse_stream_position(GVariant *parameters,
     g_variant_unref(val);
 }
 
+/*!
+ * Look up stream information by ID, return its original list name.
+ *
+ * \returns
+ *     Pointer to a string containing the name if the ID is known and a name
+ *     has been stored for it, \c NULL otherwise. Do not free the string, it is
+ *     owned by the \p sinfo structure.
+ */
+static const std::string *lookup_fallback(StreamInfo &sinfo,
+                                          GVariant *parameters, guint id_index)
+{
+    GVariant *stream_id_val = g_variant_get_child_value(parameters, id_index);
+    log_assert(stream_id_val != nullptr);
+    guint16 stream_id = g_variant_get_uint16(stream_id_val);
+    g_variant_unref(stream_id_val);
+
+    if(stream_id == 0)
+    {
+        /* we are not sending such IDs */
+        BUG("Stream ID 0 received from Streamplayer");
+        return NULL;
+    }
+
+    auto ret = sinfo.lookup_and_activate(stream_id);
+
+    if(!ret)
+        msg_error(EINVAL, LOG_ERR,
+                  "No fallback title found for stream ID %u", stream_id);
+
+    return ret;
+}
+
 void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
                                const gchar *signal_name, GVariant *parameters,
                                gpointer user_data)
@@ -278,8 +328,18 @@ void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
 
     if(strcmp(signal_name, "NowPlaying") == 0)
     {
+        check_parameter_assertions(parameters, 4);
+
+        auto fallback_title = lookup_fallback(*mgr->get_stream_info(), parameters, 0);
+        GVariant *url_string_val = g_variant_get_child_value(parameters, 1);
+        log_assert(url_string_val != nullptr);
+
         auto *playinfo = get_play_view(mgr);
-        process_meta_data(playinfo, parameters, 4, 3, false);
+        process_meta_data(playinfo, parameters, 3, false, fallback_title,
+                          g_variant_get_string(url_string_val, NULL));
+
+        g_variant_unref(url_string_val);
+
         playinfo->notify_stream_start(0, false);
         mgr->activate_view_by_name("Play");
 
@@ -289,8 +349,9 @@ void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
     }
     else if(strcmp(signal_name, "MetaDataChanged") == 0)
     {
+        check_parameter_assertions(parameters, 1);
         auto *playinfo = get_play_view(mgr);
-        process_meta_data(playinfo, parameters, 1, 0, true);
+        process_meta_data(playinfo, parameters, 0, true);
     }
     else if(strcmp(signal_name, "Stopped") == 0)
     {
