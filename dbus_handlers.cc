@@ -280,12 +280,12 @@ void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
     {
         auto *playinfo = get_play_view(mgr);
         process_meta_data(playinfo, parameters, 4, 3, false);
-        playinfo->notify_stream_start(0, "", false);
+        playinfo->notify_stream_start(0, false);
         mgr->activate_view_by_name("Play");
 
         auto *view = mgr->get_playback_initiator_view();
         if(view != nullptr && view != playinfo)
-            view->notify_stream_start(0, "", false);
+            view->notify_stream_start(0, false);
     }
     else if(strcmp(signal_name, "MetaDataChanged") == 0)
     {

@@ -104,8 +104,7 @@ class View: public ViewIface
     bool serialize(DcpTransaction &dcpd, std::ostream *debug_os) override;
     bool update(DcpTransaction &dcpd, std::ostream *debug_os) override;
 
-    void notify_stream_start(uint32_t id, const std::string &url,
-                             bool url_fifo_is_full) override;
+    void notify_stream_start(uint32_t id, bool url_fifo_is_full) override;
     void notify_stream_stop() override;
 
   private:

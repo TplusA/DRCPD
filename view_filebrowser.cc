@@ -229,7 +229,6 @@ bool ViewFileBrowser::View::update(DcpTransaction &dcpd, std::ostream *debug_os)
 }
 
 void ViewFileBrowser::View::notify_stream_start(uint32_t id,
-                                                const std::string &url,
                                                 bool url_fifo_is_full)
 {
     playback_current_state_.enqueue_next(*stream_info_, false);

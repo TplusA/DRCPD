@@ -86,8 +86,7 @@ ViewIface::InputResult ViewPlay::View::input(DrcpCommand command)
     return InputResult::OK;
 }
 
-void ViewPlay::View::notify_stream_start(uint32_t id, const std::string &url,
-                                         bool url_fifo_is_full)
+void ViewPlay::View::notify_stream_start(uint32_t id, bool url_fifo_is_full)
 {
     info_.assumed_stream_state_ = PlayInfo::Data::STREAM_PLAYING;
     msg_info("Play view: stream started, %s",
