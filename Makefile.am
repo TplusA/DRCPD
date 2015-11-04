@@ -33,7 +33,13 @@ AM_CFLAGS = $(CWARNINGS)
 
 AM_CXXFLAGS = $(CXXWARNINGS)
 
-noinst_LTLIBRARIES = libviews.la libdcp_transaction.la liblist.la libdbus_handlers.la libdrcpd_dbus_client.la
+noinst_LTLIBRARIES = \
+    libviews.la \
+    libdcp_transaction.la \
+    liblist.la \
+    libdbus_handlers.la \
+    libdrcpd_dbus_client.la \
+    libstreaminfo.la
 
 drcpd_LDADD = $(noinst_LTLIBRARIES) $(DRCPD_DEPENDENCIES_LIBS)
 
@@ -61,6 +67,10 @@ libdcp_transaction_la_CXXFLAGS = $(AM_CXXFLAGS)
 libdbus_handlers_la_SOURCES = dbus_handlers.h dbus_handlers.cc
 libdbus_handlers_la_CFLAGS = $(AM_CFLAGS)
 libdbus_handlers_la_CXXFLAGS = $(AM_CXXFLAGS)
+
+libstreaminfo_la_SOURCES = streaminfo.hh streaminfo.cc
+libstreaminfo_la_CFLAGS = $(AM_CFLAGS)
+libstreaminfo_la_CXXFLAGS = $(AM_CXXFLAGS)
 
 nodist_libdrcpd_dbus_client_la_SOURCES = \
     dcpd_dbus.c dcpd_dbus.h \

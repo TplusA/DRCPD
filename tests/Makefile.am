@@ -18,7 +18,14 @@ AM_CXXFLAGS = $(CXXWARNINGS)
 
 LIBS += $(CPPCUTTER_LIBS)
 
-check_LTLIBRARIES = test_list.la test_listnav.la test_dbus_handlers.la test_view_manager.la test_dcp_transaction.la test_playinfo.la
+check_LTLIBRARIES = \
+    test_list.la \
+    test_listnav.la \
+    test_dbus_handlers.la \
+    test_view_manager.la \
+    test_dcp_transaction.la \
+    test_playinfo.la \
+    test_streaminfo.la
 
 test_list_la_SOURCES = test_list.cc
 test_list_la_LIBADD = ../liblist.la
@@ -56,6 +63,13 @@ test_playinfo_la_SOURCES = \
 test_playinfo_la_LIBADD = ../libviews.la ../liblist.la
 test_playinfo_la_CFLAGS = $(AM_CFLAGS)
 test_playinfo_la_CXXFLAGS = $(AM_CXXFLAGS)
+
+test_streaminfo_la_SOURCES = \
+    test_streaminfo.cc \
+    mock_messages.hh mock_messages.cc
+test_streaminfo_la_LIBADD = ../libstreaminfo.la
+test_streaminfo_la_CFLAGS = $(AM_CFLAGS)
+test_streaminfo_la_CXXFLAGS = $(AM_CXXFLAGS)
 
 CLEANFILES = test_report.xml test_report_junit.xml valgrind.xml
 
