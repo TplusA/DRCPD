@@ -1,3 +1,17 @@
+2015-11-16  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 1.4 released.
+
+	* Browsing: Send alternative stream title to SPI slave. The
+	  alternative title is sent in the alttrack tag and is limited to a
+	  length of 20 UTF-8 characters.
+
+	  The alternative title is made from the name as it appeared in the
+	  list the user selected the stream from. In the very unlikely case
+	  that this string was also empty, the plain URL is used instead.
+
+	* Playback: Fix queuing into Streamplayer in linear playback mode.
+
 2015-11-03  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 1.3 released.
