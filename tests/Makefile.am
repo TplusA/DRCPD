@@ -74,7 +74,7 @@ test_streaminfo_la_CXXFLAGS = $(AM_CXXFLAGS)
 CLEANFILES = test_report.xml test_report_junit.xml valgrind.xml
 
 EXTRA_DIST = cutter2junit.xslt
-EXTRA_DIST += cutter-1_2_4.supp cutter-children-1_2_4.supp
+EXTRA_DIST += cutter-1_2_4.supp
 
 check-local: check-TESTS
 	@if $(GREP) -w cutter $(TEST_LOGS); then \
