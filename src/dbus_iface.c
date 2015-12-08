@@ -200,7 +200,7 @@ tdbussplayPlayback *dbus_get_streamplayer_playback_iface(void)
 }
 
 int dbus_setup(GMainLoop *loop, bool connect_to_session_bus,
-               void *view_manager_iface_for_dbus_handlers)
+               void *dbus_signal_data_for_dbus_handlers)
 {
 #if !GLIB_CHECK_VERSION(2, 36, 0)
     g_type_init();
@@ -243,39 +243,39 @@ int dbus_setup(GMainLoop *loop, bool connect_to_session_bus,
 
     g_signal_connect(dbus_data.dcpd_playback_proxy, "g-signal",
                      G_CALLBACK(dbussignal_dcpd_playback),
-                     view_manager_iface_for_dbus_handlers);
+                     dbus_signal_data_for_dbus_handlers);
 
     g_signal_connect(dbus_data.dcpd_views_proxy, "g-signal",
                      G_CALLBACK(dbussignal_dcpd_views),
-                     view_manager_iface_for_dbus_handlers);
+                     dbus_signal_data_for_dbus_handlers);
 
     g_signal_connect(dbus_data.dcpd_list_navigation_proxy, "g-signal",
                      G_CALLBACK(dbussignal_dcpd_listnav),
-                     view_manager_iface_for_dbus_handlers);
+                     dbus_signal_data_for_dbus_handlers);
 
     g_signal_connect(dbus_data.dcpd_list_item_proxy, "g-signal",
                      G_CALLBACK(dbussignal_dcpd_listitem),
-                     view_manager_iface_for_dbus_handlers);
+                     dbus_signal_data_for_dbus_handlers);
 
     g_signal_connect(dbus_data.filebroker_lists_navigation_proxy, "g-signal",
                      G_CALLBACK(dbussignal_lists_navigation),
-                     view_manager_iface_for_dbus_handlers);
+                     dbus_signal_data_for_dbus_handlers);
 
     g_signal_connect(dbus_data.tuneinbroker_lists_navigation_proxy, "g-signal",
                      G_CALLBACK(dbussignal_lists_navigation),
-                     view_manager_iface_for_dbus_handlers);
+                     dbus_signal_data_for_dbus_handlers);
 
     g_signal_connect(dbus_data.upnpbroker_lists_navigation_proxy, "g-signal",
                      G_CALLBACK(dbussignal_lists_navigation),
-                     view_manager_iface_for_dbus_handlers);
+                     dbus_signal_data_for_dbus_handlers);
 
     g_signal_connect(dbus_data.splay_urlfifo_proxy, "g-signal",
                      G_CALLBACK(dbussignal_splay_urlfifo),
-                     view_manager_iface_for_dbus_handlers);
+                     dbus_signal_data_for_dbus_handlers);
 
     g_signal_connect(dbus_data.splay_playback_proxy, "g-signal",
                      G_CALLBACK(dbussignal_splay_playback),
-                     view_manager_iface_for_dbus_handlers);
+                     dbus_signal_data_for_dbus_handlers);
 
     g_main_loop_ref(loop);
 

@@ -23,7 +23,7 @@ bin_PROGRAMS = drcpd
 drcpd_SOURCES = \
     drcpd.cc drcp_commands.hh i18n.h i18n.c messages.h messages.c \
     os.c os.h named_pipe.c named_pipe.h fdstreambuf.hh \
-    dbus_iface.c dbus_iface.h dbus_iface_deep.h \
+    dbus_iface.c dbus_iface.h dbus_iface_deep.h dbus_handlers.hh \
     list.hh ramlist.hh dbuslist.hh dbuslist_exception.hh listnav.hh \
     view.hh view_nop.hh view_manager.hh xmlescape.hh \
     view_config.hh view_filebrowser.hh view_filebrowser_utils.hh view_play.hh \
@@ -74,7 +74,7 @@ libdcp_transaction_la_SOURCES = dcp_transaction.cc dcp_transaction.hh
 libdcp_transaction_la_CFLAGS = $(AM_CFLAGS)
 libdcp_transaction_la_CXXFLAGS = $(AM_CXXFLAGS)
 
-libdbus_handlers_la_SOURCES = dbus_handlers.h dbus_handlers.cc
+libdbus_handlers_la_SOURCES = dbus_handlers.h dbus_handlers.hh dbus_handlers.cc
 libdbus_handlers_la_CFLAGS = $(AM_CFLAGS)
 libdbus_handlers_la_CXXFLAGS = $(AM_CXXFLAGS)
 

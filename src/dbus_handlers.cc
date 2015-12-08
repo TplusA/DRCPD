@@ -24,6 +24,7 @@
 #include <cerrno>
 
 #include "dbus_handlers.h"
+#include "dbus_handlers.hh"
 #include "view_manager.hh"
 #include "view_play.hh"
 #include "messages.h"
@@ -53,25 +54,25 @@ void dbussignal_dcpd_playback(GDBusProxy *proxy, const gchar *sender_name,
 
     msg_info("%s signal from '%s': %s", iface_name, sender_name, signal_name);
 
-    auto *mgr = static_cast<ViewManagerIface *>(user_data);
-    log_assert(mgr != nullptr);
+    auto *data = static_cast<DBusSignalData *>(user_data);
+    log_assert(data != nullptr);
 
     if(strcmp(signal_name, "Start") == 0)
-        mgr->input(DrcpCommand::PLAYBACK_START);
+        data->mgr.input(DrcpCommand::PLAYBACK_START);
     else if(strcmp(signal_name, "Stop") == 0)
-        mgr->input(DrcpCommand::PLAYBACK_STOP);
+        data->mgr.input(DrcpCommand::PLAYBACK_STOP);
     else if(strcmp(signal_name, "Pause") == 0)
-        mgr->input(DrcpCommand::PLAYBACK_PAUSE);
+        data->mgr.input(DrcpCommand::PLAYBACK_PAUSE);
     else if(strcmp(signal_name, "Next") == 0)
-        mgr->input(DrcpCommand::PLAYBACK_NEXT);
+        data->mgr.input(DrcpCommand::PLAYBACK_NEXT);
     else if(strcmp(signal_name, "Previous") == 0)
-        mgr->input(DrcpCommand::PLAYBACK_PREVIOUS);
+        data->mgr.input(DrcpCommand::PLAYBACK_PREVIOUS);
     else if(strcmp(signal_name, "FastForward") == 0)
-        mgr->input(DrcpCommand::FAST_WIND_FORWARD);
+        data->mgr.input(DrcpCommand::FAST_WIND_FORWARD);
     else if(strcmp(signal_name, "FastRewind") == 0)
-        mgr->input(DrcpCommand::FAST_WIND_REVERSE);
+        data->mgr.input(DrcpCommand::FAST_WIND_REVERSE);
     else if(strcmp(signal_name, "FastWindStop") == 0)
-        mgr->input(DrcpCommand::FAST_WIND_STOP);
+        data->mgr.input(DrcpCommand::FAST_WIND_STOP);
     else if(strcmp(signal_name, "FastWindSetFactor") == 0)
     {
         check_parameter_assertions(parameters, 1);
@@ -79,13 +80,13 @@ void dbussignal_dcpd_playback(GDBusProxy *proxy, const gchar *sender_name,
         GVariant *val = g_variant_get_child_value(parameters, 0);
         log_assert(val != nullptr);
 
-        mgr->input_set_fast_wind_factor(g_variant_get_double(val));
+        data->mgr.input_set_fast_wind_factor(g_variant_get_double(val));
         g_variant_unref(val);
     }
     else if(strcmp(signal_name, "RepeatModeToggle") == 0)
-        mgr->input(DrcpCommand::REPEAT_MODE_TOGGLE);
+        data->mgr.input(DrcpCommand::REPEAT_MODE_TOGGLE);
     else if(strcmp(signal_name, "ShuffleModeToggle") == 0)
-        mgr->input(DrcpCommand::SHUFFLE_MODE_TOGGLE);
+        data->mgr.input(DrcpCommand::SHUFFLE_MODE_TOGGLE);
     else
         unknown_signal(iface_name, signal_name, sender_name);
 }
@@ -98,8 +99,8 @@ void dbussignal_dcpd_views(GDBusProxy *proxy, const gchar *sender_name,
 
     msg_info("%s signal from '%s': %s", iface_name, sender_name, signal_name);
 
-    auto *mgr = static_cast<ViewManagerIface *>(user_data);
-    log_assert(mgr != nullptr);
+    auto *data = static_cast<DBusSignalData *>(user_data);
+    log_assert(data != nullptr);
 
     if(strcmp(signal_name, "Open") == 0)
     {
@@ -108,7 +109,7 @@ void dbussignal_dcpd_views(GDBusProxy *proxy, const gchar *sender_name,
         GVariant *view_name = g_variant_get_child_value(parameters, 0);
         log_assert(view_name != nullptr);
 
-        mgr->activate_view_by_name(g_variant_get_string(view_name, NULL));
+        data->mgr.activate_view_by_name(g_variant_get_string(view_name, NULL));
 
         g_variant_unref(view_name);
     }
@@ -121,8 +122,8 @@ void dbussignal_dcpd_views(GDBusProxy *proxy, const gchar *sender_name,
         log_assert(first_view_name != nullptr);
         log_assert(second_view_name != nullptr);
 
-        mgr->toggle_views_by_name(g_variant_get_string(first_view_name, NULL),
-                                  g_variant_get_string(second_view_name, NULL));
+        data->mgr.toggle_views_by_name(g_variant_get_string(first_view_name, NULL),
+                                       g_variant_get_string(second_view_name, NULL));
 
         g_variant_unref(first_view_name);
         g_variant_unref(second_view_name);
@@ -139,13 +140,13 @@ void dbussignal_dcpd_listnav(GDBusProxy *proxy, const gchar *sender_name,
 
     msg_info("%s signal from '%s': %s", iface_name, sender_name, signal_name);
 
-    auto *mgr = static_cast<ViewManagerIface *>(user_data);
-    log_assert(mgr != nullptr);
+    auto *data = static_cast<DBusSignalData *>(user_data);
+    log_assert(data != nullptr);
 
     if(strcmp(signal_name, "LevelUp") == 0)
-        mgr->input(DrcpCommand::GO_BACK_ONE_LEVEL);
+        data->mgr.input(DrcpCommand::GO_BACK_ONE_LEVEL);
     else if(strcmp(signal_name, "LevelDown") == 0)
-        mgr->input(DrcpCommand::SELECT_ITEM);
+        data->mgr.input(DrcpCommand::SELECT_ITEM);
     else if(strcmp(signal_name, "MoveLines") == 0)
     {
         check_parameter_assertions(parameters, 1);
@@ -153,7 +154,7 @@ void dbussignal_dcpd_listnav(GDBusProxy *proxy, const gchar *sender_name,
         GVariant *lines = g_variant_get_child_value(parameters, 0);
         log_assert(lines != nullptr);
 
-        mgr->input_move_cursor_by_line(g_variant_get_int32(lines));
+        data->mgr.input_move_cursor_by_line(g_variant_get_int32(lines));
 
         g_variant_unref(lines);
     }
@@ -164,7 +165,7 @@ void dbussignal_dcpd_listnav(GDBusProxy *proxy, const gchar *sender_name,
         GVariant *pages = g_variant_get_child_value(parameters, 0);
         log_assert(pages != nullptr);
 
-        mgr->input_move_cursor_by_page(g_variant_get_int32(pages));
+        data->mgr.input_move_cursor_by_page(g_variant_get_int32(pages));
 
         g_variant_unref(pages);
     }
@@ -323,54 +324,54 @@ void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
 
     msg_info("%s signal from '%s': %s", iface_name, sender_name, signal_name);
 
-    auto *mgr = static_cast<ViewManagerIface *>(user_data);
-    log_assert(mgr != nullptr);
+    auto *data = static_cast<DBusSignalData *>(user_data);
+    log_assert(data != nullptr);
 
     if(strcmp(signal_name, "NowPlaying") == 0)
     {
         check_parameter_assertions(parameters, 4);
 
-        auto fallback_title = lookup_fallback(*mgr->get_stream_info(), parameters, 0);
+        auto fallback_title = lookup_fallback(*data->mgr.get_stream_info(), parameters, 0);
         GVariant *url_string_val = g_variant_get_child_value(parameters, 1);
         log_assert(url_string_val != nullptr);
 
-        auto *playinfo = get_play_view(mgr);
+        auto *playinfo = get_play_view(&data->mgr);
         process_meta_data(playinfo, parameters, 3, false, fallback_title,
                           g_variant_get_string(url_string_val, NULL));
 
         g_variant_unref(url_string_val);
 
         playinfo->notify_stream_start(0, false);
-        mgr->activate_view_by_name("Play");
+        data->mgr.activate_view_by_name("Play");
 
-        auto *view = mgr->get_playback_initiator_view();
+        auto *view = data->mgr.get_playback_initiator_view();
         if(view != nullptr && view != playinfo)
             view->notify_stream_start(0, false);
     }
     else if(strcmp(signal_name, "MetaDataChanged") == 0)
     {
         check_parameter_assertions(parameters, 1);
-        auto *playinfo = get_play_view(mgr);
+        auto *playinfo = get_play_view(&data->mgr);
         process_meta_data(playinfo, parameters, 0, true);
     }
     else if(strcmp(signal_name, "Stopped") == 0)
     {
-        auto *playinfo = get_play_view(mgr);
+        auto *playinfo = get_play_view(&data->mgr);
         playinfo->notify_stream_stop();
 
-        auto *view = mgr->get_playback_initiator_view();
+        auto *view = data->mgr.get_playback_initiator_view();
         if(view != nullptr && view != playinfo)
             view->notify_stream_stop();
     }
     else if(strcmp(signal_name, "Paused") == 0)
     {
-        auto *playinfo = get_play_view(mgr);
+        auto *playinfo = get_play_view(&data->mgr);
         playinfo->notify_stream_pause();
     }
     else if(strcmp(signal_name, "PositionChanged") == 0)
     {
         check_parameter_assertions(parameters, 4);
-        auto *playinfo = get_play_view(mgr);
+        auto *playinfo = get_play_view(&data->mgr);
         std::chrono::milliseconds position, duration;
         parse_stream_position(parameters, 0, 1, position);
         parse_stream_position(parameters, 2, 3, duration);

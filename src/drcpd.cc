@@ -33,6 +33,7 @@
 #include "view_play.hh"
 #include "view_signals_glib.hh"
 #include "dbus_iface.h"
+#include "dbus_handlers.hh"
 #include "messages.h"
 #include "fdstreambuf.hh"
 #include "os.h"
@@ -465,13 +466,18 @@ int main(int argc, char *argv[])
     static std::ostream fd_out(&fd_sbuf);
     static ViewManager view_manager(dcp_transaction);
 
+    static DBusSignalData dbus_signal_data =
+    {
+        .mgr = view_manager,
+    };
+
     view_manager.set_output_stream(fd_out);
     view_manager.set_debug_stream(std::cout);
 
     dcp_dispatch_data.vm = &view_manager;
     dcp_dispatch_data.timeout_event_source_id = 0;
 
-    if(dbus_setup(loop, parameters.connect_to_session_dbus, &view_manager) < 0)
+    if(dbus_setup(loop, parameters.connect_to_session_dbus, &dbus_signal_data) < 0)
         return EXIT_FAILURE;
 
     g_unix_signal_add(SIGINT, signal_handler, loop);
