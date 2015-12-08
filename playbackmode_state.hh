@@ -27,6 +27,20 @@
 namespace Playback
 {
 
+/*!
+ * Representation of what we are playing and how.
+ *
+ * Fundamentally, objects of this class keep track of the position in a tree of
+ * lists provided by a list broker. These lists are directly used like
+ * playlists (but they _are_ none).
+ *
+ * Inside, this class uses a reference to an externally provided
+ * #List::DBusList object to get at list contents. The start position is set
+ * via function #Playback::State::start(). Then, each call of
+ * #Playback::State::enqueue_next() actively steps through the tree of lists
+ * according to the current mode (see #Playback::Mode) as indicated by a
+ * referenced #Playback::CurrentMode object.
+ */
 class State
 {
   private:
@@ -68,8 +82,27 @@ class State
         number_of_directories_entered_(0)
     {}
 
+    /*!
+     * Set start position and list, do not start playing yet.
+     */
     bool start(const List::DBusList &user_list, unsigned int start_line);
+
+    /*!
+     * Take next list entry and send its URI to the stream player.
+     *
+     * This function also sends the Play command to the stream player if and
+     * when necessary.
+     */
     void enqueue_next(StreamInfo &sinfo, bool skip_to_next);
+
+    /*!
+     * Reset list position, reset current playback mode.
+     *
+     * This function does not send any commands to the stream player. The
+     * reason is that this function must also be called after the stream player
+     * announced that it has stopped playing, in which case sending an active
+     * Stop command would be pointless.
+     */
     void revert();
 
   private:

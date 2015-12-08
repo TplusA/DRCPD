@@ -22,16 +22,50 @@
 namespace Playback
 {
 
+/*!
+ * Playback mode.
+ */
 enum class Mode
 {
-    NONE,
-    FINISHED,
+    NONE,          /*!< Playback not started yet. */
+    FINISHED,      /*!< Playback marked as intendedly finished. */
 
-    SINGLE_TRACK,
-    LINEAR,
-    SHUFFLE,
+    SINGLE_TRACK,  /*!< Single track mode, stop after playing one track. */
+    LINEAR,        /*!< Play tracks in "natural" deterministic order. */
+    SHUFFLE,       /*!< Play tracks in unspecified, random order. */
 };
 
+/*!
+ * Playback mode determining the order in which tracks from a list a played.
+ *
+ * This small class only manages the current mode (obtained via
+ * #Playback::CurrentMode::get()) based on a preselected mode (currently fixed
+ * at construction time), both of type #Playback::Mode. The class handles the
+ * change of modes over time, starting with #Playback::Mode::NONE to indicate
+ * that no mode is currently selected, i.e., nothing is being played at the
+ * moment.
+ *
+ * When playback is actively started by us, the
+ * #Playback::CurrentMode::activate_selected_mode() should be called to set the
+ * preselected mode as current mode. Next, the current mode should be read out
+ * via #Playback::CurrentMode::get() to determine how exactly the playback
+ * should actually work.
+ *
+ * When playback has finished, i.e., when the playlist is exhausted, function
+ * #Playback::CurrentMode::finish() should be called, setting the current mode
+ * to #Playback::Mode::FINISHED. This state signifies that playback was stopped
+ * by intention and not due to some error.
+ *
+ * To restart, function #Playback::CurrentMode::deactivate() must be called.
+ * This resets the current mode in the object to #Playback::Mode::NONE. In case
+ * the state is neither #Playback::Mode::FINISHED nor #Playback::Mode::NONE
+ * when deactivating the current mode, this means that a there _should_ be
+ * playing something, but now it should be stopped. What to do with this
+ * information depends on context.
+ *
+ * This approach allows configuration of the default playback mode in one place
+ * and using it in a differnt place through a clean interface.
+ */
 class CurrentMode
 {
   private:
