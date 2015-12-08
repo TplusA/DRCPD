@@ -1,9 +1,25 @@
+dnl Copyright (C) 2015  T+A elektroakustik GmbH & Co. KG
+dnl
+dnl This file is part of DRCPD.
+dnl
+dnl DRCPD is free software: you can redistribute it and/or modify
+dnl it under the terms of the GNU General Public License, version 3 as
+dnl published by the Free Software Foundation.
+dnl
+dnl DRCPD is distributed in the hope that it will be useful,
+dnl but WITHOUT ANY WARRANTY; without even the implied warranty of
+dnl MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+dnl GNU General Public License for more details.
+dnl
+dnl You should have received a copy of the GNU General Public License
+dnl along with DRCPD.  If not, see <http://www.gnu.org/licenses/>.
+
 AC_PREREQ([2.69])
 AC_INIT([DRCPD], [1.4], [r.tiemann@ta-hifi.com])
 AC_CONFIG_AUX_DIR([config])
 AM_INIT_AUTOMAKE([1.11 -Wall -Werror foreign])
 AM_SILENT_RULES([yes])
-AC_CONFIG_SRCDIR([drcpd.cc])
+AC_CONFIG_SRCDIR([src/drcpd.cc])
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_MACRO_DIR([m4])
 
@@ -101,7 +117,7 @@ AM_CONDITIONAL([WITH_CUTTER], [test "x$ac_cv_use_cutter" = "xyes"])
 AM_CONDITIONAL([WITH_VALGRIND], [test "x$enable_valgrind" = "xyes"])
 AM_CONDITIONAL([CAN_BUILD_DEBIAN_PACKAGE], [test "x$ac_cv_prog_DPKG_BUILDPACKAGE" != x && test "x$DEBIAN_ARCHITECTURE_NAME" != x])
 
-AC_CONFIG_FILES([Makefile tests/Makefile dist/Makefile po/Makefile.in Doxyfile])
+AC_CONFIG_FILES([Makefile src/Makefile tests/Makefile dist/Makefile po/Makefile.in Doxyfile])
 AC_CONFIG_FILES([versioninfo.cache])
 AC_CONFIG_FILES([debian/control])
 AC_CONFIG_FILES([tests/run_test.sh], [chmod +x tests/run_test.sh])

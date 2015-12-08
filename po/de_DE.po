@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: drcpd 0.1\n"
 "Report-Msgid-Bugs-To: r.tiemann@ta-hifi.de\n"
-"POT-Creation-Date: 2014-10-07 16:25+0200\n"
+"POT-Creation-Date: 2015-12-08 16:43+0100\n"
 "PO-Revision-Date: 2014-10-01 15:45+0200\n"
 "Last-Translator: Robert Tiemann <r.tiemann@ta-hifi.de>\n"
 "Language-Team: German\n"
@@ -17,30 +17,79 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: view_config.cc:83
+#: src/drcpd.cc:379
+msgid "Configuration"
+msgstr ""
+
+#: src/drcpd.cc:380
+msgid "Local file system"
+msgstr ""
+
+#: src/drcpd.cc:385
+msgid "TuneIn internet radio"
+msgstr ""
+
+#: src/drcpd.cc:390
+msgid "UPnP media servers"
+msgstr ""
+
+#: src/drcpd.cc:395
+msgid "Stream information"
+msgstr ""
+
+#: src/view_config.cc:134
 msgid "MAC"
 msgstr ""
 
-#: view_config.cc:85
+#: src/view_config.cc:139
 msgid "DHCP"
 msgstr ""
 
-#: view_config.cc:87
+#: src/view_config.cc:141
+#, fuzzy
+msgid "Device IP"
+msgstr "Gerätename"
+
+#: src/view_config.cc:145
+msgid "IP mask"
+msgstr ""
+
+#: src/view_config.cc:149
+msgid "Gateway IP"
+msgstr ""
+
+#: src/view_config.cc:153
+msgid "DNS 1"
+msgstr ""
+
+#: src/view_config.cc:157
+msgid "DNS 2"
+msgstr ""
+
+#: src/view_config.cc:162
 msgid "Proxy"
 msgstr ""
 
-#: view_config.cc:89
+#: src/view_config.cc:164
+msgid "Proxy IP"
+msgstr ""
+
+#: src/view_config.cc:168
+msgid "Proxy port"
+msgstr ""
+
+#: src/view_config.cc:173
 msgid "Device name"
 msgstr "Gerätename"
 
-#: view_config.cc:91
+#: src/view_config.cc:175
 msgid "Networking mode"
 msgstr "Netzwerkmodus"
 
-#: view_config.cc:93
+#: src/view_config.cc:177
 msgid "Save and restart"
 msgstr "Speichern und neu starten"
 
-#: view_config.cc:95
+#: src/view_config.cc:179
 msgid "Exit without saving"
 msgstr "Ohne speichern beenden"

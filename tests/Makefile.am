@@ -1,3 +1,21 @@
+#
+# Copyright (C) 2015  T+A elektroakustik GmbH & Co. KG
+#
+# This file is part of DRCPD.
+#
+# DRCPD is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License, version 3 as
+# published by the Free Software Foundation.
+#
+# DRCPD is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with DRCPD.  If not, see <http://www.gnu.org/licenses/>.
+#
+
 if WITH_CUTTER
 TESTS = run_test.sh
 
@@ -10,7 +28,8 @@ AM_TESTS_ENVIRONMENT = CUTTER="$(CUTTER)" XSLTPROC="$(XSLTPROC)" VALGRIND="$(VAL
 AM_LDFLAGS = -module -rpath $(libdir) -avoid-version -no-undefined
 
 AM_CPPFLAGS = $(CPPCUTTER_CFLAGS)
-AM_CPPFLAGS += -I$(top_srcdir)
+AM_CPPFLAGS += -I$(top_srcdir)/src -I$(top_builddir)/src
+AM_CPPFLAGS += -I$(top_srcdir)/dbus_interfaces
 
 AM_CFLAGS = $(CWARNINGS)
 
@@ -28,12 +47,12 @@ check_LTLIBRARIES = \
     test_streaminfo.la
 
 test_list_la_SOURCES = test_list.cc
-test_list_la_LIBADD = ../liblist.la
+test_list_la_LIBADD = $(top_builddir)/src/liblist.la
 test_list_la_CFLAGS = $(AM_CFLAGS)
 test_list_la_CXXFLAGS = $(AM_CXXFLAGS)
 
 test_listnav_la_SOURCES = test_listnav.cc
-test_listnav_la_LIBADD = ../liblist.la
+test_listnav_la_LIBADD = $(top_builddir)/src/liblist.la
 test_listnav_la_CFLAGS = $(AM_CFLAGS)
 test_listnav_la_CXXFLAGS = $(AM_CXXFLAGS)
 
@@ -41,33 +60,33 @@ test_dbus_handlers_la_SOURCES = \
     test_dbus_handlers.cc mock_expectation.hh \
     mock_messages.hh mock_messages.cc \
     mock_view_manager.hh mock_view_manager.cc
-test_dbus_handlers_la_LIBADD = ../libdbus_handlers.la
+test_dbus_handlers_la_LIBADD = $(top_builddir)/src/libdbus_handlers.la
 test_dbus_handlers_la_CFLAGS = $(DRCPD_DEPENDENCIES_CFLAGS) $(AM_CFLAGS)
 test_dbus_handlers_la_CXXFLAGS = $(DRCPD_DEPENDENCIES_CFLAGS) $(AM_CXXFLAGS)
 
 test_view_manager_la_SOURCES = \
     test_view_manager.cc view_mock.hh view_mock.cc \
     mock_messages.hh mock_messages.cc
-test_view_manager_la_LIBADD = ../libviews.la ../libdcp_transaction.la ../liblist.la
+test_view_manager_la_LIBADD = $(top_builddir)/src/libviews.la $(top_builddir)/src/libdcp_transaction.la $(top_builddir)/src/liblist.la
 test_view_manager_la_CFLAGS = $(AM_CFLAGS)
 test_view_manager_la_CXXFLAGS = $(AM_CXXFLAGS)
 
 test_dcp_transaction_la_SOURCES = test_dcp_transaction.cc
-test_dcp_transaction_la_LIBADD = ../libdcp_transaction.la
+test_dcp_transaction_la_LIBADD = $(top_builddir)/src/libdcp_transaction.la
 test_dcp_transaction_la_CFLAGS = $(AM_CFLAGS)
 test_dcp_transaction_la_CXXFLAGS = $(AM_CXXFLAGS)
 
 test_playinfo_la_SOURCES = \
     test_playinfo.cc \
     mock_messages.hh mock_messages.cc
-test_playinfo_la_LIBADD = ../libviews.la ../liblist.la
+test_playinfo_la_LIBADD = $(top_builddir)/src/libviews.la $(top_builddir)/src/liblist.la
 test_playinfo_la_CFLAGS = $(AM_CFLAGS)
 test_playinfo_la_CXXFLAGS = $(AM_CXXFLAGS)
 
 test_streaminfo_la_SOURCES = \
     test_streaminfo.cc \
     mock_messages.hh mock_messages.cc
-test_streaminfo_la_LIBADD = ../libstreaminfo.la
+test_streaminfo_la_LIBADD = $(top_builddir)/src/libstreaminfo.la
 test_streaminfo_la_CFLAGS = $(AM_CFLAGS)
 test_streaminfo_la_CXXFLAGS = $(AM_CXXFLAGS)
 
