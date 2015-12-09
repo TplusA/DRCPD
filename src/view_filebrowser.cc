@@ -102,12 +102,7 @@ ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command)
         return InputResult::OK;
 
       case DrcpCommand::PLAYBACK_STOP:
-        if(!tdbus_splay_playback_call_stop_sync(dbus_get_streamplayer_playback_iface(),
-                                                NULL, NULL))
-            msg_error(0, LOG_NOTICE, "Failed sending stop playback message");
-
         player_.release();
-
         return InputResult::OK;
 
       case DrcpCommand::GO_BACK_ONE_LEVEL:

@@ -22,6 +22,8 @@
 
 #include "player.hh"
 #include "playbackmode_state.hh"
+#include "streamplayer_dbus.h"
+#include "dbus_iface_deep.h"
 
 static inline void no_context_bug(const char *what)
 {
@@ -63,6 +65,10 @@ void Playback::Player::release()
 {
     if(current_state_ == nullptr)
         no_context_bug("release command");
+
+    if(!tdbus_splay_playback_call_stop_sync(dbus_get_streamplayer_playback_iface(),
+                                            NULL, NULL))
+        msg_error(0, LOG_NOTICE, "Failed sending stop playback message");
 
     clear();
 

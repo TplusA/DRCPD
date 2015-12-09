@@ -72,10 +72,6 @@ ViewIface::InputResult ViewPlay::View::input(DrcpCommand command)
         break;
 
       case DrcpCommand::PLAYBACK_STOP:
-        if(!tdbus_splay_playback_call_stop_sync(dbus_get_streamplayer_playback_iface(),
-                                                NULL, NULL))
-            msg_error(0, LOG_NOTICE, "Failed sending stop playback message");
-
         player_.release();
 
         break;
