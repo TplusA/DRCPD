@@ -91,10 +91,22 @@ class PlayerIface
     virtual void release() = 0;
 
     /*!
+     * To be called when the stream player notifies that is has started
+     * playing.
+     */
+    virtual void start_notification() = 0;
+
+    /*!
      * To be called when the stream player notifies that it has stopped playing
      * at all.
      */
     virtual void stop_notification() = 0;
+
+    /*!
+     * To be called when the stream player notifies that is has paused
+     * playback.
+     */
+    virtual void pause_notification() = 0;
 
     /*!
      * To be called when the stream player sends new track times.
@@ -155,7 +167,9 @@ class Player: public PlayerIface, public MetaDataStoreIface
     bool take(State &playback_state, const List::DBusList &file_list, int line) override;
     void release() override;
 
+    void start_notification() override;
     void stop_notification() override;
+    void pause_notification() override;
     bool track_times_notification(const std::chrono::milliseconds &position,
                                   const std::chrono::milliseconds &duration) override;
     void enqueue_next() override;

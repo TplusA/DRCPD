@@ -50,6 +50,14 @@ static inline void no_context_bug(const char *what)
     BUG("Got %s notification from player, but have no context", what);
 }
 
+void Playback::Player::start_notification()
+{
+    set_assumed_stream_state(PlayInfo::Data::STREAM_PLAYING);
+
+    if(current_state_ == nullptr)
+        no_context_bug("start");
+}
+
 void Playback::Player::stop_notification()
 {
     set_assumed_stream_state(PlayInfo::Data::STREAM_STOPPED);
@@ -64,6 +72,14 @@ void Playback::Player::stop_notification()
     track_info_.meta_data_.clear(true);
     incoming_meta_data_.clear(true);
     current_state_->revert();
+}
+
+void Playback::Player::pause_notification()
+{
+    set_assumed_stream_state(PlayInfo::Data::STREAM_PAUSED);
+
+    if(current_state_ == nullptr)
+        no_context_bug("pause");
 }
 
 bool Playback::Player::track_times_notification(const std::chrono::milliseconds &position,

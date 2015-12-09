@@ -333,6 +333,7 @@ void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
 
     if(strcmp(signal_name, "NowPlaying") == 0)
     {
+        data->player.start_notification();
         data->player.enqueue_next();
 
         check_parameter_assertions(parameters, 4);
@@ -375,6 +376,8 @@ void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
     }
     else if(strcmp(signal_name, "Paused") == 0)
     {
+        data->player.pause_notification();
+
         auto *playinfo = get_play_view(&data->mgr);
         playinfo->notify_stream_pause();
     }
