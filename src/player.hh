@@ -41,12 +41,53 @@ class PlayerIface
 
     virtual ~PlayerIface() {}
 
+    /*!
+     * Take over the player using the given playback state and start position.
+     *
+     * The player will configure the given state to start playing at the given
+     * line in given list. The playback mode is embedded in the state object
+     * and advancing back and forth through the list is implemented there as
+     * well, so the mode is taken care of.
+     *
+     * If the player is currently taken by another view, then that view's state
+     * is reverted and the new state is used.
+     *
+     * Most function members have no effect if this function has not be called.
+     *
+     * \returns
+     *     True on success, false on error (start playing failed for some
+     *     reason).
+     *
+     * \see
+     *     #Playback::PlayerIface::release()
+     */
     virtual bool take(State &playback_state, const List::DBusList &file_list, int line) = 0;
+
+    /*!
+     * Explicitly stop and release the player.
+     *
+     * For clean end of playing, the player should be released when playback is
+     * supposed to end. This avoids accidental restarting of playback by
+     * spurious calls of other functions.
+     */
     virtual void release() = 0;
 
+    /*!
+     * To be called when the stream player notifies that it has stopped playing
+     * at all.
+     */
     virtual void stop_notification() = 0;
+
+    /*!
+     * To be called when the stream player notifies end of stream.
+     */
     virtual void enqueue_next() = 0;
 
+    /*!
+     * Return name of currently playing stream as it appeared in the list.
+     *
+     * Used as fallback in case no other meta information are available.
+     */
     virtual const std::string *get_original_stream_name(uint16_t id) = 0;
 };
 
