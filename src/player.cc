@@ -23,6 +23,11 @@
 #include "player.hh"
 #include "playbackmode_state.hh"
 
+static inline void no_context_bug(const char *what)
+{
+    BUG("Got %s, but have no context", what);
+}
+
 bool Playback::Player::take(Playback::State &playback_state,
                             const List::DBusList &file_list, int line)
 {
@@ -56,6 +61,8 @@ void Playback::Player::clear()
 
 void Playback::Player::release()
 {
+    if(current_state_ == nullptr)
+        no_context_bug("release command");
 
     clear();
 
@@ -63,17 +70,12 @@ void Playback::Player::release()
     set_assumed_stream_state(PlayInfo::Data::STREAM_UNAVAILABLE);
 }
 
-static inline void no_context_bug(const char *what)
-{
-    BUG("Got %s notification from player, but have no context", what);
-}
-
 void Playback::Player::start_notification()
 {
     set_assumed_stream_state(PlayInfo::Data::STREAM_PLAYING);
 
     if(current_state_ == nullptr)
-        no_context_bug("start");
+        no_context_bug("start notification from player");
 }
 
 void Playback::Player::stop_notification()
@@ -81,10 +83,7 @@ void Playback::Player::stop_notification()
     set_assumed_stream_state(PlayInfo::Data::STREAM_STOPPED);
 
     if(current_state_ == nullptr)
-    {
-        no_context_bug("stop");
-        return;
-    }
+        no_context_bug("stop notification from player");
 
     clear();
 }
@@ -94,7 +93,7 @@ void Playback::Player::pause_notification()
     set_assumed_stream_state(PlayInfo::Data::STREAM_PAUSED);
 
     if(current_state_ == nullptr)
-        no_context_bug("pause");
+        no_context_bug("pause notification from player");
 }
 
 bool Playback::Player::track_times_notification(const std::chrono::milliseconds &position,
@@ -102,7 +101,7 @@ bool Playback::Player::track_times_notification(const std::chrono::milliseconds 
 {
     if(current_state_ == nullptr)
     {
-        no_context_bug("position");
+        no_context_bug("new times from player");
         return true;
     }
 
@@ -117,16 +116,20 @@ bool Playback::Player::track_times_notification(const std::chrono::milliseconds 
 
 void Playback::Player::enqueue_next()
 {
-    if(current_state_ != nullptr)
-        current_state_->enqueue_next(stream_info_, false);
+    if(current_state_ == nullptr)
+        return no_context_bug("new stream notification from player");
+
+    current_state_->enqueue_next(stream_info_, false);
 }
 
 const PlayInfo::MetaData *const Playback::Player::get_track_meta_data() const
 {
     if(current_state_ != nullptr)
         return &track_info_.meta_data_;
-    else
-        return nullptr;
+
+    no_context_bug("meta data query");
+
+    return nullptr;
 }
 
 PlayInfo::Data::StreamState Playback::Player::get_assumed_stream_state() const
@@ -151,20 +154,27 @@ const std::string *Playback::Player::get_original_stream_name(uint16_t id)
 
 void Playback::Player::meta_data_add_begin(bool is_update)
 {
-    if(current_state_ != nullptr)
-        incoming_meta_data_.clear(is_update);
+    if(current_state_ == nullptr)
+        return no_context_bug("start adding meta data command");
+
+    incoming_meta_data_.clear(is_update);
 }
 
 void Playback::Player::meta_data_add(const char *key, const char *value)
 {
-    if(current_state_ != nullptr)
-        incoming_meta_data_.add(key, value, meta_data_reformatters_);
+    if(current_state_ == nullptr)
+        return no_context_bug("add meta data command");
+
+    incoming_meta_data_.add(key, value, meta_data_reformatters_);
 }
 
 bool Playback::Player::meta_data_add_end()
 {
     if(current_state_ == nullptr)
+    {
+        no_context_bug("add meta data command");
         return false;
+    }
 
     if(incoming_meta_data_ == track_info_.meta_data_)
     {
