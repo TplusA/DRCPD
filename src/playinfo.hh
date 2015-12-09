@@ -92,6 +92,7 @@ class Data
 
     enum StreamState
     {
+        STREAM_UNAVAILABLE,
         STREAM_STOPPED,
         STREAM_PLAYING,
         STREAM_PAUSED,
@@ -103,7 +104,7 @@ class Data
     std::chrono::milliseconds stream_duration_;
 
     explicit Data():
-        assumed_stream_state_(STREAM_STOPPED),
+        assumed_stream_state_(STREAM_UNAVAILABLE),
         stream_position_(-1),
         stream_duration_(-1)
     {

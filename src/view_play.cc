@@ -50,6 +50,9 @@ ViewIface::InputResult ViewPlay::View::input(DrcpCommand command)
       case DrcpCommand::PLAYBACK_START:
         switch(player_.get_assumed_stream_state())
         {
+          case PlayInfo::Data::STREAM_UNAVAILABLE:
+            break;
+
           case PlayInfo::Data::STREAM_PLAYING:
             if(!tdbus_splay_playback_call_pause_sync(dbus_get_streamplayer_playback_iface(),
                                                      NULL, NULL))

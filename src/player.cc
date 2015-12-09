@@ -31,18 +31,36 @@ bool Playback::Player::take(Playback::State &playback_state,
 
     current_state_ = &playback_state;
 
+    set_assumed_stream_state(PlayInfo::Data::STREAM_STOPPED);
+
     if(!current_state_->start(file_list, line))
+    {
+        set_assumed_stream_state(PlayInfo::Data::STREAM_UNAVAILABLE);
         return false;
+    }
 
     current_state_->enqueue_next(stream_info_, true);
 
     return true;
 }
 
+void Playback::Player::clear()
+{
+    stream_info_.clear();
+    track_info_.meta_data_.clear(true);
+    incoming_meta_data_.clear(true);
+
+    if(current_state_ != nullptr)
+        current_state_->revert();
+}
+
 void Playback::Player::release()
 {
-    stop_notification();
+
+    clear();
+
     current_state_ = nullptr;
+    set_assumed_stream_state(PlayInfo::Data::STREAM_UNAVAILABLE);
 }
 
 static inline void no_context_bug(const char *what)
@@ -68,10 +86,7 @@ void Playback::Player::stop_notification()
         return;
     }
 
-    stream_info_.clear();
-    track_info_.meta_data_.clear(true);
-    incoming_meta_data_.clear(true);
-    current_state_->revert();
+    clear();
 }
 
 void Playback::Player::pause_notification()
@@ -116,10 +131,7 @@ const PlayInfo::MetaData *const Playback::Player::get_track_meta_data() const
 
 PlayInfo::Data::StreamState Playback::Player::get_assumed_stream_state() const
 {
-    if(current_state_ != nullptr)
-        return track_info_.assumed_stream_state_;
-    else
-        return PlayInfo::Data::STREAM_STOPPED;
+    return track_info_.assumed_stream_state_;
 }
 
 std::pair<std::chrono::milliseconds, std::chrono::milliseconds> Playback::Player::get_times() const

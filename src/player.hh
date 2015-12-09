@@ -185,6 +185,7 @@ class Player: public PlayerIface, public MetaDataStoreIface
 
   private:
     void set_assumed_stream_state(PlayInfo::Data::StreamState state);
+    void clear();
 };
 
 }
