@@ -26,10 +26,10 @@
 #include "dbus_handlers.hh"
 #include "de_tahifi_lists_errors.hh"
 #include "player.hh"
+#include "view_play.hh"
+
 #include "mock_view_manager.hh"
 #include "mock_messages.hh"
-
-constexpr const char *ListError::names_[];
 
 /*!
  * \addtogroup dbus_handlers_tests Unit tests
@@ -62,7 +62,7 @@ void cut_setup(void)
     cppcut_assert_not_null(mock_view_manager);
     mock_view_manager->init();
 
-    player = new Playback::Player;
+    player = new Playback::Player(ViewPlay::meta_data_reformatters);
     cppcut_assert_not_null(player);
 }
 
@@ -85,7 +85,7 @@ void cut_teardown(void)
 
 static DBusSignalData mk_dbus_signal_data()
 {
-    return DBusSignalData(*mock_view_manager, *player);
+    return DBusSignalData(*mock_view_manager, *player, *player);
 }
 
 /*!\test

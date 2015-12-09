@@ -20,7 +20,11 @@
 #define DBUS_HANDLERS_HH
 
 class ViewManagerIface;
-namespace Playback { class PlayerIface; }
+namespace Playback
+{
+    class PlayerIface;
+    class MetaDataStoreIface;
+}
 
 /*!
  * \addtogroup dbus_handlers DBus handlers for signals
@@ -37,11 +41,14 @@ class DBusSignalData
 
     ViewManagerIface &mgr;
     Playback::PlayerIface &player;
+    Playback::MetaDataStoreIface &mdstore;
 
     explicit DBusSignalData(ViewManagerIface &arg_mgr,
-                            Playback::PlayerIface &arg_player):
+                            Playback::PlayerIface &arg_player,
+                            Playback::MetaDataStoreIface &arg_mdstore):
         mgr(arg_mgr),
-        player(arg_player)
+        player(arg_player),
+        mdstore(arg_mdstore)
     {}
 };
 

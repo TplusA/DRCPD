@@ -48,8 +48,6 @@ class View: public ViewIface
     static constexpr uint16_t update_flags_meta_data        = 1U << 3;
 
     bool is_visible_;
-    PlayInfo::Data info_;
-    PlayInfo::MetaData incoming_meta_data_;
     uint16_t update_flags_;
 
     Playback::Player &player_;
@@ -80,30 +78,8 @@ class View: public ViewIface
     void notify_stream_start(uint32_t id, bool url_fifo_is_full) override;
     void notify_stream_stop() override;
     void notify_stream_pause() override;
-    void notify_stream_position_changed(const std::chrono::milliseconds &position,
-                                        const std::chrono::milliseconds &duration) override;
-
-    void meta_data_add_begin(bool is_update) override
-    {
-        incoming_meta_data_.clear(is_update);
-    }
-
-    void meta_data_add(const char *key, const char *value) override
-    {
-        incoming_meta_data_.add(key, value, meta_data_reformatters);
-    }
-
-    void meta_data_add_end() override
-    {
-        if(incoming_meta_data_ == info_.meta_data_)
-            incoming_meta_data_.clear(true);
-        else
-        {
-            info_.meta_data_ = incoming_meta_data_;
-            incoming_meta_data_.clear(true);
-            display_update(update_flags_meta_data);
-        }
-    }
+    void notify_stream_position_changed() override;
+    void notify_stream_meta_data_changed() override;
 
     bool serialize(DcpTransaction &dcpd, std::ostream *debug_os) override;
     bool update(DcpTransaction &dcpd, std::ostream *debug_os) override;

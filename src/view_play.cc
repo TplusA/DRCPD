@@ -48,7 +48,7 @@ ViewIface::InputResult ViewPlay::View::input(DrcpCommand command)
     switch(command)
     {
       case DrcpCommand::PLAYBACK_START:
-        switch(info_.assumed_stream_state_)
+        switch(player_.get_assumed_stream_state())
         {
           case PlayInfo::Data::STREAM_PLAYING:
             if(!tdbus_splay_playback_call_pause_sync(dbus_get_streamplayer_playback_iface(),
@@ -89,7 +89,6 @@ ViewIface::InputResult ViewPlay::View::input(DrcpCommand command)
 
 void ViewPlay::View::notify_stream_start(uint32_t id, bool url_fifo_is_full)
 {
-    info_.assumed_stream_state_ = PlayInfo::Data::STREAM_PLAYING;
     msg_info("Play view: stream started, %s",
              is_visible_ ? "send screen update" : "but view is invisible");
 
@@ -98,7 +97,6 @@ void ViewPlay::View::notify_stream_start(uint32_t id, bool url_fifo_is_full)
 
 void ViewPlay::View::notify_stream_stop()
 {
-    info_.assumed_stream_state_ = PlayInfo::Data::STREAM_STOPPED;
     msg_info("Play view: stream stopped, %s",
              is_visible_ ? "send screen update" : "but view is invisible");
 
@@ -107,25 +105,26 @@ void ViewPlay::View::notify_stream_stop()
 
 void ViewPlay::View::notify_stream_pause()
 {
-    info_.assumed_stream_state_ = PlayInfo::Data::STREAM_PAUSED;
     msg_info("Play view: stream paused, %s",
              is_visible_ ? "send screen update" : "but view is invisible");
 
     display_update(update_flags_playback_state);
 }
 
-void ViewPlay::View::notify_stream_position_changed(const std::chrono::milliseconds &position,
-                                                    const std::chrono::milliseconds &duration)
+void ViewPlay::View::notify_stream_position_changed()
 {
-    if(info_.stream_position_ == position && info_.stream_duration_ == duration)
-        return;
-
     msg_info("Play view: stream position changed, %s",
              is_visible_ ? "send screen update" : "but view is invisible");
 
-    info_.stream_position_ = position;
-    info_.stream_duration_ = duration;
     display_update(update_flags_stream_position);
+}
+
+void ViewPlay::View::notify_stream_meta_data_changed()
+{
+    msg_info("Play view: stream meta data changed, %s",
+             is_visible_ ? "send screen update" : "but view is invisible");
+
+    display_update(update_flags_meta_data);
 }
 
 static const std::string mk_alt_track_name(const PlayInfo::MetaData &meta_data,
@@ -160,38 +159,42 @@ static const std::string mk_alt_track_name(const PlayInfo::MetaData &meta_data,
 
 bool ViewPlay::View::write_xml(std::ostream &os, bool is_full_view)
 {
+    const auto *const md = player_.get_track_meta_data();
+
     if(is_full_view)
         update_flags_ = UINT16_MAX;
 
-    if((update_flags_ & update_flags_meta_data) != 0)
+    if((update_flags_ & update_flags_meta_data) != 0 && md != nullptr)
     {
         os << "    <text id=\"artist\">"
-           << XmlEscape(info_.meta_data_.values_[PlayInfo::MetaData::ARTIST])
+           << XmlEscape(md->values_[PlayInfo::MetaData::ARTIST])
            << "</text>\n";
         os << "    <text id=\"track\">"
-           << XmlEscape(info_.meta_data_.values_[PlayInfo::MetaData::TITLE])
+           << XmlEscape(md->values_[PlayInfo::MetaData::TITLE])
            << "</text>\n";
         os << "   <text id=\"alttrack\">"
-           << XmlEscape(mk_alt_track_name(info_.meta_data_, 20))
+           << XmlEscape(mk_alt_track_name(*md, 20))
            << "</text>\n";
         os << "    <text id=\"album\">"
-           << XmlEscape(info_.meta_data_.values_[PlayInfo::MetaData::ALBUM])
+           << XmlEscape(md->values_[PlayInfo::MetaData::ALBUM])
            << "</text>\n";
         os << "    <text id=\"bitrate\">"
-           << info_.meta_data_.values_[PlayInfo::MetaData::BITRATE_NOM]
+           << md->values_[PlayInfo::MetaData::BITRATE_NOM]
            << "</text>\n";
     }
 
     if((update_flags_ & update_flags_stream_position) != 0)
     {
+        auto times = player_.get_times();
+
         os << "    <value id=\"timet\">";
-        if(info_.stream_duration_ >= std::chrono::milliseconds(0))
-            os << std::chrono::duration_cast<std::chrono::seconds>(info_.stream_duration_).count();
+        if(times.second >= std::chrono::milliseconds(0))
+            os << std::chrono::duration_cast<std::chrono::seconds>(times.second).count();
         os << "</value>\n";
 
-        if(info_.stream_position_ >= std::chrono::milliseconds(0))
+        if(times.first >= std::chrono::milliseconds(0))
             os << "    <value id=\"timep\">"
-                << std::chrono::duration_cast<std::chrono::seconds>(info_.stream_position_).count()
+                << std::chrono::duration_cast<std::chrono::seconds>(times.first).count()
                 << "</value>\n";
     }
 
@@ -206,7 +209,7 @@ bool ViewPlay::View::write_xml(std::ostream &os, bool is_full_view)
         };
 
         os << "    <icon id=\"play\">"
-           << play_icon[info_.assumed_stream_state_]
+           << play_icon[player_.get_assumed_stream_state()]
            << "</icon>\n";
     }
 
@@ -226,22 +229,27 @@ bool ViewPlay::View::serialize(DcpTransaction &dcpd, std::ostream *debug_os)
     if(!debug_os)
         return retval;
 
-    /* matches enum #PlayInfo::Data::StreamState */
-    static const char *stream_state_string[] =
+    const auto *const md = player_.get_track_meta_data();
+
+    if(md != nullptr)
     {
-        "not playing",
-        "playing",
-        "paused",
-    };
+        /* matches enum #PlayInfo::Data::StreamState */
+        static const char *stream_state_string[] =
+        {
+            "not playing",
+            "playing",
+            "paused",
+        };
 
-    *debug_os << "URL: \""
-              << info_.meta_data_.values_[PlayInfo::MetaData::INTERNAL_DRCPD_URL]
-              << "\" ("
-              << stream_state_string[info_.assumed_stream_state_]
-              << ")" << std::endl;
+        *debug_os << "URL: \""
+                  << md->values_[PlayInfo::MetaData::INTERNAL_DRCPD_URL]
+                  << "\" ("
+                  << stream_state_string[player_.get_assumed_stream_state()]
+                  << ")" << std::endl;
 
-    for(size_t i = 0; i < info_.meta_data_.values_.size(); ++i)
-        *debug_os << "  " << i << ": \"" << info_.meta_data_.values_[i] << "\"" << std::endl;
+        for(size_t i = 0; i < md->values_.size(); ++i)
+            *debug_os << "  " << i << ": \"" << md->values_[i] << "\"" << std::endl;
+    }
 
     return retval;
 }

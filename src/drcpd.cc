@@ -468,8 +468,8 @@ int main(int argc, char *argv[])
     static std::ostream fd_out(&fd_sbuf);
     static ViewManager view_manager(dcp_transaction);
 
-    static Playback::Player player_singleton;
-    static DBusSignalData dbus_signal_data(view_manager, player_singleton);
+    static Playback::Player player_singleton(ViewPlay::meta_data_reformatters);
+    static DBusSignalData dbus_signal_data(view_manager, player_singleton, player_singleton);
 
     view_manager.set_output_stream(fd_out);
     view_manager.set_debug_stream(std::cout);

@@ -209,7 +209,8 @@ static ViewIface *get_play_view(ViewManagerIface *mgr)
     return view;
 }
 
-static void process_meta_data(ViewIface *playinfo, GVariant *parameters,
+static bool process_meta_data(Playback::MetaDataStoreIface &mds,
+                              GVariant *parameters,
                               guint meta_data_parameter_index,
                               bool is_update,
                               const std::string *fallback_title = NULL,
@@ -219,7 +220,7 @@ static void process_meta_data(ViewIface *playinfo, GVariant *parameters,
                                                     meta_data_parameter_index);
     log_assert(meta_data != nullptr);
 
-    playinfo->meta_data_add_begin(is_update);
+    mds.meta_data_add_begin(is_update);
 
     GVariantIter iter;
     if(g_variant_iter_init(&iter, meta_data) > 0)
@@ -229,7 +230,7 @@ static void process_meta_data(ViewIface *playinfo, GVariant *parameters,
 
         while(g_variant_iter_next(&iter, "(ss)", &key, &value))
         {
-            playinfo->meta_data_add(key, value);
+            mds.meta_data_add(key, value);
             g_free(key);
             g_free(value);
         }
@@ -240,23 +241,25 @@ static void process_meta_data(ViewIface *playinfo, GVariant *parameters,
         if(fallback_title == NULL)
         {
             BUG("No fallback title available for stream");
-            playinfo->meta_data_add("x-drcpd-title", NULL);
+            mds.meta_data_add("x-drcpd-title", NULL);
         }
         else
-            playinfo->meta_data_add("x-drcpd-title", fallback_title->c_str());
+            mds.meta_data_add("x-drcpd-title", fallback_title->c_str());
 
         if(url == NULL)
         {
             BUG("No URL available for stream");
-            playinfo->meta_data_add("x-drcpd-url", NULL);
+            mds.meta_data_add("x-drcpd-url", NULL);
         }
         else
-            playinfo->meta_data_add("x-drcpd-url", url);
+            mds.meta_data_add("x-drcpd-url", url);
     }
 
-    playinfo->meta_data_add_end();
+    const bool ret = mds.meta_data_add_end();
 
     g_variant_unref(meta_data);
+
+    return ret;
 }
 
 static void parse_stream_position(GVariant *parameters,
@@ -338,11 +341,13 @@ void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
         GVariant *url_string_val = g_variant_get_child_value(parameters, 1);
         log_assert(url_string_val != nullptr);
 
-        auto *playinfo = get_play_view(&data->mgr);
-        process_meta_data(playinfo, parameters, 3, false, fallback_title,
-                          g_variant_get_string(url_string_val, NULL));
+        (void)process_meta_data(data->mdstore,
+                                parameters, 3, false, fallback_title,
+                                g_variant_get_string(url_string_val, NULL));
 
         g_variant_unref(url_string_val);
+
+        ViewIface *const playinfo = get_play_view(&data->mgr);
 
         playinfo->notify_stream_start(0, false);
         data->mgr.activate_view_by_name("Play");
@@ -354,8 +359,8 @@ void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
     else if(strcmp(signal_name, "MetaDataChanged") == 0)
     {
         check_parameter_assertions(parameters, 1);
-        auto *playinfo = get_play_view(&data->mgr);
-        process_meta_data(playinfo, parameters, 0, true);
+        if(process_meta_data(data->mdstore, parameters, 0, true))
+            get_play_view(&data->mgr)->notify_stream_meta_data_changed();
     }
     else if(strcmp(signal_name, "Stopped") == 0)
     {
@@ -380,7 +385,9 @@ void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
         std::chrono::milliseconds position, duration;
         parse_stream_position(parameters, 0, 1, position);
         parse_stream_position(parameters, 2, 3, duration);
-        playinfo->notify_stream_position_changed(position, duration);
+
+        if(data->player.track_times_notification(position, duration))
+            playinfo->notify_stream_position_changed();
     }
     else
         unknown_signal(iface_name, signal_name, sender_name);

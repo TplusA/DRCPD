@@ -20,8 +20,10 @@
 #define PLAYER_HH
 
 #include <string>
+#include <chrono>
 
 #include "streaminfo.hh"
+#include "playinfo.hh"
 
 namespace List { class DBusList; }
 
@@ -29,6 +31,22 @@ namespace Playback
 {
 
 class State;
+
+class MetaDataStoreIface
+{
+  protected:
+    explicit MetaDataStoreIface() {}
+
+  public:
+    MetaDataStoreIface(const MetaDataStoreIface &) = delete;
+    MetaDataStoreIface &operator=(const MetaDataStoreIface &) = delete;
+
+    virtual ~MetaDataStoreIface() {}
+
+    virtual void meta_data_add_begin(bool is_update) = 0;
+    virtual void meta_data_add(const char *key, const char *value) = 0;
+    virtual bool meta_data_add_end() = 0;
+};
 
 class PlayerIface
 {
@@ -79,39 +97,80 @@ class PlayerIface
     virtual void stop_notification() = 0;
 
     /*!
+     * To be called when the stream player sends new track times.
+     */
+    virtual bool track_times_notification(const std::chrono::milliseconds &position,
+                                          const std::chrono::milliseconds &duration) = 0;
+    /*!
      * To be called when the stream player notifies end of stream.
      */
     virtual void enqueue_next() = 0;
 
     /*!
-     * Return name of currently playing stream as it appeared in the list.
+     * Return meta data for currently playing stream.
+     *
+     * \returns
+     *     Track meta data, or \c nullptr in case there is not track playing at
+     *     the moment.
+     */
+    virtual const PlayInfo::MetaData *const get_track_meta_data() const = 0;
+
+    /*!
+     * Return current (assumed) stream playback state.
+     */
+    virtual PlayInfo::Data::StreamState get_assumed_stream_state() const = 0;
+
+    /*!
+     * Return current track's position and total duration (in this order).
+     */
+    virtual std::pair<std::chrono::milliseconds, std::chrono::milliseconds> get_times() const = 0;
+
+    /*!
+     * Return name of stream with given ID as it appeared in the list.
      *
      * Used as fallback in case no other meta information are available.
      */
     virtual const std::string *get_original_stream_name(uint16_t id) = 0;
 };
 
-class Player: public PlayerIface
+class Player: public PlayerIface, public MetaDataStoreIface
 {
   private:
     State *current_state_;
     StreamInfo stream_info_;
+    PlayInfo::MetaData incoming_meta_data_;
+    PlayInfo::Data track_info_;
+
+    const PlayInfo::Reformatters &meta_data_reformatters_;
 
   public:
     Player(const Player &) = delete;
     Player &operator=(const Player &) = delete;
 
-    explicit Player():
-        current_state_(nullptr)
+    explicit Player(const PlayInfo::Reformatters &meta_data_reformatters):
+        current_state_(nullptr),
+        meta_data_reformatters_(meta_data_reformatters)
     {}
 
     bool take(State &playback_state, const List::DBusList &file_list, int line) override;
     void release() override;
 
     void stop_notification() override;
+    bool track_times_notification(const std::chrono::milliseconds &position,
+                                  const std::chrono::milliseconds &duration) override;
     void enqueue_next() override;
 
+    const PlayInfo::MetaData *const get_track_meta_data() const override;
+    PlayInfo::Data::StreamState get_assumed_stream_state() const override;
+    std::pair<std::chrono::milliseconds, std::chrono::milliseconds> get_times() const override;
     const std::string *get_original_stream_name(uint16_t id) override;
+
+    void meta_data_add_begin(bool is_update) override;
+    void meta_data_add(const char *key, const char *value) override;
+    bool meta_data_add_end() override;
+
+  private:
+    void set_assumed_stream_state(PlayInfo::Data::StreamState state);
 };
 
 }

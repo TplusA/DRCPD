@@ -203,15 +203,14 @@ class ViewIface
     virtual void notify_stream_pause() {}
 
     /*!
-     * Called when a stream position has changed.
+     * Called when stream position has changed.
      */
-    virtual void notify_stream_position_changed(const std::chrono::milliseconds &position,
-                                                const std::chrono::milliseconds &duration)
-    {}
+    virtual void notify_stream_position_changed() {}
 
-    virtual void meta_data_add_begin(bool is_update) {}
-    virtual void meta_data_add(const char *key, const char *value) {}
-    virtual void meta_data_add_end() {}
+    /*!
+     * Called when stream meta data have changed.
+     */
+    virtual void notify_stream_meta_data_changed() {}
 
   private:
     bool do_serialize(DcpTransaction &dcpd, bool is_full_view)
