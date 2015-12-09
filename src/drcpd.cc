@@ -469,11 +469,7 @@ int main(int argc, char *argv[])
     static ViewManager view_manager(dcp_transaction);
 
     static Playback::Player player_singleton;
-    static DBusSignalData dbus_signal_data =
-    {
-        .mgr = view_manager,
-        .player = player_singleton,
-    };
+    static DBusSignalData dbus_signal_data(view_manager, player_singleton);
 
     view_manager.set_output_stream(fd_out);
     view_manager.set_debug_stream(std::cout);

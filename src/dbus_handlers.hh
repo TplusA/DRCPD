@@ -28,10 +28,21 @@ namespace Playback { class PlayerIface; }
  */
 /*!@{*/
 
-struct DBusSignalData
+class DBusSignalData
 {
+  public:
+    DBusSignalData(const DBusSignalData &) = delete;
+    DBusSignalData &operator=(const DBusSignalData &) = delete;
+    DBusSignalData(DBusSignalData &&) = default;
+
     ViewManagerIface &mgr;
     Playback::PlayerIface &player;
+
+    explicit DBusSignalData(ViewManagerIface &arg_mgr,
+                            Playback::PlayerIface &arg_player):
+        mgr(arg_mgr),
+        player(arg_player)
+    {}
 };
 
 /*!@}*/
