@@ -230,17 +230,6 @@ bool ViewFileBrowser::View::update(DcpTransaction &dcpd, std::ostream *debug_os)
     return serialize(dcpd, debug_os);
 }
 
-void ViewFileBrowser::View::notify_stream_start(uint32_t id,
-                                                bool url_fifo_is_full)
-{
-    player_.enqueue_next();
-}
-
-void ViewFileBrowser::View::notify_stream_stop()
-{
-    player_.stop_notification();
-}
-
 static ID::List go_to_root_directory(List::DBusList &file_list,
                                      List::NavItemNoFilter &item_flags,
                                      List::Nav &navigation)
