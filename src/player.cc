@@ -41,12 +41,23 @@ bool Playback::Player::take(Playback::State &playback_state,
 
 void Playback::Player::release()
 {
+    stop_notification();
+    current_state_ = nullptr;
+}
+
+void Playback::Player::stop_notification()
+{
+    if(current_state_ == nullptr)
+        return;
+
     stream_info_.clear();
+    current_state_->revert();
 }
 
 void Playback::Player::enqueue_next()
 {
-    current_state_->enqueue_next(stream_info_, false);
+    if(current_state_ != nullptr)
+        current_state_->enqueue_next(stream_info_, false);
 }
 
 const std::string *Playback::Player::get_original_stream_name(uint16_t id)

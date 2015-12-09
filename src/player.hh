@@ -44,6 +44,7 @@ class PlayerIface
     virtual bool take(State &playback_state, const List::DBusList &file_list, int line) = 0;
     virtual void release() = 0;
 
+    virtual void stop_notification() = 0;
     virtual void enqueue_next() = 0;
 
     virtual const std::string *get_original_stream_name(uint16_t id) = 0;
@@ -66,6 +67,7 @@ class Player: public PlayerIface
     bool take(State &playback_state, const List::DBusList &file_list, int line) override;
     void release() override;
 
+    void stop_notification() override;
     void enqueue_next() override;
 
     const std::string *get_original_stream_name(uint16_t id) override;

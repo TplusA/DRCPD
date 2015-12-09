@@ -238,7 +238,7 @@ void ViewFileBrowser::View::notify_stream_start(uint32_t id,
 
 void ViewFileBrowser::View::notify_stream_stop()
 {
-    playback_current_state_.revert();
+    player_.stop_notification();
 }
 
 static ID::List go_to_root_directory(List::DBusList &file_list,
