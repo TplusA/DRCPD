@@ -20,6 +20,7 @@
 #define DBUS_HANDLERS_HH
 
 class ViewManagerIface;
+namespace Playback { class PlayerIface; }
 
 /*!
  * \addtogroup dbus_handlers DBus handlers for signals
@@ -30,6 +31,7 @@ class ViewManagerIface;
 struct DBusSignalData
 {
     ViewManagerIface &mgr;
+    Playback::PlayerIface &player;
 };
 
 /*!@}*/

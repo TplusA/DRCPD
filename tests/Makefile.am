@@ -60,7 +60,9 @@ test_dbus_handlers_la_SOURCES = \
     test_dbus_handlers.cc mock_expectation.hh \
     mock_messages.hh mock_messages.cc \
     mock_view_manager.hh mock_view_manager.cc
-test_dbus_handlers_la_LIBADD = $(top_builddir)/src/libdbus_handlers.la
+test_dbus_handlers_la_LIBADD = \
+    $(top_builddir)/src/libplayback.la \
+    $(top_builddir)/src/libdbus_handlers.la
 test_dbus_handlers_la_CFLAGS = $(DRCPD_DEPENDENCIES_CFLAGS) $(AM_CFLAGS)
 test_dbus_handlers_la_CXXFLAGS = $(DRCPD_DEPENDENCIES_CFLAGS) $(AM_CXXFLAGS)
 

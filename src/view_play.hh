@@ -23,7 +23,8 @@
 
 #include "view.hh"
 #include "playinfo.hh"
-#include "streaminfo.hh"
+
+namespace Playback { class Player; }
 
 /*!
  * \addtogroup view_play Player view
@@ -51,7 +52,7 @@ class View: public ViewIface
     PlayInfo::MetaData incoming_meta_data_;
     uint16_t update_flags_;
 
-    std::shared_ptr<StreamInfo> stream_info_;
+    Playback::Player &player_;
 
   public:
     View(const View &) = delete;
@@ -59,12 +60,12 @@ class View: public ViewIface
     View &operator=(const View &) = delete;
 
     explicit View(const char *on_screen_name, unsigned int max_lines,
-                  ViewSignalsIface *view_signals,
-                  std::shared_ptr<StreamInfo> stream_info):
+                  Playback::Player &player,
+                  ViewSignalsIface *view_signals):
         ViewIface("Play", on_screen_name, "play", 109U, false, view_signals),
         is_visible_(false),
         update_flags_(0),
-        stream_info_(stream_info)
+        player_(player)
     {}
 
     virtual ~View() {}

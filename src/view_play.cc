@@ -23,6 +23,7 @@
 #include <cstdlib>
 
 #include "view_play.hh"
+#include "player.hh"
 #include "dbus_iface_deep.h"
 #include "xmlescape.hh"
 #include "messages.h"
@@ -72,7 +73,7 @@ ViewIface::InputResult ViewPlay::View::input(DrcpCommand command)
                                                 NULL, NULL))
             msg_error(0, LOG_NOTICE, "Failed sending stop playback message");
 
-        stream_info_->clear();
+        player_.release();
 
         break;
 

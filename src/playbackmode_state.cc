@@ -23,6 +23,7 @@
 #include <cstring>
 
 #include "playbackmode_state.hh"
+#include "streaminfo.hh"
 #include "view_filebrowser.hh"
 #include "view_filebrowser_utils.hh"
 #include "dbus_iface_deep.h"

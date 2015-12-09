@@ -29,7 +29,7 @@ drcpd_SOURCES = \
     view_config.hh view_filebrowser.hh view_filebrowser_utils.hh view_play.hh \
     view_signals_glib.cc view_signals.hh view_signals_glib.hh \
     playinfo.hh idtypes.hh \
-    playbackmode.hh playbackmode_state.hh \
+    player.hh playbackmode.hh playbackmode_state.hh \
     $(DBUS_IFACES)/de_tahifi_lists_errors.hh \
     $(DBUS_IFACES)/de_tahifi_lists_errors.h
 
@@ -45,6 +45,7 @@ AM_CXXFLAGS = $(CXXWARNINGS)
 
 noinst_LTLIBRARIES = \
     libviews.la \
+    libplayback.la \
     libdcp_transaction.la \
     liblist.la \
     libdbus_handlers.la \
@@ -66,9 +67,15 @@ libviews_la_SOURCES = \
     view_manager.hh view_manager.cc \
     view_signals.hh idtypes.hh \
     dbuslist.hh dbuslist_exception.hh \
-    playbackmode.hh playbackmode_state.hh playbackmode_state.cc
+    playbackmode.hh playbackmode_state.hh
 libviews_la_CFLAGS = $(AM_CFLAGS)
 libviews_la_CXXFLAGS = $(AM_CXXFLAGS)
+
+libplayback_la_SOURCES = \
+    player.cc player.hh \
+    playbackmode.hh playbackmode_state.hh playbackmode_state.cc
+libplayback_la_CFLAGS = $(AM_CFLAGS)
+libplayback_la_CXXFLAGS = $(AM_CXXFLAGS)
 
 libdcp_transaction_la_SOURCES = dcp_transaction.cc dcp_transaction.hh
 libdcp_transaction_la_CFLAGS = $(AM_CFLAGS)

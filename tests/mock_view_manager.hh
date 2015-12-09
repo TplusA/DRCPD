@@ -28,8 +28,6 @@ class MockViewManager: public ViewManagerIface
     MockViewManager(const MockViewManager &);
     MockViewManager &operator=(const MockViewManager &);
 
-    StreamInfo stream_info_;
-
   public:
     class Expectation;
     typedef MockExpectationsTemplate<Expectation> MockExpectations;
@@ -69,7 +67,6 @@ class MockViewManager: public ViewManagerIface
     bool serialize_view_if_active(const ViewIface *view) const override;
     bool update_view_if_active(const ViewIface *view) const override;
     void hide_view_if_active(const ViewIface *view) override;
-    std::shared_ptr<StreamInfo> get_stream_info() override;
 };
 
 #endif /* !MOCK_VIEW_MANAGER_HH */

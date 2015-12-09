@@ -24,8 +24,12 @@
 
 #include "dbus_handlers.h"
 #include "dbus_handlers.hh"
+#include "de_tahifi_lists_errors.hh"
+#include "player.hh"
 #include "mock_view_manager.hh"
 #include "mock_messages.hh"
+
+constexpr const char *ListError::names_[];
 
 /*!
  * \addtogroup dbus_handlers_tests Unit tests
@@ -40,6 +44,7 @@ namespace dbus_handlers_tests
 
 static MockMessages *mock_messages;
 static MockViewManager *mock_view_manager;
+static Playback::Player *player;
 
 static GDBusProxy *dummy_gdbus_proxy;
 static const char dummy_sender_name[] = ":1.123";
@@ -56,10 +61,16 @@ void cut_setup(void)
     mock_view_manager = new MockViewManager;
     cppcut_assert_not_null(mock_view_manager);
     mock_view_manager->init();
+
+    player = new Playback::Player;
+    cppcut_assert_not_null(player);
 }
 
 void cut_teardown(void)
 {
+    delete player;
+    player = nullptr;
+
     mock_messages->check();
     mock_view_manager->check();
 
@@ -77,7 +88,7 @@ void cut_teardown(void)
  */
 void test_dcpd_playback_start(void)
 {
-    DBusSignalData dbus_signal_data = { .mgr = *mock_view_manager };
+    DBusSignalData dbus_signal_data = { .mgr = *mock_view_manager, .player = *player, };
     mock_messages->expect_msg_info_formatted("de.tahifi.Dcpd.Playback signal from ':1.123': Start");
     mock_view_manager->expect_input(DrcpCommand::PLAYBACK_START);
     dbussignal_dcpd_playback(dummy_gdbus_proxy, dummy_sender_name,
@@ -89,7 +100,7 @@ void test_dcpd_playback_start(void)
  */
 void test_dcpd_playback_stop(void)
 {
-    DBusSignalData dbus_signal_data = { .mgr = *mock_view_manager };
+    DBusSignalData dbus_signal_data = { .mgr = *mock_view_manager, .player = *player, };
     mock_messages->expect_msg_info_formatted("de.tahifi.Dcpd.Playback signal from ':1.123': Stop");
     mock_view_manager->expect_input(DrcpCommand::PLAYBACK_STOP);
     dbussignal_dcpd_playback(dummy_gdbus_proxy, dummy_sender_name,
@@ -101,7 +112,7 @@ void test_dcpd_playback_stop(void)
  */
 void test_dcpd_playback_pause(void)
 {
-    DBusSignalData dbus_signal_data = { .mgr = *mock_view_manager };
+    DBusSignalData dbus_signal_data = { .mgr = *mock_view_manager, .player = *player, };
     mock_messages->expect_msg_info_formatted("de.tahifi.Dcpd.Playback signal from ':1.123': Pause");
     mock_view_manager->expect_input(DrcpCommand::PLAYBACK_PAUSE);
     dbussignal_dcpd_playback(dummy_gdbus_proxy, dummy_sender_name,
@@ -113,7 +124,7 @@ void test_dcpd_playback_pause(void)
  */
 void test_dcpd_playback_next(void)
 {
-    DBusSignalData dbus_signal_data = { .mgr = *mock_view_manager };
+    DBusSignalData dbus_signal_data = { .mgr = *mock_view_manager, .player = *player, };
     mock_messages->expect_msg_info_formatted("de.tahifi.Dcpd.Playback signal from ':1.123': Next");
     mock_view_manager->expect_input(DrcpCommand::PLAYBACK_NEXT);
     dbussignal_dcpd_playback(dummy_gdbus_proxy, dummy_sender_name,
@@ -125,7 +136,7 @@ void test_dcpd_playback_next(void)
  */
 void test_dcpd_playback_previous(void)
 {
-    DBusSignalData dbus_signal_data = { .mgr = *mock_view_manager };
+    DBusSignalData dbus_signal_data = { .mgr = *mock_view_manager, .player = *player, };
     mock_messages->expect_msg_info_formatted("de.tahifi.Dcpd.Playback signal from ':1.123': Previous");
     mock_view_manager->expect_input(DrcpCommand::PLAYBACK_PREVIOUS);
     dbussignal_dcpd_playback(dummy_gdbus_proxy, dummy_sender_name,
@@ -137,7 +148,7 @@ void test_dcpd_playback_previous(void)
  */
 void test_dcpd_playback_fast_forward(void)
 {
-    DBusSignalData dbus_signal_data = { .mgr = *mock_view_manager };
+    DBusSignalData dbus_signal_data = { .mgr = *mock_view_manager, .player = *player, };
     mock_messages->expect_msg_info_formatted("de.tahifi.Dcpd.Playback signal from ':1.123': FastForward");
     mock_view_manager->expect_input(DrcpCommand::FAST_WIND_FORWARD);
     dbussignal_dcpd_playback(dummy_gdbus_proxy, dummy_sender_name,
@@ -149,7 +160,7 @@ void test_dcpd_playback_fast_forward(void)
  */
 void test_dcpd_playback_fast_rewind(void)
 {
-    DBusSignalData dbus_signal_data = { .mgr = *mock_view_manager };
+    DBusSignalData dbus_signal_data = { .mgr = *mock_view_manager, .player = *player, };
     mock_messages->expect_msg_info_formatted("de.tahifi.Dcpd.Playback signal from ':1.123': FastRewind");
     mock_view_manager->expect_input(DrcpCommand::FAST_WIND_REVERSE);
     dbussignal_dcpd_playback(dummy_gdbus_proxy, dummy_sender_name,
@@ -161,7 +172,7 @@ void test_dcpd_playback_fast_rewind(void)
  */
 void test_dcpd_playback_fast_wind_stop(void)
 {
-    DBusSignalData dbus_signal_data = { .mgr = *mock_view_manager };
+    DBusSignalData dbus_signal_data = { .mgr = *mock_view_manager, .player = *player, };
     mock_messages->expect_msg_info_formatted("de.tahifi.Dcpd.Playback signal from ':1.123': FastWindStop");
     mock_view_manager->expect_input(DrcpCommand::FAST_WIND_STOP);
     dbussignal_dcpd_playback(dummy_gdbus_proxy, dummy_sender_name,
@@ -173,7 +184,7 @@ void test_dcpd_playback_fast_wind_stop(void)
  */
 void test_dcpd_playback_fast_wind_set_factor(void)
 {
-    DBusSignalData dbus_signal_data = { .mgr = *mock_view_manager };
+    DBusSignalData dbus_signal_data = { .mgr = *mock_view_manager, .player = *player, };
     mock_messages->expect_msg_info_formatted("de.tahifi.Dcpd.Playback signal from ':1.123': FastWindSetFactor");
     mock_view_manager->expect_input_set_fast_wind_factor(6.2);
 
@@ -193,7 +204,7 @@ void test_dcpd_playback_fast_wind_set_factor(void)
  */
 void test_dcpd_playback_repeat_mode_toggle(void)
 {
-    DBusSignalData dbus_signal_data = { .mgr = *mock_view_manager };
+    DBusSignalData dbus_signal_data = { .mgr = *mock_view_manager, .player = *player, };
     mock_messages->expect_msg_info_formatted("de.tahifi.Dcpd.Playback signal from ':1.123': RepeatModeToggle");
     mock_view_manager->expect_input(DrcpCommand::REPEAT_MODE_TOGGLE);
     dbussignal_dcpd_playback(dummy_gdbus_proxy, dummy_sender_name,
@@ -205,7 +216,7 @@ void test_dcpd_playback_repeat_mode_toggle(void)
  */
 void test_dcpd_playback_shuffle_mode_toggle(void)
 {
-    DBusSignalData dbus_signal_data = { .mgr = *mock_view_manager };
+    DBusSignalData dbus_signal_data = { .mgr = *mock_view_manager, .player = *player, };
     mock_messages->expect_msg_info_formatted("de.tahifi.Dcpd.Playback signal from ':1.123': ShuffleModeToggle");
     mock_view_manager->expect_input(DrcpCommand::SHUFFLE_MODE_TOGGLE);
     dbussignal_dcpd_playback(dummy_gdbus_proxy, dummy_sender_name,
@@ -217,7 +228,7 @@ void test_dcpd_playback_shuffle_mode_toggle(void)
  */
 void test_dcpd_playback_unknown_signal_name(void)
 {
-    DBusSignalData dbus_signal_data = { .mgr = *mock_view_manager };
+    DBusSignalData dbus_signal_data = { .mgr = *mock_view_manager, .player = *player, };
     mock_messages->expect_msg_info_formatted("de.tahifi.Dcpd.Playback signal from ':1.123': UnsupportedSignalName");
     mock_messages->expect_msg_error_formatted(ENOSYS, LOG_NOTICE,
                                               "Got unknown signal de.tahifi.Dcpd.Playback.UnsupportedSignalName from :1.123 (Function not implemented)");
@@ -230,7 +241,7 @@ void test_dcpd_playback_unknown_signal_name(void)
  */
 void test_dcpd_views_open(void)
 {
-    DBusSignalData dbus_signal_data = { .mgr = *mock_view_manager };
+    DBusSignalData dbus_signal_data = { .mgr = *mock_view_manager, .player = *player, };
     mock_messages->expect_msg_info_formatted("de.tahifi.Dcpd.Views signal from ':1.123': Open");
     mock_view_manager->expect_activate_view_by_name("SomeViewName");
 
@@ -250,7 +261,7 @@ void test_dcpd_views_open(void)
  */
 void test_dcpd_views_toggle(void)
 {
-    DBusSignalData dbus_signal_data = { .mgr = *mock_view_manager };
+    DBusSignalData dbus_signal_data = { .mgr = *mock_view_manager, .player = *player, };
     mock_messages->expect_msg_info_formatted("de.tahifi.Dcpd.Views signal from ':1.123': Toggle");
     mock_view_manager->expect_toggle_views_by_name("Foo", "Bar");
 
@@ -271,7 +282,7 @@ void test_dcpd_views_toggle(void)
  */
 void test_dcpd_views_unknown_signal_name(void)
 {
-    DBusSignalData dbus_signal_data = { .mgr = *mock_view_manager };
+    DBusSignalData dbus_signal_data = { .mgr = *mock_view_manager, .player = *player, };
     mock_messages->expect_msg_info_formatted("de.tahifi.Dcpd.Views signal from ':1.123': UnsupportedSignalName");
     mock_messages->expect_msg_error_formatted(ENOSYS, LOG_NOTICE,
                                               "Got unknown signal de.tahifi.Dcpd.Views.UnsupportedSignalName from :1.123 (Function not implemented)");
@@ -284,7 +295,7 @@ void test_dcpd_views_unknown_signal_name(void)
  */
 void test_dcpd_listnav_level_up(void)
 {
-    DBusSignalData dbus_signal_data = { .mgr = *mock_view_manager };
+    DBusSignalData dbus_signal_data = { .mgr = *mock_view_manager, .player = *player, };
     mock_messages->expect_msg_info_formatted("de.tahifi.Dcpd.ListNavigation signal from ':1.123': LevelUp");
     mock_view_manager->expect_input(DrcpCommand::GO_BACK_ONE_LEVEL);
 
@@ -297,7 +308,7 @@ void test_dcpd_listnav_level_up(void)
  */
 void test_dcpd_listnav_level_down(void)
 {
-    DBusSignalData dbus_signal_data = { .mgr = *mock_view_manager };
+    DBusSignalData dbus_signal_data = { .mgr = *mock_view_manager, .player = *player, };
     mock_messages->expect_msg_info_formatted("de.tahifi.Dcpd.ListNavigation signal from ':1.123': LevelDown");
     mock_view_manager->expect_input(DrcpCommand::SELECT_ITEM);
 
@@ -310,7 +321,7 @@ void test_dcpd_listnav_level_down(void)
  */
 void test_dcpd_listnav_move_lines(void)
 {
-    DBusSignalData dbus_signal_data = { .mgr = *mock_view_manager };
+    DBusSignalData dbus_signal_data = { .mgr = *mock_view_manager, .player = *player, };
     mock_messages->expect_msg_info_formatted("de.tahifi.Dcpd.ListNavigation signal from ':1.123': MoveLines");
     mock_view_manager->expect_input_move_cursor_by_line(3);
 
@@ -330,7 +341,7 @@ void test_dcpd_listnav_move_lines(void)
  */
 void test_dcpd_listnav_move_cursor_by_page(void)
 {
-    DBusSignalData dbus_signal_data = { .mgr = *mock_view_manager };
+    DBusSignalData dbus_signal_data = { .mgr = *mock_view_manager, .player = *player, };
     mock_messages->expect_msg_info_formatted("de.tahifi.Dcpd.ListNavigation signal from ':1.123': MovePages");
     mock_view_manager->expect_input_move_cursor_by_page(-2);
 
@@ -351,7 +362,7 @@ void test_dcpd_listnav_move_cursor_by_page(void)
  */
 void test_dcpd_listnav_unknown_signal_name(void)
 {
-    DBusSignalData dbus_signal_data = { .mgr = *mock_view_manager };
+    DBusSignalData dbus_signal_data = { .mgr = *mock_view_manager, .player = *player, };
     mock_messages->expect_msg_info_formatted("de.tahifi.Dcpd.ListNavigation signal from ':1.123': UnsupportedSignalName");
     mock_messages->expect_msg_error_formatted(ENOSYS, LOG_NOTICE,
                                               "Got unknown signal de.tahifi.Dcpd.ListNavigation.UnsupportedSignalName from :1.123 (Function not implemented)");

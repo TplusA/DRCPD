@@ -21,8 +21,9 @@
 
 #include "playbackmode.hh"
 #include "listnav.hh"
-#include "streaminfo.hh"
 #include "dbuslist.hh"
+
+class StreamInfo;
 
 namespace Playback
 {

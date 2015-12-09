@@ -22,6 +22,7 @@
 
 #include "view_filebrowser.hh"
 #include "view_filebrowser_utils.hh"
+#include "player.hh"
 #include "xmlescape.hh"
 #include "messages.h"
 
@@ -91,11 +92,12 @@ ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command)
 
         playback_current_mode_.activate_selected_mode();
 
-        if(playback_current_state_.start(file_list_,
-                                         navigation_.get_line_number_by_cursor()))
-            playback_current_state_.enqueue_next(*stream_info_, true);
-        else
+        if(!player_.take(playback_current_state_, file_list_,
+                         navigation_.get_line_number_by_cursor()))
+        {
             playback_current_mode_.deactivate();
+            player_.release();
+        }
 
         return InputResult::OK;
 
@@ -104,7 +106,7 @@ ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command)
                                                 NULL, NULL))
             msg_error(0, LOG_NOTICE, "Failed sending stop playback message");
 
-        stream_info_->clear();
+        player_.release();
 
         return InputResult::OK;
 
@@ -231,7 +233,7 @@ bool ViewFileBrowser::View::update(DcpTransaction &dcpd, std::ostream *debug_os)
 void ViewFileBrowser::View::notify_stream_start(uint32_t id,
                                                 bool url_fifo_is_full)
 {
-    playback_current_state_.enqueue_next(*stream_info_, false);
+    player_.enqueue_next();
 }
 
 void ViewFileBrowser::View::notify_stream_stop()

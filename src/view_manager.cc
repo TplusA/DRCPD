@@ -31,8 +31,7 @@ ViewManager::ViewManager(DcpTransaction &dcpd):
     active_view_(&nop_view),
     last_browse_view_(nullptr),
     dcp_transaction_(dcpd),
-    debug_stream_(nullptr),
-    stream_info_(std::make_shared<StreamInfo>())
+    debug_stream_(nullptr)
 {}
 
 static inline bool is_view_name_valid(const std::string &view_name)
@@ -289,9 +288,4 @@ void ViewManager::hide_view_if_active(const ViewIface *view)
 {
     if(is_active_view(view))
         handle_input_result(ViewIface::InputResult::SHOULD_HIDE, *active_view_);
-}
-
-std::shared_ptr<StreamInfo> ViewManager::get_stream_info()
-{
-    return stream_info_;
 }

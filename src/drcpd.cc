@@ -32,6 +32,7 @@
 #include "view_manager.hh"
 #include "view_play.hh"
 #include "view_signals_glib.hh"
+#include "player.hh"
 #include "dbus_iface.h"
 #include "dbus_handlers.hh"
 #include "messages.h"
@@ -373,7 +374,8 @@ static int process_command_line(int argc, char *argv[],
     return 0;
 }
 
-static void testing(ViewManager &views, ViewSignalsIface *view_signals)
+static void connect_everything(ViewManager &views, ViewSignalsIface *view_signals,
+                               Playback::Player &player)
 {
     static const unsigned int number_of_lines_on_display = 3;
 
@@ -381,21 +383,21 @@ static void testing(ViewManager &views, ViewSignalsIface *view_signals)
     static ViewFileBrowser::View fs("Filesystem", N_("Local file system"), 1,
                                     number_of_lines_on_display,
                                     DBUS_LISTBROKER_ID_FILESYSTEM,
-                                    Playback::Mode::LINEAR,
-                                    view_signals, views.get_stream_info());
+                                    player, Playback::Mode::LINEAR,
+                                    view_signals);
     static ViewFileBrowser::View tunein("TuneIn", N_("TuneIn internet radio"), 3,
                                         number_of_lines_on_display,
                                         DBUS_LISTBROKER_ID_TUNEIN,
-                                        Playback::Mode::SINGLE_TRACK,
-                                        view_signals, views.get_stream_info());
+                                        player, Playback::Mode::SINGLE_TRACK,
+                                        view_signals);
     static ViewFileBrowser::View upnp("UPnP", N_("UPnP media servers"), 4,
                                       number_of_lines_on_display,
                                       DBUS_LISTBROKER_ID_UPNP,
-                                      Playback::Mode::LINEAR,
-                                      view_signals, views.get_stream_info());
+                                      player, Playback::Mode::LINEAR,
+                                      view_signals);
     static ViewPlay::View play(N_("Stream information"),
-                               number_of_lines_on_display,
-                               view_signals, views.get_stream_info());
+                               number_of_lines_on_display, player,
+                               view_signals);
 
     if(!cfg.init())
         return;
@@ -466,9 +468,11 @@ int main(int argc, char *argv[])
     static std::ostream fd_out(&fd_sbuf);
     static ViewManager view_manager(dcp_transaction);
 
+    static Playback::Player player_singleton;
     static DBusSignalData dbus_signal_data =
     {
         .mgr = view_manager,
+        .player = player_singleton,
     };
 
     view_manager.set_output_stream(fd_out);
@@ -486,7 +490,7 @@ int main(int argc, char *argv[])
     ViewSignalsGLib view_signals(view_manager);
     view_signals.connect_to_main_loop(loop);
 
-    testing(view_manager, &view_signals);
+    connect_everything(view_manager, &view_signals, player_singleton);
 
     g_main_loop_run(loop);
 

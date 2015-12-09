@@ -27,6 +27,7 @@
 #include "dbus_handlers.hh"
 #include "view_manager.hh"
 #include "view_play.hh"
+#include "player.hh"
 #include "messages.h"
 
 static void unknown_signal(const char *iface_name, const char *signal_name,
@@ -290,9 +291,9 @@ static void parse_stream_position(GVariant *parameters,
  * \returns
  *     Pointer to a string containing the name if the ID is known and a name
  *     has been stored for it, \c NULL otherwise. Do not free the string, it is
- *     owned by the \p sinfo structure.
+ *     owned by the \p player structure.
  */
-static const std::string *lookup_fallback(StreamInfo &sinfo,
+static const std::string *lookup_fallback(Playback::PlayerIface &player,
                                           GVariant *parameters, guint id_index)
 {
     GVariant *stream_id_val = g_variant_get_child_value(parameters, id_index);
@@ -307,7 +308,7 @@ static const std::string *lookup_fallback(StreamInfo &sinfo,
         return NULL;
     }
 
-    auto ret = sinfo.lookup_and_activate(stream_id);
+    auto ret = player.get_original_stream_name(stream_id);
 
     if(!ret)
         msg_error(EINVAL, LOG_ERR,
@@ -331,7 +332,7 @@ void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
     {
         check_parameter_assertions(parameters, 4);
 
-        auto fallback_title = lookup_fallback(*data->mgr.get_stream_info(), parameters, 0);
+        auto fallback_title = lookup_fallback(data->player, parameters, 0);
         GVariant *url_string_val = g_variant_get_child_value(parameters, 1);
         log_assert(url_string_val != nullptr);
 
