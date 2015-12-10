@@ -143,6 +143,13 @@ class PlayerIface
      * Used as fallback in case no other meta information are available.
      */
     virtual const std::string *get_original_stream_name(uint16_t id) = 0;
+
+    /*!
+     * Force skipping to next track, if any.
+     *
+     * If there is no next track then this function has no effect.
+     */
+    virtual void skip_to_next() = 0;
 };
 
 class Player: public PlayerIface, public MetaDataStoreIface
@@ -178,6 +185,8 @@ class Player: public PlayerIface, public MetaDataStoreIface
     PlayInfo::Data::StreamState get_assumed_stream_state() const override;
     std::pair<std::chrono::milliseconds, std::chrono::milliseconds> get_times() const override;
     const std::string *get_original_stream_name(uint16_t id) override;
+
+    void skip_to_next() override;
 
     void meta_data_add_begin(bool is_update) override;
     void meta_data_add(const char *key, const char *value) override;

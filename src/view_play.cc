@@ -73,7 +73,10 @@ ViewIface::InputResult ViewPlay::View::input(DrcpCommand command)
 
       case DrcpCommand::PLAYBACK_STOP:
         player_.release();
+        break;
 
+      case DrcpCommand::PLAYBACK_NEXT:
+        player_.skip_to_next();
         break;
 
       case DrcpCommand::GO_BACK_ONE_LEVEL:

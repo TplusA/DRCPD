@@ -158,6 +158,16 @@ const std::string *Playback::Player::get_original_stream_name(uint16_t id)
     return stream_info_.lookup_and_activate(id);
 }
 
+void Playback::Player::skip_to_next()
+{
+    if(current_state_ == nullptr)
+        return no_context_bug("skip to next track command");
+
+    if(!tdbus_splay_urlfifo_call_next_sync(dbus_get_streamplayer_urlfifo_iface(),
+                                           NULL, NULL))
+        msg_error(0, LOG_NOTICE, "Failed sending skip track message");
+}
+
 void Playback::Player::meta_data_add_begin(bool is_update)
 {
     if(current_state_ == nullptr)
