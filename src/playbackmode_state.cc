@@ -53,8 +53,27 @@ static void free_array_of_strings(gchar **const strings)
 /*!
  * Try to fill up the streamplayer FIFO.
  *
+ * The function fetches the URIs for the selected item from the list broker,
+ * then sends the first URI which doesn't look like a playlist to the stream
+ * player's queue.
+ *
  * No exception thrown in here because the caller needs to react to specific
  * situations.
+ *
+ * \param list_id, item_id, proxy
+ *     Which list item's URI to send to the stream player, and a D-Bus proxy to
+ *     the list broker.
+ *
+ * \param stream_id
+ *     Internal ID of the stream for mapping it to extra information maintained
+ *     by us.
+ *
+ * \param play_immediately
+ *     If true, request immediate playback of the selected list entry.
+ *     Otherwise, the entry is just pushed into the player's internal queue.
+ *
+ * \returns
+ *     #SendStatus::OK in case of success, detailed error code otherwise.
  */
 static SendStatus send_selected_file_uri_to_streamplayer(ID::List list_id,
                                                          unsigned int item_id,
