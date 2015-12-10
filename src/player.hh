@@ -92,7 +92,7 @@ class PlayerIface
 
     /*!
      * To be called when the stream player notifies that is has started
-     * playing.
+     * playing a new stream.
      */
     virtual void start_notification() = 0;
 
@@ -113,10 +113,6 @@ class PlayerIface
      */
     virtual bool track_times_notification(const std::chrono::milliseconds &position,
                                           const std::chrono::milliseconds &duration) = 0;
-    /*!
-     * To be called when the stream player notifies end of stream.
-     */
-    virtual void enqueue_next() = 0;
 
     /*!
      * Return meta data for currently playing stream.
@@ -179,7 +175,6 @@ class Player: public PlayerIface, public MetaDataStoreIface
     void pause_notification() override;
     bool track_times_notification(const std::chrono::milliseconds &position,
                                   const std::chrono::milliseconds &duration) override;
-    void enqueue_next() override;
 
     const PlayInfo::MetaData *const get_track_meta_data() const override;
     PlayInfo::Data::StreamState get_assumed_stream_state() const override;

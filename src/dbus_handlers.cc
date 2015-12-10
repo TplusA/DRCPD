@@ -334,7 +334,6 @@ void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
     if(strcmp(signal_name, "NowPlaying") == 0)
     {
         data->player.start_notification();
-        data->player.enqueue_next();
 
         check_parameter_assertions(parameters, 4);
 

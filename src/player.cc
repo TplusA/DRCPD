@@ -81,7 +81,9 @@ void Playback::Player::start_notification()
     set_assumed_stream_state(PlayInfo::Data::STREAM_PLAYING);
 
     if(current_state_ == nullptr)
-        no_context_bug("start notification from player");
+        return no_context_bug("start notification from player");
+
+    current_state_->enqueue_next(stream_info_, false);
 }
 
 void Playback::Player::stop_notification()
@@ -118,14 +120,6 @@ bool Playback::Player::track_times_notification(const std::chrono::milliseconds 
     track_info_.stream_duration_ = duration;
 
     return true;
-}
-
-void Playback::Player::enqueue_next()
-{
-    if(current_state_ == nullptr)
-        return no_context_bug("new stream notification from player");
-
-    current_state_->enqueue_next(stream_info_, false);
 }
 
 const PlayInfo::MetaData *const Playback::Player::get_track_meta_data() const
