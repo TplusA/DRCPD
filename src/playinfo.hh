@@ -92,10 +92,11 @@ class Data
 
     enum StreamState
     {
-        STREAM_UNAVAILABLE,
         STREAM_STOPPED,
         STREAM_PLAYING,
         STREAM_PAUSED,
+
+        STREAM_STATE_LAST = STREAM_PAUSED,
     };
 
     StreamState assumed_stream_state_;
@@ -104,11 +105,25 @@ class Data
     std::chrono::milliseconds stream_duration_;
 
     explicit Data():
-        assumed_stream_state_(STREAM_UNAVAILABLE),
+        assumed_stream_state_(STREAM_STOPPED),
         stream_position_(-1),
         stream_duration_(-1)
     {
         meta_data_.clear(false);
+    }
+
+    void set_playing()
+    {
+        assumed_stream_state_ = STREAM_PLAYING;
+        meta_data_.clear(false);
+    }
+
+    void set_stopped()
+    {
+        assumed_stream_state_ = STREAM_STOPPED;
+        meta_data_.clear(false);
+        stream_position_ = std::chrono::milliseconds(-1);
+        stream_duration_ = std::chrono::milliseconds(-1);
     }
 };
 

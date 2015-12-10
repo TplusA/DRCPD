@@ -28,7 +28,6 @@ namespace Playback
 enum class Mode
 {
     NONE,          /*!< Playback not started yet. */
-    FINISHED,      /*!< Playback marked as intendedly finished. */
 
     SINGLE_TRACK,  /*!< Single track mode, stop after playing one track. */
     LINEAR,        /*!< Play tracks in "natural" deterministic order. */
@@ -51,17 +50,10 @@ enum class Mode
  * via #Playback::CurrentMode::get() to determine how exactly the playback
  * should actually work.
  *
- * When playback has finished, i.e., when the playlist is exhausted, function
- * #Playback::CurrentMode::finish() should be called, setting the current mode
- * to #Playback::Mode::FINISHED. This state signifies that playback was stopped
- * by intention and not due to some error.
- *
- * To restart, function #Playback::CurrentMode::deactivate() must be called.
- * This resets the current mode in the object to #Playback::Mode::NONE. In case
- * the state is neither #Playback::Mode::FINISHED nor #Playback::Mode::NONE
- * when deactivating the current mode, this means that a there _should_ be
- * playing something, but now it should be stopped. What to do with this
- * information depends on context.
+ * When playback has finished (i.e., when the player announces that playback
+ * has stopped, \e not when the playlist is exhausted), function
+ * #Playback::CurrentMode::deactivate() should be called, setting the current
+ * mode back to #Playback::Mode::NONE.
  *
  * This approach allows configuration of the default playback mode in one place
  * and using it in a differnt place through a clean interface.
@@ -95,8 +87,7 @@ class CurrentMode
 
     void activate_selected_mode() { playback_mode_ = selected_mode_; }
     void deactivate()             { playback_mode_ = Mode::NONE; }
-    void finish()                 { playback_mode_ = Mode::FINISHED; }
-    bool is_playing() const       { return playback_mode_ > Mode::FINISHED; }
+    bool is_playing() const       { return playback_mode_ > Mode::NONE; }
     Mode get() const              { return playback_mode_; }
 };
 

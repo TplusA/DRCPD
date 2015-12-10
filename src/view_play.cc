@@ -50,9 +50,6 @@ ViewIface::InputResult ViewPlay::View::input(DrcpCommand command)
       case DrcpCommand::PLAYBACK_START:
         switch(player_.get_assumed_stream_state())
         {
-          case PlayInfo::Data::STREAM_UNAVAILABLE:
-            break;
-
           case PlayInfo::Data::STREAM_PLAYING:
             if(!tdbus_splay_playback_call_pause_sync(dbus_get_streamplayer_playback_iface(),
                                                      NULL, NULL))
@@ -72,7 +69,11 @@ ViewIface::InputResult ViewPlay::View::input(DrcpCommand command)
         break;
 
       case DrcpCommand::PLAYBACK_STOP:
-        player_.release();
+        player_.release(true);
+        break;
+
+      case DrcpCommand::PLAYBACK_PREVIOUS:
+        player_.skip_to_previous(std::chrono::milliseconds(2000));
         break;
 
       case DrcpCommand::PLAYBACK_NEXT:
@@ -89,7 +90,7 @@ ViewIface::InputResult ViewPlay::View::input(DrcpCommand command)
     return InputResult::OK;
 }
 
-void ViewPlay::View::notify_stream_start(uint32_t id, bool url_fifo_is_full)
+void ViewPlay::View::notify_stream_start()
 {
     msg_info("Play view: stream started, %s",
              is_visible_ ? "send screen update" : "but view is invisible");
@@ -102,6 +103,7 @@ void ViewPlay::View::notify_stream_stop()
     msg_info("Play view: stream stopped, %s",
              is_visible_ ? "send screen update" : "but view is invisible");
 
+    player_.release(false);
     view_signals_->request_hide_view(this);
 }
 
@@ -161,27 +163,27 @@ static const std::string mk_alt_track_name(const PlayInfo::MetaData &meta_data,
 
 bool ViewPlay::View::write_xml(std::ostream &os, bool is_full_view)
 {
-    const auto *const md = player_.get_track_meta_data();
+    const auto &md = player_.get_track_meta_data();
 
     if(is_full_view)
         update_flags_ = UINT16_MAX;
 
-    if((update_flags_ & update_flags_meta_data) != 0 && md != nullptr)
+    if((update_flags_ & update_flags_meta_data) != 0)
     {
         os << "    <text id=\"artist\">"
-           << XmlEscape(md->values_[PlayInfo::MetaData::ARTIST])
+           << XmlEscape(md.values_[PlayInfo::MetaData::ARTIST])
            << "</text>\n";
         os << "    <text id=\"track\">"
-           << XmlEscape(md->values_[PlayInfo::MetaData::TITLE])
+           << XmlEscape(md.values_[PlayInfo::MetaData::TITLE])
            << "</text>\n";
         os << "   <text id=\"alttrack\">"
-           << XmlEscape(mk_alt_track_name(*md, 20))
+           << XmlEscape(mk_alt_track_name(md, 20))
            << "</text>\n";
         os << "    <text id=\"album\">"
-           << XmlEscape(md->values_[PlayInfo::MetaData::ALBUM])
+           << XmlEscape(md.values_[PlayInfo::MetaData::ALBUM])
            << "</text>\n";
         os << "    <text id=\"bitrate\">"
-           << md->values_[PlayInfo::MetaData::BITRATE_NOM]
+           << md.values_[PlayInfo::MetaData::BITRATE_NOM]
            << "</text>\n";
     }
 
@@ -210,6 +212,8 @@ bool ViewPlay::View::write_xml(std::ostream &os, bool is_full_view)
             "pause",
         };
 
+        static_assert(sizeof(play_icon) / sizeof(play_icon[0]) == PlayInfo::Data::STREAM_STATE_LAST + 1, "Array has wrong size");
+
         os << "    <icon id=\"play\">"
            << play_icon[player_.get_assumed_stream_state()]
            << "</icon>\n";
@@ -231,27 +235,26 @@ bool ViewPlay::View::serialize(DcpTransaction &dcpd, std::ostream *debug_os)
     if(!debug_os)
         return retval;
 
-    const auto *const md = player_.get_track_meta_data();
-
-    if(md != nullptr)
+    /* matches enum #PlayInfo::Data::StreamState */
+    static const char *stream_state_string[] =
     {
-        /* matches enum #PlayInfo::Data::StreamState */
-        static const char *stream_state_string[] =
-        {
-            "not playing",
-            "playing",
-            "paused",
-        };
+        "not playing",
+        "playing",
+        "paused",
+    };
 
-        *debug_os << "URL: \""
-                  << md->values_[PlayInfo::MetaData::INTERNAL_DRCPD_URL]
-                  << "\" ("
-                  << stream_state_string[player_.get_assumed_stream_state()]
-                  << ")" << std::endl;
+    static_assert(sizeof(stream_state_string) / sizeof(stream_state_string[0]) == PlayInfo::Data::STREAM_STATE_LAST + 1, "Array has wrong size");
 
-        for(size_t i = 0; i < md->values_.size(); ++i)
-            *debug_os << "  " << i << ": \"" << md->values_[i] << "\"" << std::endl;
-    }
+    const auto &md = player_.get_track_meta_data();
+
+    *debug_os << "URL: \""
+        << md.values_[PlayInfo::MetaData::INTERNAL_DRCPD_URL]
+        << "\" ("
+        << stream_state_string[player_.get_assumed_stream_state()]
+        << ")" << std::endl;
+
+    for(size_t i = 0; i < md.values_.size(); ++i)
+        *debug_os << "  " << i << ": \"" << md.values_[i] << "\"" << std::endl;
 
     return retval;
 }

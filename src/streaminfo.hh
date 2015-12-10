@@ -21,7 +21,8 @@
 
 #include <map>
 #include <string>
-#include <inttypes.h>
+
+#include "idtypes.hh"
 
 /*!
  * \addtogroup streaminfo Extra stream data
@@ -30,12 +31,30 @@
  */
 /*!@{*/
 
+class StreamInfoItem
+{
+  public:
+    const std::string alt_name_;
+    const ID::List list_id_;
+    const unsigned int line_;
+
+    StreamInfoItem(StreamInfoItem &&) = default;
+    StreamInfoItem(const StreamInfoItem &) = delete;
+    StreamInfoItem &operator=(const StreamInfoItem &) = delete;
+
+    explicit StreamInfoItem(std::string &&alt_name,
+                            ID::List list_id, unsigned int line):
+        alt_name_(alt_name),
+        list_id_(list_id),
+        line_(line)
+    {}
+};
+
 class StreamInfo
 {
   private:
-    std::map<uint16_t, std::string> stream_names_;
+    std::map<uint16_t, StreamInfoItem> stream_names_;
     uint16_t next_free_id_;
-    uint16_t current_id_;
 
   public:
     static constexpr size_t MAX_ENTRIES = 20;
@@ -45,15 +64,14 @@ class StreamInfo
     StreamInfo &operator=(const StreamInfo &) = delete;
 
     explicit StreamInfo():
-        next_free_id_(0),
-        current_id_(0)
+        next_free_id_(0)
     {}
 
     void clear();
-    uint16_t insert(const char *fallback_title);
+    uint16_t insert(const char *fallback_title,
+                    ID::List list_id, unsigned int line);
     void forget(uint16_t id);
-    void forget() { forget(current_id_); }
-    const std::string *lookup_and_activate(uint16_t id);
+    const StreamInfoItem *lookup(uint16_t id) const;
 };
 
 /*!@}*/

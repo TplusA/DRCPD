@@ -210,14 +210,10 @@ static ViewIface *get_play_view(ViewManagerIface *mgr)
 }
 
 static bool process_meta_data(Playback::MetaDataStoreIface &mds,
-                              GVariant *parameters,
-                              guint meta_data_parameter_index,
-                              bool is_update,
+                              GVariant *meta_data, bool is_update,
                               const std::string *fallback_title = NULL,
                               const char *url = NULL)
 {
-    GVariant *meta_data = g_variant_get_child_value(parameters,
-                                                    meta_data_parameter_index);
     log_assert(meta_data != nullptr);
 
     mds.meta_data_add_begin(is_update);
@@ -228,12 +224,8 @@ static bool process_meta_data(Playback::MetaDataStoreIface &mds,
         gchar *key;
         gchar *value;
 
-        while(g_variant_iter_next(&iter, "(ss)", &key, &value))
-        {
+        while(g_variant_iter_next(&iter, "(&s&s)", &key, &value))
             mds.meta_data_add(key, value);
-            g_free(key);
-            g_free(value);
-        }
     }
 
     if(!is_update)
@@ -256,8 +248,6 @@ static bool process_meta_data(Playback::MetaDataStoreIface &mds,
     }
 
     const bool ret = mds.meta_data_add_end();
-
-    g_variant_unref(meta_data);
 
     return ret;
 }
@@ -288,36 +278,55 @@ static void parse_stream_position(GVariant *parameters,
     g_variant_unref(val);
 }
 
-/*!
- * Look up stream information by ID, return its original list name.
- *
- * \returns
- *     Pointer to a string containing the name if the ID is known and a name
- *     has been stored for it, \c NULL otherwise. Do not free the string, it is
- *     owned by the \p player structure.
- */
-static const std::string *lookup_fallback(Playback::PlayerIface &player,
-                                          GVariant *parameters, guint id_index)
+static uint16_t get_stream_id(GVariant *parameters, guint id_index)
 {
     GVariant *stream_id_val = g_variant_get_child_value(parameters, id_index);
     log_assert(stream_id_val != nullptr);
-    guint16 stream_id = g_variant_get_uint16(stream_id_val);
+    uint16_t stream_id = g_variant_get_uint16(stream_id_val);
     g_variant_unref(stream_id_val);
 
+    return stream_id;
+}
+
+static bool get_queue_full(GVariant *parameters, guint id_index)
+{
+    GVariant *queue_full_val = g_variant_get_child_value(parameters, id_index);
+    log_assert(queue_full_val != nullptr);
+    const bool queue_is_full = g_variant_get_boolean(queue_full_val);
+    g_variant_unref(queue_full_val);
+
+    return queue_is_full;
+}
+
+static void handle_now_playing(uint16_t stream_id, const char *url_string,
+                               bool queue_is_full, GVariant *meta_data,
+                               DBusSignalData &data)
+{
     if(stream_id == 0)
     {
         /* we are not sending such IDs */
         BUG("Stream ID 0 received from Streamplayer");
-        return NULL;
+        return;
     }
 
-    auto ret = player.get_original_stream_name(stream_id);
+    data.player.start_notification(stream_id, !queue_is_full);
 
-    if(!ret)
+    auto fallback_title = data.player.get_original_stream_name(stream_id);
+    if(fallback_title == nullptr)
         msg_error(EINVAL, LOG_ERR,
                   "No fallback title found for stream ID %u", stream_id);
 
-    return ret;
+    (void)process_meta_data(data.mdstore, meta_data, false,
+                            fallback_title, url_string);
+
+    ViewIface *const playinfo = get_play_view(&data.mgr);
+
+    playinfo->notify_stream_start();
+    data.mgr.activate_view_by_name("Play");
+
+    auto *view = data.mgr.get_playback_initiator_view();
+    if(view != nullptr && view != playinfo)
+        view->notify_stream_start();
 }
 
 void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
@@ -333,34 +342,33 @@ void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
 
     if(strcmp(signal_name, "NowPlaying") == 0)
     {
-        data->player.start_notification();
-
         check_parameter_assertions(parameters, 4);
 
-        auto fallback_title = lookup_fallback(data->player, parameters, 0);
+        const uint16_t stream_id = get_stream_id(parameters, 0);
+
         GVariant *url_string_val = g_variant_get_child_value(parameters, 1);
         log_assert(url_string_val != nullptr);
+        const char *url_string = g_variant_get_string(url_string_val, NULL);
 
-        (void)process_meta_data(data->mdstore,
-                                parameters, 3, false, fallback_title,
-                                g_variant_get_string(url_string_val, NULL));
+        const bool queue_is_full = get_queue_full(parameters, 2);
+
+        GVariant *meta_data = g_variant_get_child_value(parameters, 3);
+
+        handle_now_playing(stream_id, url_string, queue_is_full, meta_data, *data);
 
         g_variant_unref(url_string_val);
-
-        ViewIface *const playinfo = get_play_view(&data->mgr);
-
-        playinfo->notify_stream_start(0, false);
-        data->mgr.activate_view_by_name("Play");
-
-        auto *view = data->mgr.get_playback_initiator_view();
-        if(view != nullptr && view != playinfo)
-            view->notify_stream_start(0, false);
+        g_variant_unref(meta_data);
     }
     else if(strcmp(signal_name, "MetaDataChanged") == 0)
     {
         check_parameter_assertions(parameters, 1);
-        if(process_meta_data(data->mdstore, parameters, 0, true))
+
+        GVariant *meta_data = g_variant_get_child_value(parameters, 0);
+
+        if(process_meta_data(data->mdstore, meta_data, true))
             get_play_view(&data->mgr)->notify_stream_meta_data_changed();
+
+        g_variant_unref(meta_data);
     }
     else if(strcmp(signal_name, "Stopped") == 0)
     {

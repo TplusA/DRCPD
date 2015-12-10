@@ -70,16 +70,18 @@ void test_insert_lookup_forget_one_title()
     static const std::string expected_title = "Testing";
     static constexpr uint16_t expected_id = 1;
 
-    const uint16_t id = sinfo->insert(expected_title.c_str());
+    const uint16_t id = sinfo->insert(expected_title.c_str(), ID::List(5), 10);
     cppcut_assert_equal(expected_id, id);
 
-    const std::string *title = sinfo->lookup_and_activate(expected_id);
-    cppcut_assert_not_null(title);
-    cppcut_assert_equal(expected_title, *title);
+    const StreamInfoItem *info = sinfo->lookup(expected_id);
+    cppcut_assert_not_null(info);
+    cppcut_assert_equal(expected_title, info->alt_name_);
+    cppcut_assert_equal(5U, info->list_id_.get_raw_id());
+    cppcut_assert_equal(10U, info->line_);
 
-    sinfo->forget();
+    sinfo->forget(expected_id);
 
-    cppcut_assert_null(sinfo->lookup_and_activate(expected_id));
+    cppcut_assert_null(sinfo->lookup(expected_id));
 }
 
 template <size_t N>
@@ -88,7 +90,7 @@ static void insert_titles(const std::array<uint16_t, N> &expected_ids,
 {
     for(size_t i = 0; i < N; ++i)
     {
-        const auto id = sinfo->insert(expected_titles[i].c_str());
+        const auto id = sinfo->insert(expected_titles[i].c_str(), ID::List(8), i);
         cppcut_assert_equal(expected_ids[i], id);
     }
 }
@@ -108,38 +110,14 @@ void test_insert_lookup_forget_multiple_titles()
 
     for(size_t i = 0; i < expected_ids.size(); ++i)
     {
-        auto title = sinfo->lookup_and_activate(expected_ids[i]);
-        cppcut_assert_not_null(title);
-        cppcut_assert_equal(expected_titles[i], *title);
+        const auto *info = sinfo->lookup(expected_ids[i]);
+        cppcut_assert_not_null(info);
+        cppcut_assert_equal(expected_titles[i], info->alt_name_);
 
-        sinfo->forget();
+        sinfo->forget(expected_ids[i]);
 
-        cppcut_assert_null(sinfo->lookup_and_activate(expected_ids[i]));
+        cppcut_assert_null(sinfo->lookup(expected_ids[i]));
     }
-}
-
-/*!\test
- * API allows simplified use for the common use case.
- */
-void test_explicit_forget_is_not_required_if_activating_in_insertion_order()
-{
-    static constexpr std::array<uint16_t, 4> expected_ids = { 1, 2, 3, 4, };
-    static const std::array<const std::string, expected_ids.size()> expected_titles =
-    {
-        "First", "Second", "Third", "Fourth",
-    };
-
-    insert_titles(expected_ids, expected_titles);
-
-    for(size_t i = 0; i < expected_ids.size(); ++i)
-    {
-        auto title = sinfo->lookup_and_activate(expected_ids[i]);
-        cppcut_assert_not_null(title);
-        cppcut_assert_equal(expected_titles[i], *title);
-    }
-
-    for(size_t i = 0; i < expected_ids.size(); ++i)
-        cppcut_assert_null(sinfo->lookup_and_activate(expected_ids[i]));
 }
 
 /*!\test
@@ -157,26 +135,26 @@ void test_forget_title_in_middle()
 
     sinfo->forget(expected_ids[2]);
 
-    auto title = sinfo->lookup_and_activate(expected_ids[0]);
-    cppcut_assert_not_null(title);
-    cppcut_assert_equal(expected_titles[0], *title);
+    const auto *info = sinfo->lookup(expected_ids[0]);
+    cppcut_assert_not_null(info);
+    cppcut_assert_equal(expected_titles[0], info->alt_name_);
 
-    sinfo->forget();
+    sinfo->forget(expected_ids[0]);
 
-    title = sinfo->lookup_and_activate(expected_ids[1]);
-    cppcut_assert_not_null(title);
-    cppcut_assert_equal(expected_titles[1], *title);
+    info = sinfo->lookup(expected_ids[1]);
+    cppcut_assert_not_null(info);
+    cppcut_assert_equal(expected_titles[1], info->alt_name_);
 
-    sinfo->forget();
+    sinfo->forget(expected_ids[1]);
 
-    title = sinfo->lookup_and_activate(expected_ids[2]);
-    cppcut_assert_null(title);
+    info = sinfo->lookup(expected_ids[2]);
+    cppcut_assert_null(info);
 
-    title = sinfo->lookup_and_activate(expected_ids[3]);
-    cppcut_assert_not_null(title);
-    cppcut_assert_equal(expected_titles[3], *title);
+    info = sinfo->lookup(expected_ids[3]);
+    cppcut_assert_not_null(info);
+    cppcut_assert_equal(expected_titles[3], info->alt_name_);
 
-    sinfo->forget();
+    sinfo->forget(expected_ids[3]);
 }
 
 /*!\test
@@ -191,8 +169,8 @@ void test_all_information_are_lost_on_clear()
 
     sinfo->clear();
 
-    cppcut_assert_null(sinfo->lookup_and_activate(expected_ids[0]));
-    cppcut_assert_null(sinfo->lookup_and_activate(expected_ids[1]));
+    cppcut_assert_null(sinfo->lookup(expected_ids[0]));
+    cppcut_assert_null(sinfo->lookup(expected_ids[1]));
 }
 
 /*!\test
@@ -217,10 +195,11 @@ void test_ids_are_not_reused()
 void test_maximum_number_of_entries_is_enforced()
 {
     for(size_t i = 0; i < StreamInfo::MAX_ENTRIES; ++i)
-        cppcut_assert_not_equal(uint16_t(0), sinfo->insert("Testing"));
+        cppcut_assert_not_equal(uint16_t(0),
+                                sinfo->insert("Testing", ID::List(23), 42));
 
     mock_messages->expect_msg_error(0, LOG_CRIT, "BUG: Too many stream IDs");
-    cppcut_assert_equal(uint16_t(0), sinfo->insert("Too many"));
+    cppcut_assert_equal(uint16_t(0), sinfo->insert("Too many", ID::List(23), 43));
 }
 
 /*!\test
@@ -238,12 +217,12 @@ void test_ids_are_not_reused_on_overflow()
 
     for(size_t i = expected_ids[expected_ids.size() - 1] + 1; i <= StreamInfo::MAX_ID; ++i)
     {
-        const auto id = sinfo->insert("Dummy");
+        const auto id = sinfo->insert("Dummy", ID::List(23), 42);
         cppcut_assert_equal(uint16_t(i), id);
         sinfo->forget(id);
     }
 
-    const auto id = sinfo->insert("Overflown");
+    const auto id = sinfo->insert("Overflown", ID::List(23), 43);
     cppcut_assert_equal(uint16_t(expected_ids[expected_ids.size() - 1] + 1), id);
 }
 

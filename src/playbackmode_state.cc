@@ -153,7 +153,7 @@ static SendStatus send_selected_file_uri_to_streamplayer(ID::List list_id,
     {
         if(fifo_overflow)
         {
-            msg_error(EAGAIN, LOG_INFO, "URL FIFO overflow");
+            msg_error(0, LOG_INFO, "URL FIFO overflow");
             ret = SendStatus::FIFO_FULL;
         }
         else if(!is_playing &&
@@ -170,6 +170,169 @@ static SendStatus send_selected_file_uri_to_streamplayer(ID::List list_id,
     free_array_of_strings(uri_list);
 
     return ret;
+}
+
+static bool try_clear_url_fifo_for_set_skip_mode(const Playback::CurrentMode &mode,
+                                                 StreamInfo &sinfo,
+                                                 uint16_t &current_stream_id)
+{
+    log_assert(current_stream_id != 0);
+
+    if(mode.get() != Playback::Mode::LINEAR)
+        return false;
+
+    guint current_id;
+    GVariant *queued_ids_array;
+    GVariant *removed_ids_array;
+
+    const gboolean ok =
+        tdbus_splay_urlfifo_call_clear_sync(dbus_get_streamplayer_urlfifo_iface(), 0,
+                                            &current_id,
+                                            &queued_ids_array, &removed_ids_array,
+                                            NULL, NULL);
+
+    if(!ok)
+        msg_error(0, LOG_NOTICE, "Failed clearing player URL FIFO");
+    else
+    {
+        if(current_id == UINT32_MAX)
+            current_id = 0;
+        else
+            log_assert(sinfo.lookup(current_id) != nullptr);
+
+        for(size_t i = 0; i < g_variant_n_children(removed_ids_array); ++i)
+        {
+            GVariant *id_variant = g_variant_get_child_value(removed_ids_array, i);
+            uint16_t stream_id = g_variant_get_uint16(id_variant);
+
+            if(stream_id != current_id)
+                sinfo.forget(stream_id);
+
+            g_variant_unref(id_variant);
+        }
+
+        for(size_t i = 0; i < g_variant_n_children(queued_ids_array); ++i)
+        {
+            GVariant *id_variant = g_variant_get_child_value(queued_ids_array, i);
+            log_assert(sinfo.lookup(g_variant_get_uint16(id_variant)) != nullptr);
+            g_variant_unref(id_variant);
+        }
+
+        current_stream_id = current_id;
+    }
+
+    g_variant_unref(queued_ids_array);
+    g_variant_unref(removed_ids_array);
+
+    return ok;
+}
+
+bool Playback::State::try_set_position(const StreamInfoItem &info)
+{
+    try
+    {
+        ViewFileBrowser::enter_list_at(dbus_list_, item_flags_, navigation_,
+                                       info.list_id_, info.line_, false);
+    }
+    catch(const List::DBusListException &e)
+    {
+        msg_error(0, LOG_ERR,
+                  "Failed enter reverse skipping mode: %s", e.what());
+        return false;
+    }
+
+    current_list_id_ == info.list_id_;
+
+    return true;
+}
+
+bool Playback::State::set_skip_mode_reverse(StreamInfo &sinfo,
+                                            uint16_t &current_stream_id,
+                                            bool skip_to_next,
+                                            bool &enqueued_anything)
+{
+    enqueued_anything = false;
+
+    if(is_reverse_traversal_)
+    {
+        /* already in reverse mode */
+        return true;
+    }
+
+    const auto *const info = sinfo.lookup(current_stream_id);
+
+    if(info == nullptr)
+    {
+        /* don't know where we are, user skips too fast */
+        return false;
+    }
+
+    if(info->list_id_ == start_list_id_ && info->line_ == start_list_line_)
+    {
+        /* already on first track */
+        return false;
+    }
+
+    if(!try_set_position(*info))
+    {
+        /* something wrong with the list */
+        return false;
+    }
+
+    if(!try_clear_url_fifo_for_set_skip_mode(mode_, sinfo, current_stream_id))
+    {
+        /* wrong playback mode or D-Bus error */
+        return false;
+    }
+
+    is_reverse_traversal_ = true;
+    is_list_processed_ = false;
+
+    enqueued_anything = enqueue_next(sinfo, skip_to_next, true);
+
+    return true;
+}
+
+bool Playback::State::set_skip_mode_forward(StreamInfo &sinfo,
+                                            uint16_t &current_stream_id,
+                                            bool skip_to_next,
+                                            bool &enqueued_anything)
+{
+    enqueued_anything = false;
+
+    if(!is_reverse_traversal_)
+    {
+        /* already in forward mode */
+        return false;
+    }
+
+    const auto *const info = sinfo.lookup(current_stream_id);
+
+    if(info == nullptr)
+    {
+        /* don't know where we are, user skips too fast */
+        return false;
+    }
+
+    is_reverse_traversal_ = false;
+
+    if(!try_set_position(*info))
+    {
+        /* something wrong with the list */
+        return false;
+    }
+
+    if(!try_clear_url_fifo_for_set_skip_mode(mode_, sinfo, current_stream_id))
+    {
+        /* wrong playback mode or D-Bus error */
+        return false;
+    }
+
+    is_list_processed_ = false;
+
+    enqueued_anything = enqueue_next(sinfo, skip_to_next, true);
+
+    return true;
 }
 
 bool Playback::State::try_start()
@@ -191,7 +354,8 @@ bool Playback::State::try_start()
             return false;
 
         ViewFileBrowser::enter_list_at(dbus_list_, item_flags_, navigation_,
-                                       start_list_id_, start_list_line_);
+                                       start_list_id_, start_list_line_,
+                                       is_reverse_traversal_);
 
         current_list_id_ = start_list_id_;
 
@@ -219,6 +383,9 @@ bool Playback::State::start(const List::DBusList &user_list,
     user_list_id_ = user_list.get_list_id();
     user_list_line_ = start_line;
 
+    is_list_processed_ = false;
+    is_reverse_traversal_ = false;
+
     directory_depth_ = 1;
     number_of_streams_played_ = 0;
     number_of_streams_skipped_ = 0;
@@ -245,13 +412,30 @@ bool Playback::State::start(const List::DBusList &user_list,
     return false;
 }
 
-void Playback::State::enqueue_next(StreamInfo &sinfo, bool skip_to_next)
+bool Playback::State::enqueue_next(StreamInfo &sinfo, bool skip_to_next,
+                                   bool just_switched_direction)
 {
-    if(!mode_.is_playing())
-        return;
+    bool queued_for_immediate_playback = false;
+
+    if(is_list_processed_)
+        return queued_for_immediate_playback;
 
     while(true)
     {
+        if(just_switched_direction)
+        {
+            just_switched_direction = false;
+
+            try
+            {
+                (void)find_next(nullptr);
+            }
+            catch(const List::DBusListException &e)
+            {
+                msg_info("Enqueue next failed (0): %s %d", e.what(), e.is_dbus_error());
+            }
+        }
+
         const ViewFileBrowser::FileItem *item;
 
         try
@@ -263,10 +447,10 @@ void Playback::State::enqueue_next(StreamInfo &sinfo, bool skip_to_next)
             msg_info("Enqueue next failed (1): %s %d", e.what(), e.is_dbus_error());
             revert();
 
-            return;
+            return queued_for_immediate_playback;
         }
 
-        if(!item)
+        if(item == nullptr)
         {
             try
             {
@@ -281,18 +465,20 @@ void Playback::State::enqueue_next(StreamInfo &sinfo, bool skip_to_next)
 
             revert();
 
-            return;
+            return queued_for_immediate_playback;
         }
 
         if(!item->is_directory())
         {
-            const uint16_t fallback_title_id = sinfo.insert(item->get_text());
+            const unsigned int current_line = navigation_.get_cursor();
+            const uint16_t fallback_title_id =
+                sinfo.insert(item->get_text(), current_list_id_, current_line);
 
             item = nullptr;
 
             const auto send_status =
                 send_selected_file_uri_to_streamplayer(current_list_id_,
-                                                       navigation_.get_cursor(),
+                                                       current_line,
                                                        fallback_title_id,
                                                        dbus_list_.get_dbus_proxy(),
                                                        skip_to_next);
@@ -305,6 +491,9 @@ void Playback::State::enqueue_next(StreamInfo &sinfo, bool skip_to_next)
               case SendStatus::OK:
                 /* stream URI is in FIFO now */
                 ++number_of_streams_played_;
+
+                if(skip_to_next)
+                    queued_for_immediate_playback = true;
 
                 /* next stream, if any, shouldn't be skipped to */
                 skip_to_next = false;
@@ -321,11 +510,11 @@ void Playback::State::enqueue_next(StreamInfo &sinfo, bool skip_to_next)
                 ++number_of_streams_skipped_;
                 revert();
 
-                return;
+                return queued_for_immediate_playback;
 
               case SendStatus::FIFO_FULL:
                 /* try again in a later invokation of this function */
-                return;
+                return queued_for_immediate_playback;
 
               case SendStatus::PLAYBACK_FAILURE:
                 /* so let's ignore it */
@@ -345,9 +534,10 @@ void Playback::State::enqueue_next(StreamInfo &sinfo, bool skip_to_next)
             msg_info("Enqueue next failed (3): %s %d", e.what(), e.is_dbus_error());
         }
 
-        revert();
+        if(!is_list_processed_)
+            BUG("List should have been processed at this point");
 
-        return;
+        return queued_for_immediate_playback;
     }
 }
 
@@ -369,7 +559,8 @@ bool Playback::State::try_descend()
         return false;
 
     ViewFileBrowser::enter_list_at(dbus_list_,
-                                   item_flags_, navigation_, list_id, 0);
+                                   item_flags_, navigation_, list_id, 0,
+                                   is_reverse_traversal_);
 
     current_list_id_ = list_id;
     ++number_of_directories_entered_;
@@ -386,7 +577,7 @@ bool Playback::State::find_next(const List::TextItem *directory)
     if(mode_.get() == Playback::Mode::SINGLE_TRACK && number_of_streams_played_ > 0)
     {
         /* nothing more to do, finish playback gracefully */
-        mode_.finish();
+        is_list_processed_ = true;
         return false;
     }
 
@@ -397,30 +588,9 @@ bool Playback::State::find_next(const List::TextItem *directory)
 
     while(true)
     {
-        if(current_list_id_ == start_list_id_)
-        {
-            /* we are inside the directory from where we started */
-            if(!navigation_.down())
-                navigation_.set_cursor_by_line_number(0);
-
-            const int line = navigation_.get_line_number_by_cursor();
-
-            if(line < 0)
-                return false;
-            else if(static_cast<unsigned int>(navigation_.get_line_number_by_cursor()) == start_list_line_)
-            {
-                /* wrapped around, we are done */
-                mode_.finish();
-                return false;
-            }
-            else
-                return true;
-        }
-
-        /* we are inside some nested directory (which we started traversing at
-         * item 0)  */
-        if(navigation_.down())
-            return true;
+        bool retval;
+        if(is_reverse_traversal_ ? find_next_reverse(retval) : find_next_forward(retval))
+            return retval;
 
         /* end of directory reached, go up again */
         unsigned int item_id;
@@ -435,10 +605,100 @@ bool Playback::State::find_next(const List::TextItem *directory)
         }
 
         ViewFileBrowser::enter_list_at(dbus_list_, item_flags_, navigation_,
-                                       list_id, item_id);
+                                       list_id, item_id,
+                                       is_reverse_traversal_);
         current_list_id_ = list_id;
     }
 
+    return false;
+}
+
+bool Playback::State::find_next_forward(bool &ret)
+    throw(List::DBusListException)
+{
+    if(current_list_id_ == start_list_id_)
+    {
+        /* we are inside the directory from where we started */
+        if(!navigation_.down())
+            navigation_.set_cursor_by_line_number(0);
+
+        const int line = navigation_.get_line_number_by_cursor();
+
+        if(line < 0)
+        {
+            ret = false;
+            return true;
+        }
+        else if(static_cast<unsigned int>(line) == start_list_line_)
+        {
+            /* wrapped around, we are done */
+            is_list_processed_ = true;
+            ret = false;
+            return true;
+        }
+        else
+        {
+            ret = true;
+            return true;
+        }
+    }
+
+    /* we are inside some nested directory (which we started traversing at
+     * item 0)  */
+    if(navigation_.down())
+    {
+        ret = true;
+        return true;
+    }
+
+    /* we are not done yet */
+    return false;
+}
+
+bool Playback::State::find_next_reverse(bool &ret)
+    throw(List::DBusListException)
+{
+    if(current_list_id_ == start_list_id_)
+    {
+        /* we are inside the directory from where we started */
+        if(!navigation_.up())
+        {
+            const unsigned int lines = navigation_.get_total_number_of_visible_items();
+
+            if(lines > 0)
+                navigation_.set_cursor_by_line_number(lines - 1);
+        }
+
+        const int line = navigation_.get_line_number_by_cursor();
+
+        if(line < 0)
+        {
+            ret = false;
+            return true;
+        }
+        else if(static_cast<unsigned int>(line) == start_list_line_)
+        {
+            /* wrapped around, we are done */
+            is_list_processed_ = true;
+            ret = false;
+            return true;
+        }
+        else
+        {
+            ret = true;
+            return true;
+        }
+    }
+
+    /* we are inside some nested directory (which we started traversing at the
+     * last item in the list)  */
+    if(navigation_.up())
+    {
+        ret = true;
+        return true;
+    }
+
+    /* we are not done yet */
     return false;
 }
 
@@ -447,7 +707,7 @@ void Playback::State::revert()
     if(user_list_id_ == ID::List())
         return;
 
-    if(mode_.get() != Mode::FINISHED)
+    if(!is_list_processed_ && mode_.is_playing())
         msg_error(0, LOG_NOTICE, "Stopped directory traversal due to failure.");
 
     msg_info("Finished sending URIs from list to streamplayer");

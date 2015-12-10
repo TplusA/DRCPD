@@ -35,13 +35,14 @@ static uint16_t next_id(uint16_t &next_free_id)
 
 void StreamInfo::clear()
 {
-    current_id_ = 0;
     stream_names_.clear();
 }
 
-uint16_t StreamInfo::insert(const char *fallback_title)
+uint16_t StreamInfo::insert(const char *fallback_title,
+                            ID::List list_id, unsigned int line)
 {
-    log_assert(fallback_title != NULL);
+    log_assert(fallback_title != nullptr);
+    log_assert(list_id.is_valid());
 
     if(stream_names_.size() >= MAX_ENTRIES)
     {
@@ -52,7 +53,9 @@ uint16_t StreamInfo::insert(const char *fallback_title)
     while(1)
     {
         const uint16_t id = next_id(next_free_id_);
-        const auto result = stream_names_.emplace(id, std::string(fallback_title));
+        const auto result =
+            stream_names_.emplace(id, StreamInfoItem(fallback_title,
+                                                     list_id, line));
 
         if(result.first != stream_names_.end() && result.second)
             return id;
@@ -64,25 +67,10 @@ void StreamInfo::forget(uint16_t id)
     if(stream_names_.erase(id) != 1)
         msg_error(EINVAL, LOG_ERR,
                   "Attempted to erase non-existent stream ID %u", id);
-    else if(id == current_id_)
-        current_id_ = 0;
 }
 
-const std::string *StreamInfo::lookup_and_activate(uint16_t id)
+const StreamInfoItem *StreamInfo::lookup(uint16_t id) const
 {
-    if(current_id_ != 0)
-        forget();
-
     const auto result = stream_names_.find(id);
-
-    if(result != stream_names_.end())
-    {
-        current_id_ = id;
-        return &result->second;
-    }
-    else
-    {
-        current_id_ = 0;
-        return NULL;
-    }
+    return (result != stream_names_.end()) ? &result->second : nullptr;
 }

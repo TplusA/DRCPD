@@ -40,11 +40,30 @@ namespace ViewFileBrowser
 static void enter_list_at(List::DBusList &file_list,
                           List::NavItemNoFilter &item_flags,
                           List::Nav &navigation,
-                          ID::List list_id, unsigned int line)
+                          ID::List list_id, unsigned int line,
+                          bool reverse = false)
     throw(List::DBusListException)
 {
     file_list.enter_list(list_id, line);
     item_flags.list_content_changed();
+
+    const unsigned int lines = navigation.get_total_number_of_visible_items();
+
+    if(lines == 0)
+        line = 0;
+    else if(!reverse)
+    {
+        if(line >= lines)
+            line = lines - 1;
+    }
+    else
+    {
+        if(line >= lines)
+            line = 0;
+        else
+            line = lines - 1 - line;
+    }
+
     navigation.set_cursor_by_line_number(line);
 }
 

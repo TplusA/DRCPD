@@ -94,15 +94,12 @@ ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command)
 
         if(!player_.take(playback_current_state_, file_list_,
                          navigation_.get_line_number_by_cursor()))
-        {
-            playback_current_mode_.deactivate();
-            player_.release();
-        }
+            player_.release(true);
 
         return InputResult::OK;
 
       case DrcpCommand::PLAYBACK_STOP:
-        player_.release();
+        player_.release(true);
         return InputResult::OK;
 
       case DrcpCommand::GO_BACK_ONE_LEVEL:

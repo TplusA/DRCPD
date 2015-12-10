@@ -190,7 +190,7 @@ class ViewIface
     /*!
      * Called when a stream has started playing.
      */
-    virtual void notify_stream_start(uint32_t id, bool url_fifo_is_full) {}
+    virtual void notify_stream_start() {}
 
     /*!
      * Called when streamplayer has stopped playing.

@@ -25,94 +25,105 @@
 #include "streamplayer_dbus.h"
 #include "dbus_iface_deep.h"
 
-static inline void no_context_bug(const char *what)
+static inline void expected_active_mode_bug(const char *what)
 {
-    BUG("Got %s, but have no context", what);
+    BUG("Expected active mode: %s", what);
 }
 
 bool Playback::Player::take(Playback::State &playback_state,
                             const List::DBusList &file_list, int line)
 {
-    if(current_state_ != nullptr)
-        release();
+    if(is_active_mode(&playback_state))
+        release(true);
 
     current_state_ = &playback_state;
 
-    set_assumed_stream_state(PlayInfo::Data::STREAM_STOPPED);
-
     if(!current_state_->start(file_list, line))
-    {
-        set_assumed_stream_state(PlayInfo::Data::STREAM_UNAVAILABLE);
         return false;
-    }
 
-    current_state_->enqueue_next(stream_info_, true);
+    waiting_for_start_notification_ =
+        current_state_->enqueue_next(stream_info_, true);
 
     return true;
 }
 
-void Playback::Player::clear()
+void Playback::Player::release(bool active_stop_command)
 {
-    stream_info_.clear();
-    track_info_.meta_data_.clear(true);
-    incoming_meta_data_.clear(true);
+    waiting_for_start_notification_ = false;
 
-    if(current_state_ != nullptr)
-        current_state_->revert();
+    if(is_active_mode())
+    {
+        current_state_->stop();
+        current_state_ = nullptr;
+    }
+    else if(active_stop_command)
+        return;
+
+    if(active_stop_command)
+    {
+        if(!tdbus_splay_playback_call_stop_sync(dbus_get_streamplayer_playback_iface(),
+                                                NULL, NULL))
+            msg_error(0, LOG_NOTICE, "Failed sending stop playback message");
+    }
 }
 
-void Playback::Player::release()
+void Playback::Player::start_notification(uint16_t stream_id, bool try_enqueue)
 {
-    if(current_state_ == nullptr)
-        no_context_bug("release command");
+    log_assert(stream_id != 0);
 
-    if(!tdbus_splay_playback_call_stop_sync(dbus_get_streamplayer_playback_iface(),
-                                            NULL, NULL))
-        msg_error(0, LOG_NOTICE, "Failed sending stop playback message");
+    waiting_for_start_notification_ = false;
 
-    clear();
+    if(stream_info_.lookup(stream_id) == nullptr)
+    {
+        BUG("Got start notification for unknown stream ID %u", stream_id);
+        current_stream_id_ = 0;
+    }
+    else if(stream_id != current_stream_id_)
+    {
+        if(current_stream_id_ != 0)
+            stream_info_.forget(current_stream_id_);
 
-    current_state_ = nullptr;
-    set_assumed_stream_state(PlayInfo::Data::STREAM_UNAVAILABLE);
-}
+        current_stream_id_ = stream_id;
+    }
 
-void Playback::Player::start_notification()
-{
-    set_assumed_stream_state(PlayInfo::Data::STREAM_PLAYING);
+    track_info_.set_playing();
 
-    if(current_state_ == nullptr)
-        return no_context_bug("start notification from player");
+    if(!is_active_mode())
+        return;
 
-    current_state_->enqueue_next(stream_info_, false);
+    if(!current_state_->set_skip_mode_forward(stream_info_,
+                                              current_stream_id_, false,
+                                              waiting_for_start_notification_) &&
+       try_enqueue &&
+       !waiting_for_start_notification_)
+    {
+        waiting_for_start_notification_ =
+            current_state_->enqueue_next(stream_info_, false);
+    }
 }
 
 void Playback::Player::stop_notification()
 {
-    set_assumed_stream_state(PlayInfo::Data::STREAM_STOPPED);
+    current_stream_id_ = 0;
+    stream_info_.clear();
+    incoming_meta_data_.clear(false);
+    track_info_.set_stopped();
 
-    if(current_state_ == nullptr)
-        no_context_bug("stop notification from player");
-
-    clear();
+    if(is_active_mode())
+    {
+        waiting_for_start_notification_ = false;
+        current_state_->revert();
+    }
 }
 
 void Playback::Player::pause_notification()
 {
     set_assumed_stream_state(PlayInfo::Data::STREAM_PAUSED);
-
-    if(current_state_ == nullptr)
-        no_context_bug("pause notification from player");
 }
 
 bool Playback::Player::track_times_notification(const std::chrono::milliseconds &position,
                                                 const std::chrono::milliseconds &duration)
 {
-    if(current_state_ == nullptr)
-    {
-        no_context_bug("new times from player");
-        return true;
-    }
-
     if(track_info_.stream_position_ == position && track_info_.stream_duration_ == duration)
         return false;
 
@@ -122,14 +133,9 @@ bool Playback::Player::track_times_notification(const std::chrono::milliseconds 
     return true;
 }
 
-const PlayInfo::MetaData *const Playback::Player::get_track_meta_data() const
+const PlayInfo::MetaData &Playback::Player::get_track_meta_data() const
 {
-    if(current_state_ != nullptr)
-        return &track_info_.meta_data_;
-
-    no_context_bug("meta data query");
-
-    return nullptr;
+    return track_info_.meta_data_;
 }
 
 PlayInfo::Data::StreamState Playback::Player::get_assumed_stream_state() const
@@ -139,53 +145,93 @@ PlayInfo::Data::StreamState Playback::Player::get_assumed_stream_state() const
 
 std::pair<std::chrono::milliseconds, std::chrono::milliseconds> Playback::Player::get_times() const
 {
-    if(current_state_ != nullptr)
-        return std::pair<std::chrono::milliseconds, std::chrono::milliseconds>(
-            track_info_.stream_position_, track_info_.stream_duration_);
-    else
-        return std::pair<std::chrono::milliseconds, std::chrono::milliseconds>(
-            std::chrono::milliseconds(-1), std::chrono::milliseconds(-1));
+    return std::pair<std::chrono::milliseconds, std::chrono::milliseconds>(
+               track_info_.stream_position_, track_info_.stream_duration_);
 }
 
-const std::string *Playback::Player::get_original_stream_name(uint16_t id)
+const std::string *Playback::Player::get_original_stream_name(uint16_t id) const
 {
-    return stream_info_.lookup_and_activate(id);
+    const auto *const info = stream_info_.lookup(id);
+    return (info != nullptr) ? &info->alt_name_ : nullptr;
+}
+
+static bool restart_stream()
+{
+    if(tdbus_splay_playback_call_seek_sync(dbus_get_streamplayer_playback_iface(),
+                                           0, "ms", NULL, NULL))
+        return true;
+
+    msg_error(0, LOG_NOTICE, "Failed restarting stream");
+
+    return false;
+}
+
+void Playback::Player::skip_to_previous(std::chrono::milliseconds rewind_threshold)
+{
+    log_assert(rewind_threshold >= rewind_threshold.zero());
+
+    if(!is_active_mode())
+        return expected_active_mode_bug(__PRETTY_FUNCTION__);
+
+    if(waiting_for_start_notification_)
+        return;
+
+    if(current_stream_id_ == 0)
+    {
+        BUG("Got skip back command for zero stream ID");
+        return;
+    }
+
+    if(rewind_threshold > rewind_threshold.zero() &&
+       track_info_.stream_position_ >= rewind_threshold)
+    {
+        waiting_for_start_notification_ = restart_stream();
+        return;
+    }
+
+    if(!current_state_->set_skip_mode_reverse(stream_info_,
+                                              current_stream_id_, true,
+                                              waiting_for_start_notification_) &&
+       rewind_threshold > rewind_threshold.zero() &&
+       !waiting_for_start_notification_)
+    {
+        waiting_for_start_notification_ = restart_stream();
+    }
 }
 
 void Playback::Player::skip_to_next()
 {
-    if(current_state_ == nullptr)
-        return no_context_bug("skip to next track command");
+    if(!is_active_mode())
+        return expected_active_mode_bug(__PRETTY_FUNCTION__);
+
+    if(waiting_for_start_notification_)
+        return;
+
+    if(current_stream_id_ == 0)
+    {
+        BUG("Got skip forward command for zero stream ID");
+        return;
+    }
 
     if(!tdbus_splay_urlfifo_call_next_sync(dbus_get_streamplayer_urlfifo_iface(),
                                            NULL, NULL))
         msg_error(0, LOG_NOTICE, "Failed sending skip track message");
+    else
+        waiting_for_start_notification_ = true;
 }
 
 void Playback::Player::meta_data_add_begin(bool is_update)
 {
-    if(current_state_ == nullptr)
-        return no_context_bug("start adding meta data command");
-
     incoming_meta_data_.clear(is_update);
 }
 
 void Playback::Player::meta_data_add(const char *key, const char *value)
 {
-    if(current_state_ == nullptr)
-        return no_context_bug("add meta data command");
-
     incoming_meta_data_.add(key, value, meta_data_reformatters_);
 }
 
 bool Playback::Player::meta_data_add_end()
 {
-    if(current_state_ == nullptr)
-    {
-        no_context_bug("add meta data command");
-        return false;
-    }
-
     if(incoming_meta_data_ == track_info_.meta_data_)
     {
         incoming_meta_data_.clear(true);
@@ -197,6 +243,11 @@ bool Playback::Player::meta_data_add_end()
         incoming_meta_data_.clear(true);
         return true;
     }
+}
+
+bool Playback::Player::is_active_mode(const Playback::State *new_state) const
+{
+    return current_state_ != new_state;
 }
 
 void Playback::Player::set_assumed_stream_state(PlayInfo::Data::StreamState state)

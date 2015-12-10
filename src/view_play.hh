@@ -75,7 +75,7 @@ class View: public ViewIface
 
     InputResult input(DrcpCommand command) override;
 
-    void notify_stream_start(uint32_t id, bool url_fifo_is_full) override;
+    void notify_stream_start() override;
     void notify_stream_stop() override;
     void notify_stream_pause() override;
     void notify_stream_position_changed() override;
