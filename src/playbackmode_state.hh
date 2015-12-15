@@ -199,6 +199,14 @@ class State
      */
     void revert();
 
+    /*!
+     * To be called when a list ID gets invalidated.
+     *
+     * \returns
+     *     True if the player needs to stop playing, false otherwise.
+     */
+    bool list_invalidate(ID::List list_id, ID::List replacement_id);
+
   private:
     bool try_start() throw(List::DBusListException);
     bool try_descend() throw(List::DBusListException);

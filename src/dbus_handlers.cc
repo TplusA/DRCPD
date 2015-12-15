@@ -27,6 +27,7 @@
 #include "dbus_handlers.hh"
 #include "view_manager.hh"
 #include "view_play.hh"
+#include "view_filebrowser.hh"
 #include "player.hh"
 #include "messages.h"
 
@@ -193,7 +194,32 @@ void dbussignal_lists_navigation(GDBusProxy *proxy, const gchar *sender_name,
 
     msg_info("%s signal from '%s': %s", iface_name, sender_name, signal_name);
 
-    unknown_signal(iface_name, signal_name, sender_name);
+    auto *data = static_cast<DBusSignalData *>(user_data);
+    log_assert(data != nullptr);
+
+    if(strcmp(signal_name, "ListInvalidate") == 0)
+    {
+        guint raw_list_id;
+        guint raw_new_list_id;
+
+        g_variant_get(parameters, "(uu)", &raw_list_id, &raw_new_list_id);
+
+        const ID::List list_id(raw_list_id);
+        const ID::List new_list_id(raw_new_list_id);
+
+        if(!list_id.is_valid())
+            return;
+
+        auto *const view =
+            dynamic_cast<ViewFileBrowser::View *>(data->mgr.get_view_by_dbus_proxy(proxy));
+
+        if(view == nullptr)
+            BUG("Could not find view for D-Bus proxy");
+        else if(view->list_invalidate(list_id, new_list_id))
+            data->mgr.update_view_if_active(view);
+    }
+    else
+        unknown_signal(iface_name, signal_name, sender_name);
 }
 
 void dbussignal_splay_urlfifo(GDBusProxy *proxy, const gchar *sender_name,

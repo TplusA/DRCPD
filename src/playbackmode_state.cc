@@ -729,3 +729,32 @@ void Playback::State::revert()
     current_list_id_ = ID::List();
     mode_.deactivate();
 }
+
+bool Playback::State::list_invalidate(ID::List list_id, ID::List replacement_id)
+{
+    log_assert(list_id.is_valid());
+
+    if(!user_list_id_.is_valid())
+        return false;
+
+    if(user_list_id_ == list_id)
+    {
+        if(replacement_id.is_valid())
+            user_list_id_ = replacement_id;
+        else
+            return true;
+    }
+
+    /* we could set #Playback::State::start_list_id_ here and continue if we
+     * would also fix the #Playback::State::start_list_line_ value */
+    if(start_list_id_ == list_id)
+        return true;
+
+    /* we could set #Playback::State::current_list_id_ here and continue, but
+     * it seems risky to do so without any further testing (read: I didn't test
+     * this case) */
+    if(current_list_id_ == list_id)
+        return true;
+
+    return false;
+}

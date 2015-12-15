@@ -227,6 +227,34 @@ bool ViewFileBrowser::View::owns_dbus_proxy(const void *dbus_proxy) const
     return dbus_proxy == file_list_.get_dbus_proxy();
 }
 
+bool ViewFileBrowser::View::list_invalidate(ID::List list_id, ID::List replacement_id)
+{
+    log_assert(list_id.is_valid());
+
+    if(playback_current_state_.list_invalidate(list_id, replacement_id))
+        player_.release(true);
+
+    if(list_id != current_list_id_)
+        return false;
+
+    if(replacement_id.is_valid())
+    {
+        msg_info("Reloading list %u (was %u)",
+                 replacement_id.get_raw_id(), current_list_id_.get_raw_id());
+
+        current_list_id_ = replacement_id;
+        reload_list();
+    }
+    else
+    {
+        msg_info("Current list %u got removed, going back to root list",
+                 current_list_id_.get_raw_id());
+        point_to_root_directory();
+    }
+
+    return true;
+}
+
 static ID::List go_to_root_directory(List::DBusList &file_list,
                                      List::NavItemNoFilter &item_flags,
                                      List::Nav &navigation)
@@ -378,4 +406,24 @@ bool ViewFileBrowser::View::point_to_parent_link()
     }
 
     return point_to_root_directory();
+}
+
+void ViewFileBrowser::View::reload_list()
+{
+    int line = navigation_.get_line_number_by_cursor();
+
+    if(line >= 0)
+    {
+        try
+        {
+            enter_list_at(file_list_, item_flags_, navigation_, current_list_id_, line);
+            return;
+        }
+        catch(const List::DBusListException &e)
+        {
+            /* handled below */
+        }
+    }
+
+    point_to_root_directory();
 }

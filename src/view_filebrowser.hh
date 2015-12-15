@@ -105,6 +105,7 @@ class View: public ViewIface
     bool update(DcpTransaction &dcpd, std::ostream *debug_os) override;
 
     bool owns_dbus_proxy(const void *dbus_proxy) const;
+    bool list_invalidate(ID::List list_id, ID::List replacement_id);
 
   private:
     /*!
@@ -131,6 +132,11 @@ class View: public ViewIface
      *     True if the list was updated, false if the list remained unchanged.
      */
     bool point_to_parent_link();
+
+    /*!
+     * Reload currently displayed list, try to keep navigation in good shape.
+     */
+    void reload_list();
 
     /*!
      * Generate XML document from current state.
