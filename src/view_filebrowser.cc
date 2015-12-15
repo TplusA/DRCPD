@@ -222,6 +222,11 @@ bool ViewFileBrowser::View::update(DcpTransaction &dcpd, std::ostream *debug_os)
     return serialize(dcpd, debug_os);
 }
 
+bool ViewFileBrowser::View::owns_dbus_proxy(const void *dbus_proxy) const
+{
+    return dbus_proxy == file_list_.get_dbus_proxy();
+}
+
 static ID::List go_to_root_directory(List::DBusList &file_list,
                                      List::NavItemNoFilter &item_flags,
                                      List::Nav &navigation)

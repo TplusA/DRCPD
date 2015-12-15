@@ -104,6 +104,8 @@ class View: public ViewIface
     bool serialize(DcpTransaction &dcpd, std::ostream *debug_os) override;
     bool update(DcpTransaction &dcpd, std::ostream *debug_os) override;
 
+    bool owns_dbus_proxy(const void *dbus_proxy) const;
+
   private:
     /*!
      * Load whole root directory into internal list.

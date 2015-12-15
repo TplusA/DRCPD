@@ -21,6 +21,7 @@
 #endif /* HAVE_CONFIG_H */
 
 #include "view_manager.hh"
+#include "view_filebrowser.hh"
 #include "view_nop.hh"
 #include "messages.h"
 #include "os.h"
@@ -206,6 +207,23 @@ static ViewIface *lookup_view_by_name(ViewManager::views_container_t &container,
     return (it != container.end()) ? it->second : nullptr;
 }
 
+static ViewIface *lookup_view_by_dbus_proxy(ViewManager::views_container_t &container,
+                                            const void *dbus_proxy)
+{
+    if(dbus_proxy == nullptr)
+        return nullptr;
+
+    for(const auto &it : container)
+    {
+        auto *vfb = dynamic_cast<ViewFileBrowser::View *>(it.second);
+
+        if(vfb != nullptr && vfb->owns_dbus_proxy(dbus_proxy))
+            return vfb;
+    }
+
+    return nullptr;
+}
+
 void ViewManager::activate_view(ViewIface *view)
 {
     if(view == nullptr)
@@ -227,6 +245,11 @@ void ViewManager::activate_view(ViewIface *view)
 ViewIface *ViewManager::get_view_by_name(const char *view_name)
 {
     return lookup_view_by_name(all_views_, view_name);
+}
+
+ViewIface *ViewManager::get_view_by_dbus_proxy(const void *dbus_proxy)
+{
+    return lookup_view_by_dbus_proxy(all_views_, dbus_proxy);
 }
 
 ViewIface *ViewManager::get_playback_initiator_view() const
