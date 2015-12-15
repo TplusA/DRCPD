@@ -201,7 +201,7 @@ static ViewIface *lookup_view_by_name(ViewManager::views_container_t &container,
     if(!is_view_name_valid(view_name))
         return nullptr;
 
-    auto it = container.find(view_name);
+    const auto &it = container.find(view_name);
 
     return (it != container.end()) ? it->second : nullptr;
 }
