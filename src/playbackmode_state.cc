@@ -704,7 +704,7 @@ bool Playback::State::find_next_reverse(bool &ret)
 
 void Playback::State::revert()
 {
-    if(user_list_id_ == ID::List())
+    if(!user_list_id_.is_valid())
         return;
 
     if(!is_list_processed_ && mode_.is_playing())
