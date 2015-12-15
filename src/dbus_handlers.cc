@@ -181,6 +181,8 @@ void dbussignal_dcpd_listitem(GDBusProxy *proxy, const gchar *sender_name,
     static const char iface_name[] = "de.tahifi.Dcpd.ListItem";
 
     msg_info("%s signal from '%s': %s", iface_name, sender_name, signal_name);
+
+    unknown_signal(iface_name, signal_name, sender_name);
 }
 
 void dbussignal_lists_navigation(GDBusProxy *proxy, const gchar *sender_name,
@@ -190,6 +192,8 @@ void dbussignal_lists_navigation(GDBusProxy *proxy, const gchar *sender_name,
     static const char iface_name[] = "de.tahifi.Lists.Navigation";
 
     msg_info("%s signal from '%s': %s", iface_name, sender_name, signal_name);
+
+    unknown_signal(iface_name, signal_name, sender_name);
 }
 
 void dbussignal_splay_urlfifo(GDBusProxy *proxy, const gchar *sender_name,
@@ -199,6 +203,8 @@ void dbussignal_splay_urlfifo(GDBusProxy *proxy, const gchar *sender_name,
     static const char iface_name[] = "de.tahifi.Streamplayer.URLFIFO";
 
     msg_info("%s signal from '%s': %s", iface_name, sender_name, signal_name);
+
+    unknown_signal(iface_name, signal_name, sender_name);
 }
 
 static ViewIface *get_play_view(ViewManagerIface *mgr)
