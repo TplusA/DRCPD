@@ -170,36 +170,36 @@ bool ViewPlay::View::write_xml(std::ostream &os, bool is_full_view)
 
     if((update_flags_ & update_flags_meta_data) != 0)
     {
-        os << "    <text id=\"artist\">"
+        os << "<text id=\"artist\">"
            << XmlEscape(md.values_[PlayInfo::MetaData::ARTIST])
-           << "</text>\n";
-        os << "    <text id=\"track\">"
+           << "</text>";
+        os << "<text id=\"track\">"
            << XmlEscape(md.values_[PlayInfo::MetaData::TITLE])
-           << "</text>\n";
-        os << "   <text id=\"alttrack\">"
+           << "</text>";
+        os << "text id=\"alttrack\">"
            << XmlEscape(mk_alt_track_name(md, 20))
-           << "</text>\n";
-        os << "    <text id=\"album\">"
+           << "</text>";
+        os << "<text id=\"album\">"
            << XmlEscape(md.values_[PlayInfo::MetaData::ALBUM])
-           << "</text>\n";
-        os << "    <text id=\"bitrate\">"
+           << "</text>";
+        os << "<text id=\"bitrate\">"
            << md.values_[PlayInfo::MetaData::BITRATE_NOM]
-           << "</text>\n";
+           << "</text>";
     }
 
     if((update_flags_ & update_flags_stream_position) != 0)
     {
         auto times = player_.get_times();
 
-        os << "    <value id=\"timet\">";
+        os << "<value id=\"timet\">";
         if(times.second >= std::chrono::milliseconds(0))
             os << std::chrono::duration_cast<std::chrono::seconds>(times.second).count();
-        os << "</value>\n";
+        os << "</value>";
 
         if(times.first >= std::chrono::milliseconds(0))
-            os << "    <value id=\"timep\">"
+            os << "<value id=\"timep\">"
                 << std::chrono::duration_cast<std::chrono::seconds>(times.first).count()
-                << "</value>\n";
+                << "</value>";
     }
 
     if((update_flags_ & update_flags_playback_state) != 0)
@@ -214,9 +214,9 @@ bool ViewPlay::View::write_xml(std::ostream &os, bool is_full_view)
 
         static_assert(sizeof(play_icon) / sizeof(play_icon[0]) == PlayInfo::Data::STREAM_STATE_LAST + 1, "Array has wrong size");
 
-        os << "    <icon id=\"play\">"
+        os << "<icon id=\"play\">"
            << play_icon[player_.get_assumed_stream_state()]
-           << "</icon>\n";
+           << "</icon>";
     }
 
     return true;

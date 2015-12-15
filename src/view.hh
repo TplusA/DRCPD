@@ -253,12 +253,12 @@ class ViewIface
     virtual bool write_xml_begin(std::ostream &os, bool is_full_view)
     {
         os << "<" << (is_full_view ? "view" : "update") << " id=\""
-           << drcp_view_id_ << "\">\n";
+           << drcp_view_id_ << "\">";
 
         if(is_full_view)
         {
-            os << "    <text id=\"title\">" << XmlEscape(_(on_screen_name_)) << "</text>\n";
-            os << "    <text id=\"scrid\">" << int(drcp_screen_id_) << "</text>\n";
+            os << "<text id=\"title\">" << XmlEscape(_(on_screen_name_)) << "</text>";
+            os << "<text id=\"scrid\">" << int(drcp_screen_id_) << "</text>";
         }
 
         return true;

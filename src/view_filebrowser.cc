@@ -138,7 +138,7 @@ ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command)
 
 bool ViewFileBrowser::View::write_xml(std::ostream &os, bool is_full_view)
 {
-    os << "    <text id=\"cbid\">" << int(drcp_browse_id_) << "</text>\n";
+    os << "<text id=\"cbid\">" << int(drcp_browse_id_) << "</text>";
 
     size_t displayed_line = 0;
 
@@ -168,16 +168,16 @@ bool ViewFileBrowser::View::write_xml(std::ostream &os, bool is_full_view)
         if(it == navigation_.get_cursor())
             flags.push_back('s');
 
-        os << "    <text id=\"line" << displayed_line << "\" flag=\"" << flags << "\">"
-           << XmlEscape(item != nullptr ? item->get_text() : "-----") << "</text>\n";
+        os << "<text id=\"line" << displayed_line << "\" flag=\"" << flags << "\">"
+           << XmlEscape(item != nullptr ? item->get_text() : "-----") << "</text>";
 
         ++displayed_line;
     }
 
-    os << "    <value id=\"listpos\" min=\"1\" max=\""
+    os << "<value id=\"listpos\" min=\"1\" max=\""
        << navigation_.get_total_number_of_visible_items() << "\">"
        << navigation_.get_line_number_by_cursor() + 1
-       << "</value>\n";
+       << "</value>";
 
     return true;
 }
