@@ -1,3 +1,22 @@
+2015-12-15  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 1.5 released.
+
+	* Playback: Skipping back and forth streams through list hierarchies
+	  works.
+
+	  Requires streamplayer 1.4 because of D-Bus interface changes.
+
+	* List views: Refresh lists when they change. In particular, the UPnP
+	  server list gets refreshed when servers are discovered or lost,
+	  TuneIn lists and UPnP lists get refreshed when network connectivity
+	  changes, and the USB device list gets refreshed when plugging
+	  devices.
+
+	* DRC protocol: Generate more compact XML data for speed.
+
+	* Misc: Lots of internal changes with regard to playback handling.
+
 2015-11-16  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 1.4 released.
