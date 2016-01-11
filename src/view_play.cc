@@ -176,7 +176,7 @@ bool ViewPlay::View::write_xml(std::ostream &os, bool is_full_view)
         os << "<text id=\"track\">"
            << XmlEscape(md.values_[PlayInfo::MetaData::TITLE])
            << "</text>";
-        os << "text id=\"alttrack\">"
+        os << "<text id=\"alttrack\">"
            << XmlEscape(mk_alt_track_name(md, 20))
            << "</text>";
         os << "<text id=\"album\">"
