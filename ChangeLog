@@ -1,3 +1,17 @@
+2016-01-12  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 1.6 released.
+
+	* User interface: Indicate busy state and show "buffering" message
+	  while waiting for Streamplayer to send its start notification.
+
+	* User interface: Update German translation.
+
+	* DRC protocol: Fixed XML output for play view updates.
+
+	* DRC protocol: Send display updates every time a view is activated by
+	  slave, even if the view is already active.
+
 2015-12-15  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 1.5 released.
@@ -71,4 +85,4 @@
 	* First release for testing.
 
 
-Copyright 2015 T+A elektroakustik GmbH & Co. KG
+Copyright 2015, 2016 T+A elektroakustik GmbH & Co. KG
