@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -103,7 +103,7 @@ class ViewMock::View::Expectation
 ViewMock::View::View(const char *name, bool is_browse_view,
                      ViewSignalsIface *view_signals):
     ViewIface(name, "The mock view", "mockview", 200U, is_browse_view,
-              view_signals),
+              nullptr, view_signals),
     ignore_all_(false)
 {
     expectations_ = new MockExpectations();

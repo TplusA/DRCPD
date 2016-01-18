@@ -62,7 +62,7 @@ class View: public ViewIface
                   Playback::Player &player,
                   ViewSignalsIface *view_signals):
         ViewIface(ViewNames::PLAYER, on_screen_name, "play", 109U,
-                  false, view_signals),
+                  false, nullptr, view_signals),
         is_visible_(false),
         update_flags_(0),
         player_(player)

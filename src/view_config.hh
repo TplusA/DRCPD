@@ -222,7 +222,7 @@ class View: public ViewIface
     explicit View(const char *on_screen_name, unsigned int max_lines,
                   ViewSignalsIface *view_signals):
         ViewIface(ViewNames::CONFIGURATION, on_screen_name, "config", 73U,
-                  false, view_signals),
+                  false, nullptr, view_signals),
         item_flags_(&editable_menu_items_),
         navigation_(max_lines, item_flags_)
     {}

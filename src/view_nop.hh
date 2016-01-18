@@ -43,7 +43,7 @@ class View: public ViewIface
     View &operator=(const View &) = delete;
 
     explicit View(ViewSignalsIface *view_signals):
-        ViewIface(ViewNames::NOP, "", "", 0, false, view_signals)
+        ViewIface(ViewNames::NOP, "", "", 0, false, nullptr, view_signals)
     {}
 
     bool init() override { return true; }

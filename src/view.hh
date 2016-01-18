@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -27,6 +27,8 @@
 #include "view_signals.hh"
 #include "i18n.h"
 #include "xmlescape.hh"
+
+class ViewManagerIface;
 
 /*!
  * \addtogroup views Various views with their specific behaviors
@@ -57,6 +59,7 @@ class ViewIface
     const bool is_browse_view_;
 
   protected:
+    ViewManagerIface *const view_manager_;
     ViewSignalsIface *const view_signals_;
 
     /*!
@@ -74,6 +77,10 @@ class ViewIface
      *     Numeric screen ID as defined in DRCP specification.
      * \param is_browse_view
      *     True if the view is a content browser, false otherwise.
+     * \param view_manager
+     *     If the view needs to manage other views, then the view manager must
+     *     be passed here. Pass \c nullptr if the view does not use the view
+     *     manager.
      * \param view_signals
      *     Object that should be notified in case a view needs to communicate
      *     some information.
@@ -81,12 +88,14 @@ class ViewIface
     explicit constexpr ViewIface(const char *name, const char *on_screen_name,
                                  const char *drcp_view_id,
                                  uint8_t drcp_screen_id, bool is_browse_view,
+                                 ViewManagerIface *view_manager,
                                  ViewSignalsIface *view_signals):
         name_(name),
         on_screen_name_(on_screen_name),
         drcp_view_id_(drcp_view_id),
         drcp_screen_id_(drcp_screen_id),
         is_browse_view_(is_browse_view),
+        view_manager_(view_manager),
         view_signals_(view_signals)
     {}
 

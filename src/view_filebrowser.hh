@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -78,7 +78,8 @@ class View: public ViewIface
                   Playback::Player &player,
                   Playback::Mode default_playback_mode,
                   ViewSignalsIface *view_signals):
-        ViewIface(name, on_screen_name, "browse", 102U, true, view_signals),
+        ViewIface(name, on_screen_name, "browse", 102U,
+                  true, nullptr, view_signals),
         current_list_id_(0),
         file_list_(dbus_get_lists_navigation_iface(listbroker_id),
                    max_lines,
