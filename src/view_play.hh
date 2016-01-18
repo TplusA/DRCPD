@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -22,6 +22,7 @@
 #include <memory>
 
 #include "view.hh"
+#include "view_names.hh"
 #include "playinfo.hh"
 
 namespace Playback { class Player; }
@@ -60,7 +61,8 @@ class View: public ViewIface
     explicit View(const char *on_screen_name, unsigned int max_lines,
                   Playback::Player &player,
                   ViewSignalsIface *view_signals):
-        ViewIface("Play", on_screen_name, "play", 109U, false, view_signals),
+        ViewIface(ViewNames::PLAYER, on_screen_name, "play", 109U,
+                  false, view_signals),
         is_visible_(false),
         update_flags_(0),
         player_(player)

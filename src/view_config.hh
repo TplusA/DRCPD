@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -20,6 +20,7 @@
 #define VIEW_CONFIG_HH
 
 #include "view.hh"
+#include "view_names.hh"
 #include "ramlist.hh"
 #include "listnav.hh"
 
@@ -220,7 +221,8 @@ class View: public ViewIface
 
     explicit View(const char *on_screen_name, unsigned int max_lines,
                   ViewSignalsIface *view_signals):
-        ViewIface("Config", on_screen_name, "config", 73U, false, view_signals),
+        ViewIface(ViewNames::CONFIGURATION, on_screen_name, "config", 73U,
+                  false, view_signals),
         item_flags_(&editable_menu_items_),
         navigation_(max_lines, item_flags_)
     {}

@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2015  T+A elektroakustik GmbH & Co. KG
+# Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
 #
 # This file is part of DRCPD.
 #
@@ -69,7 +69,8 @@ test_dbus_handlers_la_CFLAGS = $(DRCPD_DEPENDENCIES_CFLAGS) $(AM_CFLAGS)
 test_dbus_handlers_la_CXXFLAGS = $(DRCPD_DEPENDENCIES_CFLAGS) $(AM_CXXFLAGS)
 
 test_view_manager_la_SOURCES = \
-    test_view_manager.cc view_mock.hh view_mock.cc \
+    test_view_manager.cc $(top_builddir)/src/view_names.hh \
+    view_mock.hh view_mock.cc \
     mock_messages.hh mock_messages.cc
 test_view_manager_la_LIBADD = \
     $(top_builddir)/src/libviews.la \

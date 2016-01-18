@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2015  T+A elektroakustik GmbH & Co. KG
+# Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
 #
 # This file is part of DRCPD.
 #
@@ -25,7 +25,7 @@ drcpd_SOURCES = \
     os.c os.h named_pipe.c named_pipe.h fdstreambuf.hh \
     dbus_iface.c dbus_iface.h dbus_iface_deep.h dbus_handlers.hh \
     list.hh ramlist.hh dbuslist.hh dbuslist_exception.hh listnav.hh \
-    view.hh view_nop.hh view_manager.hh xmlescape.hh \
+    view.hh view_names.hh view_nop.hh view_manager.hh xmlescape.hh \
     view_config.hh view_filebrowser.hh view_filebrowser_utils.hh view_play.hh \
     view_signals_glib.cc view_signals.hh view_signals_glib.hh \
     playinfo.hh idtypes.hh \
@@ -61,7 +61,7 @@ liblist_la_CFLAGS = $(AM_CFLAGS)
 liblist_la_CXXFLAGS = $(AM_CXXFLAGS)
 
 libviews_la_SOURCES = \
-    view.hh view_nop.hh view_config.hh view_config.cc \
+    view.hh view_names.hh view_nop.hh view_config.hh view_config.cc \
     view_filebrowser.hh view_filebrowser_utils.hh view_filebrowser.cc \
     view_play.hh view_play.cc playinfo.hh playinfo.cc \
     view_manager.hh view_manager.cc \

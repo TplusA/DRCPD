@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -380,17 +380,20 @@ static void connect_everything(ViewManager &views, ViewSignalsIface *view_signal
     static const unsigned int number_of_lines_on_display = 3;
 
     static ViewConfig::View cfg(N_("Configuration"), number_of_lines_on_display, view_signals);
-    static ViewFileBrowser::View fs("Filesystem", N_("Local file system"), 1,
+    static ViewFileBrowser::View fs(ViewNames::BROWSER_FILESYSTEM,
+                                    N_("Local file system"), 1,
                                     number_of_lines_on_display,
                                     DBUS_LISTBROKER_ID_FILESYSTEM,
                                     player, Playback::Mode::LINEAR,
                                     view_signals);
-    static ViewFileBrowser::View tunein("TuneIn", N_("TuneIn internet radio"), 3,
+    static ViewFileBrowser::View tunein(ViewNames::BROWSER_INETRADIO,
+                                        N_("TuneIn internet radio"), 3,
                                         number_of_lines_on_display,
                                         DBUS_LISTBROKER_ID_TUNEIN,
                                         player, Playback::Mode::SINGLE_TRACK,
                                         view_signals);
-    static ViewFileBrowser::View upnp("UPnP", N_("UPnP media servers"), 4,
+    static ViewFileBrowser::View upnp(ViewNames::BROWSER_UPNP,
+                                      N_("UPnP media servers"), 4,
                                       number_of_lines_on_display,
                                       DBUS_LISTBROKER_ID_UPNP,
                                       player, Playback::Mode::LINEAR,
@@ -420,7 +423,7 @@ static void connect_everything(ViewManager &views, ViewSignalsIface *view_signal
     views.add_view(&upnp);
     views.add_view(&play);
 
-    views.activate_view_by_name("UPnP");
+    views.activate_view_by_name(ViewNames::BROWSER_UPNP);
 }
 
 static gboolean signal_handler(gpointer user_data)

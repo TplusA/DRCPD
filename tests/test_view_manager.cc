@@ -551,7 +551,7 @@ void test_activate_nonexistent_view_does_nothing(void)
 void test_activate_nop_view_does_nothing(void)
 {
     mock_messages->expect_msg_info_formatted("Requested to activate view \"#NOP\"");
-    vm->activate_view_by_name("#NOP");
+    vm->activate_view_by_name(ViewNames::NOP);
 }
 
 /*!\test

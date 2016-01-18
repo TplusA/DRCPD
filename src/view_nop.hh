@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -20,6 +20,7 @@
 #define VIEW_NOP_HH
 
 #include "view.hh"
+#include "view_names.hh"
 
 /*!
  * \addtogroup view_nop Dummy view
@@ -42,7 +43,7 @@ class View: public ViewIface
     View &operator=(const View &) = delete;
 
     explicit View(ViewSignalsIface *view_signals):
-        ViewIface("#NOP", "", "", 0, false, view_signals)
+        ViewIface(ViewNames::NOP, "", "", 0, false, view_signals)
     {}
 
     bool init() override { return true; }
