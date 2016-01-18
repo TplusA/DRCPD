@@ -19,23 +19,23 @@ msgstr ""
 
 #: src/drcpd.cc:382
 msgid "Configuration"
-msgstr ""
+msgstr "Konfiguration"
 
 #: src/drcpd.cc:384
 msgid "USB devices"
-msgstr ""
+msgstr "USB-Geräte"
 
 #: src/drcpd.cc:390
 msgid "Airable internet radio"
-msgstr ""
+msgstr "Airable Internetradio"
 
 #: src/drcpd.cc:396
 msgid "UPnP media servers"
-msgstr ""
+msgstr "UPnP Medienserver"
 
 #: src/drcpd.cc:401
 msgid "Stream information"
-msgstr ""
+msgstr "Stream-Informationen"
 
 #: src/view_config.cc:134
 msgid "MAC"
@@ -48,15 +48,15 @@ msgstr ""
 #: src/view_config.cc:141
 #, fuzzy
 msgid "Device IP"
-msgstr "Gerätename"
+msgstr "Geräte-IP"
 
 #: src/view_config.cc:145
 msgid "IP mask"
-msgstr ""
+msgstr "IP-Maske"
 
 #: src/view_config.cc:149
 msgid "Gateway IP"
-msgstr ""
+msgstr "Gateway-IP"
 
 #: src/view_config.cc:153
 msgid "DNS 1"
@@ -76,7 +76,7 @@ msgstr ""
 
 #: src/view_config.cc:168
 msgid "Proxy port"
-msgstr ""
+msgstr "Proxy-Port"
 
 #: src/view_config.cc:173
 msgid "Device name"
@@ -96,4 +96,4 @@ msgstr "Ohne speichern beenden"
 
 #: src/view_play.cc:179
 msgid "Buffering"
-msgstr ""
+msgstr "Puffern"
