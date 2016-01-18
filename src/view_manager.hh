@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -66,10 +66,10 @@ class ViewManagerIface
 class ViewManager: public ViewManagerIface
 {
   public:
-    typedef std::map<const std::string, ViewIface *> views_container_t;
+    using ViewsContainer = std::map<const std::string, ViewIface *>;
 
   private:
-    views_container_t all_views_;
+    ViewsContainer all_views_;
 
     ViewIface *active_view_;
     ViewIface *last_browse_view_;

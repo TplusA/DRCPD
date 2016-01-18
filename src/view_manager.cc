@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -51,7 +51,7 @@ bool ViewManager::add_view(ViewIface *view)
     if(all_views_.find(view->name_) != all_views_.end())
         return false;
 
-    all_views_.insert(views_container_t::value_type(view->name_, view));
+    all_views_.insert(ViewsContainer::value_type(view->name_, view));
 
     return true;
 }
@@ -196,7 +196,7 @@ void ViewManager::input_move_cursor_by_page(int pages)
         handle_input_result(result, *active_view_);
 }
 
-static ViewIface *lookup_view_by_name(ViewManager::views_container_t &container,
+static ViewIface *lookup_view_by_name(ViewManager::ViewsContainer &container,
                                       const char *view_name)
 {
     if(!is_view_name_valid(view_name))
@@ -207,7 +207,7 @@ static ViewIface *lookup_view_by_name(ViewManager::views_container_t &container,
     return (it != container.end()) ? it->second : nullptr;
 }
 
-static ViewIface *lookup_view_by_dbus_proxy(ViewManager::views_container_t &container,
+static ViewIface *lookup_view_by_dbus_proxy(ViewManager::ViewsContainer &container,
                                             const void *dbus_proxy)
 {
     if(dbus_proxy == nullptr)
