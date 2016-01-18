@@ -381,13 +381,13 @@ static void connect_everything(ViewManager &views, ViewSignalsIface *view_signal
 
     static ViewConfig::View cfg(N_("Configuration"), number_of_lines_on_display, view_signals);
     static ViewFileBrowser::View fs(ViewNames::BROWSER_FILESYSTEM,
-                                    N_("Local file system"), 1,
+                                    N_("USB devices"), 1,
                                     number_of_lines_on_display,
                                     DBUS_LISTBROKER_ID_FILESYSTEM,
                                     player, Playback::Mode::LINEAR,
                                     &views, view_signals);
     static ViewFileBrowser::View tunein(ViewNames::BROWSER_INETRADIO,
-                                        N_("TuneIn internet radio"), 3,
+                                        N_("Airable internet radio"), 3,
                                         number_of_lines_on_display,
                                         DBUS_LISTBROKER_ID_TUNEIN,
                                         player, Playback::Mode::SINGLE_TRACK,
