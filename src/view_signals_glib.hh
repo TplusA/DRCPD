@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -24,6 +24,13 @@
 #include "view_signals.hh"
 #include "view_manager.hh"
 
+/*!
+ * Simple signaling for single view.
+ *
+ * This class allows a view to wake up the main loop so that pending events can
+ * be processed asynchronously, outside of some signal handler or "wrong"
+ * thread context.
+ */
 class ViewSignalsGLib: public ViewSignalsIface
 {
   private:
@@ -51,14 +58,55 @@ class ViewSignalsGLib: public ViewSignalsIface
         remove_from_main_loop();
     }
 
+    /*!
+     * Add GSource to the given loop that we are supposed to wake up.
+     */
     void connect_to_main_loop(GMainLoop *loop);
+
+    /*!
+     * Disconnect from main loop.
+     */
     void remove_from_main_loop();
+
+    /*!
+     * Check #ViewSignalsGLib::signal_ for pending events.
+     *
+     * \returns
+     *     True if any signal was posted through the #ViewSignalsGLib API,
+     *     false otherwise.
+     */
     bool check() const;
+
+    /*!
+     * Process all pending events.
+     */
     void dispatch();
 
+    /*!
+     * Event: Given view should be updated if active.
+     *
+     * This is a partial update, not full serialization.
+     */
     void request_display_update(ViewIface *view) override;
+
+    /*!
+     * Event: Given view should be hidden if active.
+     */
     void request_hide_view(ViewIface *view) override;
+
+    /*!
+     * Event: Given view should be updated.
+     *
+     * The given view must be active when this function is called.
+     * This is a partial update, not full serialization.
+     */
     void display_update_pending(ViewIface *view) override;
+
+    /*!
+     * Event: Given view should be fully serialized.
+     *
+     * The given view must be active when this function is called.
+     */
     void display_serialize_pending(ViewIface *view) override;
 
   private:
