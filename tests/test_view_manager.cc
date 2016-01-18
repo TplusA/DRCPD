@@ -520,12 +520,20 @@ void test_get_existent_view_by_name_returns_view_interface(void)
 }
 
 /*!\test
- * Activating an active view does not disturb the view.
+ * Activating an active view serializes the view.
  */
-void test_reactivate_active_view_does_nothing(void)
+void test_reactivate_active_view_serializes_the_view_again(void)
 {
     mock_messages->expect_msg_info_formatted("Requested to activate view \"First\"");
+
+    all_mock_views[0]->expect_defocus();
+
+    all_mock_views[0]->expect_focus();
+    all_mock_views[0]->expect_serialize(*views_output);
+
     vm->activate_view_by_name("First");
+
+    check_and_clear_ostream("First serialize\n", *views_output);
 }
 
 /*!\test
@@ -683,20 +691,26 @@ void test_toggle_two_views(void)
 }
 
 /*!\test
- * Toggle requests between views with the same known name have no effect,
- * except initial switching.
+ * Toggle requests between views with the same known name activates view each
+ * time.
  */
-void test_toggle_views_with_same_names_switches_once(void)
+void test_toggle_views_with_same_names_switches_each_time(void)
 {
     mock_messages->expect_msg_info_formatted("Requested to toggle between views \"Fourth\" and \"Fourth\"");
     all_mock_views[0]->expect_defocus();
     all_mock_views[3]->expect_focus();
     all_mock_views[3]->expect_serialize(*views_output);
     vm->toggle_views_by_name("Fourth", "Fourth");
+    vm->serialization_result(DcpTransaction::OK);
     check_and_clear_ostream("Fourth serialize\n", *views_output);
 
     mock_messages->expect_msg_info_formatted("Requested to toggle between views \"Fourth\" and \"Fourth\"");
+    all_mock_views[3]->expect_defocus();
+    all_mock_views[3]->expect_focus();
+    all_mock_views[3]->expect_serialize(*views_output);
     vm->toggle_views_by_name("Fourth", "Fourth");
+    vm->serialization_result(DcpTransaction::OK);
+    check_and_clear_ostream("Fourth serialize\n", *views_output);
 }
 
 /*!\test
@@ -710,13 +724,24 @@ void test_toggle_views_with_first_unknown_name_switches_to_the_known_name(void)
     all_mock_views[2]->expect_focus();
     all_mock_views[2]->expect_serialize(*views_output);
     vm->toggle_views_by_name("Foo", "Third");
+    vm->serialization_result(DcpTransaction::OK);
     check_and_clear_ostream("Third serialize\n", *views_output);
 
     mock_messages->expect_msg_info_formatted("Requested to toggle between views \"Foo\" and \"Third\"");
+    all_mock_views[2]->expect_defocus();
+    all_mock_views[2]->expect_focus();
+    all_mock_views[2]->expect_serialize(*views_output);
     vm->toggle_views_by_name("Foo", "Third");
+    vm->serialization_result(DcpTransaction::OK);
+    check_and_clear_ostream("Third serialize\n", *views_output);
 
     mock_messages->expect_msg_info_formatted("Requested to toggle between views \"Foo\" and \"Third\"");
+    all_mock_views[2]->expect_defocus();
+    all_mock_views[2]->expect_focus();
+    all_mock_views[2]->expect_serialize(*views_output);
     vm->toggle_views_by_name("Foo", "Third");
+    vm->serialization_result(DcpTransaction::OK);
+    check_and_clear_ostream("Third serialize\n", *views_output);
 }
 
 /*!\test

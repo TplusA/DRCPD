@@ -229,9 +229,6 @@ void ViewManager::activate_view(ViewIface *view)
     if(view == nullptr)
         return;
 
-    if(view == active_view_)
-        return;
-
     active_view_->defocus();
 
     active_view_ = view;
