@@ -1,3 +1,4 @@
 # List of source files which contain translatable strings.
 src/drcpd.cc
 src/view_config.cc
+src/view_play.cc
