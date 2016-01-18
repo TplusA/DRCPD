@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -104,7 +104,8 @@ class PlayerIface
      * \see
      *     #Playback::PlayerIface::release()
      */
-    virtual bool take(State &playback_state, const List::DBusList &file_list, int line) = 0;
+    virtual bool take(State &playback_state, const List::DBusList &file_list, int line,
+                      std::function<void(bool)> buffering_callback) = 0;
 
     /*!
      * Explicitly stop and release the player.
@@ -158,6 +159,11 @@ class PlayerIface
      * Return current (assumed) stream playback state.
      */
     virtual PlayInfo::Data::StreamState get_assumed_stream_state() const = 0;
+
+    /*!
+     * Return true if start playing notification is pending.
+     */
+    virtual bool is_buffering() const = 0;
 
     /*!
      * Return current track's position and total duration (in this order).
@@ -221,7 +227,8 @@ class Player: public PlayerIface, public MetaDataStoreIface
         meta_data_reformatters_(meta_data_reformatters)
     {}
 
-    bool take(State &playback_state, const List::DBusList &file_list, int line) override;
+    bool take(State &playback_state, const List::DBusList &file_list, int line,
+              std::function<void(bool)> buffering_callback) override;
     void release(bool active_stop_command) override;
 
     void start_notification(uint16_t stream_id, bool try_enqueue) override;
@@ -232,6 +239,7 @@ class Player: public PlayerIface, public MetaDataStoreIface
 
     const PlayInfo::MetaData &get_track_meta_data() const override;
     PlayInfo::Data::StreamState get_assumed_stream_state() const override;
+    bool is_buffering() const override { return waiting_for_start_notification_; }
     std::pair<std::chrono::milliseconds, std::chrono::milliseconds> get_times() const override;
     const std::string *get_original_stream_name(uint16_t id) const override;
 

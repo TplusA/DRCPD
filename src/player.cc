@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -31,18 +31,29 @@ static inline void expected_active_mode_bug(const char *what)
 }
 
 bool Playback::Player::take(Playback::State &playback_state,
-                            const List::DBusList &file_list, int line)
+                            const List::DBusList &file_list, int line,
+                            std::function<void(bool)> buffering_callback)
 {
     if(is_active_mode(&playback_state))
         release(true);
 
     current_state_ = &playback_state;
 
+    waiting_for_start_notification_ = true;
+    buffering_callback(true);
+
     if(!current_state_->start(file_list, line))
+    {
+        waiting_for_start_notification_ = false;
+        buffering_callback(false);
         return false;
+    }
 
     waiting_for_start_notification_ =
         current_state_->enqueue_next(stream_info_, true);
+
+    if(!waiting_for_start_notification_)
+        buffering_callback(false);
 
     return true;
 }

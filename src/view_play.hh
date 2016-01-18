@@ -87,6 +87,8 @@ class View: public ViewIface
     bool update(DcpTransaction &dcpd, std::ostream *debug_os) override;
 
   private:
+    bool is_busy() const override;
+
     /*!
      * Generate XML document from current state.
      */

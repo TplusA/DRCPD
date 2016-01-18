@@ -248,6 +248,11 @@ class ViewIface
     }
 
   protected:
+    virtual bool is_busy() const
+    {
+        return false;
+    }
+
     /*!
      * Start writing XML data, opens view or update tag and some generic tags.
      *
@@ -263,6 +268,8 @@ class ViewIface
     {
         os << "<" << (is_full_view ? "view" : "update") << " id=\""
            << drcp_view_id_ << "\">";
+
+        os << "<value id=\"busy\">" << (is_busy() ? '1' : '0') << "</value>";
 
         if(is_full_view)
         {

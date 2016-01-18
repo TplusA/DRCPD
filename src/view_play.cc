@@ -161,14 +161,24 @@ static const std::string mk_alt_track_name(const PlayInfo::MetaData &meta_data,
     return std::string("NO NAME", max_length);
 }
 
+bool ViewPlay::View::is_busy() const
+{
+    return player_.is_buffering();
+}
+
 bool ViewPlay::View::write_xml(std::ostream &os, bool is_full_view)
 {
     const auto &md = player_.get_track_meta_data();
+    const bool is_buffering = player_.is_buffering();
 
     if(is_full_view)
         update_flags_ = UINT16_MAX;
 
-    if((update_flags_ & update_flags_meta_data) != 0)
+    if(is_full_view && is_buffering)
+        os << "<text id=\"track\">"
+           << XmlEscape(N_("Buffering")) << "..."
+           << "</text>";
+    else if((update_flags_ & update_flags_meta_data) != 0)
     {
         os << "<text id=\"artist\">"
            << XmlEscape(md.values_[PlayInfo::MetaData::ARTIST])
@@ -252,6 +262,7 @@ bool ViewPlay::View::serialize(DcpTransaction &dcpd, std::ostream *debug_os)
         << "\" ("
         << stream_state_string[player_.get_assumed_stream_state()]
         << ")" << std::endl;
+    *debug_os << "Buffering: " << player_.is_buffering() << std::endl;
 
     for(size_t i = 0; i < md.values_.size(); ++i)
         *debug_os << "  " << i << ": \"" << md.values_[i] << "\"" << std::endl;

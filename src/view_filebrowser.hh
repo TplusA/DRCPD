@@ -77,9 +77,10 @@ class View: public ViewIface
                   dbus_listbroker_id_t listbroker_id,
                   Playback::Player &player,
                   Playback::Mode default_playback_mode,
+                  ViewManagerIface *view_manager,
                   ViewSignalsIface *view_signals):
         ViewIface(name, on_screen_name, "browse", 102U,
-                  true, nullptr, view_signals),
+                  true, view_manager, view_signals),
         current_list_id_(0),
         file_list_(dbus_get_lists_navigation_iface(listbroker_id),
                    max_lines,

@@ -385,19 +385,19 @@ static void connect_everything(ViewManager &views, ViewSignalsIface *view_signal
                                     number_of_lines_on_display,
                                     DBUS_LISTBROKER_ID_FILESYSTEM,
                                     player, Playback::Mode::LINEAR,
-                                    view_signals);
+                                    &views, view_signals);
     static ViewFileBrowser::View tunein(ViewNames::BROWSER_INETRADIO,
                                         N_("TuneIn internet radio"), 3,
                                         number_of_lines_on_display,
                                         DBUS_LISTBROKER_ID_TUNEIN,
                                         player, Playback::Mode::SINGLE_TRACK,
-                                        view_signals);
+                                        &views, view_signals);
     static ViewFileBrowser::View upnp(ViewNames::BROWSER_UPNP,
                                       N_("UPnP media servers"), 4,
                                       number_of_lines_on_display,
                                       DBUS_LISTBROKER_ID_UPNP,
                                       player, Playback::Mode::LINEAR,
-                                      view_signals);
+                                      &views, view_signals);
     static ViewPlay::View play(N_("Stream information"),
                                number_of_lines_on_display, player,
                                view_signals);
