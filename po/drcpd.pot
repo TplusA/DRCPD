@@ -6,9 +6,9 @@
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: drcpd 1.4\n"
+"Project-Id-Version: drcpd 1.5\n"
 "Report-Msgid-Bugs-To: r.tiemann@ta-hifi.de\n"
-"POT-Creation-Date: 2015-12-08 16:43+0100\n"
+"POT-Creation-Date: 2016-01-18 17:45+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,23 +17,23 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: src/drcpd.cc:379
+#: src/drcpd.cc:382
 msgid "Configuration"
 msgstr ""
 
-#: src/drcpd.cc:380
-msgid "Local file system"
-msgstr ""
-
-#: src/drcpd.cc:385
-msgid "TuneIn internet radio"
+#: src/drcpd.cc:384
+msgid "USB devices"
 msgstr ""
 
 #: src/drcpd.cc:390
+msgid "Airable internet radio"
+msgstr ""
+
+#: src/drcpd.cc:396
 msgid "UPnP media servers"
 msgstr ""
 
-#: src/drcpd.cc:395
+#: src/drcpd.cc:401
 msgid "Stream information"
 msgstr ""
 
@@ -91,4 +91,8 @@ msgstr ""
 
 #: src/view_config.cc:179
 msgid "Exit without saving"
+msgstr ""
+
+#: src/view_play.cc:179
+msgid "Buffering"
 msgstr ""
