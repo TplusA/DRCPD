@@ -67,8 +67,6 @@ void Playback::Player::release(bool active_stop_command)
         current_state_->stop();
         current_state_ = nullptr;
     }
-    else if(active_stop_command)
-        return;
 
     if(active_stop_command)
     {
