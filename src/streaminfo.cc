@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -23,23 +23,13 @@
 #include "streaminfo.hh"
 #include "messages.h"
 
-static uint16_t next_id(uint16_t &next_free_id)
-{
-    if(++next_free_id == 0)
-        ++next_free_id;
-    else if(next_free_id > StreamInfo::MAX_ID)
-        next_free_id = 1;
-
-    return next_free_id;
-}
-
 void StreamInfo::clear()
 {
     stream_names_.clear();
 }
 
-uint16_t StreamInfo::insert(const char *fallback_title,
-                            ID::List list_id, unsigned int line)
+ID::OurStream StreamInfo::insert(const char *fallback_title,
+                                 ID::List list_id, unsigned int line)
 {
     log_assert(fallback_title != nullptr);
     log_assert(list_id.is_valid());
@@ -47,12 +37,14 @@ uint16_t StreamInfo::insert(const char *fallback_title,
     if(stream_names_.size() >= MAX_ENTRIES)
     {
         BUG("Too many stream IDs");
-        return 0;
+        return ID::OurStream::make_invalid();
     }
 
     while(1)
     {
-        const uint16_t id = next_id(next_free_id_);
+        const ID::OurStream id = next_free_id_;
+        ++next_free_id_;
+
         const auto result =
             stream_names_.emplace(id, StreamInfoItem(fallback_title,
                                                      list_id, line));
@@ -62,14 +54,15 @@ uint16_t StreamInfo::insert(const char *fallback_title,
     }
 }
 
-void StreamInfo::forget(uint16_t id)
+void StreamInfo::forget(ID::OurStream id)
 {
     if(stream_names_.erase(id) != 1)
         msg_error(EINVAL, LOG_ERR,
-                  "Attempted to erase non-existent stream ID %u", id);
+                  "Attempted to erase non-existent stream ID %u",
+                  id.get().get_raw_id());
 }
 
-const StreamInfoItem *StreamInfo::lookup(uint16_t id) const
+const StreamInfoItem *StreamInfo::lookup(ID::OurStream id) const
 {
     const auto result = stream_names_.find(id);
     return (result != stream_names_.end()) ? &result->second : nullptr;

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -136,7 +136,8 @@ class State
      *     True on success, false on failure. On failure, the object is \e not
      *     set to reverse mode, but falls back to normal forward mode.
      */
-    bool set_skip_mode_reverse(StreamInfo &sinfo, uint16_t &current_stream_id,
+    bool set_skip_mode_reverse(StreamInfo &sinfo,
+                               ID::OurStream &current_stream_id,
                                bool skip_to_next, bool &enqueued_anything);
 
     /*!
@@ -167,7 +168,8 @@ class State
      *     forward mode. The object is always set to forward mode regardless of
      *     success or failure.
      */
-    bool set_skip_mode_forward(StreamInfo &sinfo, uint16_t &current_stream_id,
+    bool set_skip_mode_forward(StreamInfo &sinfo,
+                               ID::OurStream &current_stream_id,
                                bool skip_to_next, bool &enqueued_anything);
 
     /*!

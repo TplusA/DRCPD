@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -53,25 +53,36 @@ class StreamInfoItem
 class StreamInfo
 {
   private:
-    std::map<uint16_t, StreamInfoItem> stream_names_;
-    uint16_t next_free_id_;
+    /*!
+     * Map stream ID to stream information.
+     *
+     * \todo In this implemententation, we store stream information only for
+     *     streams sent by us. For streams not started by us, the external
+     *     applications that started the streams would have to tell us
+     *     something about them.
+     */
+    std::map<ID::OurStream, StreamInfoItem> stream_names_;
+
+    /*!
+     * IDs assigned by this application.
+     */
+    ID::OurStream next_free_id_;
 
   public:
     static constexpr size_t MAX_ENTRIES = 20;
-    static constexpr size_t MAX_ID      = 5 * MAX_ENTRIES;
 
     StreamInfo(const StreamInfo &) = delete;
     StreamInfo &operator=(const StreamInfo &) = delete;
 
     explicit StreamInfo():
-        next_free_id_(0)
+        next_free_id_(ID::OurStream::make())
     {}
 
     void clear();
-    uint16_t insert(const char *fallback_title,
-                    ID::List list_id, unsigned int line);
-    void forget(uint16_t id);
-    const StreamInfoItem *lookup(uint16_t id) const;
+    ID::OurStream insert(const char *fallback_title,
+                         ID::List list_id, unsigned int line);
+    void forget(ID::OurStream id);
+    const StreamInfoItem *lookup(ID::OurStream id) const;
 };
 
 /*!@}*/

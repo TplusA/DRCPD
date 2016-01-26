@@ -126,7 +126,7 @@ class PlayerIface
      * To be called when the stream player notifies that is has started
      * playing a new stream.
      */
-    virtual void start_notification(uint16_t stream_id, bool try_enqueue) = 0;
+    virtual void start_notification(ID::Stream stream_id, bool try_enqueue) = 0;
 
     /*!
      * To be called when the stream player notifies that it has stopped playing
@@ -175,7 +175,7 @@ class PlayerIface
      *
      * Used as fallback in case no other meta information are available.
      */
-    virtual const std::string *get_original_stream_name(uint16_t id) const = 0;
+    virtual const std::string *get_original_stream_name(ID::Stream id) const = 0;
 
     /*!
      * Force skipping to previous track, if any.
@@ -209,7 +209,7 @@ class Player: public PlayerIface, public MetaDataStoreIface
     bool waiting_for_start_notification_;
 
     /* information about currently playing stream */
-    uint16_t current_stream_id_;
+    ID::OurStream current_stream_id_;
     StreamInfo stream_info_;
     PlayInfo::MetaData incoming_meta_data_;
     PlayInfo::Data track_info_;
@@ -223,7 +223,7 @@ class Player: public PlayerIface, public MetaDataStoreIface
     explicit Player(const PlayInfo::Reformatters &meta_data_reformatters):
         current_state_(nullptr),
         waiting_for_start_notification_(false),
-        current_stream_id_(0),
+        current_stream_id_(ID::OurStream::make_invalid()),
         meta_data_reformatters_(meta_data_reformatters)
     {}
 
@@ -231,7 +231,7 @@ class Player: public PlayerIface, public MetaDataStoreIface
               std::function<void(bool)> buffering_callback) override;
     void release(bool active_stop_command) override;
 
-    void start_notification(uint16_t stream_id, bool try_enqueue) override;
+    void start_notification(ID::Stream stream_id, bool try_enqueue) override;
     void stop_notification() override;
     void pause_notification() override;
     bool track_times_notification(const std::chrono::milliseconds &position,
@@ -241,7 +241,7 @@ class Player: public PlayerIface, public MetaDataStoreIface
     PlayInfo::Data::StreamState get_assumed_stream_state() const override;
     bool is_buffering() const override { return waiting_for_start_notification_; }
     std::pair<std::chrono::milliseconds, std::chrono::milliseconds> get_times() const override;
-    const std::string *get_original_stream_name(uint16_t id) const override;
+    const std::string *get_original_stream_name(ID::Stream id) const override;
 
     void skip_to_previous(std::chrono::milliseconds rewind_threshold) override;
     void skip_to_next() override;
@@ -253,6 +253,7 @@ class Player: public PlayerIface, public MetaDataStoreIface
   private:
     bool is_active_mode(const Playback::State *new_state = nullptr) const;
     void set_assumed_stream_state(PlayInfo::Data::StreamState state);
+    const std::string *get_original_stream_name(ID::OurStream id) const;
 };
 
 }

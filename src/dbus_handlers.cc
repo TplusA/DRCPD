@@ -310,11 +310,11 @@ static void parse_stream_position(GVariant *parameters,
     g_variant_unref(val);
 }
 
-static uint16_t get_stream_id(GVariant *parameters, guint id_index)
+static ID::Stream get_stream_id(GVariant *parameters, guint id_index)
 {
     GVariant *stream_id_val = g_variant_get_child_value(parameters, id_index);
     log_assert(stream_id_val != nullptr);
-    uint16_t stream_id = g_variant_get_uint16(stream_id_val);
+    auto stream_id(ID::Stream::make_from_raw_id(g_variant_get_uint16(stream_id_val)));
     g_variant_unref(stream_id_val);
 
     return stream_id;
@@ -330,14 +330,15 @@ static bool get_queue_full(GVariant *parameters, guint id_index)
     return queue_is_full;
 }
 
-static void handle_now_playing(uint16_t stream_id, const char *url_string,
+static void handle_now_playing(ID::Stream stream_id, const char *url_string,
                                bool queue_is_full, GVariant *meta_data,
                                DBusSignalData &data)
 {
-    if(stream_id == 0)
+    if(!stream_id.is_valid())
     {
         /* we are not sending such IDs */
-        BUG("Stream ID 0 received from Streamplayer");
+        BUG("Invalid stream ID %u received from Streamplayer",
+            stream_id.get_raw_id());
         return;
     }
 
@@ -346,7 +347,8 @@ static void handle_now_playing(uint16_t stream_id, const char *url_string,
     auto fallback_title = data.player.get_original_stream_name(stream_id);
     if(fallback_title == nullptr)
         msg_error(EINVAL, LOG_ERR,
-                  "No fallback title found for stream ID %u", stream_id);
+                  "No fallback title found for stream ID %u",
+                  stream_id.get_raw_id());
 
     (void)process_meta_data(data.mdstore, meta_data, false,
                             fallback_title, url_string);
@@ -376,7 +378,7 @@ void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
     {
         check_parameter_assertions(parameters, 4);
 
-        const uint16_t stream_id = get_stream_id(parameters, 0);
+        const ID::Stream stream_id = get_stream_id(parameters, 0);
 
         GVariant *url_string_val = g_variant_get_child_value(parameters, 1);
         log_assert(url_string_val != nullptr);

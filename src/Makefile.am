@@ -28,7 +28,7 @@ drcpd_SOURCES = \
     view.hh view_names.hh view_nop.hh view_manager.hh xmlescape.hh \
     view_config.hh view_filebrowser.hh view_filebrowser_utils.hh view_play.hh \
     view_signals_glib.cc view_signals.hh view_signals_glib.hh \
-    playinfo.hh idtypes.hh \
+    playinfo.hh idtypes.hh stream_id.h stream_id.hh \
     player.hh playbackmode.hh playbackmode_state.hh \
     $(DBUS_IFACES)/de_tahifi_lists_errors.hh \
     $(DBUS_IFACES)/de_tahifi_lists_errors.h
@@ -56,7 +56,7 @@ drcpd_LDADD = $(noinst_LTLIBRARIES) $(DRCPD_DEPENDENCIES_LIBS)
 
 drcpd_LDFLAGS = $(LTLIBINTL)
 
-liblist_la_SOURCES = list.hh list.cc ramlist.hh ramlist.cc dbuslist.hh dbuslist_exception.hh dbuslist.cc idtypes.hh
+liblist_la_SOURCES = list.hh list.cc ramlist.hh ramlist.cc dbuslist.hh dbuslist_exception.hh dbuslist.cc idtypes.hh stream_id.h stream_id.hh
 liblist_la_CFLAGS = $(AM_CFLAGS)
 liblist_la_CXXFLAGS = $(AM_CXXFLAGS)
 
@@ -65,7 +65,7 @@ libviews_la_SOURCES = \
     view_filebrowser.hh view_filebrowser_utils.hh view_filebrowser.cc \
     view_play.hh view_play.cc playinfo.hh playinfo.cc \
     view_manager.hh view_manager.cc \
-    view_signals.hh idtypes.hh \
+    view_signals.hh idtypes.hh stream_id.h stream_id.hh \
     dbuslist.hh dbuslist_exception.hh \
     playbackmode.hh playbackmode_state.hh
 libviews_la_CFLAGS = $(AM_CFLAGS)
@@ -73,6 +73,7 @@ libviews_la_CXXFLAGS = $(AM_CXXFLAGS)
 
 libplayback_la_SOURCES = \
     player.cc player.hh \
+    idtypes.hh stream_id.h stream_id.hh \
     playbackmode.hh playbackmode_state.hh playbackmode_state.cc
 libplayback_la_CFLAGS = $(AM_CFLAGS)
 libplayback_la_CXXFLAGS = $(AM_CXXFLAGS)

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -32,6 +32,7 @@
 enum class SendStatus
 {
     OK,
+    INVALID_STREAM_ID,
     NO_URI,
     BROKER_FAILURE,
     FIFO_FAILURE,
@@ -77,10 +78,13 @@ static void free_array_of_strings(gchar **const strings)
  */
 static SendStatus send_selected_file_uri_to_streamplayer(ID::List list_id,
                                                          unsigned int item_id,
-                                                         uint16_t stream_id,
+                                                         ID::OurStream stream_id,
                                                          tdbuslistsNavigation *proxy,
                                                          bool play_immediately)
 {
+    if(!stream_id.get().is_valid())
+        return SendStatus::INVALID_STREAM_ID;
+
     gchar **uri_list;
     guchar error_code;
 
@@ -140,7 +144,8 @@ static SendStatus send_selected_file_uri_to_streamplayer(ID::List list_id,
     SendStatus ret;
 
     if(!tdbus_splay_urlfifo_call_push_sync(dbus_get_streamplayer_urlfifo_iface(),
-                                           stream_id, selected_uri,
+                                           stream_id.get().get_raw_id(),
+                                           selected_uri,
                                            0, "ms", 0, "ms",
                                            play_immediately ? -2 : -1,
                                            &fifo_overflow, &is_playing,
@@ -174,20 +179,20 @@ static SendStatus send_selected_file_uri_to_streamplayer(ID::List list_id,
 
 static bool try_clear_url_fifo_for_set_skip_mode(const Playback::CurrentMode &mode,
                                                  StreamInfo &sinfo,
-                                                 uint16_t &current_stream_id)
+                                                 ID::OurStream &current_stream_id)
 {
-    log_assert(current_stream_id != 0);
+    log_assert(current_stream_id.get().is_valid());
 
     if(mode.get() != Playback::Mode::LINEAR)
         return false;
 
-    guint current_id;
+    guint current_raw_id;
     GVariant *queued_ids_array;
     GVariant *removed_ids_array;
 
     const gboolean ok =
         tdbus_splay_urlfifo_call_clear_sync(dbus_get_streamplayer_urlfifo_iface(), 0,
-                                            &current_id,
+                                            &current_raw_id,
                                             &queued_ids_array, &removed_ids_array,
                                             NULL, NULL);
 
@@ -195,18 +200,20 @@ static bool try_clear_url_fifo_for_set_skip_mode(const Playback::CurrentMode &mo
         msg_error(0, LOG_NOTICE, "Failed clearing player URL FIFO");
     else
     {
-        if(current_id == UINT32_MAX)
-            current_id = 0;
-        else
-            log_assert(sinfo.lookup(current_id) != nullptr);
+        /* current_raw_id is a 32 bit entity because UINT32_MAX is a special
+         * value outside of the regular 16 bit stream ID range, indicating that
+         * no stream is playing */
+        const ID::Stream current_id((current_raw_id == UINT32_MAX)
+                                    ? ID::Stream::make_invalid()
+                                    : ID::Stream::make_from_raw_id(current_raw_id));
 
         for(size_t i = 0; i < g_variant_n_children(removed_ids_array); ++i)
         {
             GVariant *id_variant = g_variant_get_child_value(removed_ids_array, i);
-            uint16_t stream_id = g_variant_get_uint16(id_variant);
+            const auto stream_id(ID::Stream::make_from_raw_id(g_variant_get_uint16(id_variant)));
 
             if(stream_id != current_id)
-                sinfo.forget(stream_id);
+                sinfo.forget(ID::OurStream::make_from_generic_id(stream_id));
 
             g_variant_unref(id_variant);
         }
@@ -214,11 +221,11 @@ static bool try_clear_url_fifo_for_set_skip_mode(const Playback::CurrentMode &mo
         for(size_t i = 0; i < g_variant_n_children(queued_ids_array); ++i)
         {
             GVariant *id_variant = g_variant_get_child_value(queued_ids_array, i);
-            log_assert(sinfo.lookup(g_variant_get_uint16(id_variant)) != nullptr);
+            log_assert(sinfo.lookup(ID::OurStream::make_from_generic_id(ID::Stream::make_from_raw_id(g_variant_get_uint16(id_variant)))) != nullptr);
             g_variant_unref(id_variant);
         }
 
-        current_stream_id = current_id;
+        current_stream_id = ID::OurStream::make_from_generic_id(current_id);
     }
 
     g_variant_unref(queued_ids_array);
@@ -247,7 +254,7 @@ bool Playback::State::try_set_position(const StreamInfoItem &info)
 }
 
 bool Playback::State::set_skip_mode_reverse(StreamInfo &sinfo,
-                                            uint16_t &current_stream_id,
+                                            ID::OurStream &current_stream_id,
                                             bool skip_to_next,
                                             bool &enqueued_anything)
 {
@@ -294,7 +301,7 @@ bool Playback::State::set_skip_mode_reverse(StreamInfo &sinfo,
 }
 
 bool Playback::State::set_skip_mode_forward(StreamInfo &sinfo,
-                                            uint16_t &current_stream_id,
+                                            ID::OurStream &current_stream_id,
                                             bool skip_to_next,
                                             bool &enqueued_anything)
 {
@@ -471,7 +478,7 @@ bool Playback::State::enqueue_next(StreamInfo &sinfo, bool skip_to_next,
         if(!item->is_directory())
         {
             const unsigned int current_line = navigation_.get_cursor();
-            const uint16_t fallback_title_id =
+            const ID::OurStream fallback_title_id =
                 sinfo.insert(item->get_text(), current_list_id_, current_line);
 
             item = nullptr;
@@ -483,7 +490,8 @@ bool Playback::State::enqueue_next(StreamInfo &sinfo, bool skip_to_next,
                                                        dbus_list_.get_dbus_proxy(),
                                                        skip_to_next);
 
-            if(send_status != SendStatus::OK)
+            if(send_status != SendStatus::OK &&
+               send_status != SendStatus::INVALID_STREAM_ID)
                 sinfo.forget(fallback_title_id);
 
             switch(send_status)
@@ -498,6 +506,10 @@ bool Playback::State::enqueue_next(StreamInfo &sinfo, bool skip_to_next,
                 /* next stream, if any, shouldn't be skipped to */
                 skip_to_next = false;
                 break;
+
+              case SendStatus::INVALID_STREAM_ID:
+                /* stream info container full, try again later */
+                return queued_for_immediate_playback;
 
               case SendStatus::NO_URI:
                 /* that's life... just ignore this entry */

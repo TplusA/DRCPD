@@ -76,24 +76,27 @@ void Playback::Player::release(bool active_stop_command)
     }
 }
 
-void Playback::Player::start_notification(uint16_t stream_id, bool try_enqueue)
+void Playback::Player::start_notification(ID::Stream stream_id,
+                                          bool try_enqueue)
 {
-    log_assert(stream_id != 0);
+    log_assert(stream_id.is_valid());
 
     waiting_for_start_notification_ = false;
 
-    if(stream_info_.lookup(stream_id) == nullptr)
+    auto maybe_our_stream(ID::OurStream::make_from_generic_id(stream_id));
+
+    if(stream_info_.lookup(maybe_our_stream) == nullptr)
     {
         msg_info("Got start notification for unknown stream ID %u",
-                 stream_id);
-        current_stream_id_ = 0;
+                 stream_id.get_raw_id());
+        current_stream_id_ = ID::OurStream::make_invalid();
     }
-    else if(stream_id != current_stream_id_)
+    else if(maybe_our_stream.get() != current_stream_id_.get())
     {
-        if(current_stream_id_ != 0)
+        if(current_stream_id_.get().is_valid())
             stream_info_.forget(current_stream_id_);
 
-        current_stream_id_ = stream_id;
+        current_stream_id_ = maybe_our_stream;
     }
 
     track_info_.set_playing();
@@ -114,7 +117,7 @@ void Playback::Player::start_notification(uint16_t stream_id, bool try_enqueue)
 
 void Playback::Player::stop_notification()
 {
-    current_stream_id_ = 0;
+    current_stream_id_ = ID::OurStream::make_invalid();
     stream_info_.clear();
     incoming_meta_data_.clear(false);
     track_info_.set_stopped();
@@ -159,7 +162,17 @@ std::pair<std::chrono::milliseconds, std::chrono::milliseconds> Playback::Player
                track_info_.stream_position_, track_info_.stream_duration_);
 }
 
-const std::string *Playback::Player::get_original_stream_name(uint16_t id) const
+const std::string *Playback::Player::get_original_stream_name(ID::Stream id) const
+{
+    const auto our_id(ID::OurStream::make_from_generic_id(id));
+
+    if(our_id.get().is_valid())
+        return get_original_stream_name(our_id);
+    else
+        return nullptr;
+}
+
+const std::string *Playback::Player::get_original_stream_name(ID::OurStream id) const
 {
     const auto *const info = stream_info_.lookup(id);
     return (info != nullptr) ? &info->alt_name_ : nullptr;
@@ -186,9 +199,9 @@ void Playback::Player::skip_to_previous(std::chrono::milliseconds rewind_thresho
     if(waiting_for_start_notification_)
         return;
 
-    if(current_stream_id_ == 0)
+    if(!current_stream_id_.get().is_valid())
     {
-        BUG("Got skip back command for zero stream ID");
+        BUG("Got skip back command for invalid stream ID");
         return;
     }
 
@@ -217,9 +230,9 @@ void Playback::Player::skip_to_next()
     if(waiting_for_start_notification_)
         return;
 
-    if(current_stream_id_ == 0)
+    if(!current_stream_id_.get().is_valid())
     {
-        BUG("Got skip forward command for zero stream ID");
+        BUG("Got skip forward command for invalid stream ID");
         return;
     }
 

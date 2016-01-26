@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -68,10 +68,10 @@ void cut_teardown()
 void test_insert_lookup_forget_one_title()
 {
     static const std::string expected_title = "Testing";
-    static constexpr uint16_t expected_id = 1;
+    static constexpr const auto expected_id(ID::OurStream::make());
 
-    const uint16_t id = sinfo->insert(expected_title.c_str(), ID::List(5), 10);
-    cppcut_assert_equal(expected_id, id);
+    const ID::OurStream id = sinfo->insert(expected_title.c_str(), ID::List(5), 10);
+    cppcut_assert_equal(expected_id.get(), id.get());
 
     const StreamInfoItem *info = sinfo->lookup(expected_id);
     cppcut_assert_not_null(info);
@@ -85,13 +85,13 @@ void test_insert_lookup_forget_one_title()
 }
 
 template <size_t N>
-static void insert_titles(const std::array<uint16_t, N> &expected_ids,
+static void insert_titles(const std::array<ID::OurStream, N> &expected_ids,
                           const std::array<const std::string, N> &expected_titles)
 {
     for(size_t i = 0; i < N; ++i)
     {
         const auto id = sinfo->insert(expected_titles[i].c_str(), ID::List(8), i);
-        cppcut_assert_equal(expected_ids[i], id);
+        cppcut_assert_equal(expected_ids[i].get(), id.get());
     }
 }
 
@@ -100,7 +100,11 @@ static void insert_titles(const std::array<uint16_t, N> &expected_ids,
  */
 void test_insert_lookup_forget_multiple_titles()
 {
-    static constexpr std::array<uint16_t, 4> expected_ids = { 1, 2, 3, 4, };
+    static constexpr std::array<ID::OurStream, 4> expected_ids =
+    {
+        ID::OurStream::make(1), ID::OurStream::make(2),
+        ID::OurStream::make(3), ID::OurStream::make(4),
+    };
     static const std::array<const std::string, expected_ids.size()> expected_titles =
     {
         "First", "Second", "Third", "Fourth",
@@ -125,7 +129,11 @@ void test_insert_lookup_forget_multiple_titles()
  */
 void test_forget_title_in_middle()
 {
-    static constexpr std::array<uint16_t, 4> expected_ids = { 1, 2, 3, 4, };
+    static constexpr std::array<ID::OurStream, 4> expected_ids =
+    {
+        ID::OurStream::make(1), ID::OurStream::make(2),
+        ID::OurStream::make(3), ID::OurStream::make(4),
+    };
     static const std::array<const std::string, expected_ids.size()> expected_titles =
     {
         "First", "Second", "Third", "Fourth",
@@ -162,7 +170,10 @@ void test_forget_title_in_middle()
  */
 void test_all_information_are_lost_on_clear()
 {
-    static constexpr std::array<uint16_t, 2> expected_ids = { 1, 2, };
+    static constexpr std::array<ID::OurStream, 2> expected_ids =
+    {
+        ID::OurStream::make(1), ID::OurStream::make(2),
+    };
     static const std::array<const std::string, expected_ids.size()> expected_titles = { "A", "B", };
 
     insert_titles(expected_ids, expected_titles);
@@ -178,8 +189,14 @@ void test_all_information_are_lost_on_clear()
  */
 void test_ids_are_not_reused()
 {
-    static constexpr std::array<uint16_t, 2> expected_ids_first  = { 1, 2, };
-    static constexpr std::array<uint16_t, 2> expected_ids_second = { 3, 4, };
+    static constexpr std::array<ID::OurStream, 2> expected_ids_first =
+    {
+        ID::OurStream::make(1), ID::OurStream::make(2),
+    };
+    static constexpr std::array<ID::OurStream, 2> expected_ids_second =
+    {
+        ID::OurStream::make(3), ID::OurStream::make(4),
+    };
     static const std::array<const std::string, expected_ids_first.size()> expected_titles = { "A", "B", };
 
     insert_titles(expected_ids_first, expected_titles);
@@ -195,11 +212,10 @@ void test_ids_are_not_reused()
 void test_maximum_number_of_entries_is_enforced()
 {
     for(size_t i = 0; i < StreamInfo::MAX_ENTRIES; ++i)
-        cppcut_assert_not_equal(uint16_t(0),
-                                sinfo->insert("Testing", ID::List(23), 42));
+        cut_assert_true(sinfo->insert("Testing", ID::List(23), 42).get().is_valid());
 
     mock_messages->expect_msg_error(0, LOG_CRIT, "BUG: Too many stream IDs");
-    cppcut_assert_equal(uint16_t(0), sinfo->insert("Too many", ID::List(23), 43));
+    cut_assert_false(sinfo->insert("Too many", ID::List(23), 43).get().is_valid());
 }
 
 /*!\test
@@ -207,7 +223,14 @@ void test_maximum_number_of_entries_is_enforced()
  */
 void test_ids_are_not_reused_on_overflow()
 {
-    static constexpr std::array<uint16_t, 10> expected_ids  = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, };
+    static constexpr std::array<ID::OurStream, 10> expected_ids  =
+    {
+        ID::OurStream::make(1), ID::OurStream::make(2),
+        ID::OurStream::make(3), ID::OurStream::make(4),
+        ID::OurStream::make(5), ID::OurStream::make(6),
+        ID::OurStream::make(7), ID::OurStream::make(8),
+        ID::OurStream::make(9), ID::OurStream::make(10),
+    };
     static const std::array<const std::string, expected_ids.size()> expected_titles =
     {
         "A", "B", "C", "D", "E", "F", "G", "H", "I", "J",
@@ -215,15 +238,18 @@ void test_ids_are_not_reused_on_overflow()
 
     insert_titles(expected_ids, expected_titles);
 
-    for(size_t i = expected_ids[expected_ids.size() - 1] + 1; i <= StreamInfo::MAX_ID; ++i)
+    for(size_t i = expected_ids[expected_ids.size() - 1].get().get_cookie() + 1;
+        i <= STREAM_ID_COOKIE_MAX;
+        ++i)
     {
         const auto id = sinfo->insert("Dummy", ID::List(23), 42);
-        cppcut_assert_equal(uint16_t(i), id);
+        cppcut_assert_equal(stream_id_t(i), id.get().get_cookie());
         sinfo->forget(id);
     }
 
     const auto id = sinfo->insert("Overflown", ID::List(23), 43);
-    cppcut_assert_equal(uint16_t(expected_ids[expected_ids.size() - 1] + 1), id);
+    cppcut_assert_equal(stream_id_t(expected_ids[expected_ids.size() - 1].get().get_cookie() + 1),
+                        id.get().get_cookie());
 }
 
 }

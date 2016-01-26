@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -19,7 +19,7 @@
 #ifndef IDTYPES_HH
 #define IDTYPES_HH
 
-#include <inttypes.h>
+#include "stream_id.hh"
 
 namespace ID
 {
@@ -83,6 +83,11 @@ struct ListIDTraits_
  * Type to use for list IDs.
  */
 typedef IDType_<ListIDTraits_> List;
+
+/*!
+ * ID type for streams we are sending to streamplayer.
+ */
+using OurStream = ::ID::SourcedStream<STREAM_ID_SOURCE_UI>;
 
 }
 
