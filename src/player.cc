@@ -84,7 +84,8 @@ void Playback::Player::start_notification(uint16_t stream_id, bool try_enqueue)
 
     if(stream_info_.lookup(stream_id) == nullptr)
     {
-        BUG("Got start notification for unknown stream ID %u", stream_id);
+        msg_info("Got start notification for unknown stream ID %u",
+                 stream_id);
         current_stream_id_ = 0;
     }
     else if(stream_id != current_stream_id_)
