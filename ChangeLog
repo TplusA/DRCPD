@@ -1,3 +1,14 @@
+2016-01-29  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 1.7 released.
+
+	* Streaming: Improve interoperability with streams started from other
+	  programs (such as dcpd when fulfilling smartphone app requests to
+	  play certain streams).
+
+	* Streaming: Inform SPI slave about currently playing stream title and
+	  URL. Necessary for smartphone app support.
+
 2016-01-12  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 1.6 released.
