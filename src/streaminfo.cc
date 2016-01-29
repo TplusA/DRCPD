@@ -62,8 +62,8 @@ void StreamInfo::forget(ID::OurStream id)
                   id.get().get_raw_id());
 }
 
-const StreamInfoItem *StreamInfo::lookup(ID::OurStream id) const
+StreamInfoItem *StreamInfo::lookup_for_update(ID::OurStream id)
 {
-    const auto result = stream_names_.find(id);
+    auto result = stream_names_.find(id);
     return (result != stream_names_.end()) ? &result->second : nullptr;
 }

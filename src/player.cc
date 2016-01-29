@@ -97,6 +97,17 @@ void Playback::Player::start_notification(ID::Stream stream_id,
             stream_info_.forget(current_stream_id_);
 
         current_stream_id_ = maybe_our_stream;
+
+        const StreamInfoItem *const info =
+            stream_info_.lookup(current_stream_id_);
+
+        if(info != NULL &&
+           !tdbus_dcpd_playback_call_set_stream_info_sync(dbus_get_dcpd_playback_iface(),
+                                                          current_stream_id_.get().get_raw_id(),
+                                                          info->alt_name_.c_str(),
+                                                          info->url_.c_str(),
+                                                          NULL, NULL))
+            msg_error(0, LOG_NOTICE, "Failed sending stream information to dcpd");
     }
 
     track_info_.set_playing();

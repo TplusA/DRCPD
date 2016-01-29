@@ -35,6 +35,7 @@ class StreamInfoItem
 {
   public:
     const std::string alt_name_;
+    std::string url_;
     const ID::List list_id_;
     const unsigned int line_;
 
@@ -82,7 +83,12 @@ class StreamInfo
     ID::OurStream insert(const char *fallback_title,
                          ID::List list_id, unsigned int line);
     void forget(ID::OurStream id);
-    const StreamInfoItem *lookup(ID::OurStream id) const;
+    StreamInfoItem *lookup_for_update(ID::OurStream id);
+
+    const StreamInfoItem *lookup(ID::OurStream id) const
+    {
+        return const_cast<StreamInfo *>(this)->lookup_for_update(id);
+    }
 };
 
 /*!@}*/

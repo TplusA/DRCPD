@@ -199,6 +199,11 @@ tdbussplayPlayback *dbus_get_streamplayer_playback_iface(void)
     return dbus_data.splay_playback_proxy;
 }
 
+tdbusdcpdPlayback *dbus_get_dcpd_playback_iface(void)
+{
+    return dbus_data.dcpd_playback_proxy;
+}
+
 int dbus_setup(GMainLoop *loop, bool connect_to_session_bus,
                void *dbus_signal_data_for_dbus_handlers)
 {

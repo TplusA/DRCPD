@@ -97,6 +97,9 @@ static gchar *select_uri_from_list(gchar **uri_list)
  *     If true, request immediate playback of the selected list entry.
  *     Otherwise, the entry is just pushed into the player's internal queue.
  *
+ * \param[out] queued_url
+ *     Which URL was chosen for this stream.
+ *
  * \returns
  *     #SendStatus::OK in case of success, detailed error code otherwise.
  */
@@ -104,10 +107,10 @@ static SendStatus send_selected_file_uri_to_streamplayer(ID::List list_id,
                                                          unsigned int item_id,
                                                          ID::OurStream stream_id,
                                                          tdbuslistsNavigation *proxy,
-                                                         bool play_immediately)
+                                                         bool play_immediately,
+                                                         std::string &queued_url)
 {
-    if(!stream_id.get().is_valid())
-        return SendStatus::INVALID_STREAM_ID;
+    queued_url.clear();
 
     gchar **uri_list;
     guchar error_code;
@@ -150,6 +153,8 @@ static SendStatus send_selected_file_uri_to_streamplayer(ID::List list_id,
     }
 
     msg_info("Queuing URI: \"%s\"", selected_uri);
+
+    queued_url = selected_uri;
 
     gboolean fifo_overflow;
     gboolean is_playing;
@@ -492,19 +497,24 @@ bool Playback::State::enqueue_next(StreamInfo &sinfo, bool skip_to_next,
             const unsigned int current_line = navigation_.get_cursor();
             const ID::OurStream fallback_title_id =
                 sinfo.insert(item->get_text(), current_list_id_, current_line);
-
-            item = nullptr;
+            StreamInfoItem *info_item = sinfo.lookup_for_update(fallback_title_id);
 
             const auto send_status =
-                send_selected_file_uri_to_streamplayer(current_list_id_,
-                                                       current_line,
-                                                       fallback_title_id,
-                                                       dbus_list_.get_dbus_proxy(),
-                                                       skip_to_next);
+                (fallback_title_id.get().is_valid()
+                 ? send_selected_file_uri_to_streamplayer(current_list_id_,
+                                                          current_line,
+                                                          fallback_title_id,
+                                                          dbus_list_.get_dbus_proxy(),
+                                                          skip_to_next,
+                                                          info_item->url_)
+                 : SendStatus::INVALID_STREAM_ID);
 
             if(send_status != SendStatus::OK &&
                send_status != SendStatus::INVALID_STREAM_ID)
                 sinfo.forget(fallback_title_id);
+
+            item = nullptr;
+            info_item = nullptr;
 
             switch(send_status)
             {
