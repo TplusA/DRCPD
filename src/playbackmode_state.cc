@@ -51,6 +51,30 @@ static void free_array_of_strings(gchar **const strings)
     g_free(strings);
 }
 
+static gchar *select_uri_from_list(gchar **uri_list)
+{
+    for(gchar **ptr = uri_list; *ptr != NULL; ++ptr)
+        msg_info("URI: \"%s\"", *ptr);
+
+    for(gchar **ptr = uri_list; *ptr != NULL; ++ptr)
+    {
+        const size_t len = strlen(*ptr);
+
+        if(len < 4)
+            continue;
+
+        const gchar *const suffix = &(*ptr)[len - 4];
+
+        if(strncasecmp(".m3u", suffix, 4) == 0 ||
+           strncasecmp(".pls", suffix, 4) == 0)
+            continue;
+
+        return *ptr;
+    }
+
+    return NULL;
+}
+
 /*!
  * Try to fill up the streamplayer FIFO.
  *
@@ -115,26 +139,14 @@ static SendStatus send_selected_file_uri_to_streamplayer(ID::List list_id,
         return SendStatus::NO_URI;
     }
 
-    for(gchar **ptr = uri_list; *ptr != NULL; ++ptr)
-        msg_info("URI: \"%s\"", *ptr);
+    gchar *const selected_uri = select_uri_from_list(uri_list);
 
-    gchar *selected_uri = NULL;
-
-    for(gchar **ptr = uri_list; *ptr != NULL; ++ptr)
+    if(selected_uri == NULL)
     {
-        const size_t len = strlen(*ptr);
-
-        if(len < 4)
-            continue;
-
-        const gchar *const suffix = &(*ptr)[len - 4];
-
-        if(strncasecmp(".m3u", suffix, 4) == 0 ||
-           strncasecmp(".pls", suffix, 4) == 0)
-            continue;
-
-        if(selected_uri == NULL)
-            selected_uri = *ptr;
+        msg_info("No suitable URI found for item %u in list %u",
+                 item_id, list_id.get_raw_id());
+        free_array_of_strings(uri_list);
+        return SendStatus::NO_URI;
     }
 
     msg_info("Queuing URI: \"%s\"", selected_uri);
