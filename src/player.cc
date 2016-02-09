@@ -248,10 +248,14 @@ void Playback::Player::skip_to_next()
         return;
     }
 
+    guint next_id;
+    gboolean is_playing;
+
     if(!tdbus_splay_urlfifo_call_next_sync(dbus_get_streamplayer_urlfifo_iface(),
+                                           &next_id, &is_playing,
                                            NULL, NULL))
         msg_error(0, LOG_NOTICE, "Failed sending skip track message");
-    else
+    else if(is_playing && next_id != UINT32_MAX)
         waiting_for_start_notification_ = true;
 }
 
