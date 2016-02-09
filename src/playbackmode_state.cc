@@ -291,7 +291,7 @@ bool Playback::State::set_skip_mode_reverse(StreamInfo &sinfo,
         return false;
     }
 
-    if(info->list_id_ == start_list_id_ && info->line_ == start_list_line_)
+    if(info->list_id_ == user_list_id_ && info->line_ == 0)
     {
         /* already on first track */
         return false;
@@ -362,11 +362,8 @@ bool Playback::State::set_skip_mode_forward(StreamInfo &sinfo,
 bool Playback::State::try_start()
     throw(List::DBusListException)
 {
-    start_list_id_ = user_list_id_;
-    start_list_line_ = user_list_line_;
-
     item_flags_.list_content_changed();
-    navigation_.set_cursor_by_line_number(start_list_line_);
+    navigation_.set_cursor_by_line_number(user_list_line_);
 
     auto item = dynamic_cast<const ViewFileBrowser::FileItem *>(dbus_list_.get_item(navigation_.get_cursor()));
     if(item == nullptr)
@@ -378,21 +375,20 @@ bool Playback::State::try_start()
             return false;
 
         ViewFileBrowser::enter_list_at(dbus_list_, item_flags_, navigation_,
-                                       start_list_id_, start_list_line_,
+                                       user_list_id_, user_list_line_,
                                        is_reverse_traversal_);
 
-        current_list_id_ = start_list_id_;
+        current_list_id_ = user_list_id_;
 
         if(!try_descend())
             return true;
 
-        start_list_id_ = current_list_id_;
-        start_list_line_ = 0;
+        user_list_id_ = current_list_id_;
 
         directory_depth_ = 1;
     }
     else
-        current_list_id_ = start_list_id_;
+        current_list_id_ = user_list_id_;
 
     return true;
 }
@@ -436,10 +432,10 @@ bool Playback::State::start(const List::DBusList &user_list,
 bool Playback::State::enqueue_next(StreamInfo &sinfo, bool skip_to_next,
                                    bool just_switched_direction)
 {
-    bool queued_for_immediate_playback = false;
+    if(is_list_processed_ && !just_switched_direction)
+        return false;
 
-    if(is_list_processed_)
-        return queued_for_immediate_playback;
+    bool queued_for_immediate_playback = false;
 
     while(true)
     {
@@ -640,41 +636,22 @@ bool Playback::State::find_next(const List::TextItem *directory)
     return false;
 }
 
-bool Playback::State::find_next_forward(bool &ret)
+bool Playback::State::find_next_forward(bool &found_candidate)
     throw(List::DBusListException)
 {
-    if(current_list_id_ == start_list_id_)
-    {
-        /* we are inside the directory from where we started */
-        if(!navigation_.down())
-            navigation_.set_cursor_by_line_number(0);
-
-        const int line = navigation_.get_line_number_by_cursor();
-
-        if(line < 0)
-        {
-            ret = false;
-            return true;
-        }
-        else if(static_cast<unsigned int>(line) == start_list_line_)
-        {
-            /* wrapped around, we are done */
-            is_list_processed_ = true;
-            ret = false;
-            return true;
-        }
-        else
-        {
-            ret = true;
-            return true;
-        }
-    }
-
-    /* we are inside some nested directory (which we started traversing at
-     * item 0)  */
     if(navigation_.down())
     {
-        ret = true;
+        is_list_processed_ = false;
+        found_candidate = true;
+        return true;
+    }
+
+    if(current_list_id_ == user_list_id_)
+    {
+        /* tried to go beyond last entry in directory from where we started:
+         * we are done here */
+        is_list_processed_ = true;
+        found_candidate = false;
         return true;
     }
 
@@ -682,46 +659,22 @@ bool Playback::State::find_next_forward(bool &ret)
     return false;
 }
 
-bool Playback::State::find_next_reverse(bool &ret)
+bool Playback::State::find_next_reverse(bool &found_candidate)
     throw(List::DBusListException)
 {
-    if(current_list_id_ == start_list_id_)
-    {
-        /* we are inside the directory from where we started */
-        if(!navigation_.up())
-        {
-            const unsigned int lines = navigation_.get_total_number_of_visible_items();
-
-            if(lines > 0)
-                navigation_.set_cursor_by_line_number(lines - 1);
-        }
-
-        const int line = navigation_.get_line_number_by_cursor();
-
-        if(line < 0)
-        {
-            ret = false;
-            return true;
-        }
-        else if(static_cast<unsigned int>(line) == start_list_line_)
-        {
-            /* wrapped around, we are done */
-            is_list_processed_ = true;
-            ret = false;
-            return true;
-        }
-        else
-        {
-            ret = true;
-            return true;
-        }
-    }
-
-    /* we are inside some nested directory (which we started traversing at the
-     * last item in the list)  */
     if(navigation_.up())
     {
-        ret = true;
+        is_list_processed_ = false;
+        found_candidate = true;
+        return true;
+    }
+
+    if(current_list_id_ == user_list_id_)
+    {
+        /* tried to go before first entry in directory from where we started:
+         * we are done here */
+        is_list_processed_ = true;
+        found_candidate = false;
         return true;
     }
 
@@ -749,7 +702,6 @@ void Playback::State::revert()
     }
 
     user_list_id_ = ID::List();
-    start_list_id_ = ID::List();
     current_list_id_ = ID::List();
     mode_.deactivate();
 }
@@ -769,9 +721,7 @@ bool Playback::State::list_invalidate(ID::List list_id, ID::List replacement_id)
             return true;
     }
 
-    /* we could set #Playback::State::start_list_id_ here and continue if we
-     * would also fix the #Playback::State::start_list_line_ value */
-    if(start_list_id_ == list_id)
+    if(user_list_id_ == list_id)
         return true;
 
     /* we could set #Playback::State::current_list_id_ here and continue, but

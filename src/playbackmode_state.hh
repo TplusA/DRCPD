@@ -61,10 +61,6 @@ class State
     ID::List user_list_id_;
     unsigned int user_list_line_;
 
-    /* where we start playing */
-    ID::List start_list_id_;
-    unsigned int start_list_line_;
-
     /* false if "next" is really next, true if "next" is preceding */
     bool is_reverse_traversal_;
 
@@ -83,7 +79,6 @@ class State
         mode_(mode),
         is_list_processed_(false),
         user_list_line_(0),
-        start_list_line_(0),
         is_reverse_traversal_(false),
         directory_depth_(1),
         is_any_stream_queued_(false)
@@ -210,8 +205,8 @@ class State
     bool try_descend() throw(List::DBusListException);
     bool try_set_position(const StreamInfoItem &info);
     bool find_next(const List::TextItem *directory) throw(List::DBusListException);
-    bool find_next_forward(bool &ret) throw(List::DBusListException);
-    bool find_next_reverse(bool &ret) throw(List::DBusListException);
+    bool find_next_forward(bool &found_candidate) throw(List::DBusListException);
+    bool find_next_reverse(bool &found_candidate) throw(List::DBusListException);
 };
 
 };
