@@ -38,6 +38,7 @@ bool Playback::Player::take(Playback::State &playback_state,
         release(true);
 
     current_state_ = &playback_state;
+    stream_info_.clear();
 
     waiting_for_start_notification_ = true;
     buffering_callback(true);
