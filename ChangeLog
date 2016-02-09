@@ -1,3 +1,18 @@
+2016-02-10  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 1.8 released.
+
+	* Playback: Make skipping back and forth streams through list
+	  hierarchies more intuitive.
+
+	  Requires streamplayer 1.5 because of D-Bus interface changes.
+
+	* Playback: Fix skipping in playing of large directory hierarchies.
+
+	* User interface: Show stream bit rate in more cases.
+
+	* Misc: Fixed a few bugs in user interface.
+
 2016-01-29  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 1.7 released.
