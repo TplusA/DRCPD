@@ -390,7 +390,6 @@ bool Playback::State::try_start()
         start_list_line_ = 0;
 
         directory_depth_ = 1;
-        number_of_directories_entered_ = 0;
     }
     else
         current_list_id_ = start_list_id_;
@@ -411,9 +410,7 @@ bool Playback::State::start(const List::DBusList &user_list,
     is_reverse_traversal_ = false;
 
     directory_depth_ = 1;
-    number_of_streams_played_ = 0;
-    number_of_streams_skipped_ = 0;
-    number_of_directories_entered_ = 0;
+    is_any_stream_queued_ = false;
 
     try
     {
@@ -520,7 +517,7 @@ bool Playback::State::enqueue_next(StreamInfo &sinfo, bool skip_to_next,
             {
               case SendStatus::OK:
                 /* stream URI is in FIFO now */
-                ++number_of_streams_played_;
+                is_any_stream_queued_ = true;
 
                 if(skip_to_next)
                     queued_for_immediate_playback = true;
@@ -535,13 +532,11 @@ bool Playback::State::enqueue_next(StreamInfo &sinfo, bool skip_to_next,
 
               case SendStatus::NO_URI:
                 /* that's life... just ignore this entry */
-                ++number_of_streams_skipped_;
                 break;
 
               case SendStatus::BROKER_FAILURE:
               case SendStatus::FIFO_FAILURE:
                 /* trying to put something into the FIFO failed hard */
-                ++number_of_streams_skipped_;
                 revert();
 
                 return queued_for_immediate_playback;
@@ -552,7 +547,6 @@ bool Playback::State::enqueue_next(StreamInfo &sinfo, bool skip_to_next,
 
               case SendStatus::PLAYBACK_FAILURE:
                 /* so let's ignore it */
-                ++number_of_streams_skipped_;
                 break;
             }
         }
@@ -597,7 +591,6 @@ bool Playback::State::try_descend()
                                    is_reverse_traversal_);
 
     current_list_id_ = list_id;
-    ++number_of_directories_entered_;
 
     return true;
 }
@@ -608,7 +601,7 @@ bool Playback::State::find_next(const List::TextItem *directory)
     if(!mode_.is_playing())
         return false;
 
-    if(mode_.get() == Playback::Mode::SINGLE_TRACK && number_of_streams_played_ > 0)
+    if(mode_.get() == Playback::Mode::SINGLE_TRACK && is_any_stream_queued_)
     {
         /* nothing more to do, finish playback gracefully */
         is_list_processed_ = true;
@@ -745,9 +738,6 @@ void Playback::State::revert()
         msg_error(0, LOG_NOTICE, "Stopped directory traversal due to failure.");
 
     msg_info("Finished sending URIs from list to streamplayer");
-    msg_info("Entered %u directories, played %u streams, failed playing %u streams",
-             number_of_directories_entered_,
-             number_of_streams_played_, number_of_streams_skipped_);
 
     try
     {

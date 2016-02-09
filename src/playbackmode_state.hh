@@ -70,9 +70,7 @@ class State
 
     ID::List current_list_id_;
     unsigned int directory_depth_;
-    unsigned int number_of_streams_played_;
-    unsigned int number_of_streams_skipped_;
-    unsigned int number_of_directories_entered_;
+    bool is_any_stream_queued_;
 
   public:
     State(const State &) = delete;
@@ -88,9 +86,7 @@ class State
         start_list_line_(0),
         is_reverse_traversal_(false),
         directory_depth_(1),
-        number_of_streams_played_(0),
-        number_of_streams_skipped_(0),
-        number_of_directories_entered_(0)
+        is_any_stream_queued_(false)
     {}
 
     /*!
