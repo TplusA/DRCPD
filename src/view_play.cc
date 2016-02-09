@@ -81,6 +81,10 @@ ViewIface::InputResult ViewPlay::View::input(DrcpCommand command)
         break;
 
       case DrcpCommand::GO_BACK_ONE_LEVEL:
+      case DrcpCommand::SCROLL_UP_ONE:
+      case DrcpCommand::SCROLL_DOWN_ONE:
+      case DrcpCommand::SCROLL_PAGE_UP:
+      case DrcpCommand::SCROLL_PAGE_DOWN:
         return InputResult::SHOULD_HIDE;
 
       default:
