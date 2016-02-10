@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -55,6 +55,7 @@ class MetaData
         ARTIST,
         ALBUM,
         CODEC,
+        BITRATE,
         BITRATE_MIN,
         BITRATE_MAX,
         BITRATE_NOM,

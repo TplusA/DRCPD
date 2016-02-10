@@ -170,6 +170,20 @@ bool ViewPlay::View::is_busy() const
     return player_.is_buffering();
 }
 
+static const std::string &get_bitrate(const PlayInfo::MetaData &md)
+{
+    if(!md.values_[PlayInfo::MetaData::BITRATE].empty())
+        return md.values_[PlayInfo::MetaData::BITRATE];
+
+    if(!md.values_[PlayInfo::MetaData::BITRATE_NOM].empty())
+        return md.values_[PlayInfo::MetaData::BITRATE_NOM];
+
+    if(!md.values_[PlayInfo::MetaData::BITRATE_MAX].empty())
+        return md.values_[PlayInfo::MetaData::BITRATE_MAX];
+
+    return md.values_[PlayInfo::MetaData::BITRATE_MIN];
+}
+
 bool ViewPlay::View::write_xml(std::ostream &os, bool is_full_view)
 {
     const auto &md = player_.get_track_meta_data();
@@ -197,7 +211,7 @@ bool ViewPlay::View::write_xml(std::ostream &os, bool is_full_view)
            << XmlEscape(md.values_[PlayInfo::MetaData::ALBUM])
            << "</text>";
         os << "<text id=\"bitrate\">"
-           << md.values_[PlayInfo::MetaData::BITRATE_NOM]
+           << get_bitrate(md).c_str()
            << "</text>";
     }
 

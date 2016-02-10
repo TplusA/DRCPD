@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -53,6 +53,7 @@ void PlayInfo::MetaData::add(const char *key, const char *value,
         { "artist",          ARTIST, },
         { "album",           ALBUM, },
         { "audio-codec",     CODEC, },
+        { "bitrate",         BITRATE, },
         { "minimum-bitrate", BITRATE_MIN, },
         { "maximum-bitrate", BITRATE_MAX, },
         { "nominal-bitrate", BITRATE_NOM, },
@@ -66,6 +67,7 @@ void PlayInfo::MetaData::add(const char *key, const char *value,
         {
             switch(entry.id)
             {
+              case BITRATE:
               case BITRATE_MIN:
               case BITRATE_MAX:
               case BITRATE_NOM:

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -173,6 +173,17 @@ void test_set_nominal_bitrate()
 }
 
 /*!\test
+ * Set plain bitrate information.
+ */
+void test_set_plain_bitrate()
+{
+    static const std::string expected = "736451";
+
+    data->meta_data_.add("bitrate", expected.c_str(), no_reformat);
+    check_single_meta_data(expected, PlayInfo::MetaData::BITRATE);
+}
+
+/*!\test
  * Set internal fallback title.
  */
 void test_set_internal_fallback_title()
@@ -270,6 +281,7 @@ void test_clear_regular_meta_data()
     data->meta_data_.add("minimum-bitrate", "e", no_reformat);
     data->meta_data_.add("maximum-bitrate", "f", no_reformat);
     data->meta_data_.add("nominal-bitrate", "g", no_reformat);
+    data->meta_data_.add("bitrate",         "h", no_reformat);
 
     /* all set */
     for(size_t i = 0; i <= PlayInfo::MetaData::METADATA_ID_LAST_REGULAR; ++i)
