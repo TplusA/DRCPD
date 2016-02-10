@@ -436,7 +436,8 @@ bool Playback::State::enqueue_next(StreamInfo &sinfo, bool skip_to_next,
 
             try
             {
-                (void)find_next(nullptr);
+                if(!find_next(nullptr))
+                    return false;
             }
             catch(const List::DBusListException &e)
             {
@@ -621,7 +622,7 @@ bool Playback::State::find_next(const List::TextItem *directory)
 
         ViewFileBrowser::enter_list_at(dbus_list_, item_flags_, navigation_,
                                        list_id, item_id,
-                                       is_reverse_traversal_);
+                                       false);
     }
 
     return false;
