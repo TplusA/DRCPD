@@ -64,7 +64,6 @@ class State
     /* false if "next" is really next, true if "next" is preceding */
     bool is_reverse_traversal_;
 
-    ID::List current_list_id_;
     unsigned int directory_depth_;
     bool is_any_stream_queued_;
 

@@ -265,8 +265,6 @@ bool Playback::State::try_set_position(const StreamInfoItem &info)
         return false;
     }
 
-    current_list_id_ == info.list_id_;
-
     return true;
 }
 
@@ -369,26 +367,21 @@ bool Playback::State::try_start()
     if(item == nullptr)
         return false;
 
-    if(item->is_directory())
-    {
-        if(mode_.get() != Playback::Mode::LINEAR)
-            return false;
+    if(!item->is_directory())
+        return true;
 
-        ViewFileBrowser::enter_list_at(dbus_list_, item_flags_, navigation_,
-                                       user_list_id_, user_list_line_,
-                                       is_reverse_traversal_);
+    if(mode_.get() != Playback::Mode::LINEAR)
+        return false;
 
-        current_list_id_ = user_list_id_;
+    ViewFileBrowser::enter_list_at(dbus_list_, item_flags_, navigation_,
+                                   user_list_id_, user_list_line_,
+                                   is_reverse_traversal_);
 
-        if(!try_descend())
-            return true;
+    if(!try_descend())
+        return true;
 
-        user_list_id_ = current_list_id_;
-
-        directory_depth_ = 1;
-    }
-    else
-        current_list_id_ = user_list_id_;
+    user_list_id_ = dbus_list_.get_list_id();
+    directory_depth_ = 1;
 
     return true;
 }
@@ -423,8 +416,6 @@ bool Playback::State::start(const List::DBusList &user_list,
                   "Failed start playing, got hard %s error: %s",
                   e.is_dbus_error() ? "D-Bus" : "list retrieval", e.what());
     }
-
-    current_list_id_ = ID::List();
 
     return false;
 }
@@ -489,12 +480,13 @@ bool Playback::State::enqueue_next(StreamInfo &sinfo, bool skip_to_next,
         {
             const unsigned int current_line = navigation_.get_cursor();
             const ID::OurStream fallback_title_id =
-                sinfo.insert(item->get_text(), current_list_id_, current_line);
+                sinfo.insert(item->get_text(),
+                             dbus_list_.get_list_id(), current_line);
             StreamInfoItem *info_item = sinfo.lookup_for_update(fallback_title_id);
 
             const auto send_status =
                 (fallback_title_id.get().is_valid()
-                 ? send_selected_file_uri_to_streamplayer(current_list_id_,
+                 ? send_selected_file_uri_to_streamplayer(dbus_list_.get_list_id(),
                                                           current_line,
                                                           fallback_title_id,
                                                           dbus_list_.get_dbus_proxy(),
@@ -577,7 +569,8 @@ bool Playback::State::try_descend()
 
     ID::List list_id =
         ViewFileBrowser::get_child_item_id(dbus_list_,
-                                           current_list_id_, navigation_, true);
+                                           dbus_list_.get_list_id(),
+                                           navigation_, true);
 
     if(!list_id.is_valid())
         return false;
@@ -585,8 +578,6 @@ bool Playback::State::try_descend()
     ViewFileBrowser::enter_list_at(dbus_list_,
                                    item_flags_, navigation_, list_id, 0,
                                    is_reverse_traversal_);
-
-    current_list_id_ = list_id;
 
     return true;
 }
@@ -619,7 +610,8 @@ bool Playback::State::find_next(const List::TextItem *directory)
         unsigned int item_id;
         const ID::List list_id =
             ViewFileBrowser::get_parent_link_id(dbus_list_,
-                                                current_list_id_, item_id);
+                                                dbus_list_.get_list_id(),
+                                                item_id);
 
         if(!list_id.is_valid())
         {
@@ -630,7 +622,6 @@ bool Playback::State::find_next(const List::TextItem *directory)
         ViewFileBrowser::enter_list_at(dbus_list_, item_flags_, navigation_,
                                        list_id, item_id,
                                        is_reverse_traversal_);
-        current_list_id_ = list_id;
     }
 
     return false;
@@ -646,7 +637,7 @@ bool Playback::State::find_next_forward(bool &found_candidate)
         return true;
     }
 
-    if(current_list_id_ == user_list_id_)
+    if(dbus_list_.get_list_id() == user_list_id_)
     {
         /* tried to go beyond last entry in directory from where we started:
          * we are done here */
@@ -669,7 +660,7 @@ bool Playback::State::find_next_reverse(bool &found_candidate)
         return true;
     }
 
-    if(current_list_id_ == user_list_id_)
+    if(dbus_list_.get_list_id() == user_list_id_)
     {
         /* tried to go before first entry in directory from where we started:
          * we are done here */
@@ -702,7 +693,6 @@ void Playback::State::revert()
     }
 
     user_list_id_ = ID::List();
-    current_list_id_ = ID::List();
     mode_.deactivate();
 }
 
@@ -727,7 +717,7 @@ bool Playback::State::list_invalidate(ID::List list_id, ID::List replacement_id)
     /* we could set #Playback::State::current_list_id_ here and continue, but
      * it seems risky to do so without any further testing (read: I didn't test
      * this case) */
-    if(current_list_id_ == list_id)
+    if(dbus_list_.get_list_id() == list_id)
         return true;
 
     return false;
