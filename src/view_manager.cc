@@ -113,6 +113,12 @@ void ViewManager::serialization_result(DcpTransaction::Result result)
     abort_transaction_or_fail_hard(dcp_transaction_);
 }
 
+static void bug_271(const ViewIface &view, const char *what)
+{
+    BUG("Lost display %s update for view \"%s\" (see ticket #271). "
+        "We are in some bogus state now.", what, view.name_);
+}
+
 void ViewManager::handle_input_result(ViewIface::InputResult result,
                                       ViewIface &view)
 {
@@ -122,7 +128,9 @@ void ViewManager::handle_input_result(ViewIface::InputResult result,
         break;
 
       case ViewIface::InputResult::UPDATE_NEEDED:
-        view.update(dcp_transaction_, debug_stream_);
+        if(!view.update(dcp_transaction_, debug_stream_))
+            bug_271(view, "partial");
+
         break;
 
       case ViewIface::InputResult::SHOULD_HIDE:
@@ -233,7 +241,9 @@ void ViewManager::activate_view(ViewIface *view)
 
     active_view_ = view;
     active_view_->focus();
-    active_view_->serialize(dcp_transaction_, debug_stream_);
+
+    if(!active_view_->serialize(dcp_transaction_, debug_stream_))
+        bug_271(*active_view_, "full");
 
     if(view->is_browse_view_)
         last_browse_view_ = view;
