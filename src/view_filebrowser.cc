@@ -402,13 +402,13 @@ bool ViewFileBrowser::View::point_to_parent_link()
           case ListError::Code::PHYSICAL_MEDIA_IO:
           case ListError::Code::NET_IO:
           case ListError::Code::PROTOCOL:
-          case ListError::Code::AUTHENTICATION:
             /* problem: stay right there where you are */
             return false;
 
           case ListError::Code::OK:
           case ListError::Code::INTERNAL:
           case ListError::Code::INVALID_ID:
+          case ListError::Code::AUTHENTICATION:
           case ListError::Code::INCONSISTENT:
             /* funny problem: better return to root directory */
             break;
