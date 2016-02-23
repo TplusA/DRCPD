@@ -84,6 +84,7 @@ static unsigned int query_list_size(tdbuslistsNavigation *proxy,
       case ListError::Code::NET_IO:
       case ListError::Code::PROTOCOL:
       case ListError::Code::AUTHENTICATION:
+      case ListError::Code::INCONSISTENT:
         msg_error(0, LOG_NOTICE,
                   "Error while obtaining size of list ID %u: %s",
                   list_id.get_raw_id(), error.to_string());
