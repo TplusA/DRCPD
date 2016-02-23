@@ -163,21 +163,25 @@ bool ViewFileBrowser::View::write_xml(std::ostream &os, bool is_full_view)
             item = nullptr;
         }
 
+        if(item == nullptr)
+        {
+            /* we do not abort the serialization even in case of error,
+             * otherwise the user would see no update at all */
+            return true;
+        }
+
         std::string flags;
 
-        if(item != nullptr)
-        {
-            if(item->is_directory())
-                flags.push_back('d');
-            else
-                flags.push_back('p');
-        }
+        if(item->is_directory())
+            flags.push_back('d');
+        else
+            flags.push_back('p');
 
         if(it == navigation_.get_cursor())
             flags.push_back('s');
 
         os << "<text id=\"line" << displayed_line << "\" flag=\"" << flags << "\">"
-           << XmlEscape(item != nullptr ? item->get_text() : "-----") << "</text>";
+           << XmlEscape(item->get_text()) << "</text>";
 
         ++displayed_line;
     }
