@@ -27,6 +27,7 @@
 #include "dbus_iface.h"
 #include "dbus_iface_deep.h"
 #include "idtypes.hh"
+#include "de_tahifi_lists_item_kinds.hh"
 
 namespace Playback { class Player; }
 
@@ -43,7 +44,7 @@ namespace Playback { class Player; }
 namespace ViewFileBrowser
 {
 
-List::Item *construct_file_item(const char *name, bool is_directory);
+List::Item *construct_file_item(const char *name, ListItemKind kind);
 
 class View: public ViewIface
 {
@@ -149,7 +150,7 @@ class View: public ViewIface
 class FileItem: public List::TextItem
 {
   private:
-    bool is_directory_;
+    ListItemKind kind_;
 
   public:
     FileItem(const FileItem &) = delete;
@@ -157,16 +158,13 @@ class FileItem: public List::TextItem
     explicit FileItem(FileItem &&) = default;
 
     explicit FileItem(const char *text, unsigned int flags,
-                      bool item_is_directory):
+                      ListItemKind item_kind):
         List::Item(flags),
         List::TextItem(text, true, flags),
-        is_directory_(item_is_directory)
+        kind_(item_kind)
     {}
 
-    bool is_directory() const
-    {
-        return is_directory_;
-    }
+    ListItemKind get_kind() const { return kind_; }
 };
 
 };

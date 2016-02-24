@@ -31,7 +31,9 @@ drcpd_SOURCES = \
     playinfo.hh idtypes.hh stream_id.h stream_id.hh \
     player.hh playbackmode.hh playbackmode_state.hh \
     $(DBUS_IFACES)/de_tahifi_lists_errors.hh \
-    $(DBUS_IFACES)/de_tahifi_lists_errors.h
+    $(DBUS_IFACES)/de_tahifi_lists_errors.h \
+    $(DBUS_IFACES)/de_tahifi_lists_item_kinds.hh \
+    $(DBUS_IFACES)/de_tahifi_lists_item_kinds.h
 
 DBUS_IFACES = $(top_srcdir)/dbus_interfaces
 

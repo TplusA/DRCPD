@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -24,6 +24,7 @@
 #include "ramlist.hh"
 #include "messages.h"
 #include "dbuslist_exception.hh"
+#include "de_tahifi_lists_item_kinds.hh"
 
 /*!
  * \addtogroup dbus_list Lists with contents filled directly from D-Bus
@@ -40,7 +41,7 @@ namespace List
 class DBusList: public ListIface
 {
   public:
-    typedef List::Item *(*const NewItemFn)(const char *name, bool is_directory);
+    typedef List::Item *(*const NewItemFn)(const char *name, ListItemKind kind);
 
   private:
     tdbuslistsNavigation *const dbus_proxy_;

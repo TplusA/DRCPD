@@ -367,7 +367,7 @@ bool Playback::State::try_start()
     if(item == nullptr)
         return false;
 
-    if(!item->is_directory())
+    if(!item->get_kind().is_directory())
         return true;
 
     if(mode_.get() != Playback::Mode::LINEAR)
@@ -418,6 +418,28 @@ bool Playback::State::start(const List::DBusList &user_list,
     }
 
     return false;
+}
+
+static inline bool can_queue_item(const ViewFileBrowser::FileItem &item)
+{
+    switch(item.get_kind().get())
+    {
+      case ListItemKind::OPAQUE:
+      case ListItemKind::REGULAR_FILE:
+        return true;
+
+      case ListItemKind::LOCKED:
+      case ListItemKind::DIRECTORY:
+      case ListItemKind::SERVER:
+      case ListItemKind::STORAGE_DEVICE:
+      case ListItemKind::SEARCH_FORM:
+        return false;
+    }
+
+    BUG("Unhandled item kind %u, still pushing it to streamplayer",
+        item.get_kind().get_raw_code());
+
+    return true;
 }
 
 bool Playback::State::enqueue_next(StreamInfo &sinfo, bool skip_to_next,
@@ -477,7 +499,7 @@ bool Playback::State::enqueue_next(StreamInfo &sinfo, bool skip_to_next,
             return queued_for_immediate_playback;
         }
 
-        if(!item->is_directory())
+        if(can_queue_item(*item))
         {
             const unsigned int current_line = navigation_.get_cursor();
             const ID::OurStream fallback_title_id =
@@ -598,7 +620,7 @@ bool Playback::State::find_next(const List::TextItem *directory)
 
     auto item = dynamic_cast<const ViewFileBrowser::FileItem *>(directory);
 
-    if(item != nullptr && item->is_directory() && try_descend())
+    if(item != nullptr && item->get_kind().is_directory() && try_descend())
         return true;
 
     while(true)

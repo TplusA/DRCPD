@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -85,6 +85,8 @@ static unsigned int query_list_size(tdbuslistsNavigation *proxy,
       case ListError::Code::PROTOCOL:
       case ListError::Code::AUTHENTICATION:
       case ListError::Code::INCONSISTENT:
+      case ListError::Code::PERMISSION_DENIED:
+      case ListError::Code::NOT_SUPPORTED:
         msg_error(0, LOG_NOTICE,
                   "Error while obtaining size of list ID %u: %s",
                   list_id.get_raw_id(), error.to_string());
@@ -167,15 +169,15 @@ static void fill_cache_list(List::RamList &items,
         return;
 
     gchar *name;
-    gboolean is_directory;
+    uint8_t item_kind;
 
-    while(g_variant_iter_next(&iter, "(sb)", &name, &is_directory))
+    while(g_variant_iter_next(&iter, "(sy)", &name, &item_kind))
     {
         if(replace_mode)
             items.replace(cache_list_index++,
-                          new_item_fn(name, !!is_directory));
+                          new_item_fn(name, ListItemKind(item_kind)));
         else
-            items.append(new_item_fn(name, !!is_directory));
+            items.append(new_item_fn(name, ListItemKind(item_kind)));
 
         g_free(name);
     }

@@ -29,9 +29,9 @@
 #include "messages.h"
 
 List::Item *ViewFileBrowser::construct_file_item(const char *name,
-                                                 bool is_directory)
+                                                 ListItemKind kind)
 {
-    return new FileItem(name, 0, is_directory);
+    return new FileItem(name, 0, kind);
 }
 
 bool ViewFileBrowser::View::init()
@@ -72,7 +72,7 @@ ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command)
 
         if(item)
         {
-            if(item->is_directory())
+            if(item->get_kind().is_directory())
             {
                 if(point_to_child_directory())
                     return InputResult::UPDATE_NEEDED;
@@ -172,10 +172,29 @@ bool ViewFileBrowser::View::write_xml(std::ostream &os, bool is_full_view)
 
         std::string flags;
 
-        if(item->is_directory())
+        switch(item->get_kind().get())
+        {
+          case ListItemKind::DIRECTORY:
             flags.push_back('d');
-        else
+            break;
+
+          case ListItemKind::SERVER:
+          case ListItemKind::STORAGE_DEVICE:
+            flags.push_back('S');
+            break;
+
+          case ListItemKind::REGULAR_FILE:
             flags.push_back('p');
+            break;
+
+          case ListItemKind::LOCKED:
+            flags.push_back('L');
+            break;
+
+          case ListItemKind::OPAQUE:
+          case ListItemKind::SEARCH_FORM:
+            break;
+        }
 
         if(it == navigation_.get_cursor())
             flags.push_back('s');
@@ -220,7 +239,7 @@ bool ViewFileBrowser::View::serialize(DcpTransaction &dcpd, std::ostream *debug_
             *debug_os << "    ";
 
         if(item != nullptr)
-            *debug_os << (item->is_directory() ? "Dir " : "File") << " " << it << ": "
+            *debug_os << "Type " << item->get_kind().get_raw_code() << " " << it << ": "
                       << item->get_text() << std::endl;
         else
             *debug_os << "*NULL ENTRY* " << it << std::endl;
@@ -360,6 +379,8 @@ bool ViewFileBrowser::View::point_to_child_directory()
           case ListError::Code::PROTOCOL:
           case ListError::Code::AUTHENTICATION:
           case ListError::Code::INCONSISTENT:
+          case ListError::Code::PERMISSION_DENIED:
+          case ListError::Code::NOT_SUPPORTED:
             /* problem: stay right there where you are */
             msg_info("Go to child list error, stay here: %s", e.what());
             return false;
@@ -414,6 +435,8 @@ bool ViewFileBrowser::View::point_to_parent_link()
           case ListError::Code::INVALID_ID:
           case ListError::Code::AUTHENTICATION:
           case ListError::Code::INCONSISTENT:
+          case ListError::Code::PERMISSION_DENIED:
+          case ListError::Code::NOT_SUPPORTED:
             /* funny problem: better return to root directory */
             break;
         }
