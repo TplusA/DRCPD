@@ -72,13 +72,29 @@ ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command)
 
         if(item)
         {
-            if(item->get_kind().is_directory())
+            switch(item->get_kind().get())
             {
+              case ListItemKind::LOCKED:
+                /* don't even try */
+                break;
+
+              case ListItemKind::DIRECTORY:
+              case ListItemKind::SERVER:
+              case ListItemKind::STORAGE_DEVICE:
                 if(point_to_child_directory())
                     return InputResult::UPDATE_NEEDED;
-            }
-            else
+
+                break;
+
+              case ListItemKind::REGULAR_FILE:
+              case ListItemKind::OPAQUE:
                 command = DrcpCommand::PLAYBACK_START;
+                break;
+
+              case ListItemKind::SEARCH_FORM:
+                msg_info("Enter search form, need input from user");
+                break;
+            }
         }
 
         if(command != DrcpCommand::PLAYBACK_START)
