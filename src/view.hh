@@ -28,7 +28,7 @@
 #include "i18n.h"
 #include "xmlescape.hh"
 
-class ViewManagerIface;
+namespace ViewManager { class VMIface; }
 
 /*!
  * \addtogroup views Various views with their specific behaviors
@@ -59,7 +59,7 @@ class ViewIface
     const bool is_browse_view_;
 
   protected:
-    ViewManagerIface *const view_manager_;
+    ViewManager::VMIface *const view_manager_;
     ViewSignalsIface *const view_signals_;
 
     /*!
@@ -88,7 +88,7 @@ class ViewIface
     explicit constexpr ViewIface(const char *name, const char *on_screen_name,
                                  const char *drcp_view_id,
                                  uint8_t drcp_screen_id, bool is_browse_view,
-                                 ViewManagerIface *view_manager,
+                                 ViewManager::VMIface *view_manager,
                                  ViewSignalsIface *view_signals):
         name_(name),
         on_screen_name_(on_screen_name),

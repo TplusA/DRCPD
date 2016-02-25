@@ -28,7 +28,7 @@
 
 static ViewNop::View nop_view(nullptr);
 
-ViewManager::ViewManager(DcpTransaction &dcpd):
+ViewManager::Manager::Manager(DcpTransaction &dcpd):
     active_view_(&nop_view),
     last_browse_view_(nullptr),
     dcp_transaction_(dcpd),
@@ -40,7 +40,7 @@ static inline bool is_view_name_valid(const std::string &view_name)
     return view_name[0] != '#' && view_name[0] != '\0';
 }
 
-bool ViewManager::add_view(ViewIface *view)
+bool ViewManager::Manager::add_view(ViewIface *view)
 {
     if(view == nullptr)
         return false;
@@ -56,12 +56,12 @@ bool ViewManager::add_view(ViewIface *view)
     return true;
 }
 
-void ViewManager::set_output_stream(std::ostream &os)
+void ViewManager::Manager::set_output_stream(std::ostream &os)
 {
     dcp_transaction_.set_output_stream(&os);
 }
 
-void ViewManager::set_debug_stream(std::ostream &os)
+void ViewManager::Manager::set_debug_stream(std::ostream &os)
 {
     debug_stream_ = &os;
 }
@@ -75,7 +75,7 @@ static void abort_transaction_or_fail_hard(DcpTransaction &t)
     os_abort();
 }
 
-void ViewManager::serialization_result(DcpTransaction::Result result)
+void ViewManager::Manager::serialization_result(DcpTransaction::Result result)
 {
     if(!dcp_transaction_.is_in_progress())
     {
@@ -119,8 +119,8 @@ static void bug_271(const ViewIface &view, const char *what)
         "We are in some bogus state now.", what, view.name_);
 }
 
-void ViewManager::handle_input_result(ViewIface::InputResult result,
-                                      ViewIface &view)
+void ViewManager::Manager::handle_input_result(ViewIface::InputResult result,
+                                               ViewIface &view)
 {
     switch(result)
     {
@@ -141,14 +141,15 @@ void ViewManager::handle_input_result(ViewIface::InputResult result,
     }
 }
 
-void ViewManager::input(DrcpCommand command)
+void ViewManager::Manager::input(DrcpCommand command)
 {
     msg_info("Dispatching DRCP command %d", command);
     handle_input_result(active_view_->input(command), *active_view_);
 }
 
-ViewIface::InputResult ViewManager::input_bounce(const ViewManagerInputBouncer &bouncer,
-                                                 DrcpCommand command)
+ViewIface::InputResult
+ViewManager::Manager::input_bounce(const ViewManager::InputBouncer &bouncer,
+                                   DrcpCommand command)
 {
     const auto *item = bouncer.find(command);
 
@@ -166,7 +167,7 @@ ViewIface::InputResult ViewManager::input_bounce(const ViewManagerInputBouncer &
     return ViewIface::InputResult::OK;
 }
 
-void ViewManager::input_set_fast_wind_factor(double factor)
+void ViewManager::Manager::input_set_fast_wind_factor(double factor)
 {
     msg_info("Need to handle FastWindSetFactor %f", factor);
 }
@@ -201,7 +202,7 @@ static bool move_cursor_multiple_steps(int steps, DrcpCommand down_cmd,
     return true;
 }
 
-void ViewManager::input_move_cursor_by_line(int lines)
+void ViewManager::Manager::input_move_cursor_by_line(int lines)
 {
     ViewIface::InputResult result;
 
@@ -212,7 +213,7 @@ void ViewManager::input_move_cursor_by_line(int lines)
         handle_input_result(result, *active_view_);
 }
 
-void ViewManager::input_move_cursor_by_page(int pages)
+void ViewManager::Manager::input_move_cursor_by_page(int pages)
 {
     ViewIface::InputResult result;
 
@@ -223,7 +224,7 @@ void ViewManager::input_move_cursor_by_page(int pages)
         handle_input_result(result, *active_view_);
 }
 
-static ViewIface *lookup_view_by_name(ViewManager::ViewsContainer &container,
+static ViewIface *lookup_view_by_name(ViewManager::Manager::ViewsContainer &container,
                                       const char *view_name)
 {
     if(!is_view_name_valid(view_name))
@@ -234,7 +235,7 @@ static ViewIface *lookup_view_by_name(ViewManager::ViewsContainer &container,
     return (it != container.end()) ? it->second : nullptr;
 }
 
-static ViewIface *lookup_view_by_dbus_proxy(ViewManager::ViewsContainer &container,
+static ViewIface *lookup_view_by_dbus_proxy(ViewManager::Manager::ViewsContainer &container,
                                             const void *dbus_proxy)
 {
     if(dbus_proxy == nullptr)
@@ -251,7 +252,7 @@ static ViewIface *lookup_view_by_dbus_proxy(ViewManager::ViewsContainer &contain
     return nullptr;
 }
 
-void ViewManager::activate_view(ViewIface *view)
+void ViewManager::Manager::activate_view(ViewIface *view)
 {
     if(view == nullptr)
         return;
@@ -268,29 +269,29 @@ void ViewManager::activate_view(ViewIface *view)
         last_browse_view_ = view;
 }
 
-ViewIface *ViewManager::get_view_by_name(const char *view_name)
+ViewIface *ViewManager::Manager::get_view_by_name(const char *view_name)
 {
     return lookup_view_by_name(all_views_, view_name);
 }
 
-ViewIface *ViewManager::get_view_by_dbus_proxy(const void *dbus_proxy)
+ViewIface *ViewManager::Manager::get_view_by_dbus_proxy(const void *dbus_proxy)
 {
     return lookup_view_by_dbus_proxy(all_views_, dbus_proxy);
 }
 
-ViewIface *ViewManager::get_playback_initiator_view() const
+ViewIface *ViewManager::Manager::get_playback_initiator_view() const
 {
     return last_browse_view_;
 }
 
-void ViewManager::activate_view_by_name(const char *view_name)
+void ViewManager::Manager::activate_view_by_name(const char *view_name)
 {
     msg_info("Requested to activate view \"%s\"", view_name);
     activate_view(lookup_view_by_name(all_views_, view_name));
 }
 
-void ViewManager::toggle_views_by_name(const char *view_name_a,
-                                       const char *view_name_b)
+void ViewManager::Manager::toggle_views_by_name(const char *view_name_a,
+                                                const char *view_name_b)
 {
     msg_info("Requested to toggle between views \"%s\" and \"%s\"",
              view_name_a, view_name_b );
@@ -312,12 +313,12 @@ void ViewManager::toggle_views_by_name(const char *view_name_a,
     activate_view(next_view);
 }
 
-bool ViewManager::is_active_view(const ViewIface *view) const
+bool ViewManager::Manager::is_active_view(const ViewIface *view) const
 {
     return view == active_view_;
 }
 
-bool ViewManager::update_view_if_active(const ViewIface *view) const
+bool ViewManager::Manager::update_view_if_active(const ViewIface *view) const
 {
     if(is_active_view(view))
         return active_view_->update(dcp_transaction_, debug_stream_);
@@ -325,7 +326,7 @@ bool ViewManager::update_view_if_active(const ViewIface *view) const
         return true;
 }
 
-bool ViewManager::serialize_view_if_active(const ViewIface *view) const
+bool ViewManager::Manager::serialize_view_if_active(const ViewIface *view) const
 {
     if(is_active_view(view))
         return active_view_->serialize(dcp_transaction_, debug_stream_);
@@ -333,7 +334,7 @@ bool ViewManager::serialize_view_if_active(const ViewIface *view) const
         return true;
 }
 
-void ViewManager::hide_view_if_active(const ViewIface *view)
+void ViewManager::Manager::hide_view_if_active(const ViewIface *view)
 {
     if(is_active_view(view))
         handle_input_result(ViewIface::InputResult::SHOULD_HIDE, *active_view_);

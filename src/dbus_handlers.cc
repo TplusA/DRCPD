@@ -233,7 +233,7 @@ void dbussignal_splay_urlfifo(GDBusProxy *proxy, const gchar *sender_name,
     unknown_signal(iface_name, signal_name, sender_name);
 }
 
-static ViewIface *get_play_view(ViewManagerIface *mgr)
+static ViewIface *get_play_view(ViewManager::VMIface *mgr)
 {
     ViewIface *view = mgr->get_view_by_name("Play");
     log_assert(view != nullptr);

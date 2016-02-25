@@ -51,7 +51,7 @@ struct files_t
 struct dcp_fifo_dispatch_data_t
 {
     files_t *files;
-    ViewManagerIface *vm;
+    ViewManager::VMIface *vm;
     guint timeout_event_source_id;
 };
 
@@ -374,7 +374,7 @@ static int process_command_line(int argc, char *argv[],
     return 0;
 }
 
-static void connect_everything(ViewManager &views, ViewSignalsIface *view_signals,
+static void connect_everything(ViewManager::Manager &views, ViewSignalsIface *view_signals,
                                Playback::Player &player)
 {
     static const unsigned int number_of_lines_on_display = 3;
@@ -469,7 +469,7 @@ int main(int argc, char *argv[])
     static DcpTransaction dcp_transaction(transaction_observer);
     static FdStreambuf fd_sbuf(files.dcp_fifo.out_fd);
     static std::ostream fd_out(&fd_sbuf);
-    static ViewManager view_manager(dcp_transaction);
+    static ViewManager::Manager view_manager(dcp_transaction);
 
     static Playback::Player player_singleton(ViewPlay::meta_data_reformatters);
     static DBusSignalData dbus_signal_data(view_manager, player_singleton, player_singleton);

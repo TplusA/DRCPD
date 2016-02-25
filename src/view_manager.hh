@@ -31,10 +31,13 @@
  */
 /*!@{*/
 
+namespace ViewManager
+{
+
 /*!
  * Helper class for constructing tables of input command redirections.
  */
-class ViewManagerInputBouncer
+class InputBouncer
 {
   public:
     class Item
@@ -69,11 +72,11 @@ class ViewManagerInputBouncer
     const size_t items_count_;
 
   public:
-    ViewManagerInputBouncer(const ViewManagerInputBouncer &) = delete;
-    ViewManagerInputBouncer &operator=(const ViewManagerInputBouncer &) = delete;
+    InputBouncer(const InputBouncer &) = delete;
+    InputBouncer &operator=(const InputBouncer &) = delete;
 
     template <size_t N>
-    constexpr explicit ViewManagerInputBouncer(const Item (&items)[N]) throw():
+    constexpr explicit InputBouncer(const Item (&items)[N]) throw():
         items_(items),
         items_count_(N)
     {}
@@ -88,16 +91,16 @@ class ViewManagerInputBouncer
     }
 };
 
-class ViewManagerIface
+class VMIface
 {
   protected:
-    explicit ViewManagerIface() {}
+    explicit VMIface() {}
 
   public:
-    ViewManagerIface(const ViewManagerIface &) = delete;
-    ViewManagerIface &operator=(const ViewManagerIface &) = delete;
+    VMIface(const VMIface &) = delete;
+    VMIface &operator=(const VMIface &) = delete;
 
-    virtual ~ViewManagerIface() {}
+    virtual ~VMIface() {}
 
     virtual bool add_view(ViewIface *view) = 0;
     virtual void set_output_stream(std::ostream &os) = 0;
@@ -106,7 +109,7 @@ class ViewManagerIface
     virtual void serialization_result(DcpTransaction::Result result) = 0;
 
     virtual void input(DrcpCommand command) = 0;
-    virtual ViewIface::InputResult input_bounce(const ViewManagerInputBouncer &bouncer,
+    virtual ViewIface::InputResult input_bounce(const InputBouncer &bouncer,
                                                 DrcpCommand command) = 0;
     virtual void input_set_fast_wind_factor(double factor) = 0;
     virtual void input_move_cursor_by_line(int lines) = 0;
@@ -123,7 +126,7 @@ class ViewManagerIface
     virtual void hide_view_if_active(const ViewIface *view) = 0;
 };
 
-class ViewManager: public ViewManagerIface
+class Manager: public VMIface
 {
   public:
     using ViewsContainer = std::map<const std::string, ViewIface *>;
@@ -137,10 +140,10 @@ class ViewManager: public ViewManagerIface
     std::ostream *debug_stream_;
 
   public:
-    ViewManager(const ViewManager &) = delete;
-    ViewManager &operator=(const ViewManager &) = delete;
+    Manager(const Manager &) = delete;
+    Manager &operator=(const Manager &) = delete;
 
-    explicit ViewManager(DcpTransaction &dcpd);
+    explicit Manager(DcpTransaction &dcpd);
 
     bool add_view(ViewIface *view) override;
     void set_output_stream(std::ostream &os) override;
@@ -149,7 +152,7 @@ class ViewManager: public ViewManagerIface
     void serialization_result(DcpTransaction::Result result) override;
 
     void input(DrcpCommand command) override;
-    ViewIface::InputResult input_bounce(const ViewManagerInputBouncer &bouncer,
+    ViewIface::InputResult input_bounce(const InputBouncer &bouncer,
                                         DrcpCommand command) override;
     void input_set_fast_wind_factor(double factor) override;
     void input_move_cursor_by_line(int lines) override;
@@ -169,6 +172,8 @@ class ViewManager: public ViewManagerIface
     void activate_view(ViewIface *view);
     void handle_input_result(ViewIface::InputResult result, ViewIface &view);
 };
+
+}
 
 /*!@}*/
 

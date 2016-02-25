@@ -52,12 +52,12 @@ void ViewFileBrowser::View::defocus()
 
 ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command)
 {
-    static constexpr const ViewManagerInputBouncer::Item bounce_table_data[] =
+    static constexpr const ViewManager::InputBouncer::Item bounce_table_data[] =
     {
-        ViewManagerInputBouncer::Item(DrcpCommand::PLAYBACK_STOP, ViewNames::PLAYER),
+        ViewManager::InputBouncer::Item(DrcpCommand::PLAYBACK_STOP, ViewNames::PLAYER),
     };
 
-    static constexpr const ViewManagerInputBouncer bounce_table(bounce_table_data);
+    static constexpr const ViewManager::InputBouncer bounce_table(bounce_table_data);
 
     switch(command)
     {

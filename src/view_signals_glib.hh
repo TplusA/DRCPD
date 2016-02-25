@@ -34,7 +34,7 @@
 class ViewSignalsGLib: public ViewSignalsIface
 {
   private:
-    ViewManagerIface &vm_;
+    ViewManager::VMIface &vm_;
 
     guint source_id_;
     GMainContext *ctx_;
@@ -45,7 +45,7 @@ class ViewSignalsGLib: public ViewSignalsIface
     ViewSignalsGLib(const ViewSignalsGLib &) = delete;
     ViewSignalsGLib &operator=(const ViewSignalsGLib &) = delete;
 
-    explicit ViewSignalsGLib(ViewManagerIface &vm):
+    explicit ViewSignalsGLib(ViewManager::VMIface &vm):
         vm_(vm),
         source_id_(0),
         ctx_(nullptr),

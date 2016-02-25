@@ -19,7 +19,11 @@
 #ifndef DBUS_HANDLERS_HH
 #define DBUS_HANDLERS_HH
 
-class ViewManagerIface;
+namespace ViewManager
+{
+    class VMIface;
+}
+
 namespace Playback
 {
     class PlayerIface;
@@ -39,11 +43,11 @@ class DBusSignalData
     DBusSignalData &operator=(const DBusSignalData &) = delete;
     DBusSignalData(DBusSignalData &&) = default;
 
-    ViewManagerIface &mgr;
+    ViewManager::VMIface &mgr;
     Playback::PlayerIface &player;
     Playback::MetaDataStoreIface &mdstore;
 
-    explicit DBusSignalData(ViewManagerIface &arg_mgr,
+    explicit DBusSignalData(ViewManager::VMIface &arg_mgr,
                             Playback::PlayerIface &arg_player,
                             Playback::MetaDataStoreIface &arg_mdstore):
         mgr(arg_mgr),

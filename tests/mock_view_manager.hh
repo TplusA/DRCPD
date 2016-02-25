@@ -22,7 +22,7 @@
 #include "view_manager.hh"
 #include "mock_expectation.hh"
 
-class MockViewManager: public ViewManagerIface
+class MockViewManager: public ViewManager::VMIface
 {
   private:
     MockViewManager(const MockViewManager &);
@@ -57,7 +57,7 @@ class MockViewManager: public ViewManagerIface
     void set_debug_stream(std::ostream &os) override;
     void serialization_result(DcpTransaction::Result result) override;
     void input(DrcpCommand command) override;
-    ViewIface::InputResult input_bounce(const ViewManagerInputBouncer &bouncer, DrcpCommand command) override;
+    ViewIface::InputResult input_bounce(const ViewManager::InputBouncer &bouncer, DrcpCommand command) override;
     void input_set_fast_wind_factor(double factor) override;
     void input_move_cursor_by_line(int lines) override;
     void input_move_cursor_by_page(int pages) override;

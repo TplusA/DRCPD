@@ -314,7 +314,7 @@ void MockViewManager::input(DrcpCommand command)
     cppcut_assert_equal(int(expect.d.arg_command_), int(command));
 }
 
-ViewIface::InputResult MockViewManager::input_bounce(const ViewManagerInputBouncer &bouncer, DrcpCommand command)
+ViewIface::InputResult MockViewManager::input_bounce(const ViewManager::InputBouncer &bouncer, DrcpCommand command)
 {
     const auto &expect(expectations_->get_next_expectation(__func__));
 

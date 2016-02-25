@@ -89,7 +89,7 @@ namespace view_manager_tests_basics
 
 static MockMessages *mock_messages;
 static DcpTransaction *dcpd;
-static ViewManager *vm;
+static ViewManager::Manager *vm;
 static std::ostringstream *views_output;
 static const char standard_mock_view_name[] = "Mock";
 static DummyViewSignals dummy_view_signals;
@@ -106,7 +106,7 @@ void cut_setup(void)
     dcpd = new DcpTransaction(transaction_observer);
     cppcut_assert_not_null(dcpd);
 
-    vm = new ViewManager(*dcpd);
+    vm = new ViewManager::Manager(*dcpd);
     cppcut_assert_not_null(vm);
     vm->set_output_stream(*views_output);
 }
@@ -219,7 +219,7 @@ namespace view_manager_tests
 
 static MockMessages *mock_messages;
 static DcpTransaction *dcpd;
-static ViewManager *vm;
+static ViewManager::Manager *vm;
 static std::ostringstream *views_output;
 static const char standard_mock_view_name[] = "Mock";
 static ViewMock::View *mock_view;
@@ -242,7 +242,7 @@ void cut_setup(void)
     dcpd = new DcpTransaction(transaction_observer);
     cppcut_assert_not_null(dcpd);
 
-    vm = new ViewManager(*dcpd);
+    vm = new ViewManager::Manager(*dcpd);
     cppcut_assert_not_null(vm);
     vm->set_output_stream(*views_output);
     cut_assert_true(vm->add_view(mock_view));
@@ -412,7 +412,7 @@ namespace view_manager_tests_multiple_views
 
 static DummyViewSignals dummy_view_signals;
 
-static void populate_view_manager(ViewManager &vm,
+static void populate_view_manager(ViewManager::Manager &vm,
                                   std::array<ViewMock::View *, 4> &all_views)
 {
     static const struct
@@ -445,7 +445,7 @@ static void populate_view_manager(ViewManager &vm,
 static MockMessages *mock_messages;
 static std::array<ViewMock::View *, 4> all_mock_views;
 static DcpTransaction *dcpd;
-static ViewManager *vm;
+static ViewManager::Manager *vm;
 static std::ostringstream *views_output;
 
 void cut_setup(void)
@@ -461,7 +461,7 @@ void cut_setup(void)
     dcpd = new DcpTransaction(transaction_observer);
     cppcut_assert_not_null(dcpd);
 
-    vm = new ViewManager(*dcpd);
+    vm = new ViewManager::Manager(*dcpd);
     cppcut_assert_not_null(vm);
 
     mock_messages->ignore_all_ = true;
@@ -792,7 +792,7 @@ namespace view_manager_tests_serialization
 
 static MockMessages *mock_messages;
 static DcpTransaction *dcpd;
-static ViewManager *vm;
+static ViewManager::Manager *vm;
 static std::ostringstream *views_output;
 static const char standard_mock_view_name[] = "Mock";
 static ViewMock::View *mock_view;
@@ -815,7 +815,7 @@ void cut_setup(void)
     dcpd = new DcpTransaction(transaction_observer);
     cppcut_assert_not_null(dcpd);
 
-    vm = new ViewManager(*dcpd);
+    vm = new ViewManager::Manager(*dcpd);
     cppcut_assert_not_null(vm);
     vm->set_output_stream(*views_output);
     cut_assert_true(vm->add_view(mock_view));
