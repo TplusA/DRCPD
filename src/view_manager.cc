@@ -147,6 +147,25 @@ void ViewManager::input(DrcpCommand command)
     handle_input_result(active_view_->input(command), *active_view_);
 }
 
+ViewIface::InputResult ViewManager::input_bounce(const ViewManagerInputBouncer &bouncer,
+                                                 DrcpCommand command)
+{
+    const auto *item = bouncer.find(command);
+
+    if(item == nullptr)
+        return ViewIface::InputResult::OK;
+
+    auto *const view = get_view_by_name(item->view_name_);
+
+    if(view != nullptr)
+        return view->input(item->xform_command_);
+
+    BUG("Failed bouncing command %u, view \"%s\" unknown",
+        command, item->view_name_);
+
+    return ViewIface::InputResult::OK;
+}
+
 void ViewManager::input_set_fast_wind_factor(double factor)
 {
     msg_info("Need to handle FastWindSetFactor %f", factor);

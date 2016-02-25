@@ -31,6 +31,7 @@ enum class MemberFn
 {
     serialization_result,
     input,
+    input_bounce,
     input_set_fast_wind_factor,
     input_move_cursor_by_line,
     input_move_cursor_by_page,
@@ -61,6 +62,10 @@ static std::ostream &operator<<(std::ostream &os, const MemberFn id)
 
       case MemberFn::input:
         os << "input";
+        break;
+
+      case MemberFn::input_bounce:
+        os << "input_bounce";
         break;
 
       case MemberFn::input_set_fast_wind_factor:
@@ -108,7 +113,9 @@ class MockViewManager::Expectation
     {
         const MemberFn function_id_;
 
+        ViewIface::InputResult ret_result_;
         DrcpCommand arg_command_;
+        DrcpCommand bounce_xform_command_;
         double arg_factor_;
         int arg_lines_or_pages_;
         std::string arg_view_name_;
@@ -117,7 +124,9 @@ class MockViewManager::Expectation
 
         explicit Data(MemberFn fn):
             function_id_(fn),
+            ret_result_(ViewIface::InputResult::OK),
             arg_command_(DrcpCommand::UNDEFINED_COMMAND),
+            bounce_xform_command_(DrcpCommand::UNDEFINED_COMMAND),
             arg_factor_(-42.23),
             arg_lines_or_pages_(-9999),
             arg_dcp_result_(DcpTransaction::Result::OK)
@@ -172,6 +181,19 @@ class MockViewManager::Expectation
         data_.arg_view_name_b_ = view_name_b;
     }
 
+    explicit Expectation(MemberFn id, ViewIface::InputResult retval,
+                         DrcpCommand command, DrcpCommand xform_command,
+                         const char *view_name):
+        d(id)
+    {
+        data_.ret_result_ = retval;
+        data_.arg_command_ = command;
+        data_.bounce_xform_command_ = xform_command;
+
+        if(view_name != nullptr)
+            data_.arg_view_name_ = view_name;
+    }
+
     explicit Expectation(MemberFn id):
         d(id)
     {}
@@ -210,6 +232,11 @@ void MockViewManager::expect_serialization_result(DcpTransaction::Result result)
 void MockViewManager::expect_input(DrcpCommand command)
 {
     expectations_->add(Expectation(MemberFn::input, command));
+}
+
+void MockViewManager::expect_input_bounce(ViewIface::InputResult retval, DrcpCommand command, DrcpCommand xform_command, const char *view_name)
+{
+    expectations_->add(Expectation(MemberFn::input_bounce, retval, command, xform_command, view_name));
 }
 
 void MockViewManager::expect_input_set_fast_wind_factor(double factor)
@@ -285,6 +312,31 @@ void MockViewManager::input(DrcpCommand command)
 
     cppcut_assert_equal(expect.d.function_id_, MemberFn::input);
     cppcut_assert_equal(int(expect.d.arg_command_), int(command));
+}
+
+ViewIface::InputResult MockViewManager::input_bounce(const ViewManagerInputBouncer &bouncer, DrcpCommand command)
+{
+    const auto &expect(expectations_->get_next_expectation(__func__));
+
+    cppcut_assert_equal(expect.d.function_id_, MemberFn::input_bounce);
+    cppcut_assert_equal(int(expect.d.arg_command_), int(command));
+
+    const auto *item = bouncer.find(command);
+
+    if(item == nullptr)
+    {
+        cppcut_assert_equal(int(ViewIface::InputResult::OK), int(expect.d.ret_result_));
+        cppcut_assert_equal(int(DrcpCommand::UNDEFINED_COMMAND), int(expect.d.bounce_xform_command_));
+        cut_assert_true(expect.d.arg_view_name_.empty());
+    }
+    else
+    {
+        cppcut_assert_equal(int(expect.d.bounce_xform_command_), int(item->xform_command_));
+        cppcut_assert_equal(expect.d.arg_view_name_.c_str(), item->view_name_);
+        cut_assert_false(expect.d.arg_view_name_.empty());
+    }
+
+    return expect.d.ret_result_;
 }
 
 void MockViewManager::input_set_fast_wind_factor(double factor)

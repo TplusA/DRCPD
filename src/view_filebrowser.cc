@@ -52,6 +52,13 @@ void ViewFileBrowser::View::defocus()
 
 ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command)
 {
+    static constexpr const ViewManagerInputBouncer::Item bounce_table_data[] =
+    {
+        ViewManagerInputBouncer::Item(DrcpCommand::PLAYBACK_STOP, ViewNames::PLAYER),
+    };
+
+    static constexpr const ViewManagerInputBouncer bounce_table(bounce_table_data);
+
     switch(command)
     {
       case DrcpCommand::SELECT_ITEM:
@@ -122,10 +129,6 @@ ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command)
 
         return InputResult::OK;
 
-      case DrcpCommand::PLAYBACK_STOP:
-        player_.release(true);
-        return InputResult::OK;
-
       case DrcpCommand::GO_BACK_ONE_LEVEL:
         return point_to_parent_link() ? InputResult::UPDATE_NEEDED : InputResult::OK;
 
@@ -154,6 +157,7 @@ ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command)
       }
 
       default:
+        (void)view_manager_->input_bounce(bounce_table, command);
         break;
     }
 

@@ -21,6 +21,7 @@
 
 #include <map>
 #include <memory>
+#include <algorithm>
 
 #include "view.hh"
 #include "dcp_transaction.hh"
@@ -29,6 +30,63 @@
  * \addtogroup view_manager Management of the various views
  */
 /*!@{*/
+
+/*!
+ * Helper class for constructing tables of input command redirections.
+ */
+class ViewManagerInputBouncer
+{
+  public:
+    class Item
+    {
+      public:
+        const DrcpCommand input_command_;
+        const DrcpCommand xform_command_;
+        const char *const view_name_;
+
+        Item(const Item &) = delete;
+        Item &operator=(const Item &) = delete;
+        Item(Item &&) = default;
+
+        constexpr explicit Item(DrcpCommand command,
+                                const char *view_name) throw():
+            input_command_(command),
+            xform_command_(command),
+            view_name_(view_name)
+        {}
+
+        constexpr explicit Item(DrcpCommand input_command,
+                                DrcpCommand xform_command,
+                                const char *view_name) throw():
+            input_command_(input_command),
+            xform_command_(xform_command),
+            view_name_(view_name)
+        {}
+    };
+
+  private:
+    const Item *const items_;
+    const size_t items_count_;
+
+  public:
+    ViewManagerInputBouncer(const ViewManagerInputBouncer &) = delete;
+    ViewManagerInputBouncer &operator=(const ViewManagerInputBouncer &) = delete;
+
+    template <size_t N>
+    constexpr explicit ViewManagerInputBouncer(const Item (&items)[N]) throw():
+        items_(items),
+        items_count_(N)
+    {}
+
+    const Item *find(DrcpCommand command) const
+    {
+        return std::find_if(items_, items_ + items_count_,
+                            [command] (const Item &item) -> bool
+                            {
+                                return item.input_command_ == command;
+                            });
+    }
+};
 
 class ViewManagerIface
 {
@@ -48,6 +106,8 @@ class ViewManagerIface
     virtual void serialization_result(DcpTransaction::Result result) = 0;
 
     virtual void input(DrcpCommand command) = 0;
+    virtual ViewIface::InputResult input_bounce(const ViewManagerInputBouncer &bouncer,
+                                                DrcpCommand command) = 0;
     virtual void input_set_fast_wind_factor(double factor) = 0;
     virtual void input_move_cursor_by_line(int lines) = 0;
     virtual void input_move_cursor_by_page(int pages) = 0;
@@ -89,6 +149,8 @@ class ViewManager: public ViewManagerIface
     void serialization_result(DcpTransaction::Result result) override;
 
     void input(DrcpCommand command) override;
+    ViewIface::InputResult input_bounce(const ViewManagerInputBouncer &bouncer,
+                                        DrcpCommand command) override;
     void input_set_fast_wind_factor(double factor) override;
     void input_move_cursor_by_line(int lines) override;
     void input_move_cursor_by_page(int pages) override;

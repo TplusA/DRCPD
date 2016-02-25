@@ -41,6 +41,7 @@ class MockViewManager: public ViewManagerIface
 
     void expect_serialization_result(DcpTransaction::Result result);
     void expect_input(DrcpCommand command);
+    void expect_input_bounce(ViewIface::InputResult retval, DrcpCommand command, DrcpCommand xform_command = DrcpCommand::UNDEFINED_COMMAND, const char *view_name = nullptr);
     void expect_input_set_fast_wind_factor(double factor);
     void expect_input_move_cursor_by_line(int lines);
     void expect_input_move_cursor_by_page(int pages);
@@ -56,6 +57,7 @@ class MockViewManager: public ViewManagerIface
     void set_debug_stream(std::ostream &os) override;
     void serialization_result(DcpTransaction::Result result) override;
     void input(DrcpCommand command) override;
+    ViewIface::InputResult input_bounce(const ViewManagerInputBouncer &bouncer, DrcpCommand command) override;
     void input_set_fast_wind_factor(double factor) override;
     void input_move_cursor_by_line(int lines) override;
     void input_move_cursor_by_page(int pages) override;
