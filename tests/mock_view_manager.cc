@@ -103,78 +103,77 @@ static std::ostream &operator<<(std::ostream &os, const MemberFn id)
 
 class MockViewManager::Expectation
 {
+  public:
+    struct Data
+    {
+        const MemberFn function_id_;
+
+        DrcpCommand arg_command_;
+        double arg_factor_;
+        int arg_lines_or_pages_;
+        std::string arg_view_name_;
+        std::string arg_view_name_b_;
+        DcpTransaction::Result arg_dcp_result_;
+
+        explicit Data(MemberFn fn):
+            function_id_(fn),
+            arg_command_(DrcpCommand::UNDEFINED_COMMAND),
+            arg_factor_(-42.23),
+            arg_lines_or_pages_(-9999),
+            arg_dcp_result_(DcpTransaction::Result::OK)
+        {}
+    };
+
+    const Data d;
+
   private:
-    Expectation(const Expectation &);
-    Expectation &operator=(const Expectation &);
+    /* writable reference for simple ctor code */
+    Data &data_ = *const_cast<Data *>(&d);
 
   public:
-    const MemberFn function_id_;
-
-    const DrcpCommand arg_command_;
-    const double arg_factor_;
-    const int arg_lines_or_pages_;
-    const std::string arg_view_name_;
-    const std::string arg_view_name_b_;
-    const DcpTransaction::Result arg_dcp_result_;
+    Expectation(const Expectation &) = delete;
+    Expectation &operator=(const Expectation &) = delete;
 
     explicit Expectation(MemberFn id, DcpTransaction::Result result):
-        function_id_(id),
-        arg_command_(DrcpCommand::UNDEFINED_COMMAND),
-        arg_factor_(0.0),
-        arg_lines_or_pages_(0),
-        arg_dcp_result_(result)
-    {}
+        d(id)
+    {
+        data_.arg_dcp_result_ = result;
+    }
 
     explicit Expectation(MemberFn id, DrcpCommand command):
-        function_id_(id),
-        arg_command_(command),
-        arg_factor_(0.0),
-        arg_lines_or_pages_(0),
-        arg_dcp_result_(DcpTransaction::OK)
-    {}
+        d(id)
+    {
+        data_.arg_command_ = command;
+    }
 
     explicit Expectation(MemberFn id, double factor):
-        function_id_(id),
-        arg_command_(DrcpCommand::UNDEFINED_COMMAND),
-        arg_factor_(factor),
-        arg_lines_or_pages_(0),
-        arg_dcp_result_(DcpTransaction::OK)
-    {}
+        d(id)
+    {
+        data_.arg_factor_ = factor;
+    }
 
     explicit Expectation(MemberFn id, int lines_or_pages):
-        function_id_(id),
-        arg_command_(DrcpCommand::UNDEFINED_COMMAND),
-        arg_factor_(0.0),
-        arg_lines_or_pages_(lines_or_pages),
-        arg_dcp_result_(DcpTransaction::OK)
-    {}
+        d(id)
+    {
+        data_.arg_lines_or_pages_ = lines_or_pages;
+    }
 
     explicit Expectation(MemberFn id, const char *view_name):
-        function_id_(id),
-        arg_command_(DrcpCommand::UNDEFINED_COMMAND),
-        arg_factor_(0.0),
-        arg_lines_or_pages_(0),
-        arg_view_name_(view_name),
-        arg_dcp_result_(DcpTransaction::OK)
-    {}
+        d(id)
+    {
+        data_.arg_view_name_ = view_name;
+    }
 
     explicit Expectation(MemberFn id,
                          const char *view_name_a, const char *view_name_b):
-        function_id_(id),
-        arg_command_(DrcpCommand::UNDEFINED_COMMAND),
-        arg_factor_(0.0),
-        arg_lines_or_pages_(0),
-        arg_view_name_(view_name_a),
-        arg_view_name_b_(view_name_b),
-        arg_dcp_result_(DcpTransaction::OK)
-    {}
+        d(id)
+    {
+        data_.arg_view_name_ = view_name_a;
+        data_.arg_view_name_b_ = view_name_b;
+    }
 
     explicit Expectation(MemberFn id):
-        function_id_(id),
-        arg_command_(DrcpCommand::UNDEFINED_COMMAND),
-        arg_factor_(0.0),
-        arg_lines_or_pages_(0),
-        arg_dcp_result_(DcpTransaction::OK)
+        d(id)
     {}
 
     Expectation(Expectation &&) = default;
@@ -276,48 +275,48 @@ void MockViewManager::serialization_result(DcpTransaction::Result result)
 {
     const auto &expect(expectations_->get_next_expectation(__func__));
 
-    cppcut_assert_equal(expect.function_id_, MemberFn::serialization_result);
-    cppcut_assert_equal(int(expect.arg_dcp_result_), int(result));
+    cppcut_assert_equal(expect.d.function_id_, MemberFn::serialization_result);
+    cppcut_assert_equal(int(expect.d.arg_dcp_result_), int(result));
 }
 
 void MockViewManager::input(DrcpCommand command)
 {
     const auto &expect(expectations_->get_next_expectation(__func__));
 
-    cppcut_assert_equal(expect.function_id_, MemberFn::input);
-    cppcut_assert_equal(int(expect.arg_command_), int(command));
+    cppcut_assert_equal(expect.d.function_id_, MemberFn::input);
+    cppcut_assert_equal(int(expect.d.arg_command_), int(command));
 }
 
 void MockViewManager::input_set_fast_wind_factor(double factor)
 {
     const auto &expect(expectations_->get_next_expectation(__func__));
 
-    cppcut_assert_equal(expect.function_id_, MemberFn::input_set_fast_wind_factor);
-    cut_assert_true(expect.arg_factor_ <= factor);
-    cut_assert_true(expect.arg_factor_ >= factor);
+    cppcut_assert_equal(expect.d.function_id_, MemberFn::input_set_fast_wind_factor);
+    cut_assert_true(expect.d.arg_factor_ <= factor);
+    cut_assert_true(expect.d.arg_factor_ >= factor);
 }
 
 void MockViewManager::input_move_cursor_by_line(int lines)
 {
     const auto &expect(expectations_->get_next_expectation(__func__));
 
-    cppcut_assert_equal(expect.function_id_, MemberFn::input_move_cursor_by_line);
-    cppcut_assert_equal(expect.arg_lines_or_pages_, lines);
+    cppcut_assert_equal(expect.d.function_id_, MemberFn::input_move_cursor_by_line);
+    cppcut_assert_equal(expect.d.arg_lines_or_pages_, lines);
 }
 
 void MockViewManager::input_move_cursor_by_page(int pages)
 {
     const auto &expect(expectations_->get_next_expectation(__func__));
 
-    cppcut_assert_equal(expect.function_id_, MemberFn::input_move_cursor_by_page);
-    cppcut_assert_equal(expect.arg_lines_or_pages_, pages);
+    cppcut_assert_equal(expect.d.function_id_, MemberFn::input_move_cursor_by_page);
+    cppcut_assert_equal(expect.d.arg_lines_or_pages_, pages);
 }
 
 ViewIface *MockViewManager::get_view_by_name(const char *view_name)
 {
     const auto &expect(expectations_->get_next_expectation(__func__));
 
-    cppcut_assert_equal(expect.function_id_, MemberFn::get_view_by_name);
+    cppcut_assert_equal(expect.d.function_id_, MemberFn::get_view_by_name);
     return nullptr;
 }
 
@@ -325,7 +324,7 @@ ViewIface *MockViewManager::get_view_by_dbus_proxy(const void *dbus_proxy)
 {
     const auto &expect(expectations_->get_next_expectation(__func__));
 
-    cppcut_assert_equal(expect.function_id_, MemberFn::get_view_by_dbus_proxy);
+    cppcut_assert_equal(expect.d.function_id_, MemberFn::get_view_by_dbus_proxy);
     return nullptr;
 }
 
@@ -333,7 +332,7 @@ ViewIface *MockViewManager::get_playback_initiator_view() const
 {
     const auto &expect(expectations_->get_next_expectation(__func__));
 
-    cppcut_assert_equal(expect.function_id_, MemberFn::get_playback_initiator_view);
+    cppcut_assert_equal(expect.d.function_id_, MemberFn::get_playback_initiator_view);
     return nullptr;
 }
 
@@ -341,8 +340,8 @@ void MockViewManager::activate_view_by_name(const char *view_name)
 {
     const auto &expect(expectations_->get_next_expectation(__func__));
 
-    cppcut_assert_equal(expect.function_id_, MemberFn::activate_view_by_name);
-    cppcut_assert_equal(expect.arg_view_name_, std::string(view_name));
+    cppcut_assert_equal(expect.d.function_id_, MemberFn::activate_view_by_name);
+    cppcut_assert_equal(expect.d.arg_view_name_, std::string(view_name));
 }
 
 void MockViewManager::toggle_views_by_name(const char *view_name_a,
@@ -350,9 +349,9 @@ void MockViewManager::toggle_views_by_name(const char *view_name_a,
 {
     const auto &expect(expectations_->get_next_expectation(__func__));
 
-    cppcut_assert_equal(expect.function_id_, MemberFn::toggle_views_by_name);
-    cppcut_assert_equal(expect.arg_view_name_, std::string(view_name_a));
-    cppcut_assert_equal(expect.arg_view_name_b_, std::string(view_name_b));
+    cppcut_assert_equal(expect.d.function_id_, MemberFn::toggle_views_by_name);
+    cppcut_assert_equal(expect.d.arg_view_name_, std::string(view_name_a));
+    cppcut_assert_equal(expect.d.arg_view_name_b_, std::string(view_name_b));
 }
 
 bool MockViewManager::is_active_view(const ViewIface *view) const
