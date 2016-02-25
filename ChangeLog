@@ -1,3 +1,12 @@
+2016-02-25  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 1.10 released.
+
+	* User interface: Avoid screen full of dashes on list failures.
+
+	* User interface: UPnP servers, USB devices, and search forms are not
+	  shown as plain directories anymore.
+
 2016-02-12  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 1.9 released.
