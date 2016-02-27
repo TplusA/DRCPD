@@ -35,9 +35,9 @@ ViewManager::Manager::Manager(DcpTransaction &dcpd):
     debug_stream_(nullptr)
 {}
 
-static inline bool is_view_name_valid(const std::string &view_name)
+static inline bool is_view_name_valid(const char *view_name)
 {
-    return view_name[0] != '#' && view_name[0] != '\0';
+    return view_name != nullptr && view_name[0] != '#' && view_name[0] != '\0';
 }
 
 bool ViewManager::Manager::add_view(ViewIface *view)
