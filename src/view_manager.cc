@@ -155,40 +155,32 @@ void ViewManager::Manager::input(DrcpCommand command, const UI::Parameters *para
 
     static constexpr const ViewManager::InputBouncer global_bounce_table(global_bounce_table_data);
 
-    bool was_handled;
-    (void)VMIface::do_input_bounce(*this, global_bounce_table,
-                                   was_handled, command, parameters);
-
-    if(!was_handled)
+    if(!do_input_bounce(global_bounce_table, command, parameters))
         handle_input_result(active_view_->input(command, parameters),
                             *active_view_);
 }
 
-ViewIface::InputResult
-ViewManager::VMIface::do_input_bounce(VMIface &vmiface,
-                                      const ViewManager::InputBouncer &bouncer,
-                                      bool &bounced, DrcpCommand command,
-                                      const UI::Parameters *parameters)
+bool ViewManager::Manager::do_input_bounce(const ViewManager::InputBouncer &bouncer,
+                                           DrcpCommand command,
+                                           const UI::Parameters *parameters)
 {
-    bounced = false;
-
     const auto *item = bouncer.find(command);
 
     if(item == nullptr)
-        return ViewIface::InputResult::OK;
+        return false;
 
-    auto *const view = vmiface.get_view_by_name(item->view_name_);
+    auto *const view = get_view_by_name(item->view_name_);
 
     if(view != nullptr)
     {
-        bounced = true;
-        return view->input(item->xform_command_, parameters);
+        (void)view->input(item->xform_command_, parameters);
+        return true;
     }
 
     BUG("Failed bouncing command %d, view \"%s\" unknown",
         static_cast<int>(command), item->view_name_);
 
-    return ViewIface::InputResult::OK;
+    return false;
 }
 
 static bool move_cursor_multiple_steps(int steps, DrcpCommand down_cmd,

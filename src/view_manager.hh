@@ -128,12 +128,6 @@ class VMIface
     virtual bool serialize_view_if_active(const ViewIface *view) const = 0;
     virtual bool update_view_if_active(const ViewIface *view) const = 0;
     virtual void hide_view_if_active(const ViewIface *view) = 0;
-
-  protected:
-    static ViewIface::InputResult
-    do_input_bounce(VMIface &vmiface, const InputBouncer &bouncer,
-                    bool &bounced, DrcpCommand command,
-                    const UI::Parameters *parameters = nullptr);
 };
 
 class Manager: public VMIface
@@ -167,8 +161,8 @@ class Manager: public VMIface
                                         DrcpCommand command,
                                         const UI::Parameters *parameters) override
     {
-        bool dummy;
-        return VMIface::do_input_bounce(*this, bouncer, dummy, command, parameters);
+        (void)do_input_bounce(bouncer, command, parameters);
+        return ViewIface::InputResult::OK;
     }
 
     void input_move_cursor_by_line(int lines) override;
@@ -187,6 +181,9 @@ class Manager: public VMIface
   private:
     void activate_view(ViewIface *view);
     void handle_input_result(ViewIface::InputResult result, ViewIface &view);
+
+    bool do_input_bounce(const InputBouncer &bouncer, DrcpCommand command,
+                         const UI::Parameters *parameters = nullptr);
 };
 
 }
