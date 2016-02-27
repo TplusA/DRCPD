@@ -111,16 +111,26 @@ class ViewIface
     {
         /*!
          * The view should be kept on screen as is, there is nothing that needs
-         * to be done by the caller. Attempting send an update to the client
-         * would result in an update document without any content.
+         * to be done by the caller.
+         *
+         * Attempting to send an update for the view to the client would result
+         * in an update XML document without any content.
          */
         OK,
 
         /*!
          * Something has changed and an update XML document should be sent to
          * the client.
+         *
+         * The update is not sent in case the view is not the active view.
          */
         UPDATE_NEEDED,
+
+        /*!
+         * Something has changed and an XML document must be sent to the
+         * client, regardless of view active state.
+         */
+        FORCE_SERIALIZE,
 
         /*!
          * The input has caused the view to close itself. The caller should now

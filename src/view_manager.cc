@@ -128,6 +128,12 @@ void ViewManager::Manager::handle_input_result(ViewIface::InputResult result,
         break;
 
       case ViewIface::InputResult::UPDATE_NEEDED:
+        if(&view != active_view_)
+            break;
+
+        /* fall-through */
+
+      case ViewIface::InputResult::FORCE_SERIALIZE:
         if(!view.update(dcp_transaction_, debug_stream_))
             bug_271(view, "partial");
 
@@ -173,7 +179,8 @@ bool ViewManager::Manager::do_input_bounce(const ViewManager::InputBouncer &boun
 
     if(view != nullptr)
     {
-        (void)view->input(item->xform_command_, parameters);
+        handle_input_result(view->input(item->xform_command_, parameters),
+                            *view);
         return true;
     }
 
