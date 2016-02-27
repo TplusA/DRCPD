@@ -140,7 +140,7 @@ void ViewManager::Manager::handle_input_result(ViewIface::InputResult result,
         break;
 
       case ViewIface::InputResult::SHOULD_HIDE:
-        if(!view.is_browse_view_)
+        if(&view == active_view_ && !view.is_browse_view_)
             activate_view(last_browse_view_);
 
         break;
