@@ -82,19 +82,40 @@ class ViewMock::View::Expectation
   public:
     const MemberFn function_id_;
 
+    const InputResult retval_input_;
     const DrcpCommand arg_command_;
-    InputResult retval_input_;
+    const bool expect_parameters_;
+    const CheckParametersFn check_parameters_fn_;
+    const UI::Parameters *const expected_parameters_;
 
     explicit Expectation(MemberFn id):
         function_id_(id),
+        retval_input_(InputResult::OK),
         arg_command_(DrcpCommand::UNDEFINED_COMMAND),
-        retval_input_(InputResult::OK)
+        expect_parameters_(false),
+        check_parameters_fn_(nullptr),
+        expected_parameters_(nullptr)
     {}
 
-    explicit Expectation(MemberFn id, DrcpCommand command, InputResult retval):
+    explicit Expectation(MemberFn id, InputResult retval, DrcpCommand command,
+                         bool expect_parameters):
         function_id_(id),
+        retval_input_(retval),
         arg_command_(command),
-        retval_input_(retval)
+        expect_parameters_(expect_parameters),
+        check_parameters_fn_(nullptr),
+        expected_parameters_(nullptr)
+    {}
+
+    explicit Expectation(MemberFn id, InputResult retval, DrcpCommand command,
+                         const UI::Parameters *expected_parameters,
+                         CheckParametersFn check_params_callback):
+        function_id_(id),
+        retval_input_(retval),
+        arg_command_(command),
+        expect_parameters_(expected_parameters != nullptr),
+        check_parameters_fn_(check_params_callback),
+        expected_parameters_(expected_parameters)
     {}
 
     Expectation(Expectation &&) = default;
@@ -137,9 +158,20 @@ void ViewMock::View::expect_defocus()
     expectations_->add(Expectation(MemberFn::defocus));
 }
 
-void ViewMock::View::expect_input_return(DrcpCommand command, InputResult retval)
+void ViewMock::View::expect_input(InputResult retval, DrcpCommand command,
+                                  bool expect_parameters)
 {
-    expectations_->add(Expectation(MemberFn::input, command, retval));
+    expectations_->add(Expectation(MemberFn::input, retval, command,
+                                   expect_parameters));
+}
+
+void ViewMock::View::expect_input_with_callback(InputResult retval, DrcpCommand command,
+                                                const UI::Parameters *expected_parameters,
+                                                CheckParametersFn check_params_callback)
+{
+    expectations_->add(Expectation(MemberFn::input, retval, command,
+                                   expected_parameters,
+                                   check_params_callback));
 }
 
 void ViewMock::View::expect_serialize(std::ostream &os)
@@ -175,7 +207,8 @@ void ViewMock::View::defocus()
     cppcut_assert_equal(expect.function_id_, MemberFn::defocus);
 }
 
-ViewIface::InputResult ViewMock::View::input(DrcpCommand command)
+ViewIface::InputResult ViewMock::View::input(DrcpCommand command,
+                                             const UI::Parameters *parameters)
 {
     if(ignore_all_)
         return ViewIface::InputResult::OK;
@@ -184,6 +217,13 @@ ViewIface::InputResult ViewMock::View::input(DrcpCommand command)
 
     cppcut_assert_equal(expect.function_id_, MemberFn::input);
     cppcut_assert_equal(int(expect.arg_command_), int(command));
+
+    if(expect.check_parameters_fn_ != nullptr)
+        expect.check_parameters_fn_(expect.expected_parameters_, parameters);
+    else if(expect.expect_parameters_)
+        cppcut_assert_not_null(parameters);
+    else
+        cppcut_assert_null(parameters);
 
     return expect.retval_input_;
 }

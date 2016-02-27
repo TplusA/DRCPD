@@ -28,6 +28,7 @@ drcpd_SOURCES = \
     view.hh view_names.hh view_nop.hh view_manager.hh xmlescape.hh \
     view_config.hh view_filebrowser.hh view_filebrowser_utils.hh view_play.hh \
     view_signals_glib.cc view_signals.hh view_signals_glib.hh \
+    ui_parameters.hh \
     playinfo.hh idtypes.hh stream_id.h stream_id.hh \
     player.hh playbackmode.hh playbackmode_state.hh \
     $(DBUS_IFACES)/de_tahifi_lists_errors.hh \
@@ -68,6 +69,7 @@ libviews_la_SOURCES = \
     view_play.hh view_play.cc playinfo.hh playinfo.cc \
     view_manager.hh view_manager.cc \
     view_signals.hh idtypes.hh stream_id.h stream_id.hh \
+    ui_parameters.hh \
     dbuslist.hh dbuslist_exception.hh \
     playbackmode.hh playbackmode_state.hh
 libviews_la_CFLAGS = $(AM_CFLAGS)

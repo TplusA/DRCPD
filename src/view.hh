@@ -25,6 +25,7 @@
 #include "dcp_transaction.hh"
 #include "drcp_commands.hh"
 #include "view_signals.hh"
+#include "ui_parameters.hh"
 #include "i18n.h"
 #include "xmlescape.hh"
 
@@ -158,7 +159,8 @@ class ViewIface
      * state accordingly. As far as the caller is concerned, any errors go
      * unnoticed. Errors are supposed to be handled by the views themselves.
      */
-    virtual InputResult input(DrcpCommand command) = 0;
+    virtual InputResult input(DrcpCommand command,
+                              const UI::Parameters *parameters) = 0;
 
     /*!
      * Write XML representation of the whole view to given output stream.

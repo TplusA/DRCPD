@@ -43,16 +43,24 @@ class View: public ViewIface
 
     void check() const;
 
+    using CheckParametersFn = void (*)(const UI::Parameters *expected_parameters,
+                                       const UI::Parameters *actual_parameters);
+
     void expect_focus();
     void expect_defocus();
-    void expect_input_return(DrcpCommand command, InputResult retval);
+    void expect_input(InputResult retval, DrcpCommand command,
+                      bool expect_parameters);
+    void expect_input_with_callback(InputResult retval, DrcpCommand command,
+                                    const UI::Parameters *expected_parameters,
+                                    CheckParametersFn check_params_callback);
     void expect_serialize(std::ostream &os);
     void expect_update(std::ostream &os);
 
     bool init() override;
     void focus() override;
     void defocus() override;
-    InputResult input(DrcpCommand command) override;
+    InputResult input(DrcpCommand command,
+                      const UI::Parameters *parameters) override;
     bool serialize(DcpTransaction &dcpd, std::ostream *debug_os) override;
     bool update(DcpTransaction &dcpd, std::ostream *debug_os) override;
 };

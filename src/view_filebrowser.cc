@@ -50,7 +50,8 @@ void ViewFileBrowser::View::defocus()
 {
 }
 
-ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command)
+ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command,
+                                                    const UI::Parameters *parameters)
 {
     switch(command)
     {

@@ -289,10 +289,10 @@ void test_move_cursor_by_zero_lines(void)
  */
 void test_move_cursor_up_by_multiple_lines(void)
 {
-    mock_view->expect_input_return(DrcpCommand::SCROLL_UP_ONE,
-                                   ViewIface::InputResult::UPDATE_NEEDED);
-    mock_view->expect_input_return(DrcpCommand::SCROLL_UP_ONE,
-                                   ViewIface::InputResult::UPDATE_NEEDED);
+    mock_view->expect_input(ViewIface::InputResult::UPDATE_NEEDED,
+                            DrcpCommand::SCROLL_UP_ONE, false);
+    mock_view->expect_input(ViewIface::InputResult::UPDATE_NEEDED,
+                            DrcpCommand::SCROLL_UP_ONE, false);
     mock_view->expect_update(*views_output);
 
     vm->input_move_cursor_by_line(-2);
@@ -308,12 +308,12 @@ void test_move_cursor_up_by_multiple_lines(void)
  */
 void test_move_cursor_down_by_multiple_lines(void)
 {
-    mock_view->expect_input_return(DrcpCommand::SCROLL_DOWN_ONE,
-                                   ViewIface::InputResult::UPDATE_NEEDED);
-    mock_view->expect_input_return(DrcpCommand::SCROLL_DOWN_ONE,
-                                   ViewIface::InputResult::UPDATE_NEEDED);
-    mock_view->expect_input_return(DrcpCommand::SCROLL_DOWN_ONE,
-                                   ViewIface::InputResult::UPDATE_NEEDED);
+    mock_view->expect_input(ViewIface::InputResult::UPDATE_NEEDED,
+                            DrcpCommand::SCROLL_DOWN_ONE, false);
+    mock_view->expect_input(ViewIface::InputResult::UPDATE_NEEDED,
+                            DrcpCommand::SCROLL_DOWN_ONE, false);
+    mock_view->expect_input(ViewIface::InputResult::UPDATE_NEEDED,
+                            DrcpCommand::SCROLL_DOWN_ONE, false);
     mock_view->expect_update(*views_output);
 
     vm->input_move_cursor_by_line(3);
@@ -327,10 +327,10 @@ void test_move_cursor_down_by_multiple_lines(void)
  */
 void test_move_cursor_by_multiple_lines_up_stops_at_beginning_of_list(void)
 {
-    mock_view->expect_input_return(DrcpCommand::SCROLL_UP_ONE,
-                                   ViewIface::InputResult::UPDATE_NEEDED);
-    mock_view->expect_input_return(DrcpCommand::SCROLL_UP_ONE,
-                                   ViewIface::InputResult::OK);
+    mock_view->expect_input(ViewIface::InputResult::UPDATE_NEEDED,
+                            DrcpCommand::SCROLL_UP_ONE, false);
+    mock_view->expect_input(ViewIface::InputResult::OK,
+                            DrcpCommand::SCROLL_UP_ONE, false);
     mock_view->expect_update(*views_output);
 
     vm->input_move_cursor_by_line(-5);
@@ -344,10 +344,10 @@ void test_move_cursor_by_multiple_lines_up_stops_at_beginning_of_list(void)
  */
 void test_move_cursor_by_multiple_lines_down_stops_at_end_of_list(void)
 {
-    mock_view->expect_input_return(DrcpCommand::SCROLL_DOWN_ONE,
-                                   ViewIface::InputResult::UPDATE_NEEDED);
-    mock_view->expect_input_return(DrcpCommand::SCROLL_DOWN_ONE,
-                                   ViewIface::InputResult::OK);
+    mock_view->expect_input(ViewIface::InputResult::UPDATE_NEEDED,
+                            DrcpCommand::SCROLL_DOWN_ONE, false);
+    mock_view->expect_input(ViewIface::InputResult::OK,
+                            DrcpCommand::SCROLL_DOWN_ONE, false);
     mock_view->expect_update(*views_output);
 
     vm->input_move_cursor_by_line(5);
@@ -371,14 +371,14 @@ void test_move_cursor_by_zero_pages(void)
  */
 void test_move_cursor_up_by_multiple_pages(void)
 {
-    mock_view->expect_input_return(DrcpCommand::SCROLL_PAGE_UP,
-                                   ViewIface::InputResult::UPDATE_NEEDED);
-    mock_view->expect_input_return(DrcpCommand::SCROLL_PAGE_UP,
-                                   ViewIface::InputResult::UPDATE_NEEDED);
-    mock_view->expect_input_return(DrcpCommand::SCROLL_PAGE_UP,
-                                   ViewIface::InputResult::UPDATE_NEEDED);
-    mock_view->expect_input_return(DrcpCommand::SCROLL_PAGE_UP,
-                                   ViewIface::InputResult::UPDATE_NEEDED);
+    mock_view->expect_input(ViewIface::InputResult::UPDATE_NEEDED,
+                            DrcpCommand::SCROLL_PAGE_UP, false);
+    mock_view->expect_input(ViewIface::InputResult::UPDATE_NEEDED,
+                            DrcpCommand::SCROLL_PAGE_UP, false);
+    mock_view->expect_input(ViewIface::InputResult::UPDATE_NEEDED,
+                            DrcpCommand::SCROLL_PAGE_UP, false);
+    mock_view->expect_input(ViewIface::InputResult::UPDATE_NEEDED,
+                            DrcpCommand::SCROLL_PAGE_UP, false);
     mock_view->expect_update(*views_output);
 
     vm->input_move_cursor_by_page(-4);
@@ -394,10 +394,10 @@ void test_move_cursor_up_by_multiple_pages(void)
  */
 void test_move_cursor_down_by_multiple_pages(void)
 {
-    mock_view->expect_input_return(DrcpCommand::SCROLL_PAGE_DOWN,
-                                   ViewIface::InputResult::UPDATE_NEEDED);
-    mock_view->expect_input_return(DrcpCommand::SCROLL_PAGE_DOWN,
-                                   ViewIface::InputResult::UPDATE_NEEDED);
+    mock_view->expect_input(ViewIface::InputResult::UPDATE_NEEDED,
+                            DrcpCommand::SCROLL_PAGE_DOWN, false);
+    mock_view->expect_input(ViewIface::InputResult::UPDATE_NEEDED,
+                            DrcpCommand::SCROLL_PAGE_DOWN, false);
     mock_view->expect_update(*views_output);
 
     vm->input_move_cursor_by_page(2);
@@ -577,10 +577,10 @@ void test_activate_different_view(void)
  */
 void test_input_command_with_no_need_to_refresh(void)
 {
-    mock_messages->expect_msg_info("Dispatching DRCP command %d");
-    all_mock_views[0]->expect_input_return(DrcpCommand::PLAYBACK_START,
-                                           ViewIface::InputResult::OK);
-    vm->input(DrcpCommand::PLAYBACK_START);
+    mock_messages->expect_msg_info("Dispatching DRCP command %d%s");
+    all_mock_views[0]->expect_input(ViewIface::InputResult::OK,
+                                    DrcpCommand::PLAYBACK_START, false);
+    vm->input(DrcpCommand::PLAYBACK_START, nullptr);
 }
 
 /*!\test
@@ -589,11 +589,11 @@ void test_input_command_with_no_need_to_refresh(void)
  */
 void test_input_command_with_need_to_refresh(void)
 {
-    mock_messages->expect_msg_info("Dispatching DRCP command %d");
-    all_mock_views[0]->expect_input_return(DrcpCommand::PLAYBACK_START,
-                                           ViewIface::InputResult::UPDATE_NEEDED);
+    mock_messages->expect_msg_info("Dispatching DRCP command %d%s");
+    all_mock_views[0]->expect_input(ViewIface::InputResult::UPDATE_NEEDED,
+                                    DrcpCommand::PLAYBACK_START, false);
     all_mock_views[0]->expect_update(*views_output);
-    vm->input(DrcpCommand::PLAYBACK_START);
+    vm->input(DrcpCommand::PLAYBACK_START, nullptr);
 
     check_and_clear_ostream("First update\n", *views_output);
 }
@@ -604,10 +604,10 @@ void test_input_command_with_need_to_refresh(void)
  */
 void test_input_command_with_need_to_hide_view_may_fail(void)
 {
-    mock_messages->expect_msg_info("Dispatching DRCP command %d");
-    all_mock_views[0]->expect_input_return(DrcpCommand::PLAYBACK_START,
-                                           ViewIface::InputResult::SHOULD_HIDE);
-    vm->input(DrcpCommand::PLAYBACK_START);
+    mock_messages->expect_msg_info("Dispatching DRCP command %d%s");
+    all_mock_views[0]->expect_input(ViewIface::InputResult::SHOULD_HIDE,
+                                    DrcpCommand::PLAYBACK_START, false);
+    vm->input(DrcpCommand::PLAYBACK_START, nullptr);
 }
 
 /*!\test
@@ -627,13 +627,13 @@ void test_input_command_with_need_to_hide_nonbrowse_view(void)
 
     /* hide request from active view, view manager switches back to previous
      * browse view in turn (view "First") */
-    mock_messages->expect_msg_info("Dispatching DRCP command %d");
-    all_mock_views[2]->expect_input_return(DrcpCommand::PLAYBACK_START,
-                                           ViewIface::InputResult::SHOULD_HIDE);
+    mock_messages->expect_msg_info("Dispatching DRCP command %d%s");
+    all_mock_views[2]->expect_input(ViewIface::InputResult::SHOULD_HIDE,
+                                    DrcpCommand::PLAYBACK_START, false);
     all_mock_views[2]->expect_defocus();
     all_mock_views[0]->expect_focus();
     all_mock_views[0]->expect_serialize(*views_output);
-    vm->input(DrcpCommand::PLAYBACK_START);
+    vm->input(DrcpCommand::PLAYBACK_START, nullptr);
     check_and_clear_ostream("First serialize\n", *views_output);
 }
 
@@ -653,10 +653,84 @@ void test_input_command_with_need_to_hide_browse_view_never_works(void)
     vm->serialization_result(DcpTransaction::OK);
 
     /* hide request from active view, but view manager won't switch focus */
-    mock_messages->expect_msg_info("Dispatching DRCP command %d");
-    all_mock_views[1]->expect_input_return(DrcpCommand::PLAYBACK_START,
-                                           ViewIface::InputResult::SHOULD_HIDE);
-    vm->input(DrcpCommand::PLAYBACK_START);
+    mock_messages->expect_msg_info("Dispatching DRCP command %d%s");
+    all_mock_views[1]->expect_input(ViewIface::InputResult::SHOULD_HIDE,
+                                    DrcpCommand::PLAYBACK_START, false);
+    vm->input(DrcpCommand::PLAYBACK_START, nullptr);
+}
+
+static bool check_equal_parameters_called;
+static void check_equal_parameters(const UI::Parameters *expected_parameters,
+                                   const UI::Parameters *actual_parameters)
+{
+    check_equal_parameters_called = true;
+    cppcut_assert_equal(expected_parameters, actual_parameters);
+}
+
+/*!\test
+ * Passing data into the user interface.
+ */
+void test_input_command_with_data(void)
+{
+    ViewMock::View view("Play", false, &dummy_view_signals);
+    cut_assert_true(view.init());
+    cut_assert_true(vm->add_view(&view));
+
+    const UI::SpecificParameters<double> speed_factor(12.5);
+    view.expect_input_with_callback(ViewIface::InputResult::OK,
+                                    DrcpCommand::FAST_WIND_SET_SPEED,
+                                    &speed_factor, check_equal_parameters);
+
+    mock_messages->expect_msg_info("Dispatching DRCP command %d%s");
+
+    check_equal_parameters_called = false;
+    vm->input(DrcpCommand::FAST_WIND_SET_SPEED, &speed_factor);
+    cut_assert_true(check_equal_parameters_called);
+}
+
+/*!\test
+ * In case we are messing up and pass the wrong kind of data to an input
+ * command, the command handler is responsible for handling the situation.
+ */
+void test_input_command_with_unexpected_data(void)
+{
+    ViewMock::View view("Play", false, &dummy_view_signals);
+    cut_assert_true(view.init());
+    cut_assert_true(vm->add_view(&view));
+
+    const UI::SpecificParameters<DummyViewSignals *> completely_unexpected_data(nullptr);
+    view.expect_input_with_callback(ViewIface::InputResult::OK,
+                                    DrcpCommand::FAST_WIND_SET_SPEED,
+                                    &completely_unexpected_data,
+                                    check_equal_parameters);
+
+    mock_messages->expect_msg_info("Dispatching DRCP command %d%s");
+
+    check_equal_parameters_called = false;
+    vm->input(DrcpCommand::FAST_WIND_SET_SPEED, &completely_unexpected_data);
+    cut_assert_true(check_equal_parameters_called);
+}
+
+/*!\test
+ * In case an input command requires data, but we forgot to pass it, the
+ * the command handler is responsible for handling the situation.
+ */
+void test_input_command_with_missing_data(void)
+{
+    ViewMock::View view("Play", false, &dummy_view_signals);
+    cut_assert_true(view.init());
+    cut_assert_true(vm->add_view(&view));
+
+    const UI::SpecificParameters<DummyViewSignals *> completely_unexpected_data(nullptr);
+    view.expect_input_with_callback(ViewIface::InputResult::OK,
+                                    DrcpCommand::FAST_WIND_SET_SPEED,
+                                    nullptr, check_equal_parameters);
+
+    mock_messages->expect_msg_info("Dispatching DRCP command %d%s");
+
+    check_equal_parameters_called = false;
+    vm->input(DrcpCommand::FAST_WIND_SET_SPEED);
+    cut_assert_true(check_equal_parameters_called);
 }
 
 /*!\test

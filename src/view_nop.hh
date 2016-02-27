@@ -49,7 +49,13 @@ class View: public ViewIface
     bool init() override { return true; }
     void focus() override {}
     void defocus() override {}
-    InputResult input(DrcpCommand command) override { return InputResult::SHOULD_HIDE; }
+
+    InputResult input(DrcpCommand command,
+                      const UI::Parameters *parameters) override
+    {
+        return InputResult::SHOULD_HIDE;
+    }
+
     bool serialize(DcpTransaction &dcpd, std::ostream *debug_os) override { return true; }
     bool update(DcpTransaction &dcpd, std::ostream *debug_os) override { return true; }
 };

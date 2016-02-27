@@ -111,10 +111,11 @@ class VMIface
 
     virtual void serialization_result(DcpTransaction::Result result) = 0;
 
-    virtual void input(DrcpCommand command) = 0;
-    virtual ViewIface::InputResult input_bounce(const InputBouncer &bouncer,
-                                                DrcpCommand command) = 0;
-    virtual void input_set_fast_wind_factor(double factor) = 0;
+    virtual void input(DrcpCommand command,
+                       const UI::Parameters *parameters = nullptr) = 0;
+    virtual ViewIface::InputResult
+    input_bounce(const InputBouncer &bouncer, DrcpCommand command,
+                 const UI::Parameters *parameters = nullptr) = 0;
     virtual void input_move_cursor_by_line(int lines) = 0;
     virtual void input_move_cursor_by_page(int pages) = 0;
     virtual ViewIface *get_view_by_name(const char *view_name) = 0;
@@ -131,7 +132,8 @@ class VMIface
   protected:
     static ViewIface::InputResult
     do_input_bounce(VMIface &vmiface, const InputBouncer &bouncer,
-                    bool &bounced, DrcpCommand command);
+                    bool &bounced, DrcpCommand command,
+                    const UI::Parameters *parameters = nullptr);
 };
 
 class Manager: public VMIface
@@ -159,15 +161,16 @@ class Manager: public VMIface
 
     void serialization_result(DcpTransaction::Result result) override;
 
-    void input(DrcpCommand command) override;
+    void input(DrcpCommand command, const UI::Parameters *parameters = nullptr) override;
+
     ViewIface::InputResult input_bounce(const InputBouncer &bouncer,
-                                        DrcpCommand command) override
+                                        DrcpCommand command,
+                                        const UI::Parameters *parameters) override
     {
         bool dummy;
-        return VMIface::do_input_bounce(*this, bouncer, dummy, command);
+        return VMIface::do_input_bounce(*this, bouncer, dummy, command, parameters);
     }
 
-    void input_set_fast_wind_factor(double factor) override;
     void input_move_cursor_by_line(int lines) override;
     void input_move_cursor_by_page(int pages) override;
     ViewIface *get_view_by_name(const char *view_name) override;

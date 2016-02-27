@@ -32,7 +32,6 @@ enum class MemberFn
     serialization_result,
     input,
     input_bounce,
-    input_set_fast_wind_factor,
     input_move_cursor_by_line,
     input_move_cursor_by_page,
     get_view_by_name,
@@ -66,10 +65,6 @@ static std::ostream &operator<<(std::ostream &os, const MemberFn id)
 
       case MemberFn::input_bounce:
         os << "input_bounce";
-        break;
-
-      case MemberFn::input_set_fast_wind_factor:
-        os << "input_set_fast_wind_factor";
         break;
 
       case MemberFn::input_move_cursor_by_line:
@@ -116,7 +111,9 @@ class MockViewManager::Expectation
         ViewIface::InputResult ret_result_;
         DrcpCommand arg_command_;
         DrcpCommand bounce_xform_command_;
-        double arg_factor_;
+        bool expect_parameters_;
+        CheckParametersFn check_parameters_fn_;
+        const UI::Parameters *expected_parameters_;
         int arg_lines_or_pages_;
         std::string arg_view_name_;
         std::string arg_view_name_b_;
@@ -127,7 +124,9 @@ class MockViewManager::Expectation
             ret_result_(ViewIface::InputResult::OK),
             arg_command_(DrcpCommand::UNDEFINED_COMMAND),
             bounce_xform_command_(DrcpCommand::UNDEFINED_COMMAND),
-            arg_factor_(-42.23),
+            expect_parameters_(false),
+            check_parameters_fn_(nullptr),
+            expected_parameters_(nullptr),
             arg_lines_or_pages_(-9999),
             arg_dcp_result_(DcpTransaction::Result::OK)
         {}
@@ -149,16 +148,22 @@ class MockViewManager::Expectation
         data_.arg_dcp_result_ = result;
     }
 
-    explicit Expectation(MemberFn id, DrcpCommand command):
+    explicit Expectation(MemberFn id, DrcpCommand command, bool expect_parameters):
         d(id)
     {
         data_.arg_command_ = command;
+        data_.expect_parameters_ = expect_parameters;
     }
 
-    explicit Expectation(MemberFn id, double factor):
+    explicit Expectation(MemberFn id, DrcpCommand command,
+                         const UI::Parameters *expected_parameters,
+                         CheckParametersFn check_params_callback):
         d(id)
     {
-        data_.arg_factor_ = factor;
+        data_.arg_command_ = command;
+        data_.expect_parameters_ = (expected_parameters != nullptr);
+        data_.check_parameters_fn_ = check_params_callback;
+        data_.expected_parameters_ = expected_parameters;
     }
 
     explicit Expectation(MemberFn id, int lines_or_pages):
@@ -182,13 +187,14 @@ class MockViewManager::Expectation
     }
 
     explicit Expectation(MemberFn id, ViewIface::InputResult retval,
-                         DrcpCommand command, DrcpCommand xform_command,
-                         const char *view_name):
+                         DrcpCommand command, bool expect_parameters,
+                         DrcpCommand xform_command, const char *view_name):
         d(id)
     {
         data_.ret_result_ = retval;
         data_.arg_command_ = command;
         data_.bounce_xform_command_ = xform_command;
+        data_.expect_parameters_ = expect_parameters;
 
         if(view_name != nullptr)
             data_.arg_view_name_ = view_name;
@@ -229,19 +235,21 @@ void MockViewManager::expect_serialization_result(DcpTransaction::Result result)
     expectations_->add(Expectation(MemberFn::serialization_result, result));
 }
 
-void MockViewManager::expect_input(DrcpCommand command)
+void MockViewManager::expect_input(DrcpCommand command, bool expect_parameters)
 {
-    expectations_->add(Expectation(MemberFn::input, command));
+    expectations_->add(Expectation(MemberFn::input, command, expect_parameters));
 }
 
-void MockViewManager::expect_input_bounce(ViewIface::InputResult retval, DrcpCommand command, DrcpCommand xform_command, const char *view_name)
+void MockViewManager::expect_input_with_callback(DrcpCommand command,
+                                                 const UI::Parameters *expected_parameters,
+                                                 CheckParametersFn check_params_callback)
 {
-    expectations_->add(Expectation(MemberFn::input_bounce, retval, command, xform_command, view_name));
+    expectations_->add(Expectation(MemberFn::input, command, expected_parameters, check_params_callback));
 }
 
-void MockViewManager::expect_input_set_fast_wind_factor(double factor)
+void MockViewManager::expect_input_bounce(ViewIface::InputResult retval, DrcpCommand command, bool expect_parameters, DrcpCommand xform_command, const char *view_name)
 {
-    expectations_->add(Expectation(MemberFn::input_set_fast_wind_factor, factor));
+    expectations_->add(Expectation(MemberFn::input_bounce, retval, command, expect_parameters, xform_command, view_name));
 }
 
 void MockViewManager::expect_input_move_cursor_by_line(int lines)
@@ -306,20 +314,32 @@ void MockViewManager::serialization_result(DcpTransaction::Result result)
     cppcut_assert_equal(int(expect.d.arg_dcp_result_), int(result));
 }
 
-void MockViewManager::input(DrcpCommand command)
+void MockViewManager::input(DrcpCommand command, const UI::Parameters *parameters)
 {
     const auto &expect(expectations_->get_next_expectation(__func__));
 
     cppcut_assert_equal(expect.d.function_id_, MemberFn::input);
     cppcut_assert_equal(int(expect.d.arg_command_), int(command));
+
+    if(expect.d.check_parameters_fn_ != nullptr)
+        expect.d.check_parameters_fn_(expect.d.expected_parameters_, parameters);
+    if(expect.d.expect_parameters_)
+        cppcut_assert_not_null(parameters);
+    else
+        cppcut_assert_null(parameters);
 }
 
-ViewIface::InputResult MockViewManager::input_bounce(const ViewManager::InputBouncer &bouncer, DrcpCommand command)
+ViewIface::InputResult MockViewManager::input_bounce(const ViewManager::InputBouncer &bouncer, DrcpCommand command, const UI::Parameters *parameters)
 {
     const auto &expect(expectations_->get_next_expectation(__func__));
 
     cppcut_assert_equal(expect.d.function_id_, MemberFn::input_bounce);
     cppcut_assert_equal(int(expect.d.arg_command_), int(command));
+
+    if(expect.d.expect_parameters_)
+        cppcut_assert_not_null(parameters);
+    else
+        cppcut_assert_null(parameters);
 
     const auto *item = bouncer.find(command);
 
@@ -337,15 +357,6 @@ ViewIface::InputResult MockViewManager::input_bounce(const ViewManager::InputBou
     }
 
     return expect.d.ret_result_;
-}
-
-void MockViewManager::input_set_fast_wind_factor(double factor)
-{
-    const auto &expect(expectations_->get_next_expectation(__func__));
-
-    cppcut_assert_equal(expect.d.function_id_, MemberFn::input_set_fast_wind_factor);
-    cut_assert_true(expect.d.arg_factor_ <= factor);
-    cut_assert_true(expect.d.arg_factor_ >= factor);
 }
 
 void MockViewManager::input_move_cursor_by_line(int lines)

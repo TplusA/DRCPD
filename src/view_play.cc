@@ -43,7 +43,8 @@ void ViewPlay::View::defocus()
     is_visible_ = false;
 }
 
-ViewIface::InputResult ViewPlay::View::input(DrcpCommand command)
+ViewIface::InputResult ViewPlay::View::input(DrcpCommand command,
+                                             const UI::Parameters *parameters)
 {
     switch(command)
     {
@@ -86,6 +87,17 @@ ViewIface::InputResult ViewPlay::View::input(DrcpCommand command)
       case DrcpCommand::SCROLL_PAGE_UP:
       case DrcpCommand::SCROLL_PAGE_DOWN:
         return InputResult::SHOULD_HIDE;
+
+      case DrcpCommand::FAST_WIND_SET_SPEED:
+        {
+            const auto *speed = dynamic_cast<const UI::SpecificParameters<double> *>(parameters);
+            msg_info("PLAY VIEW: Set fast wind speed, parameters %p", speed);
+
+            if(parameters != nullptr)
+                msg_info("Need to handle FastWindSetFactor %f", speed->get());
+        }
+
+        break;
 
       default:
         break;

@@ -95,7 +95,7 @@ void test_dcpd_playback_start(void)
 {
     DBusSignalData dbus_signal_data(mk_dbus_signal_data());
     mock_messages->expect_msg_info_formatted("de.tahifi.Dcpd.Playback signal from ':1.123': Start");
-    mock_view_manager->expect_input(DrcpCommand::PLAYBACK_START);
+    mock_view_manager->expect_input(DrcpCommand::PLAYBACK_START, false);
     dbussignal_dcpd_playback(dummy_gdbus_proxy, dummy_sender_name,
                              "Start", nullptr, &dbus_signal_data);
 }
@@ -107,7 +107,7 @@ void test_dcpd_playback_stop(void)
 {
     DBusSignalData dbus_signal_data(mk_dbus_signal_data());
     mock_messages->expect_msg_info_formatted("de.tahifi.Dcpd.Playback signal from ':1.123': Stop");
-    mock_view_manager->expect_input(DrcpCommand::PLAYBACK_STOP);
+    mock_view_manager->expect_input(DrcpCommand::PLAYBACK_STOP, false);
     dbussignal_dcpd_playback(dummy_gdbus_proxy, dummy_sender_name,
                              "Stop", nullptr, &dbus_signal_data);
 }
@@ -119,7 +119,7 @@ void test_dcpd_playback_pause(void)
 {
     DBusSignalData dbus_signal_data(mk_dbus_signal_data());
     mock_messages->expect_msg_info_formatted("de.tahifi.Dcpd.Playback signal from ':1.123': Pause");
-    mock_view_manager->expect_input(DrcpCommand::PLAYBACK_PAUSE);
+    mock_view_manager->expect_input(DrcpCommand::PLAYBACK_PAUSE, false);
     dbussignal_dcpd_playback(dummy_gdbus_proxy, dummy_sender_name,
                              "Pause", nullptr, &dbus_signal_data);
 }
@@ -131,7 +131,7 @@ void test_dcpd_playback_next(void)
 {
     DBusSignalData dbus_signal_data(mk_dbus_signal_data());
     mock_messages->expect_msg_info_formatted("de.tahifi.Dcpd.Playback signal from ':1.123': Next");
-    mock_view_manager->expect_input(DrcpCommand::PLAYBACK_NEXT);
+    mock_view_manager->expect_input(DrcpCommand::PLAYBACK_NEXT, false);
     dbussignal_dcpd_playback(dummy_gdbus_proxy, dummy_sender_name,
                              "Next", nullptr, &dbus_signal_data);
 }
@@ -143,7 +143,7 @@ void test_dcpd_playback_previous(void)
 {
     DBusSignalData dbus_signal_data(mk_dbus_signal_data());
     mock_messages->expect_msg_info_formatted("de.tahifi.Dcpd.Playback signal from ':1.123': Previous");
-    mock_view_manager->expect_input(DrcpCommand::PLAYBACK_PREVIOUS);
+    mock_view_manager->expect_input(DrcpCommand::PLAYBACK_PREVIOUS, false);
     dbussignal_dcpd_playback(dummy_gdbus_proxy, dummy_sender_name,
                              "Previous", nullptr, &dbus_signal_data);
 }
@@ -155,7 +155,7 @@ void test_dcpd_playback_fast_forward(void)
 {
     DBusSignalData dbus_signal_data(mk_dbus_signal_data());
     mock_messages->expect_msg_info_formatted("de.tahifi.Dcpd.Playback signal from ':1.123': FastForward");
-    mock_view_manager->expect_input(DrcpCommand::FAST_WIND_FORWARD);
+    mock_view_manager->expect_input(DrcpCommand::FAST_WIND_FORWARD, false);
     dbussignal_dcpd_playback(dummy_gdbus_proxy, dummy_sender_name,
                              "FastForward", nullptr, &dbus_signal_data);
 }
@@ -167,7 +167,7 @@ void test_dcpd_playback_fast_rewind(void)
 {
     DBusSignalData dbus_signal_data(mk_dbus_signal_data());
     mock_messages->expect_msg_info_formatted("de.tahifi.Dcpd.Playback signal from ':1.123': FastRewind");
-    mock_view_manager->expect_input(DrcpCommand::FAST_WIND_REVERSE);
+    mock_view_manager->expect_input(DrcpCommand::FAST_WIND_REVERSE, false);
     dbussignal_dcpd_playback(dummy_gdbus_proxy, dummy_sender_name,
                              "FastRewind", nullptr, &dbus_signal_data);
 }
@@ -179,9 +179,25 @@ void test_dcpd_playback_fast_wind_stop(void)
 {
     DBusSignalData dbus_signal_data(mk_dbus_signal_data());
     mock_messages->expect_msg_info_formatted("de.tahifi.Dcpd.Playback signal from ':1.123': FastWindStop");
-    mock_view_manager->expect_input(DrcpCommand::FAST_WIND_STOP);
+    mock_view_manager->expect_input(DrcpCommand::FAST_WIND_STOP, false);
     dbussignal_dcpd_playback(dummy_gdbus_proxy, dummy_sender_name,
                              "FastWindStop", nullptr, &dbus_signal_data);
+}
+
+static bool check_speed_parameter_called;
+static void check_speed_parameter(const UI::Parameters *expected_parameters,
+                                  const UI::Parameters *actual_parameters)
+{
+    check_speed_parameter_called = true;
+
+    const auto *expected = dynamic_cast<const UI::SpecificParameters<double> *>(expected_parameters);
+    const auto *actual = dynamic_cast<const UI::SpecificParameters<double> *>(actual_parameters);
+
+    cppcut_assert_not_null(expected);
+    cppcut_assert_not_null(actual);
+
+    cut_assert_operator(expected->get(), <=, actual->get());
+    cut_assert_operator(expected->get(), >=, actual->get());
 }
 
 /*!\test
@@ -191,15 +207,21 @@ void test_dcpd_playback_fast_wind_set_factor(void)
 {
     DBusSignalData dbus_signal_data(mk_dbus_signal_data());
     mock_messages->expect_msg_info_formatted("de.tahifi.Dcpd.Playback signal from ':1.123': FastWindSetFactor");
-    mock_view_manager->expect_input_set_fast_wind_factor(6.2);
+
+    const UI::SpecificParameters<double> speed_factor(6.2);
+    mock_view_manager->expect_input_with_callback(DrcpCommand::FAST_WIND_SET_SPEED,
+                                                  &speed_factor,
+                                                  check_speed_parameter);
 
     GVariantBuilder builder;
     g_variant_builder_init(&builder, G_VARIANT_TYPE("(d)"));
     g_variant_builder_add(&builder, "d", double(6.2));
     GVariant *factor = g_variant_builder_end(&builder);
 
+    check_speed_parameter_called = false;
     dbussignal_dcpd_playback(dummy_gdbus_proxy, dummy_sender_name,
                              "FastWindSetFactor", factor, &dbus_signal_data);
+    cut_assert_true(check_speed_parameter_called);
 
     g_variant_unref(factor);
 }
@@ -211,7 +233,7 @@ void test_dcpd_playback_repeat_mode_toggle(void)
 {
     DBusSignalData dbus_signal_data(mk_dbus_signal_data());
     mock_messages->expect_msg_info_formatted("de.tahifi.Dcpd.Playback signal from ':1.123': RepeatModeToggle");
-    mock_view_manager->expect_input(DrcpCommand::REPEAT_MODE_TOGGLE);
+    mock_view_manager->expect_input(DrcpCommand::REPEAT_MODE_TOGGLE, false);
     dbussignal_dcpd_playback(dummy_gdbus_proxy, dummy_sender_name,
                              "RepeatModeToggle", nullptr, &dbus_signal_data);
 }
@@ -223,7 +245,7 @@ void test_dcpd_playback_shuffle_mode_toggle(void)
 {
     DBusSignalData dbus_signal_data(mk_dbus_signal_data());
     mock_messages->expect_msg_info_formatted("de.tahifi.Dcpd.Playback signal from ':1.123': ShuffleModeToggle");
-    mock_view_manager->expect_input(DrcpCommand::SHUFFLE_MODE_TOGGLE);
+    mock_view_manager->expect_input(DrcpCommand::SHUFFLE_MODE_TOGGLE, false);
     dbussignal_dcpd_playback(dummy_gdbus_proxy, dummy_sender_name,
                              "ShuffleModeToggle", nullptr, &dbus_signal_data);
 }
@@ -302,7 +324,7 @@ void test_dcpd_listnav_level_up(void)
 {
     DBusSignalData dbus_signal_data(mk_dbus_signal_data());
     mock_messages->expect_msg_info_formatted("de.tahifi.Dcpd.ListNavigation signal from ':1.123': LevelUp");
-    mock_view_manager->expect_input(DrcpCommand::GO_BACK_ONE_LEVEL);
+    mock_view_manager->expect_input(DrcpCommand::GO_BACK_ONE_LEVEL, false);
 
     dbussignal_dcpd_listnav(dummy_gdbus_proxy, dummy_sender_name,
                             "LevelUp", nullptr, &dbus_signal_data);
@@ -315,7 +337,7 @@ void test_dcpd_listnav_level_down(void)
 {
     DBusSignalData dbus_signal_data(mk_dbus_signal_data());
     mock_messages->expect_msg_info_formatted("de.tahifi.Dcpd.ListNavigation signal from ':1.123': LevelDown");
-    mock_view_manager->expect_input(DrcpCommand::SELECT_ITEM);
+    mock_view_manager->expect_input(DrcpCommand::SELECT_ITEM, false);
 
     dbussignal_dcpd_listnav(dummy_gdbus_proxy, dummy_sender_name,
                             "LevelDown", nullptr, &dbus_signal_data);

@@ -141,29 +141,34 @@ void ViewManager::Manager::handle_input_result(ViewIface::InputResult result,
     }
 }
 
-void ViewManager::Manager::input(DrcpCommand command)
+void ViewManager::Manager::input(DrcpCommand command, const UI::Parameters *parameters)
 {
-    msg_info("Dispatching DRCP command %d", command);
+    msg_info("Dispatching DRCP command %d%s",
+             command,
+             (parameters != nullptr) ? " with parameters" : "");
 
     static constexpr const ViewManager::InputBouncer::Item global_bounce_table_data[] =
     {
         ViewManager::InputBouncer::Item(DrcpCommand::PLAYBACK_STOP, ViewNames::PLAYER),
+        ViewManager::InputBouncer::Item(DrcpCommand::FAST_WIND_SET_SPEED, ViewNames::PLAYER),
     };
 
     static constexpr const ViewManager::InputBouncer global_bounce_table(global_bounce_table_data);
 
     bool was_handled;
     (void)VMIface::do_input_bounce(*this, global_bounce_table,
-                                   was_handled, command);
+                                   was_handled, command, parameters);
 
     if(!was_handled)
-        handle_input_result(active_view_->input(command), *active_view_);
+        handle_input_result(active_view_->input(command, parameters),
+                            *active_view_);
 }
 
 ViewIface::InputResult
 ViewManager::VMIface::do_input_bounce(VMIface &vmiface,
                                       const ViewManager::InputBouncer &bouncer,
-                                      bool &bounced, DrcpCommand command)
+                                      bool &bounced, DrcpCommand command,
+                                      const UI::Parameters *parameters)
 {
     bounced = false;
 
@@ -177,18 +182,13 @@ ViewManager::VMIface::do_input_bounce(VMIface &vmiface,
     if(view != nullptr)
     {
         bounced = true;
-        return view->input(item->xform_command_);
+        return view->input(item->xform_command_, parameters);
     }
 
     BUG("Failed bouncing command %u, view \"%s\" unknown",
         command, item->view_name_);
 
     return ViewIface::InputResult::OK;
-}
-
-void ViewManager::Manager::input_set_fast_wind_factor(double factor)
-{
-    msg_info("Need to handle FastWindSetFactor %f", factor);
 }
 
 static bool move_cursor_multiple_steps(int steps, DrcpCommand down_cmd,
@@ -209,7 +209,7 @@ static bool move_cursor_multiple_steps(int steps, DrcpCommand down_cmd,
 
     for(/* nothing */; steps > 0; --steps)
     {
-        const ViewIface::InputResult temp = view.input(command);
+        const ViewIface::InputResult temp = view.input(command, nullptr);
 
         if(temp != ViewIface::InputResult::OK)
             result = temp;
