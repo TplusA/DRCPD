@@ -153,10 +153,10 @@ void ViewManager::Manager::input(DrcpCommand command, const UI::Parameters *para
              static_cast<int>(command),
              (parameters != nullptr) ? " with parameters" : "");
 
-    static constexpr const ViewManager::InputBouncer::Item global_bounce_table_data[] =
+    static constexpr const InputBouncer::Item global_bounce_table_data[] =
     {
-        ViewManager::InputBouncer::Item(DrcpCommand::PLAYBACK_STOP, ViewNames::PLAYER),
-        ViewManager::InputBouncer::Item(DrcpCommand::FAST_WIND_SET_SPEED, ViewNames::PLAYER),
+        InputBouncer::Item(DrcpCommand::PLAYBACK_STOP, ViewNames::PLAYER),
+        InputBouncer::Item(DrcpCommand::FAST_WIND_SET_SPEED, ViewNames::PLAYER),
     };
 
     static constexpr const ViewManager::InputBouncer global_bounce_table(global_bounce_table_data);
