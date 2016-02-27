@@ -144,22 +144,41 @@ void ViewManager::Manager::handle_input_result(ViewIface::InputResult result,
 void ViewManager::Manager::input(DrcpCommand command)
 {
     msg_info("Dispatching DRCP command %d", command);
-    handle_input_result(active_view_->input(command), *active_view_);
+
+    static constexpr const ViewManager::InputBouncer::Item global_bounce_table_data[] =
+    {
+        ViewManager::InputBouncer::Item(DrcpCommand::PLAYBACK_STOP, ViewNames::PLAYER),
+    };
+
+    static constexpr const ViewManager::InputBouncer global_bounce_table(global_bounce_table_data);
+
+    bool was_handled;
+    (void)VMIface::do_input_bounce(*this, global_bounce_table,
+                                   was_handled, command);
+
+    if(!was_handled)
+        handle_input_result(active_view_->input(command), *active_view_);
 }
 
 ViewIface::InputResult
-ViewManager::Manager::input_bounce(const ViewManager::InputBouncer &bouncer,
-                                   DrcpCommand command)
+ViewManager::VMIface::do_input_bounce(VMIface &vmiface,
+                                      const ViewManager::InputBouncer &bouncer,
+                                      bool &bounced, DrcpCommand command)
 {
+    bounced = false;
+
     const auto *item = bouncer.find(command);
 
     if(item == nullptr)
         return ViewIface::InputResult::OK;
 
-    auto *const view = get_view_by_name(item->view_name_);
+    auto *const view = vmiface.get_view_by_name(item->view_name_);
 
     if(view != nullptr)
+    {
+        bounced = true;
         return view->input(item->xform_command_);
+    }
 
     BUG("Failed bouncing command %u, view \"%s\" unknown",
         command, item->view_name_);

@@ -52,13 +52,6 @@ void ViewFileBrowser::View::defocus()
 
 ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command)
 {
-    static constexpr const ViewManager::InputBouncer::Item bounce_table_data[] =
-    {
-        ViewManager::InputBouncer::Item(DrcpCommand::PLAYBACK_STOP, ViewNames::PLAYER),
-    };
-
-    static constexpr const ViewManager::InputBouncer bounce_table(bounce_table_data);
-
     switch(command)
     {
       case DrcpCommand::SELECT_ITEM:
@@ -157,7 +150,6 @@ ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command)
       }
 
       default:
-        (void)view_manager_->input_bounce(bounce_table, command);
         break;
     }
 
