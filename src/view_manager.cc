@@ -144,7 +144,7 @@ void ViewManager::Manager::handle_input_result(ViewIface::InputResult result,
 void ViewManager::Manager::input(DrcpCommand command, const UI::Parameters *parameters)
 {
     msg_info("Dispatching DRCP command %d%s",
-             command,
+             static_cast<int>(command),
              (parameters != nullptr) ? " with parameters" : "");
 
     static constexpr const ViewManager::InputBouncer::Item global_bounce_table_data[] =
@@ -185,8 +185,8 @@ ViewManager::VMIface::do_input_bounce(VMIface &vmiface,
         return view->input(item->xform_command_, parameters);
     }
 
-    BUG("Failed bouncing command %u, view \"%s\" unknown",
-        command, item->view_name_);
+    BUG("Failed bouncing command %d, view \"%s\" unknown",
+        static_cast<int>(command), item->view_name_);
 
     return ViewIface::InputResult::OK;
 }
