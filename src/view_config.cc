@@ -206,7 +206,7 @@ void ViewConfig::View::defocus()
 }
 
 ViewIface::InputResult ViewConfig::View::input(DrcpCommand command,
-                                               const UI::Parameters *parameters)
+                                               std::unique_ptr<const UI::Parameters> parameters)
 {
     switch(command)
     {

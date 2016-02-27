@@ -44,7 +44,7 @@ void ViewPlay::View::defocus()
 }
 
 ViewIface::InputResult ViewPlay::View::input(DrcpCommand command,
-                                             const UI::Parameters *parameters)
+                                             std::unique_ptr<const UI::Parameters> parameters)
 {
     switch(command)
     {
@@ -90,8 +90,9 @@ ViewIface::InputResult ViewPlay::View::input(DrcpCommand command,
 
       case DrcpCommand::FAST_WIND_SET_SPEED:
         {
-            const auto *speed = dynamic_cast<const UI::SpecificParameters<double> *>(parameters);
-            msg_info("PLAY VIEW: Set fast wind speed, parameters %p", speed);
+            const auto speed =
+                UI::Parameters::downcast<const UI::SpecificParameters<double>>(parameters);
+            msg_info("PLAY VIEW: Set fast wind speed, parameters %p", speed.get());
 
             if(parameters != nullptr)
                 msg_info("Need to handle FastWindSetFactor %f", speed->get());

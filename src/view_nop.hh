@@ -51,7 +51,7 @@ class View: public ViewIface
     void defocus() override {}
 
     InputResult input(DrcpCommand command,
-                      const UI::Parameters *parameters) override
+                      std::unique_ptr<const UI::Parameters> parameters) override
     {
         return InputResult::SHOULD_HIDE;
     }

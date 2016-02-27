@@ -314,7 +314,7 @@ void MockViewManager::serialization_result(DcpTransaction::Result result)
     cppcut_assert_equal(int(expect.d.arg_dcp_result_), int(result));
 }
 
-void MockViewManager::input(DrcpCommand command, const UI::Parameters *parameters)
+void MockViewManager::input(DrcpCommand command, std::unique_ptr<const UI::Parameters> parameters)
 {
     const auto &expect(expectations_->get_next_expectation(__func__));
 
@@ -324,12 +324,12 @@ void MockViewManager::input(DrcpCommand command, const UI::Parameters *parameter
     if(expect.d.check_parameters_fn_ != nullptr)
         expect.d.check_parameters_fn_(expect.d.expected_parameters_, parameters);
     if(expect.d.expect_parameters_)
-        cppcut_assert_not_null(parameters);
+        cppcut_assert_not_null(parameters.get());
     else
-        cppcut_assert_null(parameters);
+        cppcut_assert_null(parameters.get());
 }
 
-ViewIface::InputResult MockViewManager::input_bounce(const ViewManager::InputBouncer &bouncer, DrcpCommand command, const UI::Parameters *parameters)
+ViewIface::InputResult MockViewManager::input_bounce(const ViewManager::InputBouncer &bouncer, DrcpCommand command, std::unique_ptr<const UI::Parameters> parameters)
 {
     const auto &expect(expectations_->get_next_expectation(__func__));
 
@@ -337,9 +337,9 @@ ViewIface::InputResult MockViewManager::input_bounce(const ViewManager::InputBou
     cppcut_assert_equal(int(expect.d.arg_command_), int(command));
 
     if(expect.d.expect_parameters_)
-        cppcut_assert_not_null(parameters);
+        cppcut_assert_not_null(parameters.get());
     else
-        cppcut_assert_null(parameters);
+        cppcut_assert_null(parameters.get());
 
     const auto *item = bouncer.find(command);
 

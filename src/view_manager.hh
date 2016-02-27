@@ -112,10 +112,10 @@ class VMIface
     virtual void serialization_result(DcpTransaction::Result result) = 0;
 
     virtual void input(DrcpCommand command,
-                       const UI::Parameters *parameters = nullptr) = 0;
+                       std::unique_ptr<const UI::Parameters> parameters = nullptr) = 0;
     virtual ViewIface::InputResult
     input_bounce(const InputBouncer &bouncer, DrcpCommand command,
-                 const UI::Parameters *parameters = nullptr) = 0;
+                 std::unique_ptr<const UI::Parameters> parameters = nullptr) = 0;
     virtual void input_move_cursor_by_line(int lines) = 0;
     virtual void input_move_cursor_by_page(int pages) = 0;
     virtual ViewIface *get_view_by_name(const char *view_name) = 0;
@@ -155,11 +155,12 @@ class Manager: public VMIface
 
     void serialization_result(DcpTransaction::Result result) override;
 
-    void input(DrcpCommand command, const UI::Parameters *parameters = nullptr) override;
+    void input(DrcpCommand command,
+               std::unique_ptr<const UI::Parameters> parameters = nullptr) override;
 
     ViewIface::InputResult input_bounce(const InputBouncer &bouncer,
                                         DrcpCommand command,
-                                        const UI::Parameters *parameters) override
+                                        std::unique_ptr<const UI::Parameters> parameters) override
     {
         (void)do_input_bounce(bouncer, command, parameters);
         return ViewIface::InputResult::OK;
@@ -183,7 +184,7 @@ class Manager: public VMIface
     void handle_input_result(ViewIface::InputResult result, ViewIface &view);
 
     bool do_input_bounce(const InputBouncer &bouncer, DrcpCommand command,
-                         const UI::Parameters *parameters = nullptr);
+                         std::unique_ptr<const UI::Parameters> &parameters);
 };
 
 }

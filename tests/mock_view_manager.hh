@@ -40,7 +40,7 @@ class MockViewManager: public ViewManager::VMIface
     void check() const;
 
     using CheckParametersFn = void (*)(const UI::Parameters *expected_parameters,
-                                       const UI::Parameters *actual_parameters);
+                                       const std::unique_ptr<const UI::Parameters> &actual_parameters);
 
     void expect_serialization_result(DcpTransaction::Result result);
     void expect_input(DrcpCommand command, bool expect_parameters);
@@ -61,8 +61,8 @@ class MockViewManager: public ViewManager::VMIface
     void set_output_stream(std::ostream &os) override;
     void set_debug_stream(std::ostream &os) override;
     void serialization_result(DcpTransaction::Result result) override;
-    void input(DrcpCommand command, const UI::Parameters *parameters) override;
-    ViewIface::InputResult input_bounce(const ViewManager::InputBouncer &bouncer, DrcpCommand command, const UI::Parameters *parameters) override;
+    void input(DrcpCommand command, std::unique_ptr<const UI::Parameters> parameters) override;
+    ViewIface::InputResult input_bounce(const ViewManager::InputBouncer &bouncer, DrcpCommand command, std::unique_ptr<const UI::Parameters> parameters) override;
     void input_move_cursor_by_line(int lines) override;
     void input_move_cursor_by_page(int pages) override;
     ViewIface *get_view_by_name(const char *view_name) override;

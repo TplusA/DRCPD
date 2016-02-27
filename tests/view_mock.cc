@@ -208,7 +208,7 @@ void ViewMock::View::defocus()
 }
 
 ViewIface::InputResult ViewMock::View::input(DrcpCommand command,
-                                             const UI::Parameters *parameters)
+                                             std::unique_ptr<const UI::Parameters> parameters)
 {
     if(ignore_all_)
         return ViewIface::InputResult::OK;
@@ -221,9 +221,9 @@ ViewIface::InputResult ViewMock::View::input(DrcpCommand command,
     if(expect.check_parameters_fn_ != nullptr)
         expect.check_parameters_fn_(expect.expected_parameters_, parameters);
     else if(expect.expect_parameters_)
-        cppcut_assert_not_null(parameters);
+        cppcut_assert_not_null(parameters.get());
     else
-        cppcut_assert_null(parameters);
+        cppcut_assert_null(parameters.get());
 
     return expect.retval_input_;
 }

@@ -19,6 +19,8 @@
 #ifndef UI_PARAMETERS_HH
 #define UI_PARAMETERS_HH
 
+#include <memory>
+
 namespace UI
 {
 
@@ -32,6 +34,18 @@ class Parameters
     Parameters &operator=(const Parameters &) = delete;
 
     virtual ~Parameters() {}
+
+    template<typename T, typename D, typename TParams>
+    static std::unique_ptr<T, D> downcast(std::unique_ptr<TParams, D> &params)
+    {
+        if(T *result = dynamic_cast<T *>(params.get()))
+        {
+            params.release();
+            return std::unique_ptr<T, D>(result, std::move(params.get_deleter()));
+        }
+        else
+            return std::unique_ptr<T, D>(nullptr, params.get_deleter());
+    }
 };
 
 template <typename T>

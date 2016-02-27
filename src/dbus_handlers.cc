@@ -79,10 +79,10 @@ void dbussignal_dcpd_playback(GDBusProxy *proxy, const gchar *sender_name,
     {
         check_parameter_assertions(parameters, 1);
 
-        UI::SpecificParameters<double> speed;
-        g_variant_get(parameters, "(d)", speed.get_pointer_to_raw_data());
+        auto speed = std::unique_ptr<UI::SpecificParameters<double>>(new UI::SpecificParameters<double>());
+        g_variant_get(parameters, "(d)", speed->get_pointer_to_raw_data());
 
-        data->mgr.input(DrcpCommand::FAST_WIND_SET_SPEED, &speed);
+        data->mgr.input(DrcpCommand::FAST_WIND_SET_SPEED, std::move(speed));
     }
     else if(strcmp(signal_name, "RepeatModeToggle") == 0)
         data->mgr.input(DrcpCommand::REPEAT_MODE_TOGGLE);

@@ -147,7 +147,8 @@ void ViewManager::Manager::handle_input_result(ViewIface::InputResult result,
     }
 }
 
-void ViewManager::Manager::input(DrcpCommand command, const UI::Parameters *parameters)
+void ViewManager::Manager::input(DrcpCommand command,
+                                 std::unique_ptr<const UI::Parameters> parameters)
 {
     msg_info("Dispatching DRCP command %d%s",
              static_cast<int>(command),
@@ -162,13 +163,13 @@ void ViewManager::Manager::input(DrcpCommand command, const UI::Parameters *para
     static constexpr const ViewManager::InputBouncer global_bounce_table(global_bounce_table_data);
 
     if(!do_input_bounce(global_bounce_table, command, parameters))
-        handle_input_result(active_view_->input(command, parameters),
+        handle_input_result(active_view_->input(command, std::move(parameters)),
                             *active_view_);
 }
 
 bool ViewManager::Manager::do_input_bounce(const ViewManager::InputBouncer &bouncer,
                                            DrcpCommand command,
-                                           const UI::Parameters *parameters)
+                                           std::unique_ptr<const UI::Parameters> &parameters)
 {
     const auto *item = bouncer.find(command);
 
@@ -179,7 +180,7 @@ bool ViewManager::Manager::do_input_bounce(const ViewManager::InputBouncer &boun
 
     if(view != nullptr)
     {
-        handle_input_result(view->input(item->xform_command_, parameters),
+        handle_input_result(view->input(item->xform_command_, std::move(parameters)),
                             *view);
         return true;
     }

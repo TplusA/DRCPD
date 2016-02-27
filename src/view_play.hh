@@ -76,7 +76,7 @@ class View: public ViewIface
     void defocus() override;
 
     InputResult input(DrcpCommand command,
-                      const UI::Parameters *parameters) override;
+                      std::unique_ptr<const UI::Parameters> parameters) override;
 
     void notify_stream_start() override;
     void notify_stream_stop() override;

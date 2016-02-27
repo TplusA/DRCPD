@@ -19,6 +19,7 @@
 #ifndef VIEW_HH
 #define VIEW_HH
 
+#include <memory>
 #include <ostream>
 #include <chrono>
 
@@ -170,7 +171,7 @@ class ViewIface
      * unnoticed. Errors are supposed to be handled by the views themselves.
      */
     virtual InputResult input(DrcpCommand command,
-                              const UI::Parameters *parameters) = 0;
+                              std::unique_ptr<const UI::Parameters> parameters) = 0;
 
     /*!
      * Write XML representation of the whole view to given output stream.

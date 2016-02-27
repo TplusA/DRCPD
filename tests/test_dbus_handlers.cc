@@ -186,12 +186,12 @@ void test_dcpd_playback_fast_wind_stop(void)
 
 static bool check_speed_parameter_called;
 static void check_speed_parameter(const UI::Parameters *expected_parameters,
-                                  const UI::Parameters *actual_parameters)
+                                  const std::unique_ptr<const UI::Parameters> &actual_parameters)
 {
     check_speed_parameter_called = true;
 
     const auto *expected = dynamic_cast<const UI::SpecificParameters<double> *>(expected_parameters);
-    const auto *actual = dynamic_cast<const UI::SpecificParameters<double> *>(actual_parameters);
+    const auto *actual = dynamic_cast<const UI::SpecificParameters<double> *>(actual_parameters.get());
 
     cppcut_assert_not_null(expected);
     cppcut_assert_not_null(actual);
