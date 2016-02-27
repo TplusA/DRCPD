@@ -83,11 +83,14 @@ class InputBouncer
 
     const Item *find(DrcpCommand command) const
     {
-        return std::find_if(items_, items_ + items_count_,
-                            [command] (const Item &item) -> bool
-                            {
-                                return item.input_command_ == command;
-                            });
+        const Item *it =
+            std::find_if(items_, items_ + items_count_,
+                         [command] (const Item &item) -> bool
+                         {
+                             return item.input_command_ == command;
+                         });
+
+        return (it < items_ + items_count_) ? it : nullptr;
     }
 };
 
