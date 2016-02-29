@@ -196,8 +196,8 @@ static void check_speed_parameter(const UI::Parameters *expected_parameters,
     cppcut_assert_not_null(expected);
     cppcut_assert_not_null(actual);
 
-    cut_assert_operator(expected->get(), <=, actual->get());
-    cut_assert_operator(expected->get(), >=, actual->get());
+    cut_assert_operator(expected->get_specific(), <=, actual->get_specific());
+    cut_assert_operator(expected->get_specific(), >=, actual->get_specific());
 }
 
 /*!\test

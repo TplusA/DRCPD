@@ -95,7 +95,7 @@ ViewIface::InputResult ViewPlay::View::input(DrcpCommand command,
             msg_info("PLAY VIEW: Set fast wind speed, parameters %p", speed.get());
 
             if(parameters != nullptr)
-                msg_info("Need to handle FastWindSetFactor %f", speed->get());
+                msg_info("Need to handle FastWindSetFactor %f", speed->get_specific());
         }
 
         break;

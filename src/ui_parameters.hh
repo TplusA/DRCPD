@@ -32,6 +32,7 @@ class Parameters
   public:
     Parameters(const Parameters &) = delete;
     Parameters &operator=(const Parameters &) = delete;
+    Parameters(Parameters &&) = default;
 
     virtual ~Parameters() {}
 
@@ -57,14 +58,17 @@ class SpecificParameters: public Parameters
   public:
     SpecificParameters(const SpecificParameters &) = delete;
     SpecificParameters &operator=(const SpecificParameters &) = delete;
+    SpecificParameters(SpecificParameters &&) = default;
 
     constexpr explicit SpecificParameters() {}
-    constexpr explicit SpecificParameters(T &&value): value_(value) {}
 
-    const T &get() const { return value_; }
+    explicit SpecificParameters(T &&value): value_(std::move(value)) {}
+
+    const T &get_specific() const { return value_; }
 
     /*
-     * Ugly-fied, non-const pointer variant of #UI::SpecificParameters::get().
+     * Ugly-fied, non-const pointer variant of
+     * #UI::SpecificParameters::get_specific().
      *
      * This function is meant for C-like initialization of the managed data in
      * case there is no C++ ctor for #UI::SpecificParameters::T. In this case,
