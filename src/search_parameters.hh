@@ -16,19 +16,27 @@
  * along with DRCPD.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef VIEW_NAMES_HH
-#define VIEW_NAMES_HH
+#ifndef SEARCH_PARAMETERS_HH
+#define SEARCH_PARAMETERS_HH
 
-namespace ViewNames
+class SearchParameters
 {
-    static constexpr const char BROWSER_FILESYSTEM[] = "Filesystem";
-    static constexpr const char BROWSER_INETRADIO[]  = "TuneIn";
-    static constexpr const char BROWSER_UPNP[]       = "UPnP";
-    static constexpr const char PLAYER[]             = "Play";
-    static constexpr const char CONFIGURATION[]      = "Config";
-    static constexpr const char SEARCH_OPTIONS[]     = "Search";
+  private:
+    std::string context_;
+    std::string query_;
 
-    static constexpr const char NOP[]                = "#NOP";
+  public:
+    SearchParameters(const SearchParameters &) = delete;
+    SearchParameters &operator=(const SearchParameters &) = delete;
+    SearchParameters(SearchParameters &&) = default;
+
+    explicit SearchParameters(const char *context, const char *query):
+        context_(context),
+        query_(query)
+    {}
+
+    const std::string &get_context() const { return context_; }
+    const std::string &get_query() const { return query_; }
 };
 
-#endif /* !VIEW_NAMES_HH */
+#endif /* !SEARCH_PARAMETERS_HH */

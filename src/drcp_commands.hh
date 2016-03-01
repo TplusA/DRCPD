@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -87,6 +87,7 @@ enum class DrcpCommand
     JUMP_TO_LETTER                 = 0x99,
     BROWSE_VIEW_OPEN_SOURCE        = 0x9a,
     SEARCH                         = 0x9b,
+    X_TA_SEARCH_PARAMETERS         = 0x9c,
     JUMP_TO_NEXT                   = 0x9d,
     GOTO_INTERNET_RADIO            = 0xaa,
     GOTO_FAVORITES                 = 0xab,
