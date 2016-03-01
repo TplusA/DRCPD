@@ -593,7 +593,7 @@ bool Playback::State::try_descend()
     ID::List list_id =
         ViewFileBrowser::get_child_item_id(dbus_list_,
                                            dbus_list_.get_list_id(),
-                                           navigation_, true);
+                                           navigation_, nullptr, true);
 
     if(!list_id.is_valid())
         return false;

@@ -22,6 +22,7 @@
 
 #include "view_filebrowser.hh"
 #include "view_filebrowser_utils.hh"
+#include "view_search.hh"
 #include "view_manager.hh"
 #include "view_names.hh"
 #include "player.hh"
@@ -48,13 +49,64 @@ void ViewFileBrowser::View::focus()
 
 void ViewFileBrowser::View::defocus()
 {
+    waiting_for_search_parameters_ = false;
+}
+
+static bool request_search_parameters_from_user(ViewManager::VMIface &vm,
+                                                const SearchParameters *&params)
+{
+    auto *const view =
+        static_cast<ViewSearch::View *>(vm.get_view_by_name(ViewNames::SEARCH_OPTIONS));
+    log_assert(view != nullptr);
+
+    params = view->get_parameters();
+
+    if(params == nullptr)
+    {
+        view->request_parameters_for_context("dummy");
+        return vm.serialize_view_forced(view);
+    }
+
+    return false;
+}
+
+bool ViewFileBrowser::View::apply_search_parameters(View &file_view,
+                                                    ViewManager::VMIface &vm,
+                                                    const SearchParameters *params)
+{
+    auto *const search_view =
+        static_cast<ViewSearch::View *>(vm.get_view_by_name(ViewNames::SEARCH_OPTIONS));
+    log_assert(search_view != nullptr);
+
+    if(params == nullptr)
+        params = search_view->get_parameters();
+
+    log_assert(params != nullptr);
+
+    const bool retval = file_view.point_to_child_directory(params);
+
+    search_view->forget_parameters();
+
+    return retval;
 }
 
 ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command,
                                                     std::unique_ptr<const UI::Parameters> parameters)
 {
+    const bool waiting_for_search_parameters = waiting_for_search_parameters_;
+    waiting_for_search_parameters_ = false;
+
     switch(command)
     {
+      case DrcpCommand::X_TA_SEARCH_PARAMETERS:
+        if(!waiting_for_search_parameters)
+            break;
+
+        if(apply_search_parameters(*this, *view_manager_, nullptr))
+            return InputResult::UPDATE_NEEDED;
+
+        break;
+
       case DrcpCommand::SELECT_ITEM:
       case DrcpCommand::KEY_OK_ENTER:
         if(file_list_.empty())
@@ -93,7 +145,31 @@ ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command,
                 break;
 
               case ListItemKind::SEARCH_FORM:
-                msg_info("Enter search form, need input from user");
+                if(waiting_for_search_parameters)
+                {
+                    /* quick/impatient user */
+                    waiting_for_search_parameters_ = true;
+                    break;
+                }
+
+                const SearchParameters *params = nullptr;
+
+                waiting_for_search_parameters_ =
+                    request_search_parameters_from_user(*view_manager_, params);
+
+                if(params == nullptr)
+                {
+                    /* just idle around until the search parameters are sent or
+                     * until the user does something else */
+                    break;
+                }
+
+                /* got preloaded parameters */
+                log_assert(!waiting_for_search_parameters_);
+
+                if(apply_search_parameters(*this, *view_manager_, params))
+                    return InputResult::UPDATE_NEEDED;
+
                 break;
             }
         }
@@ -361,12 +437,13 @@ bool ViewFileBrowser::View::point_to_root_directory()
     return false;
 }
 
-bool ViewFileBrowser::View::point_to_child_directory()
+bool ViewFileBrowser::View::point_to_child_directory(const SearchParameters *search_parameters)
 {
     try
     {
         ID::List list_id =
-            get_child_item_id(file_list_, current_list_id_, navigation_);
+            get_child_item_id(file_list_, current_list_id_, navigation_ ,
+                              search_parameters);
 
         if(!list_id.is_valid())
             return false;

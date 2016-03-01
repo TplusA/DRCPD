@@ -158,6 +158,7 @@ void ViewManager::Manager::input(DrcpCommand command,
     {
         InputBouncer::Item(DrcpCommand::PLAYBACK_STOP, ViewNames::PLAYER),
         InputBouncer::Item(DrcpCommand::FAST_WIND_SET_SPEED, ViewNames::PLAYER),
+        InputBouncer::Item(DrcpCommand::X_TA_SEARCH_PARAMETERS, ViewNames::SEARCH_OPTIONS),
     };
 
     static constexpr const ViewManager::InputBouncer global_bounce_table(global_bounce_table_data);

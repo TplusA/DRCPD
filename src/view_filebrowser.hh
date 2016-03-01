@@ -23,6 +23,7 @@
 
 #include "view.hh"
 #include "playbackmode_state.hh"
+#include "search_parameters.hh"
 #include "dbuslist.hh"
 #include "dbus_iface.h"
 #include "dbus_iface_deep.h"
@@ -68,6 +69,8 @@ class View: public ViewIface
     Playback::CurrentMode playback_current_mode_;
     Playback::State playback_current_state_;
 
+    bool waiting_for_search_parameters_;
+
   public:
     View(const View &) = delete;
 
@@ -94,7 +97,8 @@ class View: public ViewIface
         drcp_browse_id_(drcp_browse_id),
         player_(player),
         playback_current_mode_(default_playback_mode),
-        playback_current_state_(traversal_list_, playback_current_mode_)
+        playback_current_state_(traversal_list_, playback_current_mode_),
+        waiting_for_search_parameters_(false)
     {}
 
     bool init() override;
@@ -127,7 +131,7 @@ class View: public ViewIface
      * \returns
      *     True if the list was updated, false if the list remained unchanged.
      */
-    bool point_to_child_directory();
+    bool point_to_child_directory(const SearchParameters *search_parameters = nullptr);
 
     /*!
      * Load whole parent directory into internal list.
@@ -146,6 +150,10 @@ class View: public ViewIface
      * Generate XML document from current state.
      */
     bool write_xml(std::ostream &os, bool is_full_view) override;
+
+    static bool apply_search_parameters(View &file_view,
+                                        ViewManager::VMIface &vm,
+                                        const SearchParameters *params);
 };
 
 class FileItem: public List::TextItem

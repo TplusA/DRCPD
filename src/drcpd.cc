@@ -31,6 +31,7 @@
 #include "view_config.hh"
 #include "view_manager.hh"
 #include "view_play.hh"
+#include "view_search.hh"
 #include "view_signals_glib.hh"
 #include "player.hh"
 #include "dbus_iface.h"
@@ -401,6 +402,9 @@ static void connect_everything(ViewManager::Manager &views, ViewSignalsIface *vi
     static ViewPlay::View play(N_("Stream information"),
                                number_of_lines_on_display, player,
                                view_signals);
+    static ViewSearch::View search(N_("Search parameters"),
+                                   number_of_lines_on_display,
+                                   &views, view_signals);
 
     if(!cfg.init())
         return;
@@ -417,11 +421,15 @@ static void connect_everything(ViewManager::Manager &views, ViewSignalsIface *vi
     if(!play.init())
         return;
 
+    if(!search.init())
+        return;
+
     views.add_view(&cfg);
     views.add_view(&fs);
     views.add_view(&tunein);
     views.add_view(&upnp);
     views.add_view(&play);
+    views.add_view(&search);
 
     views.activate_view_by_name(ViewNames::BROWSER_UPNP);
 }

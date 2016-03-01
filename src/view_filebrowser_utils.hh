@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -70,6 +70,7 @@ static void enter_list_at(List::DBusList &file_list,
 static ID::List get_child_item_id(const List::DBusList &file_list,
                                   ID::List current_list_id,
                                   List::Nav &navigation,
+                                  const SearchParameters *search_parameters,
                                   bool suppress_error_if_file = false)
     throw(List::DBusListException)
 {
@@ -79,16 +80,33 @@ static ID::List get_child_item_id(const List::DBusList &file_list,
     guint list_id;
     guchar error_code;
 
-    if(!tdbus_lists_navigation_call_get_list_id_sync(file_list.get_dbus_proxy(),
-                                                     current_list_id.get_raw_id(),
-                                                     navigation.get_cursor(),
-                                                     &error_code,
-                                                     &list_id, NULL, NULL))
+    if(search_parameters == nullptr)
     {
-        msg_info("Failed obtaining ID for item %u in list %u",
-                 navigation.get_cursor(), current_list_id.get_raw_id());
+        if(!tdbus_lists_navigation_call_get_list_id_sync(file_list.get_dbus_proxy(),
+                                                         current_list_id.get_raw_id(),
+                                                         navigation.get_cursor(),
+                                                         &error_code,
+                                                         &list_id, NULL, NULL))
+        {
+            msg_info("Failed obtaining ID for item %u in list %u",
+                     navigation.get_cursor(), current_list_id.get_raw_id());
 
-        throw List::DBusListException(ListError::Code::INTERNAL, true);
+            throw List::DBusListException(ListError::Code::INTERNAL, true);
+        }
+    }
+    else
+    {
+        if(!tdbus_lists_navigation_call_get_parameterized_list_id_sync(
+                file_list.get_dbus_proxy(), current_list_id.get_raw_id(),
+                navigation.get_cursor(),
+                search_parameters->get_query().c_str(),
+                &error_code, &list_id, NULL, NULL))
+        {
+            msg_info("Failed obtaining ID for search form in list %u",
+                     current_list_id.get_raw_id());
+
+            throw List::DBusListException(ListError::Code::INTERNAL, true);
+        }
     }
 
     const ListError error(error_code);
