@@ -1,3 +1,16 @@
+2016-03-03  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 1.11 released.
+
+	* User interface: Support for Airable search forms. This involves
+	  requesting and receiving search queries from the user when the user
+	  tries to enter a search form.
+
+	  In addition, a mechanism for preloaded queries is implemented as
+	  well so that the SPI slave may actively push new queries to us.
+
+	* DRCP: Extended list item types for the viewing pleasure.
+
 2016-02-25  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 1.10 released.
