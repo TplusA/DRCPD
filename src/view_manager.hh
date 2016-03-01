@@ -126,6 +126,7 @@ class VMIface
                                       const char *view_name_b) = 0;
     virtual bool is_active_view(const ViewIface *view) const = 0;
     virtual bool serialize_view_if_active(const ViewIface *view) const = 0;
+    virtual bool serialize_view_forced(const ViewIface *view) const = 0;
     virtual bool update_view_if_active(const ViewIface *view) const = 0;
     virtual void hide_view_if_active(const ViewIface *view) = 0;
 };
@@ -176,6 +177,7 @@ class Manager: public VMIface
                               const char *view_name_b) override;
     bool is_active_view(const ViewIface *view) const override;
     bool serialize_view_if_active(const ViewIface *view) const override;
+    bool serialize_view_forced(const ViewIface *view) const override;
     bool update_view_if_active(const ViewIface *view) const override;
     void hide_view_if_active(const ViewIface *view) override;
 

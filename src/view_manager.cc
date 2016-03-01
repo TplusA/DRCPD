@@ -353,6 +353,11 @@ bool ViewManager::Manager::serialize_view_if_active(const ViewIface *view) const
         return true;
 }
 
+bool ViewManager::Manager::serialize_view_forced(const ViewIface *view) const
+{
+    return const_cast<ViewIface *>(view)->serialize(dcp_transaction_, debug_stream_);
+}
+
 void ViewManager::Manager::hide_view_if_active(const ViewIface *view)
 {
     if(is_active_view(view))

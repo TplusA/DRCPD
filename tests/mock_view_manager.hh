@@ -73,6 +73,7 @@ class MockViewManager: public ViewManager::VMIface
                               const char *view_name_b) override;
     bool is_active_view(const ViewIface *view) const override;
     bool serialize_view_if_active(const ViewIface *view) const override;
+    bool serialize_view_forced(const ViewIface *view) const override;
     bool update_view_if_active(const ViewIface *view) const override;
     void hide_view_if_active(const ViewIface *view) override;
 };
