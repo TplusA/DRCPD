@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -28,6 +28,7 @@
 #include "view_manager.hh"
 #include "view_play.hh"
 #include "view_filebrowser.hh"
+#include "search_parameters.hh"
 #include "player.hh"
 #include "messages.h"
 
@@ -128,6 +129,47 @@ void dbussignal_dcpd_views(GDBusProxy *proxy, const gchar *sender_name,
 
         g_variant_unref(first_view_name);
         g_variant_unref(second_view_name);
+    }
+    else if(strcmp(signal_name, "SearchParameters") == 0)
+    {
+        check_parameter_assertions(parameters, 2);
+
+        GVariant *context_value = g_variant_get_child_value(parameters, 0);
+        const gchar *context = g_variant_get_string(context_value, NULL);
+
+        GVariant *search_params_value = g_variant_get_child_value(parameters, 1);
+        log_assert(search_params_value != nullptr);
+
+        GVariantIter iter;
+        std::string search_string;
+
+        if(g_variant_iter_init(&iter, search_params_value) > 0)
+        {
+            const gchar *varname;
+            const gchar *value;
+
+            while(g_variant_iter_next(&iter, "(&s&s)", &varname, &value))
+            {
+                if(strcmp(varname, "text0") == 0 && search_string.empty())
+                    search_string = value;
+                else
+                    msg_info("Ignored search parameter \"%s\" = \"%s\"", varname, value);
+            }
+        }
+
+        if(search_string.empty())
+            BUG("Triggering searches by context is not implemented yet");
+        else
+        {
+            auto query =
+                std::unique_ptr<UI::SpecificParameters<SearchParameters>>(new UI::SpecificParameters<SearchParameters>(SearchParameters(context, search_string.c_str())));
+
+            data->mgr.input(DrcpCommand::X_TA_SEARCH_PARAMETERS, std::move(query));
+        }
+
+        g_variant_unref(context_value);
+        g_variant_unref(search_params_value);
+
     }
     else
         unknown_signal(iface_name, signal_name, sender_name);
