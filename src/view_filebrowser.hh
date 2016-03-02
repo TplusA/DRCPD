@@ -69,6 +69,7 @@ class View: public ViewIface
     Playback::CurrentMode playback_current_mode_;
     Playback::State playback_current_state_;
 
+    ViewIface *search_parameters_view_;
     bool waiting_for_search_parameters_;
 
   public:
@@ -98,10 +99,12 @@ class View: public ViewIface
         player_(player),
         playback_current_mode_(default_playback_mode),
         playback_current_state_(traversal_list_, playback_current_mode_),
+        search_parameters_view_(nullptr),
         waiting_for_search_parameters_(false)
     {}
 
     bool init() override;
+    bool late_init() override;
 
     void focus() override;
     void defocus() override;
@@ -151,9 +154,7 @@ class View: public ViewIface
      */
     bool write_xml(std::ostream &os, bool is_full_view) override;
 
-    static bool apply_search_parameters(View &file_view,
-                                        ViewManager::VMIface &vm,
-                                        const SearchParameters *params);
+    bool apply_search_parameters();
 };
 
 class FileItem: public List::TextItem

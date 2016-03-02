@@ -41,68 +41,122 @@ bool ViewFileBrowser::View::init()
     return true;
 }
 
+bool ViewFileBrowser::View::late_init()
+{
+    search_parameters_view_=
+        dynamic_cast<ViewSearch::View *>(view_manager_->get_view_by_name(ViewNames::SEARCH_OPTIONS));
+
+    return search_parameters_view_ != nullptr;
+}
+
 void ViewFileBrowser::View::focus()
 {
     if(!current_list_id_.is_valid())
         (void)point_to_root_directory();
 }
 
+static inline void stop_waiting_for_search_parameters(ViewIface &view)
+{
+    static_cast<ViewSearch::View &>(view).forget_parameters();
+}
+
 void ViewFileBrowser::View::defocus()
 {
     waiting_for_search_parameters_ = false;
+    stop_waiting_for_search_parameters(*search_parameters_view_);
 }
 
 static bool request_search_parameters_from_user(ViewManager::VMIface &vm,
+                                                ViewSearch::View &view,
                                                 const SearchParameters *&params)
 {
-    auto *const view =
-        static_cast<ViewSearch::View *>(vm.get_view_by_name(ViewNames::SEARCH_OPTIONS));
-    log_assert(view != nullptr);
-
-    params = view->get_parameters();
+    params = view.get_parameters();
 
     if(params == nullptr)
     {
-        view->request_parameters_for_context("dummy");
-        return vm.serialize_view_forced(view);
+        view.request_parameters_for_context("dummy");
+        return vm.serialize_view_forced(&view);
     }
 
     return false;
 }
 
-bool ViewFileBrowser::View::apply_search_parameters(View &file_view,
-                                                    ViewManager::VMIface &vm,
-                                                    const SearchParameters *params)
+bool ViewFileBrowser::View::apply_search_parameters()
 {
-    auto *const search_view =
-        static_cast<ViewSearch::View *>(vm.get_view_by_name(ViewNames::SEARCH_OPTIONS));
-    log_assert(search_view != nullptr);
-
-    if(params == nullptr)
-        params = search_view->get_parameters();
-
+    const auto *params =
+        static_cast<ViewSearch::View *>(search_parameters_view_)->get_parameters();
     log_assert(params != nullptr);
 
-    const bool retval = file_view.point_to_child_directory(params);
+    const bool retval = point_to_child_directory(params);
 
-    search_view->forget_parameters();
+    stop_waiting_for_search_parameters(*search_parameters_view_);
 
     return retval;
 }
 
+class WaitForParametersHelper
+{
+  private:
+    bool &waiting_state_;
+    const bool have_preloaded_parameters_;
+    const std::function<void(void)> stop_waiting_fn_;
+
+    bool wait_on_exit_;
+    bool keep_preloaded_parameters_;
+
+  public:
+    WaitForParametersHelper(const WaitForParametersHelper &) = delete;
+    WaitForParametersHelper &operator=(const WaitForParametersHelper &) = delete;
+
+    explicit WaitForParametersHelper(bool &waiting_state,
+                                     bool have_preloaded_parameters,
+                                     const std::function<void(void)> &stop_waiting_fn):
+        waiting_state_(waiting_state),
+        have_preloaded_parameters_(have_preloaded_parameters),
+        stop_waiting_fn_(stop_waiting_fn),
+        wait_on_exit_(false),
+        keep_preloaded_parameters_(false)
+    {}
+
+    ~WaitForParametersHelper()
+    {
+        if((waiting_state_ && !wait_on_exit_) ||
+           (have_preloaded_parameters_ && !keep_preloaded_parameters_))
+        {
+            waiting_state_ = false;
+            stop_waiting_fn_();
+        }
+
+        if(wait_on_exit_)
+            waiting_state_ = true;
+    }
+
+    bool was_waiting() const { return waiting_state_; }
+    void keep_waiting() { wait_on_exit_ = true; }
+    void keep_parameters() { keep_preloaded_parameters_ = true; }
+};
+
 ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command,
                                                     std::unique_ptr<const UI::Parameters> parameters)
 {
-    const bool waiting_for_search_parameters = waiting_for_search_parameters_;
-    waiting_for_search_parameters_ = false;
+    WaitForParametersHelper wait_helper(
+        waiting_for_search_parameters_,
+        static_cast<ViewSearch::View *>(search_parameters_view_)->get_parameters() != nullptr,
+        [this] ()
+        {
+            stop_waiting_for_search_parameters(*search_parameters_view_);
+        });
 
     switch(command)
     {
       case DrcpCommand::X_TA_SEARCH_PARAMETERS:
-        if(!waiting_for_search_parameters)
+        if(!wait_helper.was_waiting())
+        {
+            wait_helper.keep_parameters();
             break;
+        }
 
-        if(apply_search_parameters(*this, *view_manager_, nullptr))
+        if(apply_search_parameters())
             return InputResult::UPDATE_NEEDED;
 
         break;
@@ -145,29 +199,30 @@ ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command,
                 break;
 
               case ListItemKind::SEARCH_FORM:
-                if(waiting_for_search_parameters)
+                if(wait_helper.was_waiting())
                 {
-                    /* quick/impatient user */
-                    waiting_for_search_parameters_ = true;
+                    /* quick/impatient user, keep up waiting state */
+                    wait_helper.keep_waiting();
                     break;
                 }
 
                 const SearchParameters *params = nullptr;
 
-                waiting_for_search_parameters_ =
-                    request_search_parameters_from_user(*view_manager_, params);
+                if(request_search_parameters_from_user(*view_manager_,
+                                                       *static_cast<ViewSearch::View *>(search_parameters_view_),
+                                                       params))
+                    wait_helper.keep_waiting();
 
                 if(params == nullptr)
                 {
-                    /* just idle around until the search parameters are sent or
-                     * until the user does something else */
+                    /* just do nothing, i.e., keep idling, wait until the
+                     * search parameters are sent, or stop waiting when the
+                     * user does something else */
                     break;
                 }
 
                 /* got preloaded parameters */
-                log_assert(!waiting_for_search_parameters_);
-
-                if(apply_search_parameters(*this, *view_manager_, params))
+                if(apply_search_parameters())
                     return InputResult::UPDATE_NEEDED;
 
                 break;
