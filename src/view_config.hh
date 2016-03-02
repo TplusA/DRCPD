@@ -235,7 +235,7 @@ class View: public ViewIface
     InputResult input(DrcpCommand command,
                       std::unique_ptr<const UI::Parameters> parameters) override;
 
-    bool serialize(DcpTransaction &dcpd, std::ostream *debug_os) override;
+    bool serialize(DCP::Transaction &dcpd, std::ostream *debug_os) override;
 
     void apply_changed_settings();
 

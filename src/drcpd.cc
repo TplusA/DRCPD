@@ -94,27 +94,27 @@ static bool try_reopen_fd(int *fd, const char *devname, const char *errorname)
     return false;
 }
 
-static DcpTransaction::Result read_transaction_result(int fd)
+static DCP::Transaction::Result read_transaction_result(int fd)
 {
     uint8_t result[3];
     size_t dummy = 0;
 
     if(fifo_try_read_to_buffer(result, sizeof(result), &dummy, fd) != 1)
-        return DcpTransaction::IO_ERROR;
+        return DCP::Transaction::IO_ERROR;
 
     static const char ok_result[] = "OK\n";
     static const char error_result[] = "FF\n";
 
     if(memcmp(result, ok_result, sizeof(result)) == 0)
-        return DcpTransaction::OK;
+        return DCP::Transaction::OK;
     else if(memcmp(result, error_result, sizeof(result)) == 0)
-        return DcpTransaction::FAILED;
+        return DCP::Transaction::FAILED;
 
     msg_error(EINVAL, LOG_ERR,
               "Received bad data from DCPD: 0x%02x 0x%02x 0x%02x",
               result[0], result[1], result[2]);
 
-    return DcpTransaction::INVALID_ANSWER;
+    return DCP::Transaction::INVALID_ANSWER;
 }
 
 static bool watch_in_fd(struct dcp_fifo_dispatch_data_t *dispatch_data);
@@ -184,7 +184,7 @@ static gboolean transaction_timeout_exceeded(gpointer user_data)
     log_assert(dispatch_data != NULL);
 
     dispatch_data->timeout_event_source_id = 0;
-    dispatch_data->vm->serialization_result(DcpTransaction::TIMEOUT);
+    dispatch_data->vm->serialization_result(DCP::Transaction::TIMEOUT);
 
     return G_SOURCE_REMOVE;
 }
@@ -206,7 +206,7 @@ static void add_timeout(dcp_fifo_dispatch_data_t *dispatch_data,
     }
 }
 
-static void dcp_transaction_observer(DcpTransaction::state state,
+static void dcp_transaction_observer(DCP::Transaction::state state,
                                      void *user_data)
 {
     struct dcp_fifo_dispatch_data_t *dispatch_data =
@@ -214,7 +214,7 @@ static void dcp_transaction_observer(DcpTransaction::state state,
 
     switch(state)
     {
-      case DcpTransaction::IDLE:
+      case DCP::Transaction::IDLE:
         if(dispatch_data->timeout_event_source_id != 0)
         {
             g_source_remove(dispatch_data->timeout_event_source_id);
@@ -222,13 +222,13 @@ static void dcp_transaction_observer(DcpTransaction::state state,
         }
         break;
 
-      case DcpTransaction::WAIT_FOR_COMMIT:
+      case DCP::Transaction::WAIT_FOR_COMMIT:
         /* we are not going to consider this case because this state is left by
          * our own internal actions pretty quickly---we assume here that the
          * views commit their stuff */
         return;
 
-      case DcpTransaction::WAIT_FOR_ANSWER:
+      case DCP::Transaction::WAIT_FOR_ANSWER:
         add_timeout(dispatch_data, 2U * 1000U);
         break;
     }
@@ -475,9 +475,9 @@ int main(int argc, char *argv[])
     if(setup(&parameters, &dcp_dispatch_data, &loop) < 0)
         return EXIT_FAILURE;
 
-    static const std::function<void(DcpTransaction::state)> transaction_observer =
+    static const std::function<void(DCP::Transaction::state)> transaction_observer =
         std::bind(dcp_transaction_observer, std::placeholders::_1, &dcp_dispatch_data);
-    static DcpTransaction dcp_transaction(transaction_observer);
+    static DCP::Transaction dcp_transaction(transaction_observer);
     static FdStreambuf fd_sbuf(files.dcp_fifo.out_fd);
     static std::ostream fd_out(&fd_sbuf);
     static ViewManager::Manager view_manager(dcp_transaction);

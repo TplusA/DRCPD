@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -251,7 +251,7 @@ ViewIface::InputResult ViewConfig::View::input(DrcpCommand command,
     return InputResult::OK;
 }
 
-bool ViewConfig::View::serialize(DcpTransaction &dcpd, std::ostream *debug_os)
+bool ViewConfig::View::serialize(DCP::Transaction &dcpd, std::ostream *debug_os)
 {
     const bool retval = ViewIface::serialize(dcpd);
 

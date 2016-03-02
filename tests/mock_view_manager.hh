@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -42,7 +42,7 @@ class MockViewManager: public ViewManager::VMIface
     using CheckParametersFn = void (*)(const UI::Parameters *expected_parameters,
                                        const std::unique_ptr<const UI::Parameters> &actual_parameters);
 
-    void expect_serialization_result(DcpTransaction::Result result);
+    void expect_serialization_result(DCP::Transaction::Result result);
     void expect_input(DrcpCommand command, bool expect_parameters);
     void expect_input_with_callback(DrcpCommand command,
                                     const UI::Parameters *expected_parameters,
@@ -61,7 +61,7 @@ class MockViewManager: public ViewManager::VMIface
     bool invoke_late_init_functions() override;
     void set_output_stream(std::ostream &os) override;
     void set_debug_stream(std::ostream &os) override;
-    void serialization_result(DcpTransaction::Result result) override;
+    void serialization_result(DCP::Transaction::Result result) override;
     void input(DrcpCommand command, std::unique_ptr<const UI::Parameters> parameters) override;
     ViewIface::InputResult input_bounce(const ViewManager::InputBouncer &bouncer, DrcpCommand command, std::unique_ptr<const UI::Parameters> parameters) override;
     void input_move_cursor_by_line(int lines) override;

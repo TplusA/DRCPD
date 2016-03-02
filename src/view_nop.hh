@@ -56,8 +56,8 @@ class View: public ViewIface
         return InputResult::SHOULD_HIDE;
     }
 
-    bool serialize(DcpTransaction &dcpd, std::ostream *debug_os) override { return true; }
-    bool update(DcpTransaction &dcpd, std::ostream *debug_os) override { return true; }
+    bool serialize(DCP::Transaction &dcpd, std::ostream *debug_os) override { return true; }
+    bool update(DCP::Transaction &dcpd, std::ostream *debug_os) override { return true; }
 };
 
 };

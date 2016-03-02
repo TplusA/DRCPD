@@ -199,7 +199,7 @@ class ViewIface
      *     another transaction was already in progress and the serialization
      *     must be tried again at some later point.
      */
-    virtual bool serialize(DcpTransaction &dcpd, std::ostream *debug_os = nullptr)
+    virtual bool serialize(DCP::Transaction &dcpd, std::ostream *debug_os = nullptr)
     {
         return do_serialize(dcpd, true);
     }
@@ -210,7 +210,7 @@ class ViewIface
      * This function does the same as #serialize(), but only emits things that
      * have changed.
      */
-    virtual bool update(DcpTransaction &dcpd, std::ostream *debug_os = nullptr)
+    virtual bool update(DCP::Transaction &dcpd, std::ostream *debug_os = nullptr)
     {
         return do_serialize(dcpd, false);
     }
@@ -241,7 +241,7 @@ class ViewIface
     virtual void notify_stream_meta_data_changed() {}
 
   private:
-    bool do_serialize(DcpTransaction &dcpd, bool is_full_view)
+    bool do_serialize(DCP::Transaction &dcpd, bool is_full_view)
     {
         if(!dcpd.start())
         {

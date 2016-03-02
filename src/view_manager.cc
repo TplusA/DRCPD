@@ -28,7 +28,7 @@
 
 static ViewNop::View nop_view(nullptr);
 
-ViewManager::Manager::Manager(DcpTransaction &dcpd):
+ViewManager::Manager::Manager(DCP::Transaction &dcpd):
     active_view_(&nop_view),
     last_browse_view_(nullptr),
     dcp_transaction_(dcpd),
@@ -79,7 +79,7 @@ void ViewManager::Manager::set_debug_stream(std::ostream &os)
     debug_stream_ = &os;
 }
 
-static void abort_transaction_or_fail_hard(DcpTransaction &t)
+static void abort_transaction_or_fail_hard(DCP::Transaction &t)
 {
     if(t.abort())
         return;
@@ -88,7 +88,7 @@ static void abort_transaction_or_fail_hard(DcpTransaction &t)
     os_abort();
 }
 
-void ViewManager::Manager::serialization_result(DcpTransaction::Result result)
+void ViewManager::Manager::serialization_result(DCP::Transaction::Result result)
 {
     if(!dcp_transaction_.is_in_progress())
     {
@@ -98,26 +98,26 @@ void ViewManager::Manager::serialization_result(DcpTransaction::Result result)
 
     switch(result)
     {
-      case DcpTransaction::OK:
+      case DCP::Transaction::OK:
         if(dcp_transaction_.done())
             return;
 
         BUG("Got OK from DCPD, but failed ending transaction");
         break;
 
-      case DcpTransaction::FAILED:
+      case DCP::Transaction::FAILED:
         msg_error(EINVAL, LOG_CRIT, "DCPD failed to handle our transaction");
         break;
 
-      case DcpTransaction::TIMEOUT:
+      case DCP::Transaction::TIMEOUT:
         BUG("Got no answer from DCPD");
         break;
 
-      case DcpTransaction::INVALID_ANSWER:
+      case DCP::Transaction::INVALID_ANSWER:
         BUG("Got invalid response from DCPD");
         break;
 
-      case DcpTransaction::IO_ERROR:
+      case DCP::Transaction::IO_ERROR:
         msg_error(EIO, LOG_CRIT,
                   "I/O error while trying to get response from DCPD");
         break;
@@ -207,7 +207,7 @@ bool ViewManager::Manager::do_input_bounce(const ViewManager::InputBouncer &boun
 
 static bool move_cursor_multiple_steps(int steps, DrcpCommand down_cmd,
                                        DrcpCommand up_cmd, ViewIface &view,
-                                       DcpTransaction &dcpd,
+                                       DCP::Transaction &dcpd,
                                        ViewIface::InputResult &result,
                                        std::ostream *debug_stream)
 {

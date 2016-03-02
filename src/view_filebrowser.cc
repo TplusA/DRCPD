@@ -357,7 +357,7 @@ bool ViewFileBrowser::View::write_xml(std::ostream &os, bool is_full_view)
     return true;
 }
 
-bool ViewFileBrowser::View::serialize(DcpTransaction &dcpd, std::ostream *debug_os)
+bool ViewFileBrowser::View::serialize(DCP::Transaction &dcpd, std::ostream *debug_os)
 {
     const bool retval = ViewIface::serialize(dcpd);
 
@@ -392,7 +392,7 @@ bool ViewFileBrowser::View::serialize(DcpTransaction &dcpd, std::ostream *debug_
     return retval;
 }
 
-bool ViewFileBrowser::View::update(DcpTransaction &dcpd, std::ostream *debug_os)
+bool ViewFileBrowser::View::update(DCP::Transaction &dcpd, std::ostream *debug_os)
 {
     return serialize(dcpd, debug_os);
 }

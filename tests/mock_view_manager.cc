@@ -117,7 +117,7 @@ class MockViewManager::Expectation
         int arg_lines_or_pages_;
         std::string arg_view_name_;
         std::string arg_view_name_b_;
-        DcpTransaction::Result arg_dcp_result_;
+        DCP::Transaction::Result arg_dcp_result_;
 
         explicit Data(MemberFn fn):
             function_id_(fn),
@@ -128,7 +128,7 @@ class MockViewManager::Expectation
             check_parameters_fn_(nullptr),
             expected_parameters_(nullptr),
             arg_lines_or_pages_(-9999),
-            arg_dcp_result_(DcpTransaction::Result::OK)
+            arg_dcp_result_(DCP::Transaction::Result::OK)
         {}
     };
 
@@ -142,7 +142,7 @@ class MockViewManager::Expectation
     Expectation(const Expectation &) = delete;
     Expectation &operator=(const Expectation &) = delete;
 
-    explicit Expectation(MemberFn id, DcpTransaction::Result result):
+    explicit Expectation(MemberFn id, DCP::Transaction::Result result):
         d(id)
     {
         data_.arg_dcp_result_ = result;
@@ -230,7 +230,7 @@ void MockViewManager::check() const
     expectations_->check();
 }
 
-void MockViewManager::expect_serialization_result(DcpTransaction::Result result)
+void MockViewManager::expect_serialization_result(DCP::Transaction::Result result)
 {
     expectations_->add(Expectation(MemberFn::serialization_result, result));
 }
@@ -312,7 +312,7 @@ void MockViewManager::set_debug_stream(std::ostream &os)
     cut_fail("Not implemented");
 }
 
-void MockViewManager::serialization_result(DcpTransaction::Result result)
+void MockViewManager::serialization_result(DCP::Transaction::Result result)
 {
     const auto &expect(expectations_->get_next_expectation(__func__));
 

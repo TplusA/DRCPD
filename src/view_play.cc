@@ -263,7 +263,7 @@ bool ViewPlay::View::write_xml(std::ostream &os, bool is_full_view)
     return true;
 }
 
-bool ViewPlay::View::serialize(DcpTransaction &dcpd, std::ostream *debug_os)
+bool ViewPlay::View::serialize(DCP::Transaction &dcpd, std::ostream *debug_os)
 {
     if(!is_visible_)
         BUG("serializing invisible ViewPlay::View");
@@ -301,7 +301,7 @@ bool ViewPlay::View::serialize(DcpTransaction &dcpd, std::ostream *debug_os)
     return retval;
 }
 
-bool ViewPlay::View::update(DcpTransaction &dcpd, std::ostream *debug_os)
+bool ViewPlay::View::update(DCP::Transaction &dcpd, std::ostream *debug_os)
 {
     if(!is_visible_)
         BUG("updating invisible ViewPlay::View");

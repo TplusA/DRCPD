@@ -77,18 +77,18 @@ static void check_and_clear_ostream(const char *string, std::ostringstream &ss)
     clear_ostream(ss);
 }
 
-static void dcp_transaction_observer(DcpTransaction::state)
+static void dcp_transaction_observer(DCP::Transaction::state)
 {
     /* nothing */
 }
 
-static const std::function<void(DcpTransaction::state)> transaction_observer(dcp_transaction_observer);
+static const std::function<void(DCP::Transaction::state)> transaction_observer(dcp_transaction_observer);
 
 namespace view_manager_tests_basics
 {
 
 static MockMessages *mock_messages;
-static DcpTransaction *dcpd;
+static DCP::Transaction *dcpd;
 static ViewManager::Manager *vm;
 static std::ostringstream *views_output;
 static const char standard_mock_view_name[] = "Mock";
@@ -103,7 +103,7 @@ void cut_setup(void)
     mock_messages->init();
     mock_messages_singleton = mock_messages;
 
-    dcpd = new DcpTransaction(transaction_observer);
+    dcpd = new DCP::Transaction(transaction_observer);
     cppcut_assert_not_null(dcpd);
 
     vm = new ViewManager::Manager(*dcpd);
@@ -218,7 +218,7 @@ namespace view_manager_tests
 {
 
 static MockMessages *mock_messages;
-static DcpTransaction *dcpd;
+static DCP::Transaction *dcpd;
 static ViewManager::Manager *vm;
 static std::ostringstream *views_output;
 static const char standard_mock_view_name[] = "Mock";
@@ -239,7 +239,7 @@ void cut_setup(void)
     cppcut_assert_not_null(mock_view);
     cut_assert_true(mock_view->init());
 
-    dcpd = new DcpTransaction(transaction_observer);
+    dcpd = new DCP::Transaction(transaction_observer);
     cppcut_assert_not_null(dcpd);
 
     vm = new ViewManager::Manager(*dcpd);
@@ -444,7 +444,7 @@ static void populate_view_manager(ViewManager::Manager &vm,
 
 static MockMessages *mock_messages;
 static std::array<ViewMock::View *, 4> all_mock_views;
-static DcpTransaction *dcpd;
+static DCP::Transaction *dcpd;
 static ViewManager::Manager *vm;
 static std::ostringstream *views_output;
 
@@ -458,7 +458,7 @@ void cut_setup(void)
     mock_messages->init();
     mock_messages_singleton = mock_messages;
 
-    dcpd = new DcpTransaction(transaction_observer);
+    dcpd = new DCP::Transaction(transaction_observer);
     cppcut_assert_not_null(dcpd);
 
     vm = new ViewManager::Manager(*dcpd);
@@ -623,7 +623,7 @@ void test_input_command_with_need_to_hide_nonbrowse_view(void)
     all_mock_views[2]->expect_serialize(*views_output);
     vm->activate_view_by_name("Third");
     check_and_clear_ostream("Third serialize\n", *views_output);
-    vm->serialization_result(DcpTransaction::OK);
+    vm->serialization_result(DCP::Transaction::OK);
 
     /* hide request from active view, view manager switches back to previous
      * browse view in turn (view "First") */
@@ -650,7 +650,7 @@ void test_input_command_with_need_to_hide_browse_view_never_works(void)
     all_mock_views[1]->expect_serialize(*views_output);
     vm->activate_view_by_name("Second");
     check_and_clear_ostream("Second serialize\n", *views_output);
-    vm->serialization_result(DcpTransaction::OK);
+    vm->serialization_result(DCP::Transaction::OK);
 
     /* hide request from active view, but view manager won't switch focus */
     mock_messages->expect_msg_info("Dispatching DRCP command %d%s");
@@ -745,7 +745,7 @@ void test_toggle_two_views(void)
     all_mock_views[1]->expect_focus();
     all_mock_views[1]->expect_serialize(*views_output);
     vm->toggle_views_by_name("Second", "Third");
-    vm->serialization_result(DcpTransaction::OK);
+    vm->serialization_result(DCP::Transaction::OK);
     check_and_clear_ostream("Second serialize\n", *views_output);
 
     mock_messages->expect_msg_info_formatted("Requested to toggle between views \"Second\" and \"Third\"");
@@ -753,7 +753,7 @@ void test_toggle_two_views(void)
     all_mock_views[2]->expect_focus();
     all_mock_views[2]->expect_serialize(*views_output);
     vm->toggle_views_by_name("Second", "Third");
-    vm->serialization_result(DcpTransaction::OK);
+    vm->serialization_result(DCP::Transaction::OK);
     check_and_clear_ostream("Third serialize\n", *views_output);
 
 
@@ -762,7 +762,7 @@ void test_toggle_two_views(void)
     all_mock_views[1]->expect_focus();
     all_mock_views[1]->expect_serialize(*views_output);
     vm->toggle_views_by_name("Second", "Third");
-    vm->serialization_result(DcpTransaction::OK);
+    vm->serialization_result(DCP::Transaction::OK);
     check_and_clear_ostream("Second serialize\n", *views_output);
 }
 
@@ -777,7 +777,7 @@ void test_toggle_views_with_same_names_switches_each_time(void)
     all_mock_views[3]->expect_focus();
     all_mock_views[3]->expect_serialize(*views_output);
     vm->toggle_views_by_name("Fourth", "Fourth");
-    vm->serialization_result(DcpTransaction::OK);
+    vm->serialization_result(DCP::Transaction::OK);
     check_and_clear_ostream("Fourth serialize\n", *views_output);
 
     mock_messages->expect_msg_info_formatted("Requested to toggle between views \"Fourth\" and \"Fourth\"");
@@ -785,7 +785,7 @@ void test_toggle_views_with_same_names_switches_each_time(void)
     all_mock_views[3]->expect_focus();
     all_mock_views[3]->expect_serialize(*views_output);
     vm->toggle_views_by_name("Fourth", "Fourth");
-    vm->serialization_result(DcpTransaction::OK);
+    vm->serialization_result(DCP::Transaction::OK);
     check_and_clear_ostream("Fourth serialize\n", *views_output);
 }
 
@@ -800,7 +800,7 @@ void test_toggle_views_with_first_unknown_name_switches_to_the_known_name(void)
     all_mock_views[2]->expect_focus();
     all_mock_views[2]->expect_serialize(*views_output);
     vm->toggle_views_by_name("Foo", "Third");
-    vm->serialization_result(DcpTransaction::OK);
+    vm->serialization_result(DCP::Transaction::OK);
     check_and_clear_ostream("Third serialize\n", *views_output);
 
     mock_messages->expect_msg_info_formatted("Requested to toggle between views \"Foo\" and \"Third\"");
@@ -808,7 +808,7 @@ void test_toggle_views_with_first_unknown_name_switches_to_the_known_name(void)
     all_mock_views[2]->expect_focus();
     all_mock_views[2]->expect_serialize(*views_output);
     vm->toggle_views_by_name("Foo", "Third");
-    vm->serialization_result(DcpTransaction::OK);
+    vm->serialization_result(DCP::Transaction::OK);
     check_and_clear_ostream("Third serialize\n", *views_output);
 
     mock_messages->expect_msg_info_formatted("Requested to toggle between views \"Foo\" and \"Third\"");
@@ -816,7 +816,7 @@ void test_toggle_views_with_first_unknown_name_switches_to_the_known_name(void)
     all_mock_views[2]->expect_focus();
     all_mock_views[2]->expect_serialize(*views_output);
     vm->toggle_views_by_name("Foo", "Third");
-    vm->serialization_result(DcpTransaction::OK);
+    vm->serialization_result(DCP::Transaction::OK);
     check_and_clear_ostream("Third serialize\n", *views_output);
 }
 
@@ -867,7 +867,7 @@ namespace view_manager_tests_serialization
 {
 
 static MockMessages *mock_messages;
-static DcpTransaction *dcpd;
+static DCP::Transaction *dcpd;
 static ViewManager::Manager *vm;
 static std::ostringstream *views_output;
 static const char standard_mock_view_name[] = "Mock";
@@ -888,7 +888,7 @@ void cut_setup(void)
     cppcut_assert_not_null(mock_view);
     cut_assert_true(mock_view->init());
 
-    dcpd = new DcpTransaction(transaction_observer);
+    dcpd = new DCP::Transaction(transaction_observer);
     cppcut_assert_not_null(dcpd);
 
     vm = new ViewManager::Manager(*dcpd);
@@ -926,19 +926,19 @@ void cut_teardown(void)
 void test_serialization_result_for_idle_transaction_is_logged(void)
 {
     mock_messages->expect_msg_error(0, LOG_CRIT, "BUG: Received result from DCPD for idle transaction");
-    vm->serialization_result(DcpTransaction::OK);
+    vm->serialization_result(DCP::Transaction::OK);
 
     mock_messages->expect_msg_error(0, LOG_CRIT, "BUG: Received result from DCPD for idle transaction");
-    vm->serialization_result(DcpTransaction::FAILED);
+    vm->serialization_result(DCP::Transaction::FAILED);
 
     mock_messages->expect_msg_error(0, LOG_CRIT, "BUG: Received result from DCPD for idle transaction");
-    vm->serialization_result(DcpTransaction::TIMEOUT);
+    vm->serialization_result(DCP::Transaction::TIMEOUT);
 
     mock_messages->expect_msg_error(0, LOG_CRIT, "BUG: Received result from DCPD for idle transaction");
-    vm->serialization_result(DcpTransaction::INVALID_ANSWER);
+    vm->serialization_result(DCP::Transaction::INVALID_ANSWER);
 
     mock_messages->expect_msg_error(0, LOG_CRIT, "BUG: Received result from DCPD for idle transaction");
-    vm->serialization_result(DcpTransaction::IO_ERROR);
+    vm->serialization_result(DCP::Transaction::IO_ERROR);
 }
 
 static void activate_view()
@@ -958,7 +958,7 @@ void test_dcpd_failed(void)
     activate_view();
 
     mock_messages->expect_msg_error(EINVAL, LOG_CRIT, "DCPD failed to handle our transaction");
-    vm->serialization_result(DcpTransaction::FAILED);
+    vm->serialization_result(DCP::Transaction::FAILED);
 }
 
 /*!\test
@@ -974,7 +974,7 @@ void test_dcpd_timeout(void)
     activate_view();
 
     mock_messages->expect_msg_error(0, LOG_CRIT, "BUG: Got no answer from DCPD");
-    vm->serialization_result(DcpTransaction::TIMEOUT);
+    vm->serialization_result(DCP::Transaction::TIMEOUT);
 }
 
 /*!\test
@@ -986,7 +986,7 @@ void test_dcpd_invalid_answer(void)
     activate_view();
 
     mock_messages->expect_msg_error(0, LOG_CRIT, "BUG: Got invalid response from DCPD");
-    vm->serialization_result(DcpTransaction::INVALID_ANSWER);
+    vm->serialization_result(DCP::Transaction::INVALID_ANSWER);
 }
 
 /*!\test
@@ -997,7 +997,7 @@ void test_hard_io_error(void)
     activate_view();
 
     mock_messages->expect_msg_error(EIO, LOG_CRIT, "I/O error while trying to get response from DCPD");
-    vm->serialization_result(DcpTransaction::IO_ERROR);
+    vm->serialization_result(DCP::Transaction::IO_ERROR);
 }
 
 /*!\test
@@ -1012,7 +1012,7 @@ void test_unexpected_transaction_state(void)
     dcpd->start();
 
     mock_messages->expect_msg_error(0, LOG_CRIT, "BUG: Got OK from DCPD, but failed ending transaction");
-    vm->serialization_result(DcpTransaction::OK);
+    vm->serialization_result(DCP::Transaction::OK);
 }
 
 };

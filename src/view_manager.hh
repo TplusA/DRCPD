@@ -110,7 +110,7 @@ class VMIface
     virtual void set_output_stream(std::ostream &os) = 0;
     virtual void set_debug_stream(std::ostream &os) = 0;
 
-    virtual void serialization_result(DcpTransaction::Result result) = 0;
+    virtual void serialization_result(DCP::Transaction::Result result) = 0;
 
     virtual void input(DrcpCommand command,
                        std::unique_ptr<const UI::Parameters> parameters = nullptr) = 0;
@@ -142,21 +142,21 @@ class Manager: public VMIface
 
     ViewIface *active_view_;
     ViewIface *last_browse_view_;
-    DcpTransaction &dcp_transaction_;
+    DCP::Transaction &dcp_transaction_;
     std::ostream *debug_stream_;
 
   public:
     Manager(const Manager &) = delete;
     Manager &operator=(const Manager &) = delete;
 
-    explicit Manager(DcpTransaction &dcpd);
+    explicit Manager(DCP::Transaction &dcpd);
 
     bool add_view(ViewIface *view) override;
     bool invoke_late_init_functions() override;
     void set_output_stream(std::ostream &os) override;
     void set_debug_stream(std::ostream &os) override;
 
-    void serialization_result(DcpTransaction::Result result) override;
+    void serialization_result(DCP::Transaction::Result result) override;
 
     void input(DrcpCommand command,
                std::unique_ptr<const UI::Parameters> parameters = nullptr) override;

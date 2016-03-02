@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -61,8 +61,8 @@ class View: public ViewIface
     void defocus() override;
     InputResult input(DrcpCommand command,
                       std::unique_ptr<const UI::Parameters> parameters) override;
-    bool serialize(DcpTransaction &dcpd, std::ostream *debug_os) override;
-    bool update(DcpTransaction &dcpd, std::ostream *debug_os) override;
+    bool serialize(DCP::Transaction &dcpd, std::ostream *debug_os) override;
+    bool update(DCP::Transaction &dcpd, std::ostream *debug_os) override;
 };
 
 };

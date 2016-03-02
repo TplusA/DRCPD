@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -27,19 +27,19 @@
 namespace dcp_transaction_tests
 {
 
-static void dcp_transaction_observer(DcpTransaction::state)
+static void dcp_transaction_observer(DCP::Transaction::state)
 {
     /* nothing */
 }
 
-static const std::function<void(DcpTransaction::state)> transaction_observer(dcp_transaction_observer);
+static const std::function<void(DCP::Transaction::state)> transaction_observer(dcp_transaction_observer);
 
-static DcpTransaction *dt;
+static DCP::Transaction *dt;
 static std::ostringstream *captured;
 
 void cut_setup(void)
 {
-    dt = new DcpTransaction(transaction_observer);
+    dt = new DCP::Transaction(transaction_observer);
     cppcut_assert_not_null(dt);
 
     captured = new std::ostringstream;
@@ -264,27 +264,27 @@ void test_set_null_output_stream()
 namespace dcp_transaction_tests_observer
 {
 
-static DcpTransaction::state expected_state;
+static DCP::Transaction::state expected_state;
 static unsigned int expected_number_of_transitions;
 static unsigned int number_of_transitions;
 
-static void dcp_transaction_observer(DcpTransaction::state state)
+static void dcp_transaction_observer(DCP::Transaction::state state)
 {
     cppcut_assert_equal(expected_state, state);
     ++number_of_transitions;
     cppcut_assert_operator(expected_number_of_transitions, >=, number_of_transitions);
 }
 
-static const std::function<void(DcpTransaction::state)> transaction_observer(dcp_transaction_observer);
+static const std::function<void(DCP::Transaction::state)> transaction_observer(dcp_transaction_observer);
 
-static DcpTransaction *dt;
+static DCP::Transaction *dt;
 
 void cut_setup(void)
 {
-    dt = new DcpTransaction(transaction_observer);
+    dt = new DCP::Transaction(transaction_observer);
     cppcut_assert_not_null(dt);
 
-    expected_state = DcpTransaction::WAIT_FOR_ANSWER;
+    expected_state = DCP::Transaction::WAIT_FOR_ANSWER;
     expected_number_of_transitions = 0;
     number_of_transitions = 0;
 }
@@ -303,7 +303,7 @@ void cut_teardown(void)
 void test_start(void)
 {
     expected_number_of_transitions = 1;
-    expected_state = DcpTransaction::WAIT_FOR_COMMIT;
+    expected_state = DCP::Transaction::WAIT_FOR_COMMIT;
     dt->start();
 }
 
@@ -324,11 +324,11 @@ void test_commit_without_start_does_not_invoke_observer(void)
 void test_full_transaction(void)
 {
     expected_number_of_transitions = 3;
-    expected_state = DcpTransaction::WAIT_FOR_COMMIT;
+    expected_state = DCP::Transaction::WAIT_FOR_COMMIT;
     dt->start();
-    expected_state = DcpTransaction::WAIT_FOR_ANSWER;
+    expected_state = DCP::Transaction::WAIT_FOR_ANSWER;
     dt->commit();
-    expected_state = DcpTransaction::IDLE;
+    expected_state = DCP::Transaction::IDLE;
     dt->done();
 }
 
@@ -339,9 +339,9 @@ void test_full_transaction(void)
 void test_abort_after_start(void)
 {
     expected_number_of_transitions = 2;
-    expected_state = DcpTransaction::WAIT_FOR_COMMIT;
+    expected_state = DCP::Transaction::WAIT_FOR_COMMIT;
     dt->start();
-    expected_state = DcpTransaction::IDLE;
+    expected_state = DCP::Transaction::IDLE;
     dt->abort();
 }
 
@@ -352,11 +352,11 @@ void test_abort_after_start(void)
 void test_abort_after_commit(void)
 {
     expected_number_of_transitions = 3;
-    expected_state = DcpTransaction::WAIT_FOR_COMMIT;
+    expected_state = DCP::Transaction::WAIT_FOR_COMMIT;
     dt->start();
-    expected_state = DcpTransaction::WAIT_FOR_ANSWER;
+    expected_state = DCP::Transaction::WAIT_FOR_ANSWER;
     dt->commit();
-    expected_state = DcpTransaction::IDLE;
+    expected_state = DCP::Transaction::IDLE;
     dt->abort();
 }
 

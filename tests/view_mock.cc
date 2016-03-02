@@ -228,7 +228,7 @@ ViewIface::InputResult ViewMock::View::input(DrcpCommand command,
     return expect.retval_input_;
 }
 
-bool ViewMock::View::serialize(DcpTransaction &dcpd, std::ostream *debug_os)
+bool ViewMock::View::serialize(DCP::Transaction &dcpd, std::ostream *debug_os)
 {
     if(ignore_all_)
         return true;
@@ -243,7 +243,7 @@ bool ViewMock::View::serialize(DcpTransaction &dcpd, std::ostream *debug_os)
     return true;
 }
 
-bool ViewMock::View::update(DcpTransaction &dcpd, std::ostream *debug_os)
+bool ViewMock::View::update(DCP::Transaction &dcpd, std::ostream *debug_os)
 {
     if(ignore_all_)
         return true;

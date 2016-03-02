@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -23,7 +23,13 @@
 #include <sstream>
 #include <functional>
 
-class DcpTransaction
+namespace DCP
+{
+
+/*!
+ * DCP transaction state for a single transmission to dcpd.
+ */
+class Transaction
 {
   public:
     enum state
@@ -49,10 +55,10 @@ class DcpTransaction
         IO_ERROR = 4,
     };
 
-    DcpTransaction(const DcpTransaction &) = delete;
-    DcpTransaction &operator=(const DcpTransaction &) = delete;
+    Transaction(const Transaction &) = delete;
+    Transaction &operator=(const Transaction &) = delete;
 
-    explicit DcpTransaction(const std::function<void(state)> &observer):
+    explicit Transaction(const std::function<void(state)> &observer):
         observer_(std::move(observer)),
         os_(nullptr),
         state_(IDLE)
@@ -84,7 +90,7 @@ class DcpTransaction
     bool commit();
 
     /*!
-     * Received and answer, the transaction is ended by this function.
+     * Received an answer, the transaction is ended by this function.
      */
     bool done();
 
@@ -100,5 +106,7 @@ class DcpTransaction
         observer_(state_);
     }
 };
+
+}
 
 #endif /* !DCP_TRANSACTION_HH */

@@ -84,8 +84,8 @@ class View: public ViewIface
     void notify_stream_position_changed() override;
     void notify_stream_meta_data_changed() override;
 
-    bool serialize(DcpTransaction &dcpd, std::ostream *debug_os) override;
-    bool update(DcpTransaction &dcpd, std::ostream *debug_os) override;
+    bool serialize(DCP::Transaction &dcpd, std::ostream *debug_os) override;
+    bool update(DCP::Transaction &dcpd, std::ostream *debug_os) override;
 
   private:
     bool is_busy() const override;

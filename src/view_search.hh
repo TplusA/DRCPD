@@ -63,12 +63,12 @@ class View: public ViewIface
     InputResult input(DrcpCommand command,
                       std::unique_ptr<const UI::Parameters> parameters) override;
 
-    bool serialize(DcpTransaction &dcpd, std::ostream *debug_os = nullptr) override
+    bool serialize(DCP::Transaction &dcpd, std::ostream *debug_os = nullptr) override
     {
         return can_serialize() ? ViewIface::serialize(dcpd, debug_os) : false;
     }
 
-    bool update(DcpTransaction &dcpd, std::ostream *debug_os = nullptr) override
+    bool update(DCP::Transaction &dcpd, std::ostream *debug_os = nullptr) override
     {
         return can_serialize() ? ViewIface::update(dcpd, debug_os) : false;
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -28,7 +28,7 @@ static void clear_stream(std::ostringstream &ss)
     ss.clear();
 }
 
-bool DcpTransaction::start()
+bool DCP::Transaction::start()
 {
     switch(state_)
     {
@@ -46,7 +46,7 @@ bool DcpTransaction::start()
     return true;
 }
 
-bool DcpTransaction::commit()
+bool DCP::Transaction::commit()
 {
     switch(state_)
     {
@@ -74,7 +74,7 @@ bool DcpTransaction::commit()
     return true;
 }
 
-bool DcpTransaction::done()
+bool DCP::Transaction::done()
 {
     switch(state_)
     {
@@ -92,7 +92,7 @@ bool DcpTransaction::done()
     return true;
 }
 
-bool DcpTransaction::abort()
+bool DCP::Transaction::abort()
 {
     switch(state_)
     {

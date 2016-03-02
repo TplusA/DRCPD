@@ -112,8 +112,8 @@ class View: public ViewIface
     InputResult input(DrcpCommand command,
                       std::unique_ptr<const UI::Parameters> parameters) override;
 
-    bool serialize(DcpTransaction &dcpd, std::ostream *debug_os) override;
-    bool update(DcpTransaction &dcpd, std::ostream *debug_os) override;
+    bool serialize(DCP::Transaction &dcpd, std::ostream *debug_os) override;
+    bool update(DCP::Transaction &dcpd, std::ostream *debug_os) override;
 
     bool owns_dbus_proxy(const void *dbus_proxy) const;
     bool list_invalidate(ID::List list_id, ID::List replacement_id);
