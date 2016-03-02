@@ -106,6 +106,7 @@ class VMIface
     virtual ~VMIface() {}
 
     virtual bool add_view(ViewIface *view) = 0;
+    virtual bool invoke_late_init_functions() = 0;
     virtual void set_output_stream(std::ostream &os) = 0;
     virtual void set_debug_stream(std::ostream &os) = 0;
 
@@ -151,6 +152,7 @@ class Manager: public VMIface
     explicit Manager(DcpTransaction &dcpd);
 
     bool add_view(ViewIface *view) override;
+    bool invoke_late_init_functions() override;
     void set_output_stream(std::ostream &os) override;
     void set_debug_stream(std::ostream &os) override;
 

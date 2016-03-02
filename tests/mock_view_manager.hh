@@ -58,6 +58,7 @@ class MockViewManager: public ViewManager::VMIface
                                      const char *view_name_b);
 
     bool add_view(ViewIface *view) override;
+    bool invoke_late_init_functions() override;
     void set_output_stream(std::ostream &os) override;
     void set_debug_stream(std::ostream &os) override;
     void serialization_result(DcpTransaction::Result result) override;

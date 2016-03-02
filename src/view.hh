@@ -154,6 +154,12 @@ class ViewIface
     virtual bool init() = 0;
 
     /*!
+     * More initialization from the view manager, after all views have been
+     * added.
+     */
+    virtual bool late_init() { return true; }
+
+    /*!
      * Code that needs to run when the view is given the focus.
      */
     virtual void focus() = 0;

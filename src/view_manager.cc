@@ -56,6 +56,19 @@ bool ViewManager::Manager::add_view(ViewIface *view)
     return true;
 }
 
+bool ViewManager::Manager::invoke_late_init_functions()
+{
+    bool ok = true;
+
+    for(auto &v : all_views_)
+    {
+        if(!v.second->late_init())
+            ok = false;
+    }
+
+    return ok;
+}
+
 void ViewManager::Manager::set_output_stream(std::ostream &os)
 {
     dcp_transaction_.set_output_stream(&os);

@@ -296,6 +296,12 @@ bool MockViewManager::add_view(ViewIface *view)
     return false;
 }
 
+bool MockViewManager::invoke_late_init_functions()
+{
+    cut_fail("Not implemented");
+    return false;
+}
+
 void MockViewManager::set_output_stream(std::ostream &os)
 {
     cut_fail("Not implemented");

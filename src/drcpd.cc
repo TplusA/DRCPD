@@ -431,6 +431,9 @@ static void connect_everything(ViewManager::Manager &views, ViewSignalsIface *vi
     views.add_view(&play);
     views.add_view(&search);
 
+    if(!views.invoke_late_init_functions())
+        return;
+
     views.activate_view_by_name(ViewNames::BROWSER_UPNP);
 }
 
