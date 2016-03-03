@@ -186,6 +186,7 @@ ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command,
                 break;
 
               case ListItemKind::DIRECTORY:
+              case ListItemKind::PLAYLIST_DIRECTORY:
               case ListItemKind::SERVER:
               case ListItemKind::STORAGE_DEVICE:
                 if(point_to_child_directory())
@@ -194,6 +195,7 @@ ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command,
                 break;
 
               case ListItemKind::REGULAR_FILE:
+              case ListItemKind::PLAYLIST_FILE:
               case ListItemKind::OPAQUE:
                 command = DrcpCommand::PLAYBACK_START;
                 break;
@@ -323,8 +325,11 @@ bool ViewFileBrowser::View::write_xml(std::ostream &os, bool is_full_view)
             break;
 
           case ListItemKind::SERVER:
-          case ListItemKind::STORAGE_DEVICE:
             flags.push_back('S');
+            break;
+
+          case ListItemKind::STORAGE_DEVICE:
+            flags.push_back('D');
             break;
 
           case ListItemKind::REGULAR_FILE:
@@ -332,11 +337,23 @@ bool ViewFileBrowser::View::write_xml(std::ostream &os, bool is_full_view)
             break;
 
           case ListItemKind::LOCKED:
-            flags.push_back('L');
+            flags += "ul";
+            break;
+
+          case ListItemKind::PLAYLIST_FILE:
+            flags += "pL";
+            break;
+
+          case ListItemKind::PLAYLIST_DIRECTORY:
+            flags += "dL";
             break;
 
           case ListItemKind::OPAQUE:
+            flags.push_back('u');
+            break;
+
           case ListItemKind::SEARCH_FORM:
+            flags.push_back('q');
             break;
         }
 

@@ -430,6 +430,8 @@ static inline bool can_queue_item(const ViewFileBrowser::FileItem &item)
 
       case ListItemKind::LOCKED:
       case ListItemKind::DIRECTORY:
+      case ListItemKind::PLAYLIST_FILE:
+      case ListItemKind::PLAYLIST_DIRECTORY:
       case ListItemKind::SERVER:
       case ListItemKind::STORAGE_DEVICE:
       case ListItemKind::SEARCH_FORM:
