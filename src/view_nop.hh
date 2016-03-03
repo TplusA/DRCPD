@@ -20,6 +20,7 @@
 #define VIEW_NOP_HH
 
 #include "view.hh"
+#include "view_serialize.hh"
 #include "view_names.hh"
 
 /*!
@@ -36,14 +37,15 @@
 namespace ViewNop
 {
 
-class View: public ViewIface
+class View: public ViewIface, public ViewSerializeBase
 {
   public:
     View(const View &) = delete;
     View &operator=(const View &) = delete;
 
-    explicit View(ViewSignalsIface *view_signals):
-        ViewIface(ViewNames::NOP, "", "", 0, false, nullptr, view_signals)
+    explicit View():
+        ViewIface(ViewNames::NOP, false, nullptr),
+        ViewSerializeBase("", "", 0)
     {}
 
     bool init() override { return true; }
@@ -56,8 +58,8 @@ class View: public ViewIface
         return InputResult::SHOULD_HIDE;
     }
 
-    bool serialize(DCP::Transaction &dcpd, std::ostream *debug_os) override { return true; }
-    bool update(DCP::Transaction &dcpd, std::ostream *debug_os) override { return true; }
+    void serialize(DCP::Queue &queue, std::ostream *debug_os) override {}
+    void update(DCP::Queue &queue, std::ostream *debug_os) override {}
 };
 
 };

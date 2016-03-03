@@ -25,10 +25,10 @@ drcpd_SOURCES = \
     os.c os.h named_pipe.c named_pipe.h fdstreambuf.hh \
     dbus_iface.c dbus_iface.h dbus_iface_deep.h dbus_handlers.hh \
     list.hh ramlist.hh dbuslist.hh dbuslist_exception.hh listnav.hh \
-    view.hh view_names.hh view_nop.hh view_manager.hh xmlescape.hh \
+    view.hh view_serialize.hh view_names.hh view_nop.hh \
+    view_manager.hh xmlescape.hh \
     view_config.hh view_filebrowser.hh view_filebrowser_utils.hh view_play.hh \
     view_search.hh \
-    view_signals_glib.cc view_signals.hh view_signals_glib.hh \
     ui_parameters.hh search_parameters.hh \
     playinfo.hh idtypes.hh stream_id.h stream_id.hh \
     player.hh playbackmode.hh playbackmode_state.hh \
@@ -65,12 +65,14 @@ liblist_la_CFLAGS = $(AM_CFLAGS)
 liblist_la_CXXFLAGS = $(AM_CXXFLAGS)
 
 libviews_la_SOURCES = \
-    view.hh view_names.hh view_nop.hh view_config.hh view_config.cc \
+    view.hh view_serialize.hh \
+    view_names.hh view_nop.hh \
+    view_config.hh view_config.cc \
     view_filebrowser.hh view_filebrowser_utils.hh view_filebrowser.cc \
     view_play.hh view_play.cc playinfo.hh playinfo.cc \
     view_search.hh view_search.cc \
     view_manager.hh view_manager.cc \
-    view_signals.hh idtypes.hh stream_id.h stream_id.hh \
+    idtypes.hh stream_id.h stream_id.hh \
     ui_parameters.hh search_parameters.hh \
     dbuslist.hh dbuslist_exception.hh \
     playbackmode.hh playbackmode_state.hh
@@ -84,7 +86,9 @@ libplayback_la_SOURCES = \
 libplayback_la_CFLAGS = $(AM_CFLAGS)
 libplayback_la_CXXFLAGS = $(AM_CXXFLAGS)
 
-libdcp_transaction_la_SOURCES = dcp_transaction.cc dcp_transaction.hh
+libdcp_transaction_la_SOURCES = \
+    dcp_transaction.cc dcp_transaction.hh \
+    dcp_transaction_queue.cc dcp_transaction_queue.hh
 libdcp_transaction_la_CFLAGS = $(AM_CFLAGS)
 libdcp_transaction_la_CXXFLAGS = $(AM_CXXFLAGS)
 

@@ -26,12 +26,12 @@
 #include "messages.h"
 #include "os.h"
 
-static ViewNop::View nop_view(nullptr);
+static ViewNop::View nop_view;
 
-ViewManager::Manager::Manager(DCP::Transaction &dcpd):
+ViewManager::Manager::Manager(DCP::Queue &queue):
     active_view_(&nop_view),
     last_browse_view_(nullptr),
-    dcp_transaction_(dcpd),
+    dcp_transaction_queue_(queue),
     debug_stream_(nullptr)
 {}
 
@@ -43,6 +43,9 @@ static inline bool is_view_name_valid(const char *view_name)
 bool ViewManager::Manager::add_view(ViewIface *view)
 {
     if(view == nullptr)
+        return false;
+
+    if(dynamic_cast<ViewSerializeBase *>(view) == nullptr)
         return false;
 
     if(!is_view_name_valid(view->name_))
@@ -71,7 +74,7 @@ bool ViewManager::Manager::invoke_late_init_functions()
 
 void ViewManager::Manager::set_output_stream(std::ostream &os)
 {
-    dcp_transaction_.set_output_stream(&os);
+    dcp_transaction_queue_.set_output_stream(&os);
 }
 
 void ViewManager::Manager::set_debug_stream(std::ostream &os)
@@ -79,29 +82,18 @@ void ViewManager::Manager::set_debug_stream(std::ostream &os)
     debug_stream_ = &os;
 }
 
-static void abort_transaction_or_fail_hard(DCP::Transaction &t)
-{
-    if(t.abort())
-        return;
-
-    BUG("Failed aborting DCPD transaction, aborting program.");
-    os_abort();
-}
-
 void ViewManager::Manager::serialization_result(DCP::Transaction::Result result)
 {
-    if(!dcp_transaction_.is_in_progress())
+    if(dcp_transaction_queue_.finish_transaction(result))
     {
-        BUG("Received result from DCPD for idle transaction");
+        /* just start the next transaction with not delay */
+        (void)dcp_transaction_queue_.start_transaction();
         return;
     }
 
     switch(result)
     {
       case DCP::Transaction::OK:
-        if(dcp_transaction_.done())
-            return;
-
         BUG("Got OK from DCPD, but failed ending transaction");
         break;
 
@@ -122,14 +114,6 @@ void ViewManager::Manager::serialization_result(DCP::Transaction::Result result)
                   "I/O error while trying to get response from DCPD");
         break;
     }
-
-    abort_transaction_or_fail_hard(dcp_transaction_);
-}
-
-static void bug_271(const ViewIface &view, const char *what)
-{
-    BUG("Lost display %s update for view \"%s\" (see ticket #271). "
-        "We are in some bogus state now.", what, view.name_);
 }
 
 void ViewManager::Manager::handle_input_result(ViewIface::InputResult result,
@@ -147,9 +131,8 @@ void ViewManager::Manager::handle_input_result(ViewIface::InputResult result,
         /* fall-through */
 
       case ViewIface::InputResult::FORCE_SERIALIZE:
-        if(!view.update(dcp_transaction_, debug_stream_))
-            bug_271(view, "partial");
-
+        dynamic_cast<ViewSerializeBase &>(view).update(dcp_transaction_queue_,
+                                                       debug_stream_);
         break;
 
       case ViewIface::InputResult::SHOULD_HIDE:
@@ -207,7 +190,7 @@ bool ViewManager::Manager::do_input_bounce(const ViewManager::InputBouncer &boun
 
 static bool move_cursor_multiple_steps(int steps, DrcpCommand down_cmd,
                                        DrcpCommand up_cmd, ViewIface &view,
-                                       DCP::Transaction &dcpd,
+                                       DCP::Queue &queue,
                                        ViewIface::InputResult &result,
                                        std::ostream *debug_stream)
 {
@@ -241,8 +224,8 @@ void ViewManager::Manager::input_move_cursor_by_line(int lines)
 
     if(move_cursor_multiple_steps(lines, DrcpCommand::SCROLL_DOWN_ONE,
                                   DrcpCommand::SCROLL_UP_ONE,
-                                  *active_view_, dcp_transaction_, result,
-                                  debug_stream_))
+                                  *active_view_, dcp_transaction_queue_,
+                                  result, debug_stream_))
         handle_input_result(result, *active_view_);
 }
 
@@ -252,7 +235,7 @@ void ViewManager::Manager::input_move_cursor_by_page(int pages)
 
     if(move_cursor_multiple_steps(pages, DrcpCommand::SCROLL_PAGE_DOWN,
                                   DrcpCommand::SCROLL_PAGE_UP,
-                                  *active_view_, dcp_transaction_, result,
+                                  *active_view_, dcp_transaction_queue_, result,
                                   debug_stream_))
         handle_input_result(result, *active_view_);
 }
@@ -295,8 +278,8 @@ void ViewManager::Manager::activate_view(ViewIface *view)
     active_view_ = view;
     active_view_->focus();
 
-    if(!active_view_->serialize(dcp_transaction_, debug_stream_))
-        bug_271(*active_view_, "full");
+    dynamic_cast<ViewSerializeBase *>(active_view_)->serialize(dcp_transaction_queue_,
+                                                               debug_stream_);
 
     if(view->is_browse_view_)
         last_browse_view_ = view;
@@ -351,25 +334,24 @@ bool ViewManager::Manager::is_active_view(const ViewIface *view) const
     return view == active_view_;
 }
 
-bool ViewManager::Manager::update_view_if_active(const ViewIface *view) const
+void ViewManager::Manager::update_view_if_active(const ViewIface *view) const
 {
     if(is_active_view(view))
-        return active_view_->update(dcp_transaction_, debug_stream_);
-    else
-        return true;
+        dynamic_cast<ViewSerializeBase *>(active_view_)->update(
+            dcp_transaction_queue_, debug_stream_);
 }
 
-bool ViewManager::Manager::serialize_view_if_active(const ViewIface *view) const
+void ViewManager::Manager::serialize_view_if_active(const ViewIface *view) const
 {
     if(is_active_view(view))
-        return active_view_->serialize(dcp_transaction_, debug_stream_);
-    else
-        return true;
+        dynamic_cast<ViewSerializeBase *>(active_view_)->serialize(
+            dcp_transaction_queue_, debug_stream_);
 }
 
-bool ViewManager::Manager::serialize_view_forced(const ViewIface *view) const
+void ViewManager::Manager::serialize_view_forced(const ViewIface *view) const
 {
-    return const_cast<ViewIface *>(view)->serialize(dcp_transaction_, debug_stream_);
+    dynamic_cast<ViewSerializeBase *>(const_cast<ViewIface *>(view))->serialize(
+        dcp_transaction_queue_, debug_stream_);
 }
 
 void ViewManager::Manager::hide_view_if_active(const ViewIface *view)

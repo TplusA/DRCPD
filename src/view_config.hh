@@ -20,6 +20,7 @@
 #define VIEW_CONFIG_HH
 
 #include "view.hh"
+#include "view_serialize.hh"
 #include "view_names.hh"
 #include "ramlist.hh"
 #include "listnav.hh"
@@ -204,7 +205,7 @@ class FilterFlags: public List::NavItemFilterIface
     }
 };
 
-class View: public ViewIface
+class View: public ViewIface, public ViewSerializeBase
 {
   private:
     Data settings_;
@@ -219,10 +220,9 @@ class View: public ViewIface
 
     View &operator=(const View &) = delete;
 
-    explicit View(const char *on_screen_name, unsigned int max_lines,
-                  ViewSignalsIface *view_signals):
-        ViewIface(ViewNames::CONFIGURATION, on_screen_name, "config", 73U,
-                  false, nullptr, view_signals),
+    explicit View(const char *on_screen_name, unsigned int max_lines):
+        ViewIface(ViewNames::CONFIGURATION, false, nullptr),
+        ViewSerializeBase(on_screen_name, "config", 73U),
         item_flags_(&editable_menu_items_),
         navigation_(max_lines, item_flags_)
     {}
@@ -235,7 +235,7 @@ class View: public ViewIface
     InputResult input(DrcpCommand command,
                       std::unique_ptr<const UI::Parameters> parameters) override;
 
-    bool serialize(DCP::Transaction &dcpd, std::ostream *debug_os) override;
+    void serialize(DCP::Queue &queue, std::ostream *debug_os) override;
 
     void apply_changed_settings();
 

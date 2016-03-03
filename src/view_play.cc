@@ -23,6 +23,7 @@
 #include <cstdlib>
 
 #include "view_play.hh"
+#include "view_manager.hh"
 #include "player.hh"
 #include "dbus_iface_deep.h"
 #include "xmlescape.hh"
@@ -112,7 +113,7 @@ void ViewPlay::View::notify_stream_start()
     msg_info("Play view: stream started, %s",
              is_visible_ ? "send screen update" : "but view is invisible");
 
-    display_update(update_flags_need_full_update);
+    view_manager_->serialize_view_if_active(this);
 }
 
 void ViewPlay::View::notify_stream_stop()
@@ -121,7 +122,8 @@ void ViewPlay::View::notify_stream_stop()
              is_visible_ ? "send screen update" : "but view is invisible");
 
     player_.release(false);
-    view_signals_->request_hide_view(this);
+    add_update_flags(UPDATE_FLAGS_PLAYBACK_STATE);
+    view_manager_->hide_view_if_active(this);
 }
 
 void ViewPlay::View::notify_stream_pause()
@@ -129,7 +131,8 @@ void ViewPlay::View::notify_stream_pause()
     msg_info("Play view: stream paused, %s",
              is_visible_ ? "send screen update" : "but view is invisible");
 
-    display_update(update_flags_playback_state);
+    add_update_flags(UPDATE_FLAGS_PLAYBACK_STATE);
+    view_manager_->update_view_if_active(this);
 }
 
 void ViewPlay::View::notify_stream_position_changed()
@@ -137,7 +140,8 @@ void ViewPlay::View::notify_stream_position_changed()
     msg_info("Play view: stream position changed, %s",
              is_visible_ ? "send screen update" : "but view is invisible");
 
-    display_update(update_flags_stream_position);
+    add_update_flags(UPDATE_FLAGS_STREAM_POSITION);
+    view_manager_->update_view_if_active(this);
 }
 
 void ViewPlay::View::notify_stream_meta_data_changed()
@@ -145,7 +149,8 @@ void ViewPlay::View::notify_stream_meta_data_changed()
     msg_info("Play view: stream meta data changed, %s",
              is_visible_ ? "send screen update" : "but view is invisible");
 
-    display_update(update_flags_meta_data);
+    add_update_flags(UPDATE_FLAGS_META_DATA);
+    view_manager_->update_view_if_active(this);
 }
 
 static const std::string mk_alt_track_name(const PlayInfo::MetaData &meta_data,
@@ -197,19 +202,19 @@ static const std::string &get_bitrate(const PlayInfo::MetaData &md)
     return md.values_[PlayInfo::MetaData::BITRATE_MIN];
 }
 
-bool ViewPlay::View::write_xml(std::ostream &os, bool is_full_view)
+bool ViewPlay::View::write_xml(std::ostream &os, const DCP::Queue::Data &data)
 {
     const auto &md = player_.get_track_meta_data();
     const bool is_buffering = player_.is_buffering();
 
-    if(is_full_view)
-        update_flags_ = UINT16_MAX;
+    const uint32_t update_flags =
+        data.is_full_serialize_ ? UINT32_MAX : data.view_update_flags_;
 
-    if(is_full_view && is_buffering)
+    if(data.is_full_serialize_ && is_buffering)
         os << "<text id=\"track\">"
            << XmlEscape(N_("Buffering")) << "..."
            << "</text>";
-    else if((update_flags_ & update_flags_meta_data) != 0)
+    else if((update_flags & UPDATE_FLAGS_META_DATA) != 0)
     {
         os << "<text id=\"artist\">"
            << XmlEscape(md.values_[PlayInfo::MetaData::ARTIST])
@@ -228,7 +233,7 @@ bool ViewPlay::View::write_xml(std::ostream &os, bool is_full_view)
            << "</text>";
     }
 
-    if((update_flags_ & update_flags_stream_position) != 0)
+    if((update_flags & UPDATE_FLAGS_STREAM_POSITION) != 0)
     {
         auto times = player_.get_times();
 
@@ -243,7 +248,7 @@ bool ViewPlay::View::write_xml(std::ostream &os, bool is_full_view)
                 << "</value>";
     }
 
-    if((update_flags_ & update_flags_playback_state) != 0)
+    if((update_flags & UPDATE_FLAGS_PLAYBACK_STATE) != 0)
     {
         /* matches enum #PlayInfo::Data::StreamState */
         static const char *play_icon[] =
@@ -263,18 +268,15 @@ bool ViewPlay::View::write_xml(std::ostream &os, bool is_full_view)
     return true;
 }
 
-bool ViewPlay::View::serialize(DCP::Transaction &dcpd, std::ostream *debug_os)
+void ViewPlay::View::serialize(DCP::Queue &queue, std::ostream *debug_os)
 {
     if(!is_visible_)
         BUG("serializing invisible ViewPlay::View");
 
-    const bool retval = ViewIface::serialize(dcpd);
-
-    if(retval)
-        update_flags_ = 0;
+    ViewSerializeBase::serialize(queue);
 
     if(!debug_os)
-        return retval;
+        return;
 
     /* matches enum #PlayInfo::Data::StreamState */
     static const char *stream_state_string[] =
@@ -297,29 +299,6 @@ bool ViewPlay::View::serialize(DCP::Transaction &dcpd, std::ostream *debug_os)
 
     for(size_t i = 0; i < md.values_.size(); ++i)
         *debug_os << "  " << i << ": \"" << md.values_[i] << "\"" << std::endl;
-
-    return retval;
-}
-
-bool ViewPlay::View::update(DCP::Transaction &dcpd, std::ostream *debug_os)
-{
-    if(!is_visible_)
-        BUG("updating invisible ViewPlay::View");
-
-    if(update_flags_ == 0)
-        BUG("display update requested, but nothing to update");
-
-    bool retval;
-
-    if((update_flags_ & update_flags_need_full_update) != 0)
-        retval = serialize(dcpd, debug_os);
-    else
-        retval = ViewIface::update(dcpd, debug_os);
-
-    if(retval)
-        update_flags_ = 0;
-
-    return retval;
 }
 
 static const std::string reformat_bitrate(const char *in)

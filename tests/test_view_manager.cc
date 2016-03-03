@@ -36,35 +36,6 @@
  */
 /*!@{*/
 
-class DummyViewSignals: public ViewSignalsIface
-{
-  public:
-    DummyViewSignals(const DummyViewSignals &) = delete;
-    DummyViewSignals &operator=(const DummyViewSignals &) = delete;
-
-    explicit DummyViewSignals() {}
-
-    void request_display_update(ViewIface *view) override
-    {
-        cut_fail("Unexpected call of request_display_update()");
-    }
-
-    void request_hide_view(ViewIface *view) override
-    {
-        cut_fail("Unexpected call of request_hide_view()");
-    }
-
-    void display_serialize_pending(ViewIface *view)
-    {
-        cut_fail("Unexpected call of display_serialize_pending()");
-    }
-
-    void display_update_pending(ViewIface *view) override
-    {
-        cut_fail("Unexpected call of display_update_pending()");
-    }
-};
-
 static void clear_ostream(std::ostringstream &ss)
 {
     ss.str("");
@@ -77,22 +48,21 @@ static void check_and_clear_ostream(const char *string, std::ostringstream &ss)
     clear_ostream(ss);
 }
 
-static void dcp_transaction_observer(DCP::Transaction::state)
+static void dcp_transaction_setup_timeout(bool start_timeout_timer)
 {
     /* nothing */
 }
 
-static const std::function<void(DCP::Transaction::state)> transaction_observer(dcp_transaction_observer);
+static const std::function<void(bool)> transaction_observer(dcp_transaction_setup_timeout);
 
 namespace view_manager_tests_basics
 {
 
 static MockMessages *mock_messages;
-static DCP::Transaction *dcpd;
+static DCP::Queue *queue;
 static ViewManager::Manager *vm;
 static std::ostringstream *views_output;
 static const char standard_mock_view_name[] = "Mock";
-static DummyViewSignals dummy_view_signals;
 
 void cut_setup(void)
 {
@@ -103,27 +73,29 @@ void cut_setup(void)
     mock_messages->init();
     mock_messages_singleton = mock_messages;
 
-    dcpd = new DCP::Transaction(transaction_observer);
-    cppcut_assert_not_null(dcpd);
+    queue = new DCP::Queue(transaction_observer);
+    cppcut_assert_not_null(queue);
 
-    vm = new ViewManager::Manager(*dcpd);
+    vm = new ViewManager::Manager(*queue);
     cppcut_assert_not_null(vm);
     vm->set_output_stream(*views_output);
 }
 
 void cut_teardown(void)
 {
-    mock_messages->check();
     cppcut_assert_equal("", views_output->str().c_str());
+    cut_assert_true(queue->is_idle());
+
+    mock_messages->check();
 
     delete mock_messages;
     delete vm;
-    delete dcpd;
+    delete queue;
     delete views_output;
 
     mock_messages = nullptr;
     vm =nullptr;
-    dcpd = nullptr;
+    queue = nullptr;
     views_output = nullptr;
 }
 
@@ -140,7 +112,7 @@ void test_add_nullptr_view_fails(void)
  */
 void test_add_nop_view_fails(void)
 {
-    ViewNop::View view(&dummy_view_signals);
+    ViewNop::View view;
 
     cut_assert_true(view.init());
     cut_assert_false(vm->add_view(&view));
@@ -151,7 +123,7 @@ void test_add_nop_view_fails(void)
  */
 void test_add_view(void)
 {
-    ViewMock::View view(standard_mock_view_name, false, &dummy_view_signals);
+    ViewMock::View view(standard_mock_view_name, false);
 
     cut_assert_true(view.init());
     cut_assert_true(vm->add_view(&view));
@@ -163,7 +135,7 @@ void test_add_view(void)
  */
 void test_add_views_with_same_name_fails(void)
 {
-    ViewMock::View view(standard_mock_view_name, false, &dummy_view_signals);
+    ViewMock::View view(standard_mock_view_name, false);
 
     cut_assert_true(view.init());
     cut_assert_true(vm->add_view(&view));
@@ -176,7 +148,7 @@ void test_add_views_with_same_name_fails(void)
  */
 void test_add_view_and_activate(void)
 {
-    ViewMock::View view(standard_mock_view_name, false, &dummy_view_signals);
+    ViewMock::View view(standard_mock_view_name, false);
 
     cut_assert_true(view.init());
     cut_assert_true(vm->add_view(&view));
@@ -185,7 +157,9 @@ void test_add_view_and_activate(void)
     mock_messages->expect_msg_info_formatted("Requested to activate view \"Mock\"");
     view.expect_focus();
     view.expect_serialize(*views_output);
+    view.expect_write_xml_begin(true, true);
     vm->activate_view_by_name(standard_mock_view_name);
+    vm->serialization_result(DCP::Transaction::OK);
     view.check();
 
     check_and_clear_ostream("Mock serialize\n", *views_output);
@@ -204,7 +178,7 @@ void test_get_nonexistent_view_by_name_fails(void)
  */
 void test_get_existent_view_by_name_returns_view_interface(void)
 {
-    ViewMock::View view(standard_mock_view_name, false, &dummy_view_signals);
+    ViewMock::View view(standard_mock_view_name, false);
 
     cut_assert_true(view.init());
     cut_assert_true(vm->add_view(&view));
@@ -218,12 +192,11 @@ namespace view_manager_tests
 {
 
 static MockMessages *mock_messages;
-static DCP::Transaction *dcpd;
+static DCP::Queue *queue;
 static ViewManager::Manager *vm;
 static std::ostringstream *views_output;
 static const char standard_mock_view_name[] = "Mock";
 static ViewMock::View *mock_view;
-static DummyViewSignals dummy_view_signals;
 
 void cut_setup(void)
 {
@@ -235,14 +208,14 @@ void cut_setup(void)
     mock_messages->init();
     mock_messages_singleton = mock_messages;
 
-    mock_view = new ViewMock::View(standard_mock_view_name, false, &dummy_view_signals);
+    mock_view = new ViewMock::View(standard_mock_view_name, false);
     cppcut_assert_not_null(mock_view);
     cut_assert_true(mock_view->init());
 
-    dcpd = new DCP::Transaction(transaction_observer);
-    cppcut_assert_not_null(dcpd);
+    queue = new DCP::Queue(dcp_transaction_setup_timeout);
+    cppcut_assert_not_null(queue);
 
-    vm = new ViewManager::Manager(*dcpd);
+    vm = new ViewManager::Manager(*queue);
     cppcut_assert_not_null(vm);
     vm->set_output_stream(*views_output);
     cut_assert_true(vm->add_view(mock_view));
@@ -250,18 +223,21 @@ void cut_setup(void)
     mock_messages->ignore_all_ = true;
     mock_view->ignore_all_ = true;
     vm->activate_view_by_name(standard_mock_view_name);
+    vm->serialization_result(DCP::Transaction::OK);
     mock_view->ignore_all_ = false;
     mock_messages->ignore_all_ = false;
 }
 
 void cut_teardown(void)
 {
+    cppcut_assert_equal("", views_output->str().c_str());
+    cut_assert_true(queue->is_idle());
+
     mock_messages->check();
     mock_view->check();
-    cppcut_assert_equal("", views_output->str().c_str());
 
     delete vm;
-    delete dcpd;
+    delete queue;
     delete mock_view;
     delete mock_messages;
     delete views_output;
@@ -269,7 +245,7 @@ void cut_teardown(void)
     mock_messages = nullptr;
     mock_view = nullptr;
     vm =nullptr;
-    dcpd = nullptr;
+    queue = nullptr;
     views_output = nullptr;
 }
 
@@ -294,8 +270,10 @@ void test_move_cursor_up_by_multiple_lines(void)
     mock_view->expect_input(ViewIface::InputResult::UPDATE_NEEDED,
                             DrcpCommand::SCROLL_UP_ONE, false);
     mock_view->expect_update(*views_output);
+    mock_view->expect_write_xml_begin(true, false);
 
     vm->input_move_cursor_by_line(-2);
+    vm->serialization_result(DCP::Transaction::OK);
 
     check_and_clear_ostream("Mock update\n", *views_output);
 }
@@ -315,8 +293,10 @@ void test_move_cursor_down_by_multiple_lines(void)
     mock_view->expect_input(ViewIface::InputResult::UPDATE_NEEDED,
                             DrcpCommand::SCROLL_DOWN_ONE, false);
     mock_view->expect_update(*views_output);
+    mock_view->expect_write_xml_begin(true, false);
 
     vm->input_move_cursor_by_line(3);
+    vm->serialization_result(DCP::Transaction::OK);
 
     check_and_clear_ostream("Mock update\n", *views_output);
 }
@@ -332,8 +312,10 @@ void test_move_cursor_by_multiple_lines_up_stops_at_beginning_of_list(void)
     mock_view->expect_input(ViewIface::InputResult::OK,
                             DrcpCommand::SCROLL_UP_ONE, false);
     mock_view->expect_update(*views_output);
+    mock_view->expect_write_xml_begin(true, false);
 
     vm->input_move_cursor_by_line(-5);
+    vm->serialization_result(DCP::Transaction::OK);
 
     check_and_clear_ostream("Mock update\n", *views_output);
 }
@@ -349,8 +331,10 @@ void test_move_cursor_by_multiple_lines_down_stops_at_end_of_list(void)
     mock_view->expect_input(ViewIface::InputResult::OK,
                             DrcpCommand::SCROLL_DOWN_ONE, false);
     mock_view->expect_update(*views_output);
+    mock_view->expect_write_xml_begin(true, false);
 
     vm->input_move_cursor_by_line(5);
+    vm->serialization_result(DCP::Transaction::OK);
 
     check_and_clear_ostream("Mock update\n", *views_output);
 }
@@ -380,8 +364,10 @@ void test_move_cursor_up_by_multiple_pages(void)
     mock_view->expect_input(ViewIface::InputResult::UPDATE_NEEDED,
                             DrcpCommand::SCROLL_PAGE_UP, false);
     mock_view->expect_update(*views_output);
+    mock_view->expect_write_xml_begin(true, false);
 
     vm->input_move_cursor_by_page(-4);
+    vm->serialization_result(DCP::Transaction::OK);
 
     check_and_clear_ostream("Mock update\n", *views_output);
 }
@@ -399,8 +385,10 @@ void test_move_cursor_down_by_multiple_pages(void)
     mock_view->expect_input(ViewIface::InputResult::UPDATE_NEEDED,
                             DrcpCommand::SCROLL_PAGE_DOWN, false);
     mock_view->expect_update(*views_output);
+    mock_view->expect_write_xml_begin(true, false);
 
     vm->input_move_cursor_by_page(2);
+    vm->serialization_result(DCP::Transaction::OK);
 
     check_and_clear_ostream("Mock update\n", *views_output);
 }
@@ -409,8 +397,6 @@ void test_move_cursor_down_by_multiple_pages(void)
 
 namespace view_manager_tests_multiple_views
 {
-
-static DummyViewSignals dummy_view_signals;
 
 static void populate_view_manager(ViewManager::Manager &vm,
                                   std::array<ViewMock::View *, 4> &all_views)
@@ -431,8 +417,7 @@ static void populate_view_manager(ViewManager::Manager &vm,
     for(size_t i = 0; i < sizeof(names) / sizeof(names[0]); ++i)
     {
         ViewMock::View *view =
-            new ViewMock::View(names[i].name, names[i].is_browse_view,
-                               &dummy_view_signals);
+            new ViewMock::View(names[i].name, names[i].is_browse_view);
 
         cut_assert_true(view->init());
         cut_assert_true(vm.add_view(view));
@@ -444,7 +429,7 @@ static void populate_view_manager(ViewManager::Manager &vm,
 
 static MockMessages *mock_messages;
 static std::array<ViewMock::View *, 4> all_mock_views;
-static DCP::Transaction *dcpd;
+static DCP::Queue *queue;
 static ViewManager::Manager *vm;
 static std::ostringstream *views_output;
 
@@ -458,10 +443,10 @@ void cut_setup(void)
     mock_messages->init();
     mock_messages_singleton = mock_messages;
 
-    dcpd = new DCP::Transaction(transaction_observer);
-    cppcut_assert_not_null(dcpd);
+    queue = new DCP::Queue(dcp_transaction_setup_timeout);
+    cppcut_assert_not_null(queue);
 
-    vm = new ViewManager::Manager(*dcpd);
+    vm = new ViewManager::Manager(*queue);
     cppcut_assert_not_null(vm);
 
     mock_messages->ignore_all_ = true;
@@ -469,6 +454,7 @@ void cut_setup(void)
     populate_view_manager(*vm,  all_mock_views);
     all_mock_views[0]->ignore_all_ = true;
     vm->activate_view_by_name("First");
+    vm->serialization_result(DCP::Transaction::OK);
     all_mock_views[0]->ignore_all_ = false;
     mock_messages->ignore_all_ = false;
 
@@ -478,6 +464,7 @@ void cut_setup(void)
 void cut_teardown(void)
 {
     cppcut_assert_equal("", views_output->str().c_str());
+    cut_assert_true(queue->is_idle());
 
     mock_messages->check();
 
@@ -486,12 +473,12 @@ void cut_teardown(void)
 
     delete mock_messages;
     delete vm;
-    delete dcpd;
+    delete queue;
     delete views_output;
 
     mock_messages = nullptr;
     vm = nullptr;
-    dcpd = nullptr;
+    queue = nullptr;
     views_output = nullptr;
 
     for(auto view: all_mock_views)
@@ -530,8 +517,10 @@ void test_reactivate_active_view_serializes_the_view_again(void)
 
     all_mock_views[0]->expect_focus();
     all_mock_views[0]->expect_serialize(*views_output);
+    all_mock_views[0]->expect_write_xml_begin(true, true);
 
     vm->activate_view_by_name("First");
+    vm->serialization_result(DCP::Transaction::OK);
 
     check_and_clear_ostream("First serialize\n", *views_output);
 }
@@ -565,8 +554,10 @@ void test_activate_different_view(void)
 
     all_mock_views[1]->expect_focus();
     all_mock_views[1]->expect_serialize(*views_output);
+    all_mock_views[1]->expect_write_xml_begin(true, true);
 
     vm->activate_view_by_name("Second");
+    vm->serialization_result(DCP::Transaction::OK);
 
     check_and_clear_ostream("Second serialize\n", *views_output);
 }
@@ -593,7 +584,9 @@ void test_input_command_with_need_to_refresh(void)
     all_mock_views[0]->expect_input(ViewIface::InputResult::UPDATE_NEEDED,
                                     DrcpCommand::PLAYBACK_START, false);
     all_mock_views[0]->expect_update(*views_output);
+    all_mock_views[0]->expect_write_xml_begin(true, false);
     vm->input(DrcpCommand::PLAYBACK_START, nullptr);
+    vm->serialization_result(DCP::Transaction::OK);
 
     check_and_clear_ostream("First update\n", *views_output);
 }
@@ -621,9 +614,10 @@ void test_input_command_with_need_to_hide_nonbrowse_view(void)
     all_mock_views[0]->expect_defocus();
     all_mock_views[2]->expect_focus();
     all_mock_views[2]->expect_serialize(*views_output);
+    all_mock_views[2]->expect_write_xml_begin(true, true);
     vm->activate_view_by_name("Third");
-    check_and_clear_ostream("Third serialize\n", *views_output);
     vm->serialization_result(DCP::Transaction::OK);
+    check_and_clear_ostream("Third serialize\n", *views_output);
 
     /* hide request from active view, view manager switches back to previous
      * browse view in turn (view "First") */
@@ -633,7 +627,9 @@ void test_input_command_with_need_to_hide_nonbrowse_view(void)
     all_mock_views[2]->expect_defocus();
     all_mock_views[0]->expect_focus();
     all_mock_views[0]->expect_serialize(*views_output);
+    all_mock_views[0]->expect_write_xml_begin(true, true);
     vm->input(DrcpCommand::PLAYBACK_START, nullptr);
+    vm->serialization_result(DCP::Transaction::OK);
     check_and_clear_ostream("First serialize\n", *views_output);
 }
 
@@ -648,9 +644,10 @@ void test_input_command_with_need_to_hide_browse_view_never_works(void)
     all_mock_views[0]->expect_defocus();
     all_mock_views[1]->expect_focus();
     all_mock_views[1]->expect_serialize(*views_output);
+    all_mock_views[1]->expect_write_xml_begin(true, true);
     vm->activate_view_by_name("Second");
-    check_and_clear_ostream("Second serialize\n", *views_output);
     vm->serialization_result(DCP::Transaction::OK);
+    check_and_clear_ostream("Second serialize\n", *views_output);
 
     /* hide request from active view, but view manager won't switch focus */
     mock_messages->expect_msg_info("Dispatching DRCP command %d%s");
@@ -672,7 +669,7 @@ static void check_equal_parameters(const UI::Parameters *expected_parameters,
  */
 void test_input_command_with_data(void)
 {
-    ViewMock::View view("Play", false, &dummy_view_signals);
+    ViewMock::View view("Play", false);
     cut_assert_true(view.init());
     cut_assert_true(vm->add_view(&view));
 
@@ -689,18 +686,27 @@ void test_input_command_with_data(void)
     cut_assert_true(check_equal_parameters_called);
 }
 
+class DummyTypeForTesting
+{
+  public:
+    DummyTypeForTesting(const DummyTypeForTesting &) = delete;
+    DummyTypeForTesting &operator=(const DummyTypeForTesting &) = delete;
+
+    explicit DummyTypeForTesting() {}
+};
+
 /*!\test
  * In case we are messing up and pass the wrong kind of data to an input
  * command, the command handler is responsible for handling the situation.
  */
 void test_input_command_with_unexpected_data(void)
 {
-    ViewMock::View view("Play", false, &dummy_view_signals);
+    ViewMock::View view("Play", false);
     cut_assert_true(view.init());
     cut_assert_true(vm->add_view(&view));
 
     auto completely_unexpected_data =
-        std::unique_ptr<UI::SpecificParameters<DummyViewSignals *>>(new UI::SpecificParameters<DummyViewSignals *>(nullptr));
+        std::unique_ptr<UI::SpecificParameters<DummyTypeForTesting *>>(new UI::SpecificParameters<DummyTypeForTesting *>(nullptr));
     view.expect_input_with_callback(ViewIface::InputResult::OK,
                                     DrcpCommand::FAST_WIND_SET_SPEED,
                                     completely_unexpected_data.get(),
@@ -719,11 +725,11 @@ void test_input_command_with_unexpected_data(void)
  */
 void test_input_command_with_missing_data(void)
 {
-    ViewMock::View view("Play", false, &dummy_view_signals);
+    ViewMock::View view("Play", false);
     cut_assert_true(view.init());
     cut_assert_true(vm->add_view(&view));
 
-    const UI::SpecificParameters<DummyViewSignals *> completely_unexpected_data(nullptr);
+    const UI::SpecificParameters<DummyTypeForTesting *> completely_unexpected_data(nullptr);
     view.expect_input_with_callback(ViewIface::InputResult::OK,
                                     DrcpCommand::FAST_WIND_SET_SPEED,
                                     nullptr, check_equal_parameters);
@@ -744,6 +750,7 @@ void test_toggle_two_views(void)
     all_mock_views[0]->expect_defocus();
     all_mock_views[1]->expect_focus();
     all_mock_views[1]->expect_serialize(*views_output);
+    all_mock_views[1]->expect_write_xml_begin(true, true);
     vm->toggle_views_by_name("Second", "Third");
     vm->serialization_result(DCP::Transaction::OK);
     check_and_clear_ostream("Second serialize\n", *views_output);
@@ -752,6 +759,7 @@ void test_toggle_two_views(void)
     all_mock_views[1]->expect_defocus();
     all_mock_views[2]->expect_focus();
     all_mock_views[2]->expect_serialize(*views_output);
+    all_mock_views[2]->expect_write_xml_begin(true, true);
     vm->toggle_views_by_name("Second", "Third");
     vm->serialization_result(DCP::Transaction::OK);
     check_and_clear_ostream("Third serialize\n", *views_output);
@@ -761,6 +769,7 @@ void test_toggle_two_views(void)
     all_mock_views[2]->expect_defocus();
     all_mock_views[1]->expect_focus();
     all_mock_views[1]->expect_serialize(*views_output);
+    all_mock_views[1]->expect_write_xml_begin(true, true);
     vm->toggle_views_by_name("Second", "Third");
     vm->serialization_result(DCP::Transaction::OK);
     check_and_clear_ostream("Second serialize\n", *views_output);
@@ -776,6 +785,7 @@ void test_toggle_views_with_same_names_switches_each_time(void)
     all_mock_views[0]->expect_defocus();
     all_mock_views[3]->expect_focus();
     all_mock_views[3]->expect_serialize(*views_output);
+    all_mock_views[3]->expect_write_xml_begin(true, true);
     vm->toggle_views_by_name("Fourth", "Fourth");
     vm->serialization_result(DCP::Transaction::OK);
     check_and_clear_ostream("Fourth serialize\n", *views_output);
@@ -784,6 +794,7 @@ void test_toggle_views_with_same_names_switches_each_time(void)
     all_mock_views[3]->expect_defocus();
     all_mock_views[3]->expect_focus();
     all_mock_views[3]->expect_serialize(*views_output);
+    all_mock_views[3]->expect_write_xml_begin(true, true);
     vm->toggle_views_by_name("Fourth", "Fourth");
     vm->serialization_result(DCP::Transaction::OK);
     check_and_clear_ostream("Fourth serialize\n", *views_output);
@@ -799,6 +810,7 @@ void test_toggle_views_with_first_unknown_name_switches_to_the_known_name(void)
     all_mock_views[0]->expect_defocus();
     all_mock_views[2]->expect_focus();
     all_mock_views[2]->expect_serialize(*views_output);
+    all_mock_views[2]->expect_write_xml_begin(true, true);
     vm->toggle_views_by_name("Foo", "Third");
     vm->serialization_result(DCP::Transaction::OK);
     check_and_clear_ostream("Third serialize\n", *views_output);
@@ -807,6 +819,7 @@ void test_toggle_views_with_first_unknown_name_switches_to_the_known_name(void)
     all_mock_views[2]->expect_defocus();
     all_mock_views[2]->expect_focus();
     all_mock_views[2]->expect_serialize(*views_output);
+    all_mock_views[2]->expect_write_xml_begin(true, true);
     vm->toggle_views_by_name("Foo", "Third");
     vm->serialization_result(DCP::Transaction::OK);
     check_and_clear_ostream("Third serialize\n", *views_output);
@@ -815,6 +828,7 @@ void test_toggle_views_with_first_unknown_name_switches_to_the_known_name(void)
     all_mock_views[2]->expect_defocus();
     all_mock_views[2]->expect_focus();
     all_mock_views[2]->expect_serialize(*views_output);
+    all_mock_views[2]->expect_write_xml_begin(true, true);
     vm->toggle_views_by_name("Foo", "Third");
     vm->serialization_result(DCP::Transaction::OK);
     check_and_clear_ostream("Third serialize\n", *views_output);
@@ -830,7 +844,9 @@ void test_toggle_views_with_second_unknown_name_switches_to_the_known_name(void)
     all_mock_views[0]->expect_defocus();
     all_mock_views[2]->expect_focus();
     all_mock_views[2]->expect_serialize(*views_output);
+    all_mock_views[2]->expect_write_xml_begin(true, true);
     vm->toggle_views_by_name("Third", "Foo");
+    vm->serialization_result(DCP::Transaction::OK);
     check_and_clear_ostream("Third serialize\n", *views_output);
 
     mock_messages->expect_msg_info_formatted("Requested to toggle between views \"Third\" and \"Foo\"");
@@ -867,12 +883,11 @@ namespace view_manager_tests_serialization
 {
 
 static MockMessages *mock_messages;
-static DCP::Transaction *dcpd;
+static DCP::Queue *queue;
 static ViewManager::Manager *vm;
 static std::ostringstream *views_output;
 static const char standard_mock_view_name[] = "Mock";
 static ViewMock::View *mock_view;
-static DummyViewSignals dummy_view_signals;
 
 void cut_setup(void)
 {
@@ -884,30 +899,31 @@ void cut_setup(void)
     mock_messages->init();
     mock_messages_singleton = mock_messages;
 
-    mock_view = new ViewMock::View(standard_mock_view_name, false, &dummy_view_signals);
+    mock_view = new ViewMock::View(standard_mock_view_name, false);
     cppcut_assert_not_null(mock_view);
     cut_assert_true(mock_view->init());
 
-    dcpd = new DCP::Transaction(transaction_observer);
-    cppcut_assert_not_null(dcpd);
+    queue = new DCP::Queue(dcp_transaction_setup_timeout);
+    cppcut_assert_not_null(queue);
 
-    vm = new ViewManager::Manager(*dcpd);
+    vm = new ViewManager::Manager(*queue);
     cppcut_assert_not_null(vm);
     vm->set_output_stream(*views_output);
     cut_assert_true(vm->add_view(mock_view));
 
-    cut_assert_false(dcpd->is_in_progress());
+    cut_assert_false(queue->is_in_progress());
 }
 
 void cut_teardown(void)
 {
+    cppcut_assert_equal("", views_output->str().c_str());
+    cut_assert_true(queue->is_idle());
+
     mock_messages->check();
     mock_view->check();
-    cppcut_assert_equal("", views_output->str().c_str());
-    cut_assert_false(dcpd->is_in_progress());
 
     delete vm;
-    delete dcpd;
+    delete queue;
     delete mock_view;
     delete mock_messages;
     delete views_output;
@@ -915,7 +931,7 @@ void cut_teardown(void)
     mock_messages = nullptr;
     mock_view = nullptr;
     vm =nullptr;
-    dcpd = nullptr;
+    queue = nullptr;
     views_output = nullptr;
 }
 
@@ -946,6 +962,7 @@ static void activate_view()
     mock_messages->expect_msg_info_formatted("Requested to activate view \"Mock\"");
     mock_view->expect_focus();
     mock_view->expect_serialize(*views_output);
+    mock_view->expect_write_xml_begin(true, true);
     vm->activate_view_by_name(standard_mock_view_name);
     check_and_clear_ostream("Mock serialize\n", *views_output);
 }
@@ -1001,17 +1018,34 @@ void test_hard_io_error(void)
 }
 
 /*!\test
- * Failing hard to read a result back from DCPD during a transaction is logged.
- *
- * This would happen in case a view starts a transaction, but fails to commit
- * it. There will be a bug log message, and the transaction will be aborted by
- * the view manager.
+ * Serializing a view that is already in the progress of being serialized
+ * causes a new element being inserted into the DCP queue.
  */
-void test_unexpected_transaction_state(void)
+void test_view_update_does_not_affect_ongoing_transfer()
 {
-    dcpd->start();
+    cut_assert_false(queue->is_in_progress());
+    cut_assert_true(queue->is_empty());
+    cut_assert_true(queue->is_idle());
 
-    mock_messages->expect_msg_error(0, LOG_CRIT, "BUG: Got OK from DCPD, but failed ending transaction");
+    activate_view();
+
+    cut_assert_true(queue->is_in_progress());
+    cut_assert_true(queue->is_empty());
+    cut_assert_false(queue->is_idle());
+
+    mock_view->expect_defocus();
+    activate_view();
+
+    cut_assert_true(queue->is_in_progress());
+    cut_assert_false(queue->is_empty());
+    cut_assert_false(queue->is_idle());
+
+    vm->serialization_result(DCP::Transaction::OK);
+
+    cut_assert_true(queue->is_in_progress());
+    cut_assert_true(queue->is_empty());
+    cut_assert_false(queue->is_idle());
+
     vm->serialization_result(DCP::Transaction::OK);
 }
 

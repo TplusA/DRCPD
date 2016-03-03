@@ -22,6 +22,7 @@
 #include <memory>
 
 #include "view.hh"
+#include "view_serialize.hh"
 #include "view_names.hh"
 #include "playinfo.hh"
 
@@ -40,16 +41,14 @@ namespace ViewPlay
 
 extern const PlayInfo::Reformatters meta_data_reformatters;
 
-class View: public ViewIface
+class View: public ViewIface, public ViewSerializeBase
 {
   private:
-    static constexpr uint16_t update_flags_need_full_update = 1U << 0;
-    static constexpr uint16_t update_flags_stream_position  = 1U << 1;
-    static constexpr uint16_t update_flags_playback_state   = 1U << 2;
-    static constexpr uint16_t update_flags_meta_data        = 1U << 3;
+    static constexpr const uint32_t UPDATE_FLAGS_STREAM_POSITION = 1U << 0;
+    static constexpr const uint32_t UPDATE_FLAGS_PLAYBACK_STATE  = 1U << 1;
+    static constexpr const uint32_t UPDATE_FLAGS_META_DATA       = 1U << 2;
 
     bool is_visible_;
-    uint16_t update_flags_;
 
     Playback::Player &player_;
 
@@ -60,11 +59,10 @@ class View: public ViewIface
 
     explicit View(const char *on_screen_name, unsigned int max_lines,
                   Playback::Player &player,
-                  ViewSignalsIface *view_signals):
-        ViewIface(ViewNames::PLAYER, on_screen_name, "play", 109U,
-                  false, nullptr, view_signals),
+                  ViewManager::VMIface *view_manager):
+        ViewIface(ViewNames::PLAYER, false, view_manager),
+        ViewSerializeBase(on_screen_name, "play", 109U),
         is_visible_(false),
-        update_flags_(0),
         player_(player)
     {}
 
@@ -84,8 +82,7 @@ class View: public ViewIface
     void notify_stream_position_changed() override;
     void notify_stream_meta_data_changed() override;
 
-    bool serialize(DCP::Transaction &dcpd, std::ostream *debug_os) override;
-    bool update(DCP::Transaction &dcpd, std::ostream *debug_os) override;
+    void serialize(DCP::Queue &queue, std::ostream *debug_os) override;
 
   private:
     bool is_busy() const override;
@@ -93,13 +90,7 @@ class View: public ViewIface
     /*!
      * Generate XML document from current state.
      */
-    bool write_xml(std::ostream &os, bool is_full_view) override;
-
-    void display_update(uint16_t update_flags)
-    {
-        update_flags_ |= update_flags;
-        view_signals_->request_display_update(this);
-    }
+    bool write_xml(std::ostream &os, const DCP::Queue::Data &data) override;
 };
 
 };

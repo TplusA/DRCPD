@@ -20,6 +20,7 @@
 #define VIEW_SEARCH_HH
 
 #include "view.hh"
+#include "view_serialize.hh"
 #include "view_names.hh"
 #include "search_parameters.hh"
 
@@ -34,7 +35,7 @@
 namespace ViewSearch
 {
 
-class View: public ViewIface
+class View: public ViewIface, public ViewSerializeBase
 {
   private:
     using ParamType = UI::SpecificParameters<SearchParameters>;
@@ -47,10 +48,9 @@ class View: public ViewIface
     View &operator=(const View &) = delete;
 
     explicit View(const char *on_screen_name, unsigned int max_lines,
-                  ViewManager::VMIface *view_manager,
-                  ViewSignalsIface *view_signals):
-        ViewIface(ViewNames::SEARCH_OPTIONS, on_screen_name, "edit", 123U,
-                  false, view_manager, view_signals)
+                  ViewManager::VMIface *view_manager):
+        ViewIface(ViewNames::SEARCH_OPTIONS, false, view_manager),
+        ViewSerializeBase(on_screen_name, "edit", 123U)
     {}
 
     virtual ~View() {}
@@ -63,14 +63,16 @@ class View: public ViewIface
     InputResult input(DrcpCommand command,
                       std::unique_ptr<const UI::Parameters> parameters) override;
 
-    bool serialize(DCP::Transaction &dcpd, std::ostream *debug_os = nullptr) override
+    void serialize(DCP::Queue &queue, std::ostream *debug_os = nullptr) override
     {
-        return can_serialize() ? ViewIface::serialize(dcpd, debug_os) : false;
+        if(can_serialize())
+            ViewSerializeBase::serialize(queue, debug_os);
     }
 
-    bool update(DCP::Transaction &dcpd, std::ostream *debug_os = nullptr) override
+    void update(DCP::Queue &queue, std::ostream *debug_os = nullptr) override
     {
-        return can_serialize() ? ViewIface::update(dcpd, debug_os) : false;
+        if(can_serialize())
+            ViewSerializeBase::update(queue, debug_os);
     }
 
     void request_parameters_for_context(const char *context)
@@ -88,7 +90,7 @@ class View: public ViewIface
     void forget_parameters() { query_ = nullptr; }
 
   private:
-    bool write_xml(std::ostream &os, bool is_full_view) override;
+    bool write_xml(std::ostream &os, const DCP::Queue::Data &data) override;
 
     bool can_serialize() const
     {

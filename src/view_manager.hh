@@ -24,7 +24,7 @@
 #include <algorithm>
 
 #include "view.hh"
-#include "dcp_transaction.hh"
+#include "dcp_transaction_queue.hh"
 
 /*!
  * \addtogroup view_manager Management of the various views
@@ -110,6 +110,9 @@ class VMIface
     virtual void set_output_stream(std::ostream &os) = 0;
     virtual void set_debug_stream(std::ostream &os) = 0;
 
+    /*!
+     * End of DCP transmission, callback from I/O layer.
+     */
     virtual void serialization_result(DCP::Transaction::Result result) = 0;
 
     virtual void input(DrcpCommand command,
@@ -126,9 +129,9 @@ class VMIface
     virtual void toggle_views_by_name(const char *view_name_a,
                                       const char *view_name_b) = 0;
     virtual bool is_active_view(const ViewIface *view) const = 0;
-    virtual bool serialize_view_if_active(const ViewIface *view) const = 0;
-    virtual bool serialize_view_forced(const ViewIface *view) const = 0;
-    virtual bool update_view_if_active(const ViewIface *view) const = 0;
+    virtual void serialize_view_if_active(const ViewIface *view) const = 0;
+    virtual void serialize_view_forced(const ViewIface *view) const = 0;
+    virtual void update_view_if_active(const ViewIface *view) const = 0;
     virtual void hide_view_if_active(const ViewIface *view) = 0;
 };
 
@@ -142,14 +145,14 @@ class Manager: public VMIface
 
     ViewIface *active_view_;
     ViewIface *last_browse_view_;
-    DCP::Transaction &dcp_transaction_;
+    DCP::Queue &dcp_transaction_queue_;
     std::ostream *debug_stream_;
 
   public:
     Manager(const Manager &) = delete;
     Manager &operator=(const Manager &) = delete;
 
-    explicit Manager(DCP::Transaction &dcpd);
+    explicit Manager(DCP::Queue &queue);
 
     bool add_view(ViewIface *view) override;
     bool invoke_late_init_functions() override;
@@ -178,9 +181,9 @@ class Manager: public VMIface
     void toggle_views_by_name(const char *view_name_a,
                               const char *view_name_b) override;
     bool is_active_view(const ViewIface *view) const override;
-    bool serialize_view_if_active(const ViewIface *view) const override;
-    bool serialize_view_forced(const ViewIface *view) const override;
-    bool update_view_if_active(const ViewIface *view) const override;
+    void serialize_view_if_active(const ViewIface *view) const override;
+    void serialize_view_forced(const ViewIface *view) const override;
+    void update_view_if_active(const ViewIface *view) const override;
     void hide_view_if_active(const ViewIface *view) override;
 
   private:

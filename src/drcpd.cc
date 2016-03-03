@@ -32,7 +32,6 @@
 #include "view_manager.hh"
 #include "view_play.hh"
 #include "view_search.hh"
-#include "view_signals_glib.hh"
 #include "player.hh"
 #include "dbus_iface.h"
 #include "dbus_handlers.hh"
@@ -206,31 +205,17 @@ static void add_timeout(dcp_fifo_dispatch_data_t *dispatch_data,
     }
 }
 
-static void dcp_transaction_observer(DCP::Transaction::state state,
-                                     void *user_data)
+static void timeout_config(bool start_timeout_timer, void *user_data)
 {
     struct dcp_fifo_dispatch_data_t *dispatch_data =
         static_cast<struct dcp_fifo_dispatch_data_t *>(user_data);
 
-    switch(state)
-    {
-      case DCP::Transaction::IDLE:
-        if(dispatch_data->timeout_event_source_id != 0)
-        {
-            g_source_remove(dispatch_data->timeout_event_source_id);
-            dispatch_data->timeout_event_source_id = 0;
-        }
-        break;
-
-      case DCP::Transaction::WAIT_FOR_COMMIT:
-        /* we are not going to consider this case because this state is left by
-         * our own internal actions pretty quickly---we assume here that the
-         * views commit their stuff */
-        return;
-
-      case DCP::Transaction::WAIT_FOR_ANSWER:
+    if(start_timeout_timer)
         add_timeout(dispatch_data, 2U * 1000U);
-        break;
+    else if(dispatch_data->timeout_event_source_id != 0)
+    {
+        g_source_remove(dispatch_data->timeout_event_source_id);
+        dispatch_data->timeout_event_source_id = 0;
     }
 }
 
@@ -375,37 +360,35 @@ static int process_command_line(int argc, char *argv[],
     return 0;
 }
 
-static void connect_everything(ViewManager::Manager &views, ViewSignalsIface *view_signals,
+static void connect_everything(ViewManager::Manager &views,
                                Playback::Player &player,
                                DBusSignalData &dbus_data)
 {
     static const unsigned int number_of_lines_on_display = 3;
 
-    static ViewConfig::View cfg(N_("Configuration"), number_of_lines_on_display, view_signals);
+    static ViewConfig::View cfg(N_("Configuration"), number_of_lines_on_display);
     static ViewFileBrowser::View fs(ViewNames::BROWSER_FILESYSTEM,
                                     N_("USB devices"), 1,
                                     number_of_lines_on_display,
                                     DBUS_LISTBROKER_ID_FILESYSTEM,
                                     player, Playback::Mode::LINEAR,
-                                    &views, view_signals);
+                                    &views);
     static ViewFileBrowser::View tunein(ViewNames::BROWSER_INETRADIO,
                                         N_("Airable internet radio"), 3,
                                         number_of_lines_on_display,
                                         DBUS_LISTBROKER_ID_TUNEIN,
                                         player, Playback::Mode::SINGLE_TRACK,
-                                        &views, view_signals);
+                                        &views);
     static ViewFileBrowser::View upnp(ViewNames::BROWSER_UPNP,
                                       N_("UPnP media servers"), 4,
                                       number_of_lines_on_display,
                                       DBUS_LISTBROKER_ID_UPNP,
                                       player, Playback::Mode::LINEAR,
-                                      &views, view_signals);
+                                      &views);
     static ViewPlay::View play(N_("Stream information"),
-                               number_of_lines_on_display, player,
-                               view_signals);
+                               number_of_lines_on_display, player, &views);
     static ViewSearch::View search(N_("Search parameters"),
-                                   number_of_lines_on_display,
-                                   &views, view_signals);
+                                   number_of_lines_on_display, &views);
 
     if(!cfg.init())
         return;
@@ -478,12 +461,12 @@ int main(int argc, char *argv[])
     if(setup(&parameters, &dcp_dispatch_data, &loop) < 0)
         return EXIT_FAILURE;
 
-    static const std::function<void(DCP::Transaction::state)> transaction_observer =
-        std::bind(dcp_transaction_observer, std::placeholders::_1, &dcp_dispatch_data);
-    static DCP::Transaction dcp_transaction(transaction_observer);
+    static const std::function<void(bool)> configure_transaction_timeout =
+        std::bind(timeout_config, std::placeholders::_1, &dcp_dispatch_data);
+    static DCP::Queue dcp_transaction_queue(configure_transaction_timeout);
     static FdStreambuf fd_sbuf(files.dcp_fifo.out_fd);
     static std::ostream fd_out(&fd_sbuf);
-    static ViewManager::Manager view_manager(dcp_transaction);
+    static ViewManager::Manager view_manager(dcp_transaction_queue);
 
     static Playback::Player player_singleton(ViewPlay::meta_data_reformatters);
     static DBusSignalData dbus_signal_data(view_manager, player_singleton, player_singleton);
@@ -500,10 +483,7 @@ int main(int argc, char *argv[])
     g_unix_signal_add(SIGINT, signal_handler, loop);
     g_unix_signal_add(SIGTERM, signal_handler, loop);
 
-    ViewSignalsGLib view_signals(view_manager);
-    view_signals.connect_to_main_loop(loop);
-
-    connect_everything(view_manager, &view_signals, player_singleton, dbus_signal_data);
+    connect_everything(view_manager, player_singleton, dbus_signal_data);
 
     g_main_loop_run(loop);
 

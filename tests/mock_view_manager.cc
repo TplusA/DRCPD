@@ -429,22 +429,19 @@ bool MockViewManager::is_active_view(const ViewIface *view) const
     return false;
 }
 
-bool MockViewManager::serialize_view_if_active(const ViewIface *view) const
+void MockViewManager::serialize_view_if_active(const ViewIface *view) const
 {
     cut_fail("Not implemented");
-    return true;
 }
 
-bool MockViewManager::serialize_view_forced(const ViewIface *view) const
+void MockViewManager::serialize_view_forced(const ViewIface *view) const
 {
     cut_fail("Not implemented");
-    return true;
 }
 
-bool MockViewManager::update_view_if_active(const ViewIface *view) const
+void MockViewManager::update_view_if_active(const ViewIface *view) const
 {
     cut_fail("Not implemented");
-    return true;
 }
 
 void MockViewManager::hide_view_if_active(const ViewIface *view)

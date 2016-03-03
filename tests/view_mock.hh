@@ -20,12 +20,13 @@
 #define VIEW_MOCK_HH
 
 #include "view.hh"
+#include "view_serialize.hh"
 #include "mock_expectation.hh"
 
 namespace ViewMock
 {
 
-class View: public ViewIface
+class View: public ViewIface, public ViewSerializeBase
 {
   public:
     class Expectation;
@@ -37,8 +38,7 @@ class View: public ViewIface
     View(const View &) = delete;
     View &operator=(const View &) = delete;
 
-    explicit View(const char *name, bool is_browse_view,
-                  ViewSignalsIface *view_signals);
+    explicit View(const char *name, bool is_browse_view);
     ~View();
 
     void check() const;
@@ -55,14 +55,18 @@ class View: public ViewIface
                                     CheckParametersFn check_params_callback);
     void expect_serialize(std::ostream &os);
     void expect_update(std::ostream &os);
+    void expect_write_xml_begin(bool retval, bool is_full_view);
 
     bool init() override;
     void focus() override;
     void defocus() override;
     InputResult input(DrcpCommand command,
                       std::unique_ptr<const UI::Parameters> parameters) override;
-    bool serialize(DCP::Transaction &dcpd, std::ostream *debug_os) override;
-    bool update(DCP::Transaction &dcpd, std::ostream *debug_os) override;
+    bool write_xml_begin(std::ostream &os, const DCP::Queue::Data &data_full_view) override;
+    bool write_xml(std::ostream &os, const DCP::Queue::Data &data_full_view) override;
+    bool write_xml_end(std::ostream &os, const DCP::Queue::Data &data_full_view) override;
+    void serialize(DCP::Queue &queue, std::ostream *debug_os) override;
+    void update(DCP::Queue &queue, std::ostream *debug_os) override;
 };
 
 };

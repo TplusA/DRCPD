@@ -72,13 +72,13 @@ static bool request_search_parameters_from_user(ViewManager::VMIface &vm,
 {
     params = view.get_parameters();
 
-    if(params == nullptr)
-    {
-        view.request_parameters_for_context("dummy");
-        return vm.serialize_view_forced(&view);
-    }
+    if(params != nullptr)
+        return false;
 
-    return false;
+    view.request_parameters_for_context("dummy");
+    vm.serialize_view_forced(&view);
+
+    return true;
 }
 
 bool ViewFileBrowser::View::apply_search_parameters()
@@ -290,7 +290,8 @@ ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command,
     return InputResult::OK;
 }
 
-bool ViewFileBrowser::View::write_xml(std::ostream &os, bool is_full_view)
+bool ViewFileBrowser::View::write_xml(std::ostream &os,
+                                      const DCP::Queue::Data &data)
 {
     os << "<text id=\"cbid\">" << int(drcp_browse_id_) << "</text>";
 
@@ -374,12 +375,12 @@ bool ViewFileBrowser::View::write_xml(std::ostream &os, bool is_full_view)
     return true;
 }
 
-bool ViewFileBrowser::View::serialize(DCP::Transaction &dcpd, std::ostream *debug_os)
+void ViewFileBrowser::View::serialize(DCP::Queue &queue, std::ostream *debug_os)
 {
-    const bool retval = ViewIface::serialize(dcpd);
+    ViewSerializeBase::serialize(queue);
 
     if(!debug_os)
-        return retval;
+        return;
 
     for(auto it : navigation_)
     {
@@ -405,13 +406,11 @@ bool ViewFileBrowser::View::serialize(DCP::Transaction &dcpd, std::ostream *debu
         else
             *debug_os << "*NULL ENTRY* " << it << std::endl;
     }
-
-    return retval;
 }
 
-bool ViewFileBrowser::View::update(DCP::Transaction &dcpd, std::ostream *debug_os)
+void ViewFileBrowser::View::update(DCP::Queue &queue, std::ostream *debug_os)
 {
-    return serialize(dcpd, debug_os);
+    serialize(queue, debug_os);
 }
 
 bool ViewFileBrowser::View::owns_dbus_proxy(const void *dbus_proxy) const

@@ -87,7 +87,8 @@ ViewIface::InputResult ViewSearch::View::input(DrcpCommand command,
     return InputResult::OK;
 }
 
-bool ViewSearch::View::write_xml(std::ostream &os, bool is_full_view)
+bool ViewSearch::View::write_xml(std::ostream &os,
+                                 const DCP::Queue::Data &data)
 {
     log_assert(!request_context_.empty());
 

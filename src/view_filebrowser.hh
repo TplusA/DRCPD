@@ -22,6 +22,7 @@
 #include <memory>
 
 #include "view.hh"
+#include "view_serialize.hh"
 #include "playbackmode_state.hh"
 #include "search_parameters.hh"
 #include "dbuslist.hh"
@@ -47,7 +48,7 @@ namespace ViewFileBrowser
 
 List::Item *construct_file_item(const char *name, ListItemKind kind);
 
-class View: public ViewIface
+class View: public ViewIface, public ViewSerializeBase
 {
   private:
     static constexpr unsigned int assumed_streamplayer_fifo_size = 4;
@@ -82,10 +83,9 @@ class View: public ViewIface
                   dbus_listbroker_id_t listbroker_id,
                   Playback::Player &player,
                   Playback::Mode default_playback_mode,
-                  ViewManager::VMIface *view_manager,
-                  ViewSignalsIface *view_signals):
-        ViewIface(name, on_screen_name, "browse", 102U,
-                  true, view_manager, view_signals),
+                  ViewManager::VMIface *view_manager):
+        ViewIface(name, true, view_manager),
+        ViewSerializeBase(on_screen_name, "browse", 102U),
         current_list_id_(0),
         file_list_(dbus_get_lists_navigation_iface(listbroker_id),
                    max_lines,
@@ -112,8 +112,8 @@ class View: public ViewIface
     InputResult input(DrcpCommand command,
                       std::unique_ptr<const UI::Parameters> parameters) override;
 
-    bool serialize(DCP::Transaction &dcpd, std::ostream *debug_os) override;
-    bool update(DCP::Transaction &dcpd, std::ostream *debug_os) override;
+    void serialize(DCP::Queue &queue, std::ostream *debug_os) override;
+    void update(DCP::Queue &queue, std::ostream *debug_os) override;
 
     bool owns_dbus_proxy(const void *dbus_proxy) const;
     bool list_invalidate(ID::List list_id, ID::List replacement_id);
@@ -152,7 +152,7 @@ class View: public ViewIface
     /*!
      * Generate XML document from current state.
      */
-    bool write_xml(std::ostream &os, bool is_full_view) override;
+    bool write_xml(std::ostream &os, const DCP::Queue::Data &data) override;
 
     bool apply_search_parameters();
 };

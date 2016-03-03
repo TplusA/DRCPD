@@ -40,7 +40,7 @@ class Transaction
     };
 
   private:
-    const std::function<void(state)> &observer_;
+    const std::function<void(state)> observer_;
     std::ostream *os_;
     std::ostringstream sstr_;
     state state_;
@@ -59,7 +59,7 @@ class Transaction
     Transaction &operator=(const Transaction &) = delete;
 
     explicit Transaction(const std::function<void(state)> &observer):
-        observer_(std::move(observer)),
+        observer_(observer),
         os_(nullptr),
         state_(IDLE)
     {}

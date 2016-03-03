@@ -29,6 +29,7 @@ enum class MemberFn
     focus,
     defocus,
     input,
+    write_xml_begin,
     serialize,
     update,
 
@@ -59,6 +60,10 @@ static std::ostream &operator<<(std::ostream &os, const MemberFn id)
         os << "input";
         break;
 
+      case MemberFn::write_xml_begin:
+        os << "write_xml_begin";
+        break;
+
       case MemberFn::serialize:
         os << "serialize";
         break;
@@ -83,7 +88,9 @@ class ViewMock::View::Expectation
     const MemberFn function_id_;
 
     const InputResult retval_input_;
+    const bool retval_bool_;
     const DrcpCommand arg_command_;
+    const bool arg_is_full_view_;
     const bool expect_parameters_;
     const CheckParametersFn check_parameters_fn_;
     const UI::Parameters *const expected_parameters_;
@@ -91,7 +98,20 @@ class ViewMock::View::Expectation
     explicit Expectation(MemberFn id):
         function_id_(id),
         retval_input_(InputResult::OK),
+        retval_bool_(false),
         arg_command_(DrcpCommand::UNDEFINED_COMMAND),
+        arg_is_full_view_(false),
+        expect_parameters_(false),
+        check_parameters_fn_(nullptr),
+        expected_parameters_(nullptr)
+    {}
+
+    explicit Expectation(MemberFn id, bool retval, bool is_full_view):
+        function_id_(id),
+        retval_input_(InputResult::OK),
+        retval_bool_(retval),
+        arg_command_(DrcpCommand::UNDEFINED_COMMAND),
+        arg_is_full_view_(is_full_view),
         expect_parameters_(false),
         check_parameters_fn_(nullptr),
         expected_parameters_(nullptr)
@@ -101,7 +121,9 @@ class ViewMock::View::Expectation
                          bool expect_parameters):
         function_id_(id),
         retval_input_(retval),
+        retval_bool_(false),
         arg_command_(command),
+        arg_is_full_view_(false),
         expect_parameters_(expect_parameters),
         check_parameters_fn_(nullptr),
         expected_parameters_(nullptr)
@@ -112,7 +134,9 @@ class ViewMock::View::Expectation
                          CheckParametersFn check_params_callback):
         function_id_(id),
         retval_input_(retval),
+        retval_bool_(false),
         arg_command_(command),
+        arg_is_full_view_(false),
         expect_parameters_(expected_parameters != nullptr),
         check_parameters_fn_(check_params_callback),
         expected_parameters_(expected_parameters)
@@ -121,10 +145,9 @@ class ViewMock::View::Expectation
     Expectation(Expectation &&) = default;
 };
 
-ViewMock::View::View(const char *name, bool is_browse_view,
-                     ViewSignalsIface *view_signals):
-    ViewIface(name, "The mock view", "mockview", 200U, is_browse_view,
-              nullptr, view_signals),
+ViewMock::View::View(const char *name, bool is_browse_view):
+    ViewIface(name, is_browse_view, nullptr),
+    ViewSerializeBase("The mock view", "mockview", 200U),
     ignore_all_(false)
 {
     expectations_ = new MockExpectations();
@@ -186,6 +209,10 @@ void ViewMock::View::expect_update(std::ostream &os)
     os << name_ << " update\n";
 }
 
+void ViewMock::View::expect_write_xml_begin(bool retval, bool is_full_view)
+{
+    expectations_->add(Expectation(MemberFn::write_xml_begin, retval, is_full_view));
+}
 
 void ViewMock::View::focus()
 {
@@ -228,32 +255,61 @@ ViewIface::InputResult ViewMock::View::input(DrcpCommand command,
     return expect.retval_input_;
 }
 
-bool ViewMock::View::serialize(DCP::Transaction &dcpd, std::ostream *debug_os)
+bool ViewMock::View::write_xml_begin(std::ostream &os,
+                                     const DCP::Queue::Data &data)
 {
     if(ignore_all_)
         return true;
 
     const auto &expect(expectations_->get_next_expectation(__func__));
 
-    cppcut_assert_equal(expect.function_id_, MemberFn::serialize);
+    cppcut_assert_equal(expect.function_id_, MemberFn::write_xml_begin);
+    cppcut_assert_equal(expect.arg_is_full_view_, data.is_full_serialize_);
 
-    cut_assert_true(dcpd.start());
-    cut_assert_true(dcpd.commit());
+    return expect.retval_bool_;
+}
 
+bool ViewMock::View::write_xml(std::ostream &os, const DCP::Queue::Data &data)
+{
+    /* don't emit anything to keep tests simple */
     return true;
 }
 
-bool ViewMock::View::update(DCP::Transaction &dcpd, std::ostream *debug_os)
+bool ViewMock::View::write_xml_end(std::ostream &os,
+                                   const DCP::Queue::Data &data)
 {
-    if(ignore_all_)
-        return true;
-
-    const auto &expect(expectations_->get_next_expectation(__func__));
-
-    cppcut_assert_equal(expect.function_id_, MemberFn::update);
-
-    cut_assert_true(dcpd.start());
-    cut_assert_true(dcpd.commit());
-
+    /* don't emit anything to keep tests simple */
     return true;
+}
+
+void ViewMock::View::serialize(DCP::Queue &queue, std::ostream *debug_os)
+{
+    if(!ignore_all_)
+    {
+        const auto &expect(expectations_->get_next_expectation(__func__));
+
+        cppcut_assert_equal(expect.function_id_, MemberFn::serialize);
+    }
+
+    const bool was_idle = queue.is_idle();
+    const bool succeeded =
+        InternalDoSerialize::do_serialize(*this, queue, true);
+
+    cppcut_assert_equal(was_idle, succeeded);
+}
+
+void ViewMock::View::update(DCP::Queue &queue, std::ostream *debug_os)
+{
+    if(!ignore_all_)
+    {
+        const auto &expect(expectations_->get_next_expectation(__func__));
+
+        cppcut_assert_equal(expect.function_id_, MemberFn::update);
+    }
+
+    const bool was_idle = queue.is_idle();
+    const bool succeeded =
+        InternalDoSerialize::do_serialize(*this, queue, false);
+
+    cppcut_assert_equal(was_idle, succeeded);
 }
