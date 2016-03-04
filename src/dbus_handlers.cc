@@ -276,7 +276,7 @@ void dbussignal_splay_urlfifo(GDBusProxy *proxy, const gchar *sender_name,
 
 static ViewIface *get_play_view(ViewManager::VMIface *mgr)
 {
-    ViewIface *view = mgr->get_view_by_name("Play");
+    ViewIface *view = mgr->get_view_by_name(ViewNames::PLAYER);
     log_assert(view != nullptr);
 
     return view;
@@ -397,7 +397,7 @@ static void handle_now_playing(ID::Stream stream_id, const char *url_string,
     ViewIface *const playinfo = get_play_view(&data.mgr);
 
     playinfo->notify_stream_start();
-    data.mgr.activate_view_by_name("Play");
+    data.mgr.activate_view_by_name(ViewNames::PLAYER);
 
     auto *view = data.mgr.get_playback_initiator_view();
     if(view != nullptr && view != playinfo)
