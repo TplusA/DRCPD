@@ -105,8 +105,8 @@ class Data
     std::chrono::milliseconds stream_position_;
     std::chrono::milliseconds stream_duration_;
 
-    explicit Data():
-        assumed_stream_state_(STREAM_STOPPED),
+    explicit Data(StreamState state = STREAM_STOPPED):
+        assumed_stream_state_(state),
         stream_position_(-1),
         stream_duration_(-1)
     {

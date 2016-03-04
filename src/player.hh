@@ -224,6 +224,7 @@ class Player: public PlayerIface, public MetaDataStoreIface
         current_state_(nullptr),
         waiting_for_start_notification_(false),
         current_stream_id_(ID::OurStream::make_invalid()),
+        track_info_(PlayInfo::Data::STREAM_STOPPED),
         meta_data_reformatters_(meta_data_reformatters)
     {}
 
