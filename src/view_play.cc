@@ -123,6 +123,7 @@ void ViewPlay::View::notify_stream_stop()
 
     player_.release(false);
     add_update_flags(UPDATE_FLAGS_PLAYBACK_STATE);
+    view_manager_->update_view_if_active(this);
     view_manager_->hide_view_if_active(this);
 }
 
