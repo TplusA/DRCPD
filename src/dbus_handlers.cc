@@ -61,21 +61,21 @@ void dbussignal_dcpd_playback(GDBusProxy *proxy, const gchar *sender_name,
     log_assert(data != nullptr);
 
     if(strcmp(signal_name, "Start") == 0)
-        data->mgr.input(DrcpCommand::PLAYBACK_START);
+        data->mgr_.input(DrcpCommand::PLAYBACK_START);
     else if(strcmp(signal_name, "Stop") == 0)
-        data->mgr.input(DrcpCommand::PLAYBACK_STOP);
+        data->mgr_.input(DrcpCommand::PLAYBACK_STOP);
     else if(strcmp(signal_name, "Pause") == 0)
-        data->mgr.input(DrcpCommand::PLAYBACK_PAUSE);
+        data->mgr_.input(DrcpCommand::PLAYBACK_PAUSE);
     else if(strcmp(signal_name, "Next") == 0)
-        data->mgr.input(DrcpCommand::PLAYBACK_NEXT);
+        data->mgr_.input(DrcpCommand::PLAYBACK_NEXT);
     else if(strcmp(signal_name, "Previous") == 0)
-        data->mgr.input(DrcpCommand::PLAYBACK_PREVIOUS);
+        data->mgr_.input(DrcpCommand::PLAYBACK_PREVIOUS);
     else if(strcmp(signal_name, "FastForward") == 0)
-        data->mgr.input(DrcpCommand::FAST_WIND_FORWARD);
+        data->mgr_.input(DrcpCommand::FAST_WIND_FORWARD);
     else if(strcmp(signal_name, "FastRewind") == 0)
-        data->mgr.input(DrcpCommand::FAST_WIND_REVERSE);
+        data->mgr_.input(DrcpCommand::FAST_WIND_REVERSE);
     else if(strcmp(signal_name, "FastWindStop") == 0)
-        data->mgr.input(DrcpCommand::FAST_WIND_STOP);
+        data->mgr_.input(DrcpCommand::FAST_WIND_STOP);
     else if(strcmp(signal_name, "FastWindSetFactor") == 0)
     {
         check_parameter_assertions(parameters, 1);
@@ -83,12 +83,12 @@ void dbussignal_dcpd_playback(GDBusProxy *proxy, const gchar *sender_name,
         auto speed = std::unique_ptr<UI::SpecificParameters<double>>(new UI::SpecificParameters<double>());
         g_variant_get(parameters, "(d)", speed->get_pointer_to_raw_data());
 
-        data->mgr.input(DrcpCommand::FAST_WIND_SET_SPEED, std::move(speed));
+        data->mgr_.input(DrcpCommand::FAST_WIND_SET_SPEED, std::move(speed));
     }
     else if(strcmp(signal_name, "RepeatModeToggle") == 0)
-        data->mgr.input(DrcpCommand::REPEAT_MODE_TOGGLE);
+        data->mgr_.input(DrcpCommand::REPEAT_MODE_TOGGLE);
     else if(strcmp(signal_name, "ShuffleModeToggle") == 0)
-        data->mgr.input(DrcpCommand::SHUFFLE_MODE_TOGGLE);
+        data->mgr_.input(DrcpCommand::SHUFFLE_MODE_TOGGLE);
     else
         unknown_signal(iface_name, signal_name, sender_name);
 }
@@ -111,7 +111,7 @@ void dbussignal_dcpd_views(GDBusProxy *proxy, const gchar *sender_name,
         GVariant *view_name = g_variant_get_child_value(parameters, 0);
         log_assert(view_name != nullptr);
 
-        data->mgr.activate_view_by_name(g_variant_get_string(view_name, NULL));
+        data->mgr_.activate_view_by_name(g_variant_get_string(view_name, NULL));
 
         g_variant_unref(view_name);
     }
@@ -124,8 +124,8 @@ void dbussignal_dcpd_views(GDBusProxy *proxy, const gchar *sender_name,
         log_assert(first_view_name != nullptr);
         log_assert(second_view_name != nullptr);
 
-        data->mgr.toggle_views_by_name(g_variant_get_string(first_view_name, NULL),
-                                       g_variant_get_string(second_view_name, NULL));
+        data->mgr_.toggle_views_by_name(g_variant_get_string(first_view_name, NULL),
+                                        g_variant_get_string(second_view_name, NULL));
 
         g_variant_unref(first_view_name);
         g_variant_unref(second_view_name);
@@ -164,7 +164,7 @@ void dbussignal_dcpd_views(GDBusProxy *proxy, const gchar *sender_name,
             auto query =
                 std::unique_ptr<UI::SpecificParameters<SearchParameters>>(new UI::SpecificParameters<SearchParameters>(SearchParameters(context, search_string.c_str())));
 
-            data->mgr.input(DrcpCommand::X_TA_SEARCH_PARAMETERS, std::move(query));
+            data->mgr_.input(DrcpCommand::X_TA_SEARCH_PARAMETERS, std::move(query));
         }
 
         g_variant_unref(context_value);
@@ -187,9 +187,9 @@ void dbussignal_dcpd_listnav(GDBusProxy *proxy, const gchar *sender_name,
     log_assert(data != nullptr);
 
     if(strcmp(signal_name, "LevelUp") == 0)
-        data->mgr.input(DrcpCommand::GO_BACK_ONE_LEVEL);
+        data->mgr_.input(DrcpCommand::GO_BACK_ONE_LEVEL);
     else if(strcmp(signal_name, "LevelDown") == 0)
-        data->mgr.input(DrcpCommand::SELECT_ITEM);
+        data->mgr_.input(DrcpCommand::SELECT_ITEM);
     else if(strcmp(signal_name, "MoveLines") == 0)
     {
         check_parameter_assertions(parameters, 1);
@@ -197,7 +197,7 @@ void dbussignal_dcpd_listnav(GDBusProxy *proxy, const gchar *sender_name,
         GVariant *lines = g_variant_get_child_value(parameters, 0);
         log_assert(lines != nullptr);
 
-        data->mgr.input_move_cursor_by_line(g_variant_get_int32(lines));
+        data->mgr_.input_move_cursor_by_line(g_variant_get_int32(lines));
 
         g_variant_unref(lines);
     }
@@ -208,7 +208,7 @@ void dbussignal_dcpd_listnav(GDBusProxy *proxy, const gchar *sender_name,
         GVariant *pages = g_variant_get_child_value(parameters, 0);
         log_assert(pages != nullptr);
 
-        data->mgr.input_move_cursor_by_page(g_variant_get_int32(pages));
+        data->mgr_.input_move_cursor_by_page(g_variant_get_int32(pages));
 
         g_variant_unref(pages);
     }
@@ -252,12 +252,12 @@ void dbussignal_lists_navigation(GDBusProxy *proxy, const gchar *sender_name,
             return;
 
         auto *const view =
-            dynamic_cast<ViewFileBrowser::View *>(data->mgr.get_view_by_dbus_proxy(proxy));
+            dynamic_cast<ViewFileBrowser::View *>(data->mgr_.get_view_by_dbus_proxy(proxy));
 
         if(view == nullptr)
             BUG("Could not find view for D-Bus proxy");
         else if(view->list_invalidate(list_id, new_list_id))
-            data->mgr.update_view_if_active(view);
+            data->mgr_.update_view_if_active(view);
     }
     else
         unknown_signal(iface_name, signal_name, sender_name);
@@ -383,23 +383,23 @@ static void handle_now_playing(ID::Stream stream_id, const char *url_string,
         return;
     }
 
-    data.player.start_notification(stream_id, !queue_is_full);
+    data.player_.start_notification(stream_id, !queue_is_full);
 
-    auto fallback_title = data.player.get_original_stream_name(stream_id);
+    auto fallback_title = data.player_.get_original_stream_name(stream_id);
     if(fallback_title == nullptr)
         msg_error(EINVAL, LOG_ERR,
                   "No fallback title found for stream ID %u",
                   stream_id.get_raw_id());
 
-    (void)process_meta_data(data.mdstore, meta_data, false,
+    (void)process_meta_data(data.mdstore_, meta_data, false,
                             fallback_title, url_string);
 
-    ViewIface *const playinfo = get_play_view(&data.mgr);
+    ViewIface *const playinfo = get_play_view(&data.mgr_);
 
     playinfo->notify_stream_start();
-    data.mgr.activate_view_by_name(ViewNames::PLAYER);
+    data.mgr_.activate_view_by_name(ViewNames::PLAYER);
 
-    auto *view = data.mgr.get_playback_initiator_view();
+    auto *view = data.mgr_.get_playback_initiator_view();
     if(view != nullptr && view != playinfo)
         view->notify_stream_start();
 }
@@ -440,38 +440,38 @@ void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
 
         GVariant *meta_data = g_variant_get_child_value(parameters, 0);
 
-        if(process_meta_data(data->mdstore, meta_data, true))
-            get_play_view(&data->mgr)->notify_stream_meta_data_changed();
+        if(process_meta_data(data->mdstore_, meta_data, true))
+            get_play_view(&data->mgr_)->notify_stream_meta_data_changed();
 
         g_variant_unref(meta_data);
     }
     else if(strcmp(signal_name, "Stopped") == 0)
     {
-        data->player.stop_notification();
+        data->player_.stop_notification();
 
-        auto *playinfo = get_play_view(&data->mgr);
+        auto *playinfo = get_play_view(&data->mgr_);
         playinfo->notify_stream_stop();
 
-        auto *view = data->mgr.get_playback_initiator_view();
+        auto *view = data->mgr_.get_playback_initiator_view();
         if(view != nullptr && view != playinfo)
             view->notify_stream_stop();
     }
     else if(strcmp(signal_name, "Paused") == 0)
     {
-        data->player.pause_notification();
+        data->player_.pause_notification();
 
-        auto *playinfo = get_play_view(&data->mgr);
+        auto *playinfo = get_play_view(&data->mgr_);
         playinfo->notify_stream_pause();
     }
     else if(strcmp(signal_name, "PositionChanged") == 0)
     {
         check_parameter_assertions(parameters, 4);
-        auto *playinfo = get_play_view(&data->mgr);
+        auto *playinfo = get_play_view(&data->mgr_);
         std::chrono::milliseconds position, duration;
         parse_stream_position(parameters, 0, 1, position);
         parse_stream_position(parameters, 2, 3, duration);
 
-        if(data->player.track_times_notification(position, duration))
+        if(data->player_.track_times_notification(position, duration))
             playinfo->notify_stream_position_changed();
     }
     else

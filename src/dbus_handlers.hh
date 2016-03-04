@@ -43,16 +43,16 @@ class DBusSignalData
     DBusSignalData &operator=(const DBusSignalData &) = delete;
     DBusSignalData(DBusSignalData &&) = default;
 
-    ViewManager::VMIface &mgr;
-    Playback::PlayerIface &player;
-    Playback::MetaDataStoreIface &mdstore;
+    ViewManager::VMIface &mgr_;
+    Playback::PlayerIface &player_;
+    Playback::MetaDataStoreIface &mdstore_;
 
-    explicit DBusSignalData(ViewManager::VMIface &arg_mgr,
-                            Playback::PlayerIface &arg_player,
-                            Playback::MetaDataStoreIface &arg_mdstore):
-        mgr(arg_mgr),
-        player(arg_player),
-        mdstore(arg_mdstore)
+    explicit DBusSignalData(ViewManager::VMIface &mgr,
+                            Playback::PlayerIface &player,
+                            Playback::MetaDataStoreIface &mdstore):
+        mgr_(mgr),
+        player_(player),
+        mdstore_(mdstore)
     {}
 };
 
