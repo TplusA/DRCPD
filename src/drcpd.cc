@@ -376,7 +376,8 @@ static int process_command_line(int argc, char *argv[],
 }
 
 static void connect_everything(ViewManager::Manager &views, ViewSignalsIface *view_signals,
-                               Playback::Player &player)
+                               Playback::Player &player,
+                               DBusSignalData &dbus_data)
 {
     static const unsigned int number_of_lines_on_display = 3;
 
@@ -433,6 +434,8 @@ static void connect_everything(ViewManager::Manager &views, ViewSignalsIface *vi
 
     if(!views.invoke_late_init_functions())
         return;
+
+    dbus_data.play_view_ = views.get_view_by_name(ViewNames::PLAYER);
 
     views.activate_view_by_name(ViewNames::BROWSER_UPNP);
 }
@@ -500,7 +503,7 @@ int main(int argc, char *argv[])
     ViewSignalsGLib view_signals(view_manager);
     view_signals.connect_to_main_loop(loop);
 
-    connect_everything(view_manager, &view_signals, player_singleton);
+    connect_everything(view_manager, &view_signals, player_singleton, dbus_signal_data);
 
     g_main_loop_run(loop);
 

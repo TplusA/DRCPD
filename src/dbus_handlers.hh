@@ -19,6 +19,8 @@
 #ifndef DBUS_HANDLERS_HH
 #define DBUS_HANDLERS_HH
 
+class ViewIface;
+
 namespace ViewManager
 {
     class VMIface;
@@ -44,6 +46,7 @@ class DBusSignalData
     DBusSignalData(DBusSignalData &&) = default;
 
     ViewManager::VMIface &mgr_;
+    ViewIface *play_view_;
     Playback::PlayerIface &player_;
     Playback::MetaDataStoreIface &mdstore_;
 
@@ -51,6 +54,7 @@ class DBusSignalData
                             Playback::PlayerIface &player,
                             Playback::MetaDataStoreIface &mdstore):
         mgr_(mgr),
+        play_view_(nullptr),
         player_(player),
         mdstore_(mdstore)
     {}

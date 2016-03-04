@@ -274,14 +274,6 @@ void dbussignal_splay_urlfifo(GDBusProxy *proxy, const gchar *sender_name,
     unknown_signal(iface_name, signal_name, sender_name);
 }
 
-static ViewIface *get_play_view(ViewManager::VMIface *mgr)
-{
-    ViewIface *view = mgr->get_view_by_name(ViewNames::PLAYER);
-    log_assert(view != nullptr);
-
-    return view;
-}
-
 static bool process_meta_data(Playback::MetaDataStoreIface &mds,
                               GVariant *meta_data, bool is_update,
                               const std::string *fallback_title = NULL,
@@ -394,13 +386,11 @@ static void handle_now_playing(ID::Stream stream_id, const char *url_string,
     (void)process_meta_data(data.mdstore_, meta_data, false,
                             fallback_title, url_string);
 
-    ViewIface *const playinfo = get_play_view(&data.mgr_);
-
-    playinfo->notify_stream_start();
+    data.play_view_->notify_stream_start();
     data.mgr_.activate_view_by_name(ViewNames::PLAYER);
 
     auto *view = data.mgr_.get_playback_initiator_view();
-    if(view != nullptr && view != playinfo)
+    if(view != nullptr && view != data.play_view_)
         view->notify_stream_start();
 }
 
@@ -441,38 +431,33 @@ void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
         GVariant *meta_data = g_variant_get_child_value(parameters, 0);
 
         if(process_meta_data(data->mdstore_, meta_data, true))
-            get_play_view(&data->mgr_)->notify_stream_meta_data_changed();
+            data->play_view_->notify_stream_meta_data_changed();
 
         g_variant_unref(meta_data);
     }
     else if(strcmp(signal_name, "Stopped") == 0)
     {
         data->player_.stop_notification();
-
-        auto *playinfo = get_play_view(&data->mgr_);
-        playinfo->notify_stream_stop();
+        data->play_view_->notify_stream_stop();
 
         auto *view = data->mgr_.get_playback_initiator_view();
-        if(view != nullptr && view != playinfo)
+        if(view != nullptr && view != data->play_view_)
             view->notify_stream_stop();
     }
     else if(strcmp(signal_name, "Paused") == 0)
     {
         data->player_.pause_notification();
-
-        auto *playinfo = get_play_view(&data->mgr_);
-        playinfo->notify_stream_pause();
+        data->play_view_->notify_stream_pause();
     }
     else if(strcmp(signal_name, "PositionChanged") == 0)
     {
         check_parameter_assertions(parameters, 4);
-        auto *playinfo = get_play_view(&data->mgr_);
         std::chrono::milliseconds position, duration;
         parse_stream_position(parameters, 0, 1, position);
         parse_stream_position(parameters, 2, 3, duration);
 
         if(data->player_.track_times_notification(position, duration))
-            playinfo->notify_stream_position_changed();
+            data->play_view_->notify_stream_position_changed();
     }
     else
         unknown_signal(iface_name, signal_name, sender_name);
