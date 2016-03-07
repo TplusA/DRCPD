@@ -377,7 +377,7 @@ static void connect_everything(ViewManager::Manager &views,
                                         N_("Airable internet radio"), 3,
                                         number_of_lines_on_display,
                                         DBUS_LISTBROKER_ID_TUNEIN,
-                                        player, Playback::Mode::SINGLE_TRACK,
+                                        player, Playback::Mode::LINEAR,
                                         &views);
     static ViewFileBrowser::View upnp(ViewNames::BROWSER_UPNP,
                                       N_("UPnP media servers"), 4,
