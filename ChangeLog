@@ -1,3 +1,11 @@
+2016-03-07  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 1.11 released.
+
+	* DRC protocol: XML objects sent to the controlling peer are queued
+	  when necessary. This means that display updates that previously got
+	  lost are sent reliably one after the other now.
+
 2016-03-03  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 1.11 released.
