@@ -53,7 +53,9 @@ bool Playback::Player::take(Playback::State &playback_state,
     waiting_for_start_notification_ =
         current_state_->enqueue_next(stream_info_, true);
 
-    if(!waiting_for_start_notification_)
+    if(waiting_for_start_notification_)
+        track_info_.set_buffering();
+    else
         buffering_callback(false);
 
     return true;

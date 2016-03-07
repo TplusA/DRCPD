@@ -52,6 +52,7 @@ ViewIface::InputResult ViewPlay::View::input(DrcpCommand command,
       case DrcpCommand::PLAYBACK_START:
         switch(player_.get_assumed_stream_state())
         {
+          case PlayInfo::Data::STREAM_BUFFERING:
           case PlayInfo::Data::STREAM_PLAYING:
             if(!tdbus_splay_playback_call_pause_sync(dbus_get_streamplayer_playback_iface(),
                                                      NULL, NULL))
@@ -186,7 +187,18 @@ static const std::string mk_alt_track_name(const PlayInfo::MetaData &meta_data,
 
 bool ViewPlay::View::is_busy() const
 {
-    return player_.is_buffering();
+    switch(player_.get_assumed_stream_state())
+    {
+      case PlayInfo::Data::STREAM_BUFFERING:
+        return true;
+
+      case PlayInfo::Data::STREAM_STOPPED:
+      case PlayInfo::Data::STREAM_PLAYING:
+      case PlayInfo::Data::STREAM_PAUSED:
+        break;
+    }
+
+    return false;
 }
 
 static const std::string &get_bitrate(const PlayInfo::MetaData &md)
@@ -206,7 +218,8 @@ static const std::string &get_bitrate(const PlayInfo::MetaData &md)
 bool ViewPlay::View::write_xml(std::ostream &os, const DCP::Queue::Data &data)
 {
     const auto &md = player_.get_track_meta_data();
-    const bool is_buffering = player_.is_buffering();
+    const bool is_buffering =
+        (player_.get_assumed_stream_state() == PlayInfo::Data::STREAM_BUFFERING);
 
     const uint32_t update_flags =
         data.is_full_serialize_ ? UINT32_MAX : data.view_update_flags_;
@@ -255,6 +268,7 @@ bool ViewPlay::View::write_xml(std::ostream &os, const DCP::Queue::Data &data)
         static const char *play_icon[] =
         {
             "",
+            "",
             "play",
             "pause",
         };
@@ -283,6 +297,7 @@ void ViewPlay::View::serialize(DCP::Queue &queue, std::ostream *debug_os)
     static const char *stream_state_string[] =
     {
         "not playing",
+        "buffering",
         "playing",
         "paused",
     };
@@ -296,7 +311,7 @@ void ViewPlay::View::serialize(DCP::Queue &queue, std::ostream *debug_os)
         << "\" ("
         << stream_state_string[player_.get_assumed_stream_state()]
         << ")" << std::endl;
-    *debug_os << "Buffering: " << player_.is_buffering() << std::endl;
+    *debug_os << "Stream state: " << player_.get_assumed_stream_state() << std::endl;
 
     for(size_t i = 0; i < md.values_.size(); ++i)
         *debug_os << "  " << i << ": \"" << md.values_[i] << "\"" << std::endl;

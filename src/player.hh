@@ -161,11 +161,6 @@ class PlayerIface
     virtual PlayInfo::Data::StreamState get_assumed_stream_state() const = 0;
 
     /*!
-     * Return true if start playing notification is pending.
-     */
-    virtual bool is_buffering() const = 0;
-
-    /*!
      * Return current track's position and total duration (in this order).
      */
     virtual std::pair<std::chrono::milliseconds, std::chrono::milliseconds> get_times() const = 0;
@@ -240,7 +235,6 @@ class Player: public PlayerIface, public MetaDataStoreIface
 
     const PlayInfo::MetaData &get_track_meta_data() const override;
     PlayInfo::Data::StreamState get_assumed_stream_state() const override;
-    bool is_buffering() const override { return waiting_for_start_notification_; }
     std::pair<std::chrono::milliseconds, std::chrono::milliseconds> get_times() const override;
     const std::string *get_original_stream_name(ID::Stream id) const override;
 

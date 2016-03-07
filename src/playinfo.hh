@@ -94,6 +94,7 @@ class Data
     enum StreamState
     {
         STREAM_STOPPED,
+        STREAM_BUFFERING,
         STREAM_PLAYING,
         STREAM_PAUSED,
 
@@ -110,6 +111,12 @@ class Data
         stream_position_(-1),
         stream_duration_(-1)
     {
+        meta_data_.clear(false);
+    }
+
+    void set_buffering()
+    {
+        assumed_stream_state_ = STREAM_BUFFERING;
         meta_data_.clear(false);
     }
 
