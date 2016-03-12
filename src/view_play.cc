@@ -187,7 +187,7 @@ static const std::string mk_alt_track_name(const PlayInfo::MetaData &meta_data,
 
 bool ViewPlay::View::is_busy() const
 {
-    switch(player_.get_assumed_stream_state())
+    switch(player_.get_assumed_stream_state__unlocked())
     {
       case PlayInfo::Data::STREAM_BUFFERING:
         return true;
@@ -217,9 +217,10 @@ static const std::string &get_bitrate(const PlayInfo::MetaData &md)
 
 bool ViewPlay::View::write_xml(std::ostream &os, const DCP::Queue::Data &data)
 {
-    const auto &md = player_.get_track_meta_data();
+    const auto &md_with_lock = player_.get_track_meta_data();
+    const auto &md(*md_with_lock.first);
     const bool is_buffering =
-        (player_.get_assumed_stream_state() == PlayInfo::Data::STREAM_BUFFERING);
+        (player_.get_assumed_stream_state__unlocked() == PlayInfo::Data::STREAM_BUFFERING);
 
     const uint32_t update_flags =
         data.is_full_serialize_ ? UINT32_MAX : data.view_update_flags_;
@@ -249,7 +250,7 @@ bool ViewPlay::View::write_xml(std::ostream &os, const DCP::Queue::Data &data)
 
     if((update_flags & UPDATE_FLAGS_STREAM_POSITION) != 0)
     {
-        auto times = player_.get_times();
+        auto times = player_.get_times__unlocked();
 
         os << "<value id=\"timet\">";
         if(times.second >= std::chrono::milliseconds(0))
@@ -276,7 +277,7 @@ bool ViewPlay::View::write_xml(std::ostream &os, const DCP::Queue::Data &data)
         static_assert(sizeof(play_icon) / sizeof(play_icon[0]) == PlayInfo::Data::STREAM_STATE_LAST + 1, "Array has wrong size");
 
         os << "<icon id=\"play\">"
-           << play_icon[player_.get_assumed_stream_state()]
+           << play_icon[player_.get_assumed_stream_state__unlocked()]
            << "</icon>";
     }
 
@@ -304,14 +305,15 @@ void ViewPlay::View::serialize(DCP::Queue &queue, std::ostream *debug_os)
 
     static_assert(sizeof(stream_state_string) / sizeof(stream_state_string[0]) == PlayInfo::Data::STREAM_STATE_LAST + 1, "Array has wrong size");
 
-    const auto &md = player_.get_track_meta_data();
+    const auto &md_with_lock = player_.get_track_meta_data();
+    const auto &md(*md_with_lock.first);
 
     *debug_os << "URL: \""
         << md.values_[PlayInfo::MetaData::INTERNAL_DRCPD_URL]
         << "\" ("
-        << stream_state_string[player_.get_assumed_stream_state()]
+        << stream_state_string[player_.get_assumed_stream_state__unlocked()]
         << ")" << std::endl;
-    *debug_os << "Stream state: " << player_.get_assumed_stream_state() << std::endl;
+    *debug_os << "Stream state: " << player_.get_assumed_stream_state__unlocked() << std::endl;
 
     for(size_t i = 0; i < md.values_.size(); ++i)
         *debug_os << "  " << i << ": \"" << md.values_[i] << "\"" << std::endl;

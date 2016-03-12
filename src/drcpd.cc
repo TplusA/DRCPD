@@ -477,6 +477,8 @@ int main(int argc, char *argv[])
     dcp_dispatch_data.vm = &view_manager;
     dcp_dispatch_data.timeout_event_source_id = 0;
 
+    player_singleton.start();
+
     if(dbus_setup(loop, parameters.connect_to_session_dbus, &dbus_signal_data) < 0)
         return EXIT_FAILURE;
 
@@ -492,6 +494,8 @@ int main(int argc, char *argv[])
     fd_sbuf.set_fd(-1);
     shutdown(&files);
     dbus_shutdown(loop);
+
+    player_singleton.shutdown();
 
     return EXIT_SUCCESS;
 }

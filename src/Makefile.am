@@ -32,6 +32,7 @@ drcpd_SOURCES = \
     ui_parameters.hh search_parameters.hh \
     playinfo.hh idtypes.hh stream_id.h stream_id.hh \
     player.hh playbackmode.hh playbackmode_state.hh \
+    playback_abort_enqueue.hh \
     $(DBUS_IFACES)/de_tahifi_lists_errors.hh \
     $(DBUS_IFACES)/de_tahifi_lists_errors.h \
     $(DBUS_IFACES)/de_tahifi_lists_item_kinds.hh \
@@ -75,16 +76,18 @@ libviews_la_SOURCES = \
     idtypes.hh stream_id.h stream_id.hh \
     ui_parameters.hh search_parameters.hh \
     dbuslist.hh dbuslist_exception.hh \
-    playbackmode.hh playbackmode_state.hh
+    playbackmode.hh playbackmode_state.hh \
+    playback_abort_enqueue.hh
 libviews_la_CFLAGS = $(AM_CFLAGS)
 libviews_la_CXXFLAGS = $(AM_CXXFLAGS)
 
 libplayback_la_SOURCES = \
     player.cc player.hh \
     idtypes.hh stream_id.h stream_id.hh \
-    playbackmode.hh playbackmode_state.hh playbackmode_state.cc
-libplayback_la_CFLAGS = $(AM_CFLAGS)
-libplayback_la_CXXFLAGS = $(AM_CXXFLAGS)
+    playbackmode.hh playbackmode_state.hh playbackmode_state.cc \
+    playback_abort_enqueue.hh
+libplayback_la_CFLAGS = $(CRELAXEDWARNINGS)
+libplayback_la_CXXFLAGS = $(CXXRELAXEDWARNINGS)
 
 libdcp_transaction_la_SOURCES = \
     dcp_transaction.cc dcp_transaction.hh \

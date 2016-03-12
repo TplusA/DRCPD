@@ -89,6 +89,8 @@ class StreamInfo
     {
         return const_cast<StreamInfo *>(this)->lookup_for_update(id);
     }
+
+    size_t get_number_of_known_streams() const { return stream_names_.size(); }
 };
 
 /*!@}*/

@@ -21,6 +21,9 @@
 #endif /* HAVE_CONFIG_H */
 
 #include <cstring>
+#include <mutex>
+#include <condition_variable>
+#include <future>
 
 #include "playbackmode_state.hh"
 #include "streaminfo.hh"
@@ -39,17 +42,6 @@ enum class SendStatus
     FIFO_FULL,
     PLAYBACK_FAILURE,
 };
-
-static void free_array_of_strings(gchar **const strings)
-{
-    if(strings == NULL)
-        return;
-
-    for(gchar **ptr = strings; *ptr != NULL; ++ptr)
-        g_free(*ptr);
-
-    g_free(strings);
-}
 
 static gchar *select_uri_from_list(gchar **uri_list)
 {
@@ -75,6 +67,260 @@ static gchar *select_uri_from_list(gchar **uri_list)
     return NULL;
 }
 
+template <typename ProxyType, typename ReturnType>
+class AsyncSpecificDBusCall: public AsyncDBusCall
+{
+  public:
+    using PromiseReturnType = ReturnType;
+    using PromiseType = std::promise<PromiseReturnType>;
+
+    using ToProxyFunction = std::function<ProxyType *(GObject *)>;
+    using PutResultFunction = std::function<void(bool &was_successful,
+                                                 PromiseType &, ProxyType *,
+                                                 GAsyncResult *, GError **)>;
+    using DestroyResultFunction = std::function<void(PromiseReturnType &)>;
+
+  private:
+    ProxyType *const proxy_;
+    ToProxyFunction to_proxy_fn_;
+    PutResultFunction put_result_fn_;
+    DestroyResultFunction destroy_result_fn_;
+    std::function<bool(void)> may_continue_fn_;
+
+    GCancellable *cancellable_;
+    GError *error_;
+    bool has_completed_;
+    bool was_successful_;
+    bool is_zombie_;
+
+    std::promise<PromiseReturnType> promise_;
+    PromiseReturnType return_value_;
+
+  public:
+    AsyncSpecificDBusCall(const AsyncSpecificDBusCall &) = delete;
+    AsyncSpecificDBusCall &operator=(const AsyncSpecificDBusCall &) = delete;
+
+    explicit AsyncSpecificDBusCall(ProxyType *proxy,
+                                   ToProxyFunction to_proxy,
+                                   PutResultFunction put_result,
+                                   DestroyResultFunction destroy_result,
+                                   std::function<bool(void)> may_continue):
+        proxy_(proxy),
+        to_proxy_fn_(to_proxy),
+        put_result_fn_(put_result),
+        destroy_result_fn_(destroy_result),
+        may_continue_fn_(may_continue),
+        cancellable_(g_cancellable_new()),
+        error_(nullptr),
+        has_completed_(false),
+        was_successful_(false),
+        is_zombie_(false)
+    {}
+
+    virtual ~AsyncSpecificDBusCall()
+    {
+        if(error_ != nullptr)
+            g_error_free(error_);
+
+        g_object_unref(G_OBJECT(cancellable_));
+
+        if(was_successful_)
+            destroy_result_fn_(return_value_);
+    }
+
+    template <typename DBusMethodType, typename... Args>
+    const PromiseReturnType &invoke(DBusMethodType dbus_method, Args&&... args)
+    {
+        dbus_method(proxy_, args..., cancellable_, async_ready_trampoline, this);
+
+        auto future(promise_.get_future());
+        if(!future.valid())
+            return return_value_;
+
+        if(!g_cancellable_is_cancelled(cancellable_))
+        {
+            while(future.wait_for(std::chrono::milliseconds(300)) != std::future_status::ready)
+            {
+                if(!may_continue_fn_())
+                {
+                    g_cancellable_cancel(cancellable_);
+                    break;
+                }
+            }
+        }
+
+        if(!g_cancellable_is_cancelled(cancellable_))
+            return_value_ = future.get();
+
+        return return_value_;
+    }
+
+    bool is_complete() const { return has_completed_; }
+    bool success() const { return was_successful_; }
+
+    void bang_you_are_dead() { is_zombie_ = true; }
+    bool is_zombie() const { return is_zombie_; }
+
+  private:
+    static void async_ready_trampoline(GObject *source_object,
+                                       GAsyncResult *res, gpointer user_data)
+    {
+        auto async(static_cast<AsyncSpecificDBusCall *>(user_data));
+
+        if(async->is_zombie())
+        {
+            /*
+             * Retarded GLib does not cancel asynchronous I/O operations
+             * immediately, but insists on cancelling them asynchronously
+             * ("cancelling an asynchronous operation causes it to complete
+             * asynchronously"). We must return to the main loop to make this
+             * happen, and we therefore had to leak the async object at hand at
+             * the time we cancelled it. Because we must use the async object
+             * in this callback, we marked it as dead when we knew it should be
+             * dead. Should GLib ever get this wrong, we'll leak memory.
+             *
+             * Please, GLib, stop wasting our time already.
+             */
+            delete async;
+        }
+        else
+            async->ready(async->to_proxy_fn_(source_object), res);
+    }
+
+    void ready(ProxyType *proxy, GAsyncResult *res)
+    {
+        has_completed_ = true;
+        put_result_fn_(was_successful_, promise_, proxy_, res, &error_);
+
+        if(!was_successful_)
+            msg_error(0, LOG_NOTICE,
+                      "Async D-Bus method call failed: %s",
+                      error_ != nullptr ? error_->message : "*NULL*");
+    }
+};
+
+/*!
+ * Retrieve URI associated with selected item.
+ *
+ * \param list_id, item_id
+ *     Which list item's URI to retrieve for sending to the stream player.
+ *
+ * \param proxy
+ *     D-Bus proxy to the list broker the list ID and item ID belong to.
+ *
+ * \param abort_enqueue
+ *     Periodically checked so that slow operations can be cancelled.
+ *
+ * \param send_status
+ *     Error code.
+ *
+ * \returns
+ *     An URI, or an empty string in case of failure.
+ *
+ * \bug This function only returns a single URI. See tickets #13 and #285.
+ */
+static std::string get_selected_uri(ID::List list_id, unsigned int item_id,
+                                    tdbuslistsNavigation *proxy,
+                                    Playback::AbortEnqueueIface &abort_enqueue,
+                                    SendStatus &send_status)
+{
+    using AsyncCallType = AsyncSpecificDBusCall<tdbuslistsNavigation, std::tuple<guchar, gchar **>>;
+
+    auto *async_call = new AsyncCallType(
+        proxy,
+        [] (GObject *source_object) { return TDBUS_LISTS_NAVIGATION(source_object); },
+        [] (bool &was_successful, AsyncCallType::PromiseType &promise,
+            tdbuslistsNavigation *p, GAsyncResult *async_result, GError **error)
+        {
+            guchar error_code = 0;
+            gchar **uri_list = NULL;
+
+            was_successful =
+                tdbus_lists_navigation_call_get_uris_finish(p, &error_code, &uri_list,
+                                                            async_result, error);
+
+            /*
+             * For correct synchronization, this call must be the last
+             * statement in this function; in particular, it must not be done
+             * before the assignment to \p was_successful.
+             */
+            promise.set_value(std::move(std::make_tuple(error_code, uri_list)));
+        },
+        [] (AsyncCallType::PromiseReturnType &values)
+        {
+            gchar **const strings = std::get<1>(values);
+
+            if(strings == NULL)
+                return;
+
+            for(gchar **ptr = strings; *ptr != NULL; ++ptr)
+                g_free(*ptr);
+
+            g_free(strings);
+        },
+        [&abort_enqueue] () { return abort_enqueue.may_continue(); });
+
+    const auto &result(async_call->invoke(tdbus_lists_navigation_call_get_uris,
+                                          list_id.get_raw_id(), item_id));
+
+    static const std::string empty_string;
+
+    if(!async_call->is_complete() || !async_call->success())
+    {
+        msg_info("Failed obtaining URI for item %u in list %u", item_id, list_id.get_raw_id());
+        send_status = SendStatus::BROKER_FAILURE;
+
+        if(async_call->is_complete())
+            delete async_call;
+        else
+        {
+            /*
+             * We must leak the async object as a zombie here and
+             * rely on the final head shot being applied in the
+             * \c GAsyncReadyCallback callback. Check out the comments
+             * in #AsyncSpecificDBusCall::async_ready_trampoline() for
+             * more details.
+             */
+            async_call->bang_you_are_dead();
+        }
+
+        return empty_string;
+    }
+
+    const ListError error(std::get<0>(result));
+    gchar **const uri_list(std::get<1>(result));
+
+    if(error != ListError::Code::OK)
+    {
+        msg_error(0, LOG_NOTICE,
+                  "Got error %s instead of URI for item %u in list %u",
+                  error.to_string(), item_id, list_id.get_raw_id());
+        send_status = SendStatus::BROKER_FAILURE;
+        return empty_string;
+    }
+
+    if(uri_list == NULL || uri_list[0] == NULL)
+    {
+        msg_info("No URI for item %u in list %u", item_id, list_id.get_raw_id());
+        send_status = SendStatus::NO_URI;
+        return empty_string;
+    }
+
+    gchar *const selected_uri = select_uri_from_list(uri_list);
+
+    if(selected_uri == NULL || selected_uri[0] == '\0')
+    {
+        msg_info("No suitable URI found for item %u in list %u",
+                 item_id, list_id.get_raw_id());
+        send_status = SendStatus::NO_URI;
+        return empty_string;
+    }
+
+    send_status = SendStatus::OK;
+
+    return selected_uri;
+}
+
 /*!
  * Try to fill up the streamplayer FIFO.
  *
@@ -84,10 +330,6 @@ static gchar *select_uri_from_list(gchar **uri_list)
  *
  * No exception thrown in here because the caller needs to react to specific
  * situations.
- *
- * \param list_id, item_id, proxy
- *     Which list item's URI to send to the stream player, and a D-Bus proxy to
- *     the list broker.
  *
  * \param stream_id
  *     Internal ID of the stream for mapping it to extra information maintained
@@ -103,58 +345,11 @@ static gchar *select_uri_from_list(gchar **uri_list)
  * \returns
  *     #SendStatus::OK in case of success, detailed error code otherwise.
  */
-static SendStatus send_selected_file_uri_to_streamplayer(ID::List list_id,
-                                                         unsigned int item_id,
-                                                         ID::OurStream stream_id,
-                                                         tdbuslistsNavigation *proxy,
+static SendStatus send_selected_file_uri_to_streamplayer(ID::OurStream stream_id,
                                                          bool play_immediately,
-                                                         std::string &queued_url)
+                                                         const std::string &queued_url)
 {
-    queued_url.clear();
-
-    gchar **uri_list;
-    guchar error_code;
-
-    if(!tdbus_lists_navigation_call_get_uris_sync(proxy,
-                                                  list_id.get_raw_id(), item_id,
-                                                  &error_code,
-                                                  &uri_list, NULL, NULL))
-    {
-        msg_info("Failed obtaining URI for item %u in list %u", item_id, list_id.get_raw_id());
-        return SendStatus::BROKER_FAILURE;
-    }
-
-    const ListError error(error_code);
-
-    if(error != ListError::Code::OK)
-    {
-        msg_error(0, LOG_NOTICE,
-                  "Got error %s instead of URI for item %u in list %u",
-                  error.to_string(), item_id, list_id.get_raw_id());
-        free_array_of_strings(uri_list);
-        return SendStatus::BROKER_FAILURE;
-    }
-
-    if(uri_list == NULL || uri_list[0] == NULL)
-    {
-        msg_info("No URI for item %u in list %u", item_id, list_id.get_raw_id());
-        free_array_of_strings(uri_list);
-        return SendStatus::NO_URI;
-    }
-
-    gchar *const selected_uri = select_uri_from_list(uri_list);
-
-    if(selected_uri == NULL)
-    {
-        msg_info("No suitable URI found for item %u in list %u",
-                 item_id, list_id.get_raw_id());
-        free_array_of_strings(uri_list);
-        return SendStatus::NO_URI;
-    }
-
-    msg_info("Queuing URI: \"%s\"", selected_uri);
-
-    queued_url = selected_uri;
+    msg_info("Queuing URI: \"%s\"", queued_url.c_str());
 
     gboolean fifo_overflow;
     gboolean is_playing;
@@ -162,7 +357,7 @@ static SendStatus send_selected_file_uri_to_streamplayer(ID::List list_id,
 
     if(!tdbus_splay_urlfifo_call_push_sync(dbus_get_streamplayer_urlfifo_iface(),
                                            stream_id.get().get_raw_id(),
-                                           selected_uri,
+                                           queued_url.c_str(),
                                            0, "ms", 0, "ms",
                                            play_immediately ? -2 : -1,
                                            &fifo_overflow, &is_playing,
@@ -188,8 +383,6 @@ static SendStatus send_selected_file_uri_to_streamplayer(ID::List list_id,
         else
             ret = SendStatus::OK;
     }
-
-    free_array_of_strings(uri_list);
 
     return ret;
 }
@@ -270,36 +463,44 @@ bool Playback::State::try_set_position(const StreamInfoItem &info)
 
 bool Playback::State::set_skip_mode_reverse(StreamInfo &sinfo,
                                             ID::OurStream &current_stream_id,
+                                            AbortEnqueueIface &abort_enqueue,
                                             bool skip_to_next,
                                             bool &enqueued_anything)
 {
-    enqueued_anything = false;
-
-    if(is_reverse_traversal_)
     {
-        /* already in reverse mode */
-        return true;
+        auto unlock(abort_enqueue.temporary_data_unlock());
+
+        enqueued_anything = false;
+
+        if(is_reverse_traversal_)
+        {
+            /* already in reverse mode */
+            return true;
+        }
+
+        const auto *const info = sinfo.lookup(current_stream_id);
+
+        if(info == nullptr)
+        {
+            /* don't know where we are, user skips too fast */
+            return false;
+        }
+
+        if(info->list_id_ == user_list_id_ && info->line_ == 0)
+        {
+            /* already on first track */
+            return false;
+        }
+
+        if(!try_set_position(*info))
+        {
+            /* something wrong with the list */
+            return false;
+        }
     }
 
-    const auto *const info = sinfo.lookup(current_stream_id);
-
-    if(info == nullptr)
-    {
-        /* don't know where we are, user skips too fast */
+    if(!abort_enqueue.may_continue())
         return false;
-    }
-
-    if(info->list_id_ == user_list_id_ && info->line_ == 0)
-    {
-        /* already on first track */
-        return false;
-    }
-
-    if(!try_set_position(*info))
-    {
-        /* something wrong with the list */
-        return false;
-    }
 
     if(!try_clear_url_fifo_for_set_skip_mode(mode_, sinfo, current_stream_id))
     {
@@ -310,39 +511,47 @@ bool Playback::State::set_skip_mode_reverse(StreamInfo &sinfo,
     is_reverse_traversal_ = true;
     is_list_processed_ = false;
 
-    enqueued_anything = enqueue_next(sinfo, skip_to_next, true);
+    enqueued_anything = enqueue_next(sinfo, skip_to_next, abort_enqueue, true);
 
     return true;
 }
 
 bool Playback::State::set_skip_mode_forward(StreamInfo &sinfo,
                                             ID::OurStream &current_stream_id,
+                                            AbortEnqueueIface &abort_enqueue,
                                             bool skip_to_next,
                                             bool &enqueued_anything)
 {
-    enqueued_anything = false;
-
-    if(!is_reverse_traversal_)
     {
-        /* already in forward mode */
-        return false;
+        auto unlock(abort_enqueue.temporary_data_unlock());
+
+        enqueued_anything = false;
+
+        if(!is_reverse_traversal_)
+        {
+            /* already in forward mode */
+            return false;
+        }
+
+        const auto *const info = sinfo.lookup(current_stream_id);
+
+        if(info == nullptr)
+        {
+            /* don't know where we are, user skips too fast */
+            return false;
+        }
+
+        is_reverse_traversal_ = false;
+
+        if(!try_set_position(*info))
+        {
+            /* something wrong with the list */
+            return false;
+        }
     }
 
-    const auto *const info = sinfo.lookup(current_stream_id);
-
-    if(info == nullptr)
-    {
-        /* don't know where we are, user skips too fast */
+    if(!abort_enqueue.may_continue())
         return false;
-    }
-
-    is_reverse_traversal_ = false;
-
-    if(!try_set_position(*info))
-    {
-        /* something wrong with the list */
-        return false;
-    }
 
     if(!try_clear_url_fifo_for_set_skip_mode(mode_, sinfo, current_stream_id))
     {
@@ -352,7 +561,7 @@ bool Playback::State::set_skip_mode_forward(StreamInfo &sinfo,
 
     is_list_processed_ = false;
 
-    enqueued_anything = enqueue_next(sinfo, skip_to_next, true);
+    enqueued_anything = enqueue_next(sinfo, skip_to_next, abort_enqueue, true);
 
     return true;
 }
@@ -445,86 +654,107 @@ static inline bool can_queue_item(const ViewFileBrowser::FileItem &item)
 }
 
 bool Playback::State::enqueue_next(StreamInfo &sinfo, bool skip_to_next,
+                                   AbortEnqueueIface &abort_enqueue,
                                    bool just_switched_direction)
 {
     if(is_list_processed_ && !just_switched_direction)
         return false;
 
+    AbortEnqueueIface::EnqueuingInProgressMarker in_progress(abort_enqueue);
+
     bool queued_for_immediate_playback = false;
 
-    while(true)
+    while(abort_enqueue.may_continue())
     {
-        if(just_switched_direction)
-        {
-            just_switched_direction = false;
-
-            try
-            {
-                if(!find_next(nullptr))
-                    return false;
-            }
-            catch(const List::DBusListException &e)
-            {
-                msg_info("Enqueue next failed (0): %s %d", e.what(), e.is_dbus_error());
-            }
-        }
-
         const ViewFileBrowser::FileItem *item;
 
-        try
         {
-            item = dynamic_cast<decltype(item)>(dbus_list_.get_item(navigation_.get_cursor()));
-        }
-        catch(const List::DBusListException &e)
-        {
-            msg_info("Enqueue next failed (1): %s %d", e.what(), e.is_dbus_error());
-            revert();
+            auto unlock(abort_enqueue.temporary_data_unlock());
 
-            return queued_for_immediate_playback;
-        }
+            if(just_switched_direction)
+            {
+                just_switched_direction = false;
 
-        if(item == nullptr)
-        {
+                try
+                {
+                    if(!find_next(nullptr, abort_enqueue))
+                        return false;
+                }
+                catch(const List::DBusListException &e)
+                {
+                    msg_info("Enqueue next failed (0): %s %d", e.what(), e.is_dbus_error());
+                }
+            }
+
             try
             {
-                if(find_next(nullptr))
-                    continue;
+                item = dynamic_cast<decltype(item)>(dbus_list_.get_item(navigation_.get_cursor()));
             }
             catch(const List::DBusListException &e)
             {
-                /* revert and return below */
-                msg_info("Enqueue next failed (2): %s %d", e.what(), e.is_dbus_error());
+                msg_info("Enqueue next failed (1): %s %d", e.what(), e.is_dbus_error());
+                revert();
+
+                return queued_for_immediate_playback;
             }
 
-            revert();
+            if(item == nullptr)
+            {
+                try
+                {
+                    if(find_next(nullptr, abort_enqueue))
+                        continue;
+                }
+                catch(const List::DBusListException &e)
+                {
+                    /* revert and return below */
+                    msg_info("Enqueue next failed (2): %s %d", e.what(), e.is_dbus_error());
+                }
 
-            return queued_for_immediate_playback;
+                revert();
+
+                return queued_for_immediate_playback;
+            }
         }
 
-        if(can_queue_item(*item))
+        if(abort_enqueue.may_continue() && can_queue_item(*item))
         {
             const unsigned int current_line = navigation_.get_cursor();
-            const ID::OurStream fallback_title_id =
-                sinfo.insert(item->get_text(),
-                             dbus_list_.get_list_id(), current_line);
-            StreamInfoItem *info_item = sinfo.lookup_for_update(fallback_title_id);
+            SendStatus send_status;
+            std::string queued_url;
 
-            const auto send_status =
-                (fallback_title_id.get().is_valid()
-                 ? send_selected_file_uri_to_streamplayer(dbus_list_.get_list_id(),
-                                                          current_line,
-                                                          fallback_title_id,
-                                                          dbus_list_.get_dbus_proxy(),
-                                                          skip_to_next,
-                                                          info_item->url_)
-                 : SendStatus::INVALID_STREAM_ID);
+            {
+                auto unlock(abort_enqueue.temporary_data_unlock());
 
-            if(send_status != SendStatus::OK &&
-               send_status != SendStatus::INVALID_STREAM_ID)
-                sinfo.forget(fallback_title_id);
+                queued_url =
+                    get_selected_uri(dbus_list_.get_list_id(), current_line,
+                                     dbus_list_.get_dbus_proxy(),
+                                     abort_enqueue, send_status);
+            }
 
-            item = nullptr;
-            info_item = nullptr;
+            if(send_status == SendStatus::OK)
+            {
+                const ID::OurStream fallback_title_id =
+                    sinfo.insert(item->get_text(),
+                                 dbus_list_.get_list_id(), current_line);
+                StreamInfoItem *info_item = sinfo.lookup_for_update(fallback_title_id);
+
+                info_item->url_.swap(queued_url);
+
+                send_status =
+                    (fallback_title_id.get().is_valid()
+                     ? send_selected_file_uri_to_streamplayer(fallback_title_id,
+                                                              skip_to_next,
+                                                              info_item->url_)
+                     : SendStatus::INVALID_STREAM_ID);
+
+                if(send_status != SendStatus::OK &&
+                   send_status != SendStatus::INVALID_STREAM_ID)
+                    sinfo.forget(fallback_title_id);
+
+                item = nullptr;
+                info_item = nullptr;
+            }
 
             switch(send_status)
             {
@@ -566,7 +796,9 @@ bool Playback::State::enqueue_next(StreamInfo &sinfo, bool skip_to_next,
 
         try
         {
-            if(find_next(item))
+            auto unlock(abort_enqueue.temporary_data_unlock());
+
+            if(find_next(item, abort_enqueue))
                 continue;
         }
         catch(const List::DBusListException &e)
@@ -580,6 +812,8 @@ bool Playback::State::enqueue_next(StreamInfo &sinfo, bool skip_to_next,
 
         return queued_for_immediate_playback;
     }
+
+    return queued_for_immediate_playback;
 }
 
 bool Playback::State::try_descend()
@@ -607,7 +841,8 @@ bool Playback::State::try_descend()
     return true;
 }
 
-bool Playback::State::find_next(const List::TextItem *directory)
+bool Playback::State::find_next(const List::TextItem *directory,
+                                AbortEnqueueIface &abort_enqueue)
     throw(List::DBusListException)
 {
     if(!mode_.is_playing())
@@ -622,10 +857,11 @@ bool Playback::State::find_next(const List::TextItem *directory)
 
     auto item = dynamic_cast<const ViewFileBrowser::FileItem *>(directory);
 
-    if(item != nullptr && item->get_kind().is_directory() && try_descend())
+    if(abort_enqueue.may_continue() &&
+       item != nullptr && item->get_kind().is_directory() && try_descend())
         return true;
 
-    while(true)
+    while(abort_enqueue.may_continue())
     {
         bool retval;
         if(is_reverse_traversal_ ? find_next_reverse(retval) : find_next_forward(retval))

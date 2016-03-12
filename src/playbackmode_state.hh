@@ -22,9 +22,22 @@
 #include "playbackmode.hh"
 #include "listnav.hh"
 #include "dbuslist.hh"
+#include "playback_abort_enqueue.hh"
 
 class StreamInfo;
 class StreamInfoItem;
+
+class AsyncDBusCall
+{
+  protected:
+    explicit AsyncDBusCall() {}
+
+  public:
+    AsyncDBusCall(const AsyncDBusCall &) = delete;
+    AsyncDBusCall &operator=(const AsyncDBusCall &) = delete;
+
+    virtual ~AsyncDBusCall() {}
+};
 
 namespace Playback
 {
@@ -108,11 +121,17 @@ class State
      * The function has no effect if the object is already in reverse mode.
      *
      * \param sinfo
-     *     Extra information about queued streams.
+     *     Extra information about queued streams, locked by caller and safe to
+     *     use in here.
      *
      * \param[inout] current_stream_id
      *     ID of the currently playing stream. This ID must be contained in
      *     \p sinfo.
+     *
+     * \param abort_enqueue
+     *     Helper object for temporarily unlocking \p sinfo so that other
+     *     threads may access it, and for telling us whether or not to abort
+     *     enqueuing.
      *
      * \param skip_to_next
      *     If true, tell stream player to play the next stream in its queue,
@@ -125,9 +144,15 @@ class State
      * \returns
      *     True on success, false on failure. On failure, the object is \e not
      *     set to reverse mode, but falls back to normal forward mode.
+     *
+     * \note
+     *     This is potentially a long running function that does a lot of
+     *     synchronous D-Bus communication. It should be called from a thread
+     *     to avoid blocking the UI.
      */
     bool set_skip_mode_reverse(StreamInfo &sinfo,
                                ID::OurStream &current_stream_id,
+                               AbortEnqueueIface &abort_enqueue,
                                bool skip_to_next, bool &enqueued_anything);
 
     /*!
@@ -139,11 +164,17 @@ class State
      * The function has no effect if the object is already in forward mode.
      *
      * \param sinfo
-     *     Extra information about queued streams.
+     *     Extra information about queued streams, locked by caller and safe to
+     *     use in here.
      *
      * \param[inout] current_stream_id
      *     ID of the currently playing stream. This ID must be contained in
      *     \p sinfo.
+     *
+     * \param abort_enqueue
+     *     Helper object for temporarily unlocking \p sinfo so that other
+     *     threads may access it, and for telling us whether or not to abort
+     *     enqueuing.
      *
      * \param skip_to_next
      *     If true, tell stream player to play the next stream in its queue,
@@ -157,9 +188,15 @@ class State
      *     True on success, false on failure or if the object is already in
      *     forward mode. The object is always set to forward mode regardless of
      *     success or failure.
+     *
+     * \note
+     *     This is potentially a long running function that does a lot of
+     *     synchronous D-Bus communication. It should be called from a thread
+     *     to avoid blocking the UI.
      */
     bool set_skip_mode_forward(StreamInfo &sinfo,
                                ID::OurStream &current_stream_id,
+                               AbortEnqueueIface &abort_enqueue,
                                bool skip_to_next, bool &enqueued_anything);
 
     /*!
@@ -177,8 +214,14 @@ class State
      * \returns
      *     True if any URI was sent to the stream player for immediate
      *     playback, false otherwise.
+     *
+     * \note
+     *     This is potentially a long running function that does a lot of
+     *     synchronous D-Bus communication. It should be called from a thread
+     *     to avoid blocking the UI.
      */
     bool enqueue_next(StreamInfo &sinfo, bool skip_to_next,
+                      AbortEnqueueIface &abort_enqueue,
                       bool just_switched_direction = false);
 
     /*!
@@ -203,7 +246,7 @@ class State
     bool try_start() throw(List::DBusListException);
     bool try_descend() throw(List::DBusListException);
     bool try_set_position(const StreamInfoItem &info);
-    bool find_next(const List::TextItem *directory) throw(List::DBusListException);
+    bool find_next(const List::TextItem *directory, AbortEnqueueIface &abort_enqueue) throw(List::DBusListException);
     bool find_next_forward(bool &found_candidate) throw(List::DBusListException);
     bool find_next_reverse(bool &found_candidate) throw(List::DBusListException);
 };

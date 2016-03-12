@@ -244,15 +244,14 @@ ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command,
 
         playback_current_mode_.activate_selected_mode();
 
-        if(!player_.take(playback_current_state_, file_list_,
-                         navigation_.get_line_number_by_cursor(),
-                         [this] (bool is_buffering)
-                         {
-                             view_manager_->activate_view_by_name(is_buffering
-                                                                  ? ViewNames::PLAYER
-                                                                  : name_);
-                         }))
-            player_.release(true);
+        player_.take(playback_current_state_, file_list_,
+                     navigation_.get_line_number_by_cursor(),
+                     [this] (bool is_buffering)
+                     {
+                         view_manager_->activate_view_by_name(is_buffering
+                             ? ViewNames::PLAYER
+                             : name_);
+                     });
 
         return InputResult::OK;
 
