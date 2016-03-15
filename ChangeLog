@@ -1,3 +1,19 @@
+2016-03-15  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 1.13 released.
+
+	* Playback: All streams from Airable are played in linear list mode,
+	  not single track mode.
+
+	* Playback: Fix long and blocking "Buffering..." messages. This
+	  happened for slow sources and may have blocked the display for
+	  seconds or even minutes even though a stream was already playing.
+
+	* Playback: Fix start playing of new stream while another stream is
+	  playing.
+
+	* Playback: Fix stop playing of streams (meta data are cleared).
+
 2016-03-07  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 1.12 released.
