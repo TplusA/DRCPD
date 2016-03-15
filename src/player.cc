@@ -252,9 +252,6 @@ void Playback::Player::stop_notification()
     auto current_state_ref(controller_.ref());
     auto current_state(current_state_ref.get());
 
-    if(current_state == nullptr)
-        return;
-
     std::lock_guard<std::mutex> lock_csd(current_stream_data_.lock_);
 
     current_stream_data_.stream_id_ = ID::OurStream::make_invalid();
@@ -264,7 +261,9 @@ void Playback::Player::stop_notification()
     incoming_meta_data_.clear(false);
 
     current_stream_data_.waiting_for_start_notification_ = false;
-    current_state->revert();
+
+    if(current_state != nullptr)
+        current_state->revert();
 }
 
 void Playback::Player::pause_notification()
