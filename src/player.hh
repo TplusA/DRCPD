@@ -146,8 +146,13 @@ class PlayerIface
      *
      * \param active_stop_command
      *     If true, send a stop command to the stream player.
+     *
+     * \param stop_playbackmode_state_if_active
+     *     If true and the player is in active mode, then put the associated
+     *     playback mode state to stop mode.
      */
-    virtual void release(bool active_stop_command) = 0;
+    virtual void release(bool active_stop_command,
+                         bool stop_playbackmode_state_if_active) = 0;
 
     /*!
      * To be called when the stream player notifies that is has started
@@ -563,7 +568,8 @@ class Player: public PlayerIface, public MetaDataStoreIface
                  const State *expected_playback_state,
                  const List::DBusList &file_list, int line,
                  IsBufferingCallback buffering_callback);
-    void do_release(LockWithStopRequest &lockstop, bool active_stop_command);
+    void do_release(LockWithStopRequest &lockstop, bool active_stop_command,
+                    bool stop_playbackmode_state_if_active);
     void do_start_notification(LockWithStopRequest &lockstop, ID::Stream stream_id, bool try_enqueue);
     void do_skip_to_previous(LockWithStopRequest &lockstop, bool allow_restart_stream);
     void do_skip_to_next(LockWithStopRequest &lockstop);
@@ -583,7 +589,8 @@ class Player: public PlayerIface, public MetaDataStoreIface
 
     void take(State &playback_state, const List::DBusList &file_list, int line,
               IsBufferingCallback buffering_callback) override;
-    void release(bool active_stop_command) override;
+    void release(bool active_stop_command,
+                 bool stop_playbackmode_state_if_active = true) override;
 
     void start_notification(ID::Stream stream_id, bool try_enqueue) override;
     void stop_notification() override;

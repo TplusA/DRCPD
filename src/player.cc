@@ -49,9 +49,6 @@ bool Playback::Player::try_take(State &playback_state,
                                 const List::DBusList &file_list, int line,
                                 IsBufferingCallback buffering_callback)
 {
-    if(is_different_active_mode(&playback_state))
-        return false;
-
     auto current_state_ref(controller_.update_and_ref(&playback_state));
     std::unique_lock<std::mutex> lock_csd(current_stream_data_.lock_);
 
@@ -69,24 +66,23 @@ bool Playback::Player::try_take(State &playback_state,
                                          &playback_state,
                                          std::ref(file_list),
                                          line, buffering_callback)));
-    }
-    else
-    {
-        current_stream_data_.waiting_for_start_notification_ = false;
-
-        lock_csd.unlock();
-        buffering_callback(false);
-
-        return false;
+        return true;
     }
 
-    return true;
+    current_stream_data_.waiting_for_start_notification_ = false;
+
+    lock_csd.unlock();
+    buffering_callback(false);
+
+    return false;
 }
 
 void Playback::Player::take(Playback::State &playback_state,
                             const List::DBusList &file_list, int line,
                             IsBufferingCallback buffering_callback)
 {
+    release(false, is_different_active_mode(&playback_state));
+
     if(!try_take(playback_state, file_list, line, buffering_callback))
         release(true);
 }
@@ -119,7 +115,8 @@ void Playback::Player::do_take(LockWithStopRequest &lockstop,
         buffering_callback(false);
 }
 
-void Playback::Player::release(bool active_stop_command)
+void Playback::Player::release(bool active_stop_command,
+                               bool stop_playbackmode_state_if_active)
 {
     if(requests_.release_player_.request())
         return;
@@ -131,7 +128,8 @@ void Playback::Player::release(bool active_stop_command)
 
     send_message(std::move(std::bind(&Player::do_release, this,
                                      std::placeholders::_1,
-                                     active_stop_command)));
+                                     active_stop_command,
+                                     stop_playbackmode_state_if_active)));
 
     /* synchronize thread with release of the player so that the messages do
      * not access dangling pointers */
@@ -139,7 +137,8 @@ void Playback::Player::release(bool active_stop_command)
 }
 
 void Playback::Player::do_release(LockWithStopRequest &lockstop,
-                                  bool active_stop_command)
+                                  bool active_stop_command,
+                                  bool stop_playbackmode_state_if_active)
 {
     log_assert(requests_.release_player_.is_requested());
 
@@ -149,6 +148,7 @@ void Playback::Player::do_release(LockWithStopRequest &lockstop,
 
     if(is_active_mode())
     {
+        if(stop_playbackmode_state_if_active)
         {
             auto current_state_ref(controller_.ref());
             auto current_state(current_state_ref.get());
