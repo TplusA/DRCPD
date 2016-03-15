@@ -98,7 +98,9 @@ test_view_manager_la_LIBADD = \
 test_view_manager_la_CFLAGS = $(DRCPD_DEPENDENCIES_CFLAGS) $(AM_CFLAGS)
 test_view_manager_la_CXXFLAGS = $(DRCPD_DEPENDENCIES_CFLAGS) $(AM_CXXFLAGS)
 
-test_dcp_transaction_la_SOURCES = test_dcp_transaction.cc
+test_dcp_transaction_la_SOURCES = \
+    test_dcp_transaction.cc \
+    mock_messages.hh mock_messages.cc
 test_dcp_transaction_la_LIBADD = $(top_builddir)/src/libdcp_transaction.la
 test_dcp_transaction_la_CFLAGS = $(AM_CFLAGS)
 test_dcp_transaction_la_CXXFLAGS = $(AM_CXXFLAGS)

@@ -21,6 +21,7 @@
 #endif /* HAVE_CONFIG_H */
 
 #include "dcp_transaction.hh"
+#include "messages.h"
 
 static void clear_stream(std::ostringstream &ss)
 {
@@ -56,6 +57,49 @@ bool DCP::Transaction::start(bool force_async)
     return false;
 }
 
+static const char nibble_to_char(uint8_t nibble)
+{
+    if(nibble < 10)
+        return '0' + nibble;
+    else
+        return 'a' + (nibble - 10);
+}
+
+static const char *to_ascii(const char *in)
+{
+    static char buffer[16 * 1024];
+
+    buffer[0] = '\0';
+
+    for(size_t i = 0; i < sizeof(buffer); ++i, ++in)
+    {
+        const char ch = *in;
+
+        if(ch == '\0')
+        {
+            buffer[i] = '\0';
+            break;
+        }
+
+        if(isascii(ch) && isprint(ch))
+            buffer[i] = ch;
+        else
+        {
+            buffer[i + 0] = '{';
+            buffer[i + 1] = '0';
+            buffer[i + 2] = 'x';
+            buffer[i + 3] = nibble_to_char((ch >> 4) & 0x0f);
+            buffer[i + 4] = nibble_to_char(ch & 0x0f);
+            buffer[i + 5] = '}';
+            i += 5;
+        }
+    }
+
+    buffer[sizeof(buffer) - 1] = '\0';
+
+    return buffer;
+}
+
 bool DCP::Transaction::commit()
 {
     switch(state_)
@@ -73,6 +117,13 @@ bool DCP::Transaction::commit()
     {
         if(os_ != nullptr)
         {
+            if(msg_is_verbose(MESSAGE_LEVEL_TRACE))
+            {
+                /* check above avoids expensive call of #to_ascii() */
+                msg_vinfo(MESSAGE_LEVEL_TRACE, "DRC XML: %s",
+                          to_ascii(sstr_.str().c_str()));
+            }
+
             *os_ << "Size: " << sstr_.str().length() << '\n' << sstr_.str();
             os_->flush();
         }

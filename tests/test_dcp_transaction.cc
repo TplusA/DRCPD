@@ -24,6 +24,8 @@
 
 #include "dcp_transaction.hh"
 
+#include "mock_messages.hh"
+
 namespace dcp_transaction_tests
 {
 
@@ -34,11 +36,17 @@ static void dcp_transaction_observer(DCP::Transaction::state)
 
 static const std::function<void(DCP::Transaction::state)> transaction_observer(dcp_transaction_observer);
 
+static MockMessages *mock_messages;
 static DCP::Transaction *dt;
 static std::ostringstream *captured;
 
 void cut_setup(void)
 {
+    mock_messages = new MockMessages();
+    cppcut_assert_not_null(mock_messages);
+    mock_messages->init();
+    mock_messages_singleton = mock_messages;
+
     dt = new DCP::Transaction(transaction_observer);
     cppcut_assert_not_null(dt);
 
@@ -50,6 +58,11 @@ void cut_setup(void)
 
 void cut_teardown(void)
 {
+    mock_messages->check();
+    mock_messages_singleton = nullptr;
+    delete mock_messages;
+    mock_messages = nullptr;
+
     cut_assert_true(captured->str().empty());
 
     delete dt;
@@ -83,6 +96,7 @@ void test_one_transaction()
     cut_assert_false(dt->is_started_async());
     cppcut_assert_not_null(dt->stream());
     *dt->stream() << "Simple!";
+    mock_messages->expect_msg_is_verbose(false, MESSAGE_LEVEL_TRACE);
     cut_assert_true(dt->commit());
     check_and_clear_ostream(captured, "Size: 7\nSimple!");
     cut_assert_true(dt->is_in_progress());
@@ -109,6 +123,7 @@ void test_one_async_transaction()
     cut_assert_false(dt->is_started_async());
     cppcut_assert_not_null(dt->stream());
     *dt->stream() << "Simple async!";
+    mock_messages->expect_msg_is_verbose(false, MESSAGE_LEVEL_TRACE);
     cut_assert_true(dt->commit());
     check_and_clear_ostream(captured, "Size: 13\nSimple async!");
     cut_assert_true(dt->is_in_progress());
@@ -141,12 +156,14 @@ void test_two_transactions()
     cut_assert_true(dt->start());
     cppcut_assert_not_null(dt->stream());
     *dt->stream() << "First";
+    mock_messages->expect_msg_is_verbose(false, MESSAGE_LEVEL_TRACE);
     cut_assert_true(dt->commit());
     cut_assert_true(dt->done());
 
     cut_assert_true(dt->start());
     cppcut_assert_not_null(dt->stream());
     *dt->stream() << "Second";
+    mock_messages->expect_msg_is_verbose(false, MESSAGE_LEVEL_TRACE);
     cut_assert_true(dt->commit());
     cut_assert_true(dt->done());
 
@@ -169,6 +186,7 @@ void test_transaction_after_aborted_transaction()
     cut_assert_true(dt->start());
     cppcut_assert_not_null(dt->stream());
     *dt->stream() << "Sent";
+    mock_messages->expect_msg_is_verbose(false, MESSAGE_LEVEL_TRACE);
     cut_assert_true(dt->commit());
     check_and_clear_ostream(captured, "Size: 4\nSent");
     cut_assert_true(dt->done());
@@ -193,6 +211,7 @@ void test_abort_committed_transaction_does_not_unsend()
     cut_assert_true(dt->start());
     cppcut_assert_not_null(dt->stream());
     *dt->stream() << "Already sent";
+    mock_messages->expect_msg_is_verbose(false, MESSAGE_LEVEL_TRACE);
     cut_assert_true(dt->commit());
     check_and_clear_ostream(captured, "Size: 12\nAlready sent");
     cut_assert_true(dt->abort());
