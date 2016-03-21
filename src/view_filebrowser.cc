@@ -251,7 +251,8 @@ ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command,
                          view_manager_->activate_view_by_name(is_buffering
                              ? ViewNames::PLAYER
                              : name_);
-                     });
+                     },
+                     [] () {});
 
         return InputResult::OK;
 

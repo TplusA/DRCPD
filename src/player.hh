@@ -90,6 +90,7 @@ class PlayerIface
     virtual ~PlayerIface() {}
 
     using IsBufferingCallback = std::function<void(bool is_buffering)>;
+    using ReleasedCallback = std::function<void()>;
 
     virtual void start() = 0;
     virtual void shutdown() = 0;
@@ -128,11 +129,16 @@ class PlayerIface
      *     will be called from a worker thread context, so it may have to be
      *     thread-safe to some degree.
      *
+     * \param released_callback
+     *     Function to call when the player releases its #Playback::State
+     *     object.
+     *
      * \see
      *     #Playback::PlayerIface::release()
      */
     virtual void take(State &playback_state, const List::DBusList &file_list, int line,
-                      IsBufferingCallback buffering_callback) = 0;
+                      IsBufferingCallback buffering_callback,
+                      ReleasedCallback released_callback) = 0;
 
     /*!
      * Explicitly stop and release the player.
@@ -256,6 +262,8 @@ class Player: public PlayerIface, public MetaDataStoreIface
      * asynchronously is mandatory to keep the UI responsive.
      */
     std::thread stream_enqueuer_;
+
+    ReleasedCallback released_callback_;
 
     class Controller
     {
@@ -588,7 +596,8 @@ class Player: public PlayerIface, public MetaDataStoreIface
     void shutdown() override;
 
     void take(State &playback_state, const List::DBusList &file_list, int line,
-              IsBufferingCallback buffering_callback) override;
+              IsBufferingCallback buffering_callback,
+              ReleasedCallback released_callback) override;
     void release(bool active_stop_command,
                  bool stop_playbackmode_state_if_active = true) override;
 

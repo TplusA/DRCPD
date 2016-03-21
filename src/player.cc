@@ -79,9 +79,12 @@ bool Playback::Player::try_take(State &playback_state,
 
 void Playback::Player::take(Playback::State &playback_state,
                             const List::DBusList &file_list, int line,
-                            IsBufferingCallback buffering_callback)
+                            IsBufferingCallback buffering_callback,
+                            ReleasedCallback released_callback)
 {
     release(false, is_different_active_mode(&playback_state));
+
+    released_callback_ = released_callback;
 
     if(!try_take(playback_state, file_list, line, buffering_callback))
         release(true);
@@ -134,6 +137,12 @@ void Playback::Player::release(bool active_stop_command,
     /* synchronize thread with release of the player so that the messages do
      * not access dangling pointers */
     requests_.release_player_.wait(lock_req);
+
+    if(released_callback_ != nullptr)
+    {
+        released_callback_();
+        released_callback_ = nullptr;
+    }
 }
 
 void Playback::Player::do_release(LockWithStopRequest &lockstop,
