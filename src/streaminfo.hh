@@ -53,6 +53,9 @@ class StreamInfoItem
 
 class StreamInfo
 {
+  public:
+    static constexpr size_t MAX_ENTRIES = 20;
+
   private:
     /*!
      * Map stream ID to stream information.
@@ -69,9 +72,12 @@ class StreamInfo
      */
     ID::OurStream next_free_id_;
 
-  public:
-    static constexpr size_t MAX_ENTRIES = 20;
+    /*!
+     * IDs of all referenced lists.
+     */
+    std::map<ID::List, size_t> referenced_lists_;
 
+  public:
     StreamInfo(const StreamInfo &) = delete;
     StreamInfo &operator=(const StreamInfo &) = delete;
 
@@ -91,6 +97,8 @@ class StreamInfo
     }
 
     size_t get_number_of_known_streams() const { return stream_names_.size(); }
+
+    size_t get_referenced_lists(std::array<ID::List, MAX_ENTRIES> &list_ids) const;
 };
 
 /*!@}*/
