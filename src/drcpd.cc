@@ -37,6 +37,7 @@
 #include "dbus_handlers.hh"
 #include "messages.h"
 #include "fdstreambuf.hh"
+#include "timeout.hh"
 #include "os.h"
 #include "versioninfo.h"
 
@@ -52,7 +53,7 @@ struct dcp_fifo_dispatch_data_t
 {
     files_t *files;
     ViewManager::VMIface *vm;
-    guint timeout_event_source_id;
+    Timeout::Timer timeout;
 };
 
 struct parameters
@@ -174,49 +175,25 @@ static bool watch_in_fd(struct dcp_fifo_dispatch_data_t *dispatch_data)
     return dispatch_data->files->dcp_fifo_in_event_source_id != 0;
 }
 
-static gboolean transaction_timeout_exceeded(gpointer user_data)
+static std::chrono::milliseconds
+transaction_timeout_exceeded(ViewManager::VMIface *const vm)
 {
     msg_error(ETIMEDOUT, LOG_CRIT, "DCPD answer timeout exceeded");
+    log_assert(vm != nullptr);
 
-    struct dcp_fifo_dispatch_data_t *dispatch_data =
-        static_cast<struct dcp_fifo_dispatch_data_t *>(user_data);
-    log_assert(dispatch_data != NULL);
+    vm->serialization_result(DCP::Transaction::TIMEOUT);
 
-    dispatch_data->timeout_event_source_id = 0;
-    dispatch_data->vm->serialization_result(DCP::Transaction::TIMEOUT);
-
-    return G_SOURCE_REMOVE;
+    return std::chrono::milliseconds::min();
 }
 
-static void add_timeout(dcp_fifo_dispatch_data_t *dispatch_data,
-                        guint timeout_ms)
+static void timeout_config(bool start_timeout_timer,
+                           struct dcp_fifo_dispatch_data_t *dispatch_data)
 {
-    log_assert(dispatch_data->timeout_event_source_id == 0);
-
-    GSource *src = g_timeout_source_new(timeout_ms);
-
-    if(src == NULL)
-        msg_error(ENOMEM, LOG_EMERG, "Failed allocating timeout event source");
-    else
-    {
-        g_source_set_callback(src, transaction_timeout_exceeded,
-                              dispatch_data, NULL);
-        dispatch_data->timeout_event_source_id = g_source_attach(src, NULL);
-    }
-}
-
-static void timeout_config(bool start_timeout_timer, void *user_data)
-{
-    struct dcp_fifo_dispatch_data_t *dispatch_data =
-        static_cast<struct dcp_fifo_dispatch_data_t *>(user_data);
-
     if(start_timeout_timer)
-        add_timeout(dispatch_data, 2U * 1000U);
-    else if(dispatch_data->timeout_event_source_id != 0)
-    {
-        g_source_remove(dispatch_data->timeout_event_source_id);
-        dispatch_data->timeout_event_source_id = 0;
-    }
+        dispatch_data->timeout.start(std::chrono::seconds(2),
+            std::bind(transaction_timeout_exceeded, dispatch_data->vm));
+    else
+        dispatch_data->timeout.stop();
 }
 
 /*!
@@ -461,9 +438,8 @@ int main(int argc, char *argv[])
     if(setup(&parameters, &dcp_dispatch_data, &loop) < 0)
         return EXIT_FAILURE;
 
-    static const std::function<void(bool)> configure_transaction_timeout =
-        std::bind(timeout_config, std::placeholders::_1, &dcp_dispatch_data);
-    static DCP::Queue dcp_transaction_queue(configure_transaction_timeout);
+    static DCP::Queue dcp_transaction_queue(
+        std::bind(timeout_config, std::placeholders::_1, &dcp_dispatch_data));
     static FdStreambuf fd_sbuf(files.dcp_fifo.out_fd);
     static std::ostream fd_out(&fd_sbuf);
     static ViewManager::Manager view_manager(dcp_transaction_queue);
@@ -475,7 +451,6 @@ int main(int argc, char *argv[])
     view_manager.set_debug_stream(std::cout);
 
     dcp_dispatch_data.vm = &view_manager;
-    dcp_dispatch_data.timeout_event_source_id = 0;
 
     player_singleton.start();
 

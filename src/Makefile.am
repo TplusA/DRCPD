@@ -22,6 +22,7 @@ bin_PROGRAMS = drcpd
 
 drcpd_SOURCES = \
     drcpd.cc drcp_commands.hh i18n.h i18n.c messages.h messages.c \
+    timeout.cc timeout.hh \
     os.c os.h named_pipe.c named_pipe.h fdstreambuf.hh \
     dbus_iface.c dbus_iface.h dbus_iface_deep.h dbus_handlers.hh \
     list.hh ramlist.hh dbuslist.hh dbuslist_exception.hh listnav.hh \
