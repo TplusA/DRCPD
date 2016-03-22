@@ -61,7 +61,7 @@ class View: public ViewIface, public ViewSerializeBase
                   Playback::Player &player,
                   ViewManager::VMIface *view_manager):
         ViewIface(ViewNames::PLAYER, false, view_manager),
-        ViewSerializeBase(on_screen_name, "play", 109U),
+        ViewSerializeBase(on_screen_name, "play", 100U),
         is_visible_(false),
         player_(player)
     {}
