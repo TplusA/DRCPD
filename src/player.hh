@@ -22,6 +22,7 @@
 #include <string>
 #include <chrono>
 #include <deque>
+#include <vector>
 #include <thread>
 #include <mutex>
 #include <condition_variable>
@@ -159,6 +160,11 @@ class PlayerIface
      */
     virtual void release(bool active_stop_command,
                          bool stop_playbackmode_state_if_active) = 0;
+
+    /*!
+     * Get IDs of lists referenced by queued streams, append to given vector.
+     */
+    virtual void append_referenced_lists(std::vector<ID::List> &list_ids) = 0;
 
     /*!
      * To be called when the stream player notifies that is has started
@@ -600,6 +606,8 @@ class Player: public PlayerIface, public MetaDataStoreIface
               ReleasedCallback released_callback) override;
     void release(bool active_stop_command,
                  bool stop_playbackmode_state_if_active = true) override;
+
+    void append_referenced_lists(std::vector<ID::List> &list_ids) override;
 
     void start_notification(ID::Stream stream_id, bool try_enqueue) override;
     void stop_notification() override;

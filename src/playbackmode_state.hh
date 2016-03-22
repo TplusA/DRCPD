@@ -242,6 +242,11 @@ class State
      */
     bool list_invalidate(ID::List list_id, ID::List replacement_id);
 
+    /*!
+     * Append IDs of lists referenced by this object to given container.
+     */
+    void append_referenced_lists(std::vector<ID::List> &list_ids);
+
   private:
     bool try_start() throw(List::DBusListException);
     bool try_descend() throw(List::DBusListException);

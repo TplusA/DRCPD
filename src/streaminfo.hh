@@ -99,6 +99,7 @@ class StreamInfo
     size_t get_number_of_known_streams() const { return stream_names_.size(); }
 
     size_t get_referenced_lists(std::array<ID::List, MAX_ENTRIES> &list_ids) const;
+    void append_referenced_lists(std::vector<ID::List> &list_ids) const;
 };
 
 /*!@}*/

@@ -124,3 +124,9 @@ size_t StreamInfo::get_referenced_lists(std::array<ID::List, MAX_ENTRIES> &list_
 
     return number_of_list_ids;
 }
+
+void StreamInfo::append_referenced_lists(std::vector<ID::List> &list_ids) const
+{
+    for(const auto &it : referenced_lists_)
+        list_ids.push_back(it.first);
+}

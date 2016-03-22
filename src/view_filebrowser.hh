@@ -25,6 +25,7 @@
 #include "view_serialize.hh"
 #include "playbackmode_state.hh"
 #include "search_parameters.hh"
+#include "timeout.hh"
 #include "dbuslist.hh"
 #include "dbus_iface.h"
 #include "dbus_iface_deep.h"
@@ -67,8 +68,10 @@ class View: public ViewIface, public ViewSerializeBase
     const uint8_t drcp_browse_id_;
 
     Playback::Player &player_;
+    bool player_is_mine_;
     Playback::CurrentMode playback_current_mode_;
     Playback::State playback_current_state_;
+    Timeout::Timer keep_lists_alive_timeout_;
 
     ViewIface *search_parameters_view_;
     bool waiting_for_search_parameters_;
@@ -97,6 +100,7 @@ class View: public ViewIface, public ViewSerializeBase
         navigation_(max_lines, item_flags_),
         drcp_browse_id_(drcp_browse_id),
         player_(player),
+        player_is_mine_(false),
         playback_current_mode_(default_playback_mode),
         playback_current_state_(traversal_list_, playback_current_mode_),
         search_parameters_view_(nullptr),
@@ -155,6 +159,8 @@ class View: public ViewIface, public ViewSerializeBase
     bool write_xml(std::ostream &os, const DCP::Queue::Data &data) override;
 
     bool apply_search_parameters();
+
+    std::chrono::milliseconds keep_lists_alive_timer_callback();
 };
 
 class FileItem: public List::TextItem

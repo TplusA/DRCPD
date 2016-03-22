@@ -179,6 +179,18 @@ void Playback::Player::do_release(LockWithStopRequest &lockstop,
     requests_.release_player_.ack();
 }
 
+void Playback::Player::append_referenced_lists(std::vector<ID::List> &list_ids)
+{
+    auto current_state_ref(controller_.ref());
+    auto current_state(current_state_ref.get());
+    std::lock_guard<std::mutex> lock_csd(current_stream_data_.lock_);
+
+    if(current_state != nullptr)
+        current_state->append_referenced_lists(list_ids);
+
+    current_stream_data_.stream_info_.append_referenced_lists(list_ids);
+}
+
 void Playback::Player::start_notification(ID::Stream stream_id,
                                           bool try_enqueue)
 {

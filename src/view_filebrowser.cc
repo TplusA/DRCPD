@@ -41,12 +41,49 @@ bool ViewFileBrowser::View::init()
     return true;
 }
 
+static std::chrono::milliseconds
+compute_keep_alive_timeout(guint64 expiry_ms, unsigned int percentage,
+                           std::chrono::milliseconds fallback)
+{
+    log_assert(percentage <= 100);
+
+    if(expiry_ms == 0)
+        return fallback;
+
+    /* refresh after a given percentage of the expiry time has passed */
+    expiry_ms *= percentage;
+    expiry_ms /= 100;
+
+    return std::chrono::milliseconds(expiry_ms);
+}
+
 bool ViewFileBrowser::View::late_init()
 {
     search_parameters_view_=
         dynamic_cast<ViewSearch::View *>(view_manager_->get_view_by_name(ViewNames::SEARCH_OPTIONS));
 
-    return search_parameters_view_ != nullptr;
+    if(search_parameters_view_ == nullptr)
+        return false;
+
+    GVariant *empty_list = g_variant_new("au", NULL);
+    guint64 expiry_ms;
+    GVariant *dummy = NULL;
+
+    if(!tdbus_lists_navigation_call_keep_alive_sync(file_list_.get_dbus_proxy(),
+                                                    empty_list, &expiry_ms,
+                                                    &dummy, NULL, NULL))
+    {
+        msg_error(0, LOG_ERR, "Failed querying gc expiry time");
+        expiry_ms = 0;
+    }
+    else
+        g_variant_unref(dummy);
+
+    return keep_lists_alive_timeout_.start(
+            compute_keep_alive_timeout(expiry_ms, 50,
+                                       std::chrono::seconds(30)),
+            std::bind(&ViewFileBrowser::View::keep_lists_alive_timer_callback,
+                      this));
 }
 
 void ViewFileBrowser::View::focus()
@@ -92,6 +129,43 @@ bool ViewFileBrowser::View::apply_search_parameters()
     stop_waiting_for_search_parameters(*search_parameters_view_);
 
     return retval;
+}
+
+std::chrono::milliseconds ViewFileBrowser::View::keep_lists_alive_timer_callback()
+{
+    std::vector<ID::List> list_ids;
+
+    if(current_list_id_.is_valid())
+        list_ids.push_back(current_list_id_);
+
+    if(player_is_mine_)
+        player_.append_referenced_lists(list_ids);
+
+    if(list_ids.empty())
+        return std::chrono::milliseconds::zero();
+
+    GVariantBuilder builder;
+    g_variant_builder_init(&builder, G_VARIANT_TYPE("au"));
+
+    for(const auto id : list_ids)
+        g_variant_builder_add(&builder, "u", id.get_raw_id());
+
+    GVariant *keep_list = g_variant_builder_end(&builder);
+    GVariant *unknown_ids_list = NULL;
+    guint64 expiry_ms;
+
+    if(!tdbus_lists_navigation_call_keep_alive_sync(file_list_.get_dbus_proxy(),
+                                                    keep_list, &expiry_ms,
+                                                    &unknown_ids_list,
+                                                    NULL, NULL))
+    {
+        msg_error(0, LOG_ERR, "Failed sending keep alive");
+        expiry_ms = 0;
+    }
+    else
+        g_variant_unref(unknown_ids_list);
+
+    return compute_keep_alive_timeout(expiry_ms, 80, std::chrono::minutes(5));
 }
 
 class WaitForParametersHelper
@@ -248,11 +322,12 @@ ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command,
                      navigation_.get_line_number_by_cursor(),
                      [this] (bool is_buffering)
                      {
+                         player_is_mine_ = is_buffering;
                          view_manager_->activate_view_by_name(is_buffering
                              ? ViewNames::PLAYER
                              : name_);
                      },
-                     [] () {});
+                     [this] () { player_is_mine_ = false; });
 
         return InputResult::OK;
 

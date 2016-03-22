@@ -983,3 +983,13 @@ bool Playback::State::list_invalidate(ID::List list_id, ID::List replacement_id)
 
     return false;
 }
+
+void Playback::State::append_referenced_lists(std::vector<ID::List> &list_ids)
+{
+    if(user_list_id_.is_valid())
+        list_ids.push_back(user_list_id_);
+
+    const ID::List temp(dbus_list_.get_list_id());
+    if(temp.is_valid())
+        list_ids.push_back(temp);
+}
