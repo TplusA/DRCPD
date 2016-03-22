@@ -1,3 +1,16 @@
+2016-03-22  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 1.14 released.
+
+	* User interface: Avoid jumping back to root menu in various
+	  situations, especially after having left the device alone for a
+	  while.
+
+	* DRCP: Fix screen ID of play view.
+
+	* Stability: Avoid hanging process at shutdown time. Fixes long system
+	  shutdown time and system update process.
+
 2016-03-15  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 1.13 released.
