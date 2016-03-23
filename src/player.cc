@@ -37,10 +37,12 @@ void Playback::Player::start()
 
 void Playback::Player::shutdown()
 {
-    auto lock(message_queue_.lock());
+    {
+        auto lock(message_queue_.lock());
 
-    requests_.shutdown_request_ = true;
-    message_queue_.wake_up();
+        requests_.shutdown_request_ = true;
+        message_queue_.wake_up();
+    }
 
     stream_enqueuer_.join();
 }
