@@ -185,22 +185,6 @@ static const std::string mk_alt_track_name(const PlayInfo::MetaData &meta_data,
     return std::string("NO NAME", max_length);
 }
 
-bool ViewPlay::View::is_busy() const
-{
-    switch(player_.get_assumed_stream_state__unlocked())
-    {
-      case PlayInfo::Data::STREAM_BUFFERING:
-        return true;
-
-      case PlayInfo::Data::STREAM_STOPPED:
-      case PlayInfo::Data::STREAM_PLAYING:
-      case PlayInfo::Data::STREAM_PAUSED:
-        break;
-    }
-
-    return false;
-}
-
 static const std::string &get_bitrate(const PlayInfo::MetaData &md)
 {
     if(!md.values_[PlayInfo::MetaData::BITRATE].empty())

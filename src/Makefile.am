@@ -33,7 +33,7 @@ drcpd_SOURCES = \
     ui_parameters.hh search_parameters.hh \
     playinfo.hh idtypes.hh stream_id.h stream_id.hh \
     player.hh playbackmode.hh playbackmode_state.hh \
-    playback_abort_enqueue.hh \
+    playback_abort_enqueue.hh busy.hh \
     $(DBUS_IFACES)/de_tahifi_lists_errors.hh \
     $(DBUS_IFACES)/de_tahifi_lists_errors.h \
     $(DBUS_IFACES)/de_tahifi_lists_item_kinds.hh \
@@ -56,7 +56,8 @@ noinst_LTLIBRARIES = \
     liblist.la \
     libdbus_handlers.la \
     libdrcpd_dbus_client.la \
-    libstreaminfo.la
+    libstreaminfo.la \
+    libbusystate.la
 
 drcpd_LDADD = $(noinst_LTLIBRARIES) $(DRCPD_DEPENDENCIES_LIBS)
 
@@ -103,6 +104,10 @@ libdbus_handlers_la_CXXFLAGS = $(AM_CXXFLAGS)
 libstreaminfo_la_SOURCES = streaminfo.hh streaminfo.cc
 libstreaminfo_la_CFLAGS = $(AM_CFLAGS)
 libstreaminfo_la_CXXFLAGS = $(AM_CXXFLAGS)
+
+libbusystate_la_SOURCES = busy.hh busy.cc
+libbusystate_la_CFLAGS = $(AM_CFLAGS)
+libbusystate_la_CXXFLAGS = $(AM_CXXFLAGS)
 
 nodist_libdrcpd_dbus_client_la_SOURCES = \
     dcpd_dbus.c dcpd_dbus.h \

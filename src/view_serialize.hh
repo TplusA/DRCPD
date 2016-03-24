@@ -22,6 +22,7 @@
 #include <ostream>
 
 #include "dcp_transaction_queue.hh"
+#include "busy.hh"
 #include "i18n.h"
 #include "xmlescape.hh"
 
@@ -107,11 +108,6 @@ class ViewSerializeBase
     }
 
   protected:
-    virtual bool is_busy() const
-    {
-        return false;
-    }
-
     /*!
      * Start writing XML data, opens view or update tag and some generic tags.
      *
@@ -128,7 +124,7 @@ class ViewSerializeBase
         os << "<" << (data.is_full_serialize_ ? "view" : "update") << " id=\""
            << drcp_view_id_ << "\">";
 
-        os << "<value id=\"busy\">" << (is_busy() ? '1' : '0') << "</value>";
+        os << "<value id=\"busy\">" << (Busy::is_busy() ? '1' : '0') << "</value>";
 
         if(data.is_full_serialize_)
         {

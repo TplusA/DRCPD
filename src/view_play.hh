@@ -85,8 +85,6 @@ class View: public ViewIface, public ViewSerializeBase
     void serialize(DCP::Queue &queue, std::ostream *debug_os) override;
 
   private:
-    bool is_busy() const override;
-
     /*!
      * Generate XML document from current state.
      */
