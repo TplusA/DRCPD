@@ -55,7 +55,6 @@ bool Playback::Player::try_take(State &playback_state,
     std::unique_lock<std::mutex> lock_csd(current_stream_data_.lock_);
 
     current_stream_data_.stream_info_.clear();
-    current_stream_data_.waiting_for_start_notification_ = true;
 
     lock_csd.unlock();
     buffering_callback(true);
@@ -70,8 +69,6 @@ bool Playback::Player::try_take(State &playback_state,
                                          line, buffering_callback)));
         return true;
     }
-
-    current_stream_data_.waiting_for_start_notification_ = false;
 
     lock_csd.unlock();
     buffering_callback(false);
@@ -110,14 +107,14 @@ void Playback::Player::do_take(LockWithStopRequest &lockstop,
 
     lockstop.lock();
 
-    current_stream_data_.waiting_for_start_notification_ =
-        current_state->enqueue_next(current_stream_data_.stream_info_,
-                                    true, lockstop);
+    current_stream_data_.track_info_.set_buffering();
 
-    if(current_stream_data_.waiting_for_start_notification_)
-        current_stream_data_.track_info_.set_buffering();
-    else
+    if(!current_state->enqueue_next(current_stream_data_.stream_info_,
+                                    true, lockstop))
+    {
+        current_stream_data_.track_info_.set_stopped();
         buffering_callback(false);
+    }
 }
 
 void Playback::Player::release(bool active_stop_command,
@@ -154,8 +151,6 @@ void Playback::Player::do_release(LockWithStopRequest &lockstop,
     log_assert(requests_.release_player_.is_requested());
 
     lockstop.lock();
-
-    current_stream_data_.waiting_for_start_notification_ = false;
 
     if(is_active_mode())
     {
@@ -199,7 +194,6 @@ void Playback::Player::start_notification(ID::Stream stream_id,
     log_assert(stream_id.is_valid());
 
     std::lock_guard<std::mutex> lock_csd(current_stream_data_.lock_);
-    current_stream_data_.waiting_for_start_notification_ = false;
 
     auto maybe_our_stream(ID::OurStream::make_from_generic_id(stream_id));
 
@@ -251,16 +245,16 @@ void Playback::Player::do_start_notification(LockWithStopRequest &lockstop,
 
     lockstop.lock();
 
+    bool enqueued_anything;
+
     if(!current_state->set_skip_mode_forward(current_stream_data_.stream_info_,
                                              current_stream_data_.stream_id_,
                                              lockstop, false,
-                                             current_stream_data_.waiting_for_start_notification_) &&
-       try_enqueue &&
-       !current_stream_data_.waiting_for_start_notification_)
+                                             enqueued_anything) &&
+       try_enqueue && !enqueued_anything)
     {
-        current_stream_data_.waiting_for_start_notification_ =
-            current_state->enqueue_next(current_stream_data_.stream_info_,
-                                        false, lockstop);
+        current_state->enqueue_next(current_stream_data_.stream_info_,
+                                    false, lockstop);
     }
 }
 
@@ -282,8 +276,6 @@ void Playback::Player::stop_notification()
     current_stream_data_.track_info_.set_stopped();
 
     incoming_meta_data_.clear(false);
-
-    current_stream_data_.waiting_for_start_notification_ = false;
 
     if(current_state != nullptr)
         current_state->revert();
@@ -385,7 +377,7 @@ void Playback::Player::skip_to_previous(std::chrono::milliseconds rewind_thresho
 
     std::lock_guard<std::mutex> lock_csd(current_stream_data_.lock_);
 
-    if(current_stream_data_.waiting_for_start_notification_)
+    if(get_assumed_stream_state__unlocked() == PlayInfo::Data::STREAM_BUFFERING)
         return;
 
     if(!current_stream_data_.stream_id_.get().is_valid())
@@ -399,7 +391,7 @@ void Playback::Player::skip_to_previous(std::chrono::milliseconds rewind_thresho
     if(allow_restart_stream &&
        current_stream_data_.track_info_.stream_position_ >= rewind_threshold)
     {
-        current_stream_data_.waiting_for_start_notification_ = restart_stream();
+        restart_stream();
         return;
     }
 
@@ -422,14 +414,15 @@ void Playback::Player::do_skip_to_previous(LockWithStopRequest &lockstop,
 
     lockstop.lock();
 
+    bool enqueued_anything;
+
     if(!current_state->set_skip_mode_reverse(current_stream_data_.stream_info_,
                                              current_stream_data_.stream_id_,
                                              lockstop, true,
-                                             current_stream_data_.waiting_for_start_notification_) &&
-       allow_restart_stream &&
-       !current_stream_data_.waiting_for_start_notification_)
+                                             enqueued_anything) &&
+       allow_restart_stream && !enqueued_anything)
     {
-        current_stream_data_.waiting_for_start_notification_ = restart_stream();
+        restart_stream();
     }
 }
 
@@ -452,7 +445,7 @@ bool Playback::Player::try_fast_skip()
 {
     std::lock_guard<std::mutex> lock_csd(current_stream_data_.lock_);
 
-    if(current_stream_data_.waiting_for_start_notification_)
+    if(get_assumed_stream_state__unlocked() == PlayInfo::Data::STREAM_BUFFERING)
         return true;
 
     if(!current_stream_data_.stream_id_.get().is_valid())
@@ -469,8 +462,7 @@ bool Playback::Player::try_fast_skip()
         return false;
     }
 
-    current_stream_data_.waiting_for_start_notification_ =
-        do_skip_to_next__unlocked();
+    do_skip_to_next__unlocked();
 
     return true;
 }

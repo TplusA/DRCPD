@@ -358,14 +358,11 @@ class Player: public PlayerIface, public MetaDataStoreIface
     {
         std::mutex lock_;
 
-        bool waiting_for_start_notification_;
-
         ID::OurStream stream_id_;
         StreamInfo stream_info_;
         PlayInfo::Data track_info_;
 
         explicit CurrentStreamData():
-            waiting_for_start_notification_(false),
             stream_id_(ID::OurStream::make_invalid()),
             track_info_(PlayInfo::Data::STREAM_STOPPED)
         {}
