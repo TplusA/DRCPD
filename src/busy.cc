@@ -50,30 +50,30 @@ class GlobalBusyState
 
     void set_callback(const std::function<void(bool)> &callback)
     {
-        std::lock_guard<std::mutex> lock(lock_);
+        std::unique_lock<std::mutex> lock(lock_);
 
         notify_busy_state_changed_ = callback;
 
         last_notified_busy_state_ = !is_busy__uncached();
-        notify_if_necessary();
+        notify_if_necessary(lock);
     }
 
     void set(uint32_t mask)
     {
-        std::lock_guard<std::mutex> lock(lock_);
+        std::unique_lock<std::mutex> lock(lock_);
 
         busy_flags_ |= mask;
 
-        notify_if_necessary();
+        notify_if_necessary(lock);
     }
 
     void clear(uint32_t mask)
     {
-        std::lock_guard<std::mutex> lock(lock_);
+        std::unique_lock<std::mutex> lock(lock_);
 
         busy_flags_ &= ~mask;
 
-        notify_if_necessary();
+        notify_if_necessary(lock);
     }
 
     bool has_busy_state_changed()
@@ -93,7 +93,19 @@ class GlobalBusyState
     }
 
   private:
-    void notify_if_necessary()
+    /*!
+     * Call callback if busy state has changed with respect to last call.
+     *
+     * \param lock
+     *     Object lock wrapper, assumed in locked state.
+     *
+     * \note
+     *     This function may or may not unlock the passed \p lock object.
+     *     Because the caller will not be able to tell the state of the lock
+     *     (without explicitly checking it), no object data may be accessed
+     *     after calling this function.
+     */
+    void notify_if_necessary(std::unique_lock<std::mutex> &lock)
     {
         if(!has_busy_state_changed(last_notified_busy_state_))
             return;
@@ -101,7 +113,10 @@ class GlobalBusyState
         last_notified_busy_state_ = !last_notified_busy_state_;
 
         if(notify_busy_state_changed_ != nullptr)
+        {
+            lock.unlock();
             notify_busy_state_changed_(last_notified_busy_state_);
+        }
     }
 
     bool has_busy_state_changed(bool previous) const
