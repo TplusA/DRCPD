@@ -24,6 +24,8 @@
 #include <chrono>
 #include <functional>
 
+#include "busy.hh"
+
 /*!
  * \addtogroup view_play_playinfo Data for player view
  * \ingroup view_play
@@ -116,18 +118,21 @@ class Data
 
     void set_buffering()
     {
+        Busy::set(Busy::Source::BUFFERING_STREAM);
         assumed_stream_state_ = STREAM_BUFFERING;
         meta_data_.clear(false);
     }
 
     void set_playing()
     {
+        Busy::clear(Busy::Source::BUFFERING_STREAM);
         assumed_stream_state_ = STREAM_PLAYING;
         meta_data_.clear(false);
     }
 
     void set_stopped()
     {
+        Busy::clear(Busy::Source::BUFFERING_STREAM);
         assumed_stream_state_ = STREAM_STOPPED;
         meta_data_.clear(false);
         stream_position_ = std::chrono::milliseconds(-1);

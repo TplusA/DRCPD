@@ -132,6 +132,8 @@ static ID::List get_parent_link_id(const List::DBusList &file_list,
                                    unsigned int &item_id)
     throw(List::DBusListException)
 {
+    Busy::set(Busy::Source::ENTERING_DIRECTORY);
+
     guint list_id;
 
     if(!tdbus_lists_navigation_call_get_parent_link_sync(file_list.get_dbus_proxy(),
@@ -139,10 +141,14 @@ static ID::List get_parent_link_id(const List::DBusList &file_list,
                                                          &list_id, &item_id,
                                                          NULL, NULL))
     {
+        Busy::clear(Busy::Source::ENTERING_DIRECTORY);
+
         msg_info("Failed obtaining parent for list %u", current_list_id.get_raw_id());
 
         throw List::DBusListException(ListError::Code::INTERNAL, true);
     }
+
+    Busy::clear(Busy::Source::ENTERING_DIRECTORY);
 
     if(list_id != 0)
         return ID::List(list_id);

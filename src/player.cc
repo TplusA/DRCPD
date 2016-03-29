@@ -24,6 +24,7 @@
 #include "playbackmode_state.hh"
 #include "streamplayer_dbus.h"
 #include "dbus_iface_deep.h"
+#include "busy.hh"
 
 static inline void expected_active_mode_bug(const char *what)
 {
@@ -57,6 +58,7 @@ bool Playback::Player::try_take(State &playback_state,
     current_stream_data_.stream_info_.clear();
 
     lock_csd.unlock();
+    Busy::set(Busy::Source::WAITING_FOR_PLAYER);
     buffering_callback(true);
     lock_csd.lock();
 
@@ -71,6 +73,7 @@ bool Playback::Player::try_take(State &playback_state,
     }
 
     lock_csd.unlock();
+    Busy::clear(Busy::Source::WAITING_FOR_PLAYER);
     buffering_callback(false);
 
     return false;
@@ -95,6 +98,8 @@ void Playback::Player::do_take(LockWithStopRequest &lockstop,
                                IsBufferingCallback buffering_callback)
 {
     log_assert(expected_playback_state != nullptr);
+
+    Busy::clear(Busy::Source::WAITING_FOR_PLAYER);
 
     if(requests_.release_player_.is_requested())
         return;

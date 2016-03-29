@@ -31,6 +31,7 @@
 #include "streaminfo.hh"
 #include "playinfo.hh"
 #include "playback_abort_enqueue.hh"
+#include "busy.hh"
 #include "messages.h"
 
 namespace List { class DBusList; }
@@ -482,8 +483,17 @@ class Player: public PlayerIface, public MetaDataStoreIface
             is_unlocked_ = false;
         }
 
-        bool enqueue_start() override { return is_enqueuing_flag_.exchange(true); }
-        bool enqueue_stop() override { return is_enqueuing_flag_.exchange(false); }
+        bool enqueue_start() override
+        {
+            Busy::set(Busy::Source::FILLING_PLAYER_QUEUE);
+            return is_enqueuing_flag_.exchange(true);
+        }
+
+        bool enqueue_stop() override
+        {
+            Busy::clear(Busy::Source::FILLING_PLAYER_QUEUE);
+            return is_enqueuing_flag_.exchange(false);
+        }
     };
 
     /*!

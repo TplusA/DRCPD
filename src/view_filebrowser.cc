@@ -26,6 +26,7 @@
 #include "view_manager.hh"
 #include "view_names.hh"
 #include "player.hh"
+#include "busy.hh"
 #include "xmlescape.hh"
 #include "messages.h"
 
@@ -566,12 +567,16 @@ static ID::List go_to_root_directory(List::DBusList &file_list,
 
 bool ViewFileBrowser::View::point_to_root_directory()
 {
+    Busy::set(Busy::Source::ENTERING_DIRECTORY);
+
+    bool retval = false;
+
     try
     {
         current_list_id_ =
             go_to_root_directory(file_list_, item_flags_, navigation_);
 
-        return true;
+        retval = true;
     }
     catch(const List::DBusListException &e)
     {
@@ -580,27 +585,37 @@ bool ViewFileBrowser::View::point_to_root_directory()
             current_list_id_ = ID::List();
     }
 
-    return false;
+    Busy::clear(Busy::Source::ENTERING_DIRECTORY);
+
+    return retval;
 }
 
 bool ViewFileBrowser::View::point_to_child_directory(const SearchParameters *search_parameters)
 {
+    Busy::set(Busy::Source::ENTERING_DIRECTORY);
+
     try
     {
         ID::List list_id =
             get_child_item_id(file_list_, current_list_id_, navigation_ ,
                               search_parameters);
 
-        if(!list_id.is_valid())
-            return false;
+        const bool retval = list_id.is_valid();
 
-        enter_list_at(file_list_, item_flags_, navigation_, list_id, 0);
-        current_list_id_ = list_id;
+        if(retval)
+        {
+            enter_list_at(file_list_, item_flags_, navigation_, list_id, 0);
+            current_list_id_ = list_id;
+        }
 
-        return true;
+        Busy::clear(Busy::Source::ENTERING_DIRECTORY);
+
+        return retval;
     }
     catch(const List::DBusListException &e)
     {
+        Busy::clear(Busy::Source::ENTERING_DIRECTORY);
+
         if(e.is_dbus_error())
         {
             /* probably just a temporary problem */
