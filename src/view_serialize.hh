@@ -46,7 +46,7 @@ class ViewSerializeBase
     ViewSerializeBase(const ViewSerializeBase &) = delete;
     ViewSerializeBase &operator=(const ViewSerializeBase &) = delete;
 
-    /*
+    /*!
      * Common ctor for all serializable views.
      *
      * \param on_screen_name
