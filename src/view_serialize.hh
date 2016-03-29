@@ -32,6 +32,19 @@ namespace ViewMock { class View; }
 class ViewSerializeBase
 {
   public:
+    /*!
+     * Reserved bits for globally used update flags handled by this base class.
+     *
+     * Views may safely ignore these bits, but they may also rely them if
+     * needed.
+     */
+    static constexpr const uint32_t UPDATE_FLAGS_BASE_MASK = 7U << 29;
+
+    /*!
+     * Base update flag: busy flags.
+     */
+    static constexpr const uint32_t UPDATE_FLAGS_BASE_BUSY_FLAG = 1U << 31;
+
     const char *const on_screen_name_;
     const char *const drcp_view_id_;
     const uint8_t drcp_screen_id_;
@@ -105,6 +118,11 @@ class ViewSerializeBase
         return (write_xml_begin(os, data) &&
                 write_xml(os, data) &&
                 write_xml_end(os, data));
+    }
+
+    void add_base_update_flags(uint32_t flags)
+    {
+        update_flags_ |= (flags & UPDATE_FLAGS_BASE_MASK);
     }
 
   protected:

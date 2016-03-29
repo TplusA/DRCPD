@@ -186,6 +186,8 @@ class Manager: public VMIface
     void update_view_if_active(const ViewIface *view) const override;
     void hide_view_if_active(const ViewIface *view) override;
 
+    void busy_state_notification(bool is_busy);
+
   private:
     void activate_view(ViewIface *view);
     void handle_input_result(ViewIface::InputResult result, ViewIface &view);

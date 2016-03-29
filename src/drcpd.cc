@@ -35,6 +35,7 @@
 #include "player.hh"
 #include "dbus_iface.h"
 #include "dbus_handlers.hh"
+#include "busy.hh"
 #include "messages.h"
 #include "fdstreambuf.hh"
 #include "timeout.hh"
@@ -337,6 +338,43 @@ static int process_command_line(int argc, char *argv[],
     return 0;
 }
 
+gboolean do_call_in_main_context(gpointer user_data)
+{
+    auto *fn = static_cast<std::function<void()> *>(user_data);
+    log_assert(fn != nullptr);
+
+    try
+    {
+        (*fn)();
+    }
+    catch(...)
+    {
+        /* doesn't really matter, but don't mess up the GLib path */
+    }
+
+    delete fn;
+
+    return G_SOURCE_REMOVE;
+}
+
+/*!
+ * Call given function in main context.
+ *
+ * To avoid the grief of adding proper locking to all view implementations in
+ * order to make them thread-safe, we resort to asynchronous function calls via
+ * GLib mechanisms. The views may continue to assume they are being used in a
+ * single-threaded process.
+ */
+static void call_in_main_context(const std::function<void(bool)> &fn, bool arg)
+{
+    auto *fn_object = new std::function<void()>(std::bind(fn, arg));
+
+    if(fn_object != nullptr)
+        g_main_context_invoke(NULL, do_call_in_main_context, fn_object);
+    else
+        msg_out_of_memory("function object");
+}
+
 static void connect_everything(ViewManager::Manager &views,
                                Playback::Player &player,
                                DBusSignalData &dbus_data)
@@ -396,6 +434,12 @@ static void connect_everything(ViewManager::Manager &views,
         return;
 
     dbus_data.play_view_ = views.get_view_by_name(ViewNames::PLAYER);
+
+    Busy::init(std::bind(call_in_main_context,
+                         std::function<void(bool)>(
+                             std::bind(&ViewManager::Manager::busy_state_notification,
+                                       &views, std::placeholders::_1)),
+                         std::placeholders::_1));
 
     views.activate_view_by_name(ViewNames::BROWSER_UPNP);
 }

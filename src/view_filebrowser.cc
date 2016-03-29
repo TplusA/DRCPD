@@ -369,6 +369,12 @@ ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command,
 bool ViewFileBrowser::View::write_xml(std::ostream &os,
                                       const DCP::Queue::Data &data)
 {
+    if(!data.is_full_serialize_ &&
+       (data.view_update_flags_ & ~UPDATE_FLAGS_BASE_MASK) == 0)
+    {
+        return true;
+    }
+
     os << "<text id=\"cbid\">" << int(drcp_browse_id_) << "</text>";
 
     size_t displayed_line = 0;

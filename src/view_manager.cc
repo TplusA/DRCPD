@@ -359,3 +359,12 @@ void ViewManager::Manager::hide_view_if_active(const ViewIface *view)
     if(is_active_view(view))
         handle_input_result(ViewIface::InputResult::SHOULD_HIDE, *active_view_);
 }
+
+void ViewManager::Manager::busy_state_notification(bool is_busy)
+{
+    ViewSerializeBase *view = dynamic_cast<ViewSerializeBase *>(active_view_);
+    log_assert(view != nullptr);
+
+    view->add_base_update_flags(ViewSerializeBase::UPDATE_FLAGS_BASE_BUSY_FLAG);
+    view->update(dcp_transaction_queue_, debug_stream_);
+}
