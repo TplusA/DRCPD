@@ -222,7 +222,7 @@ bool ViewPlay::View::write_xml(std::ostream &os, const DCP::Queue::Data &data)
            << XmlEscape(md.values_[PlayInfo::MetaData::TITLE])
            << "</text>";
         os << "<text id=\"alttrack\">"
-           << XmlEscape(mk_alt_track_name(md, 20))
+           << XmlEscape(mk_alt_track_name(md, 32))
            << "</text>";
         os << "<text id=\"album\">"
            << XmlEscape(md.values_[PlayInfo::MetaData::ALBUM])
