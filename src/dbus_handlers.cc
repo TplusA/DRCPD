@@ -275,13 +275,15 @@ void dbussignal_splay_urlfifo(GDBusProxy *proxy, const gchar *sender_name,
 }
 
 static bool process_meta_data(Playback::MetaDataStoreIface &mds,
-                              GVariant *meta_data, bool is_update,
+                              GVariant *meta_data, bool is_locking_required,
+                              PlayInfo::MetaData::CopyMode copy_mode,
+                              bool put_extra_tags = false,
                               const std::string *fallback_title = NULL,
                               const char *url = NULL)
 {
     log_assert(meta_data != nullptr);
 
-    mds.meta_data_add_begin(is_update);
+    mds.meta_data_add_begin();
 
     GVariantIter iter;
     if(g_variant_iter_init(&iter, meta_data) > 0)
@@ -293,7 +295,7 @@ static bool process_meta_data(Playback::MetaDataStoreIface &mds,
             mds.meta_data_add(key, value);
     }
 
-    if(!is_update)
+    if(put_extra_tags)
     {
         if(fallback_title == NULL)
         {
@@ -312,9 +314,9 @@ static bool process_meta_data(Playback::MetaDataStoreIface &mds,
             mds.meta_data_add("x-drcpd-url", url);
     }
 
-    const bool ret = (is_update
-                      ? mds.meta_data_add_end__locked()
-                      : mds.meta_data_add_end__unlocked());
+    const bool ret = (is_locking_required
+                      ? mds.meta_data_add_end__locked(copy_mode)
+                      : mds.meta_data_add_end__unlocked(copy_mode));
 
     return ret;
 }
@@ -389,6 +391,7 @@ static void handle_now_playing(ID::Stream stream_id, const char *url_string,
                       stream_id.get_raw_id());
 
         (void)process_meta_data(data.mdstore_, meta_data, false,
+                                PlayInfo::MetaData::CopyMode::ALL, true,
                                 (info_item != nullptr) ? &info_item->alt_name_ : nullptr,
                                 url_string);
     }
@@ -437,7 +440,8 @@ void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
 
         GVariant *meta_data = g_variant_get_child_value(parameters, 0);
 
-        if(process_meta_data(data->mdstore_, meta_data, true))
+        if(process_meta_data(data->mdstore_, meta_data, true,
+                             PlayInfo::MetaData::CopyMode::NON_EMPTY))
             data->play_view_->notify_stream_meta_data_changed();
 
         g_variant_unref(meta_data);

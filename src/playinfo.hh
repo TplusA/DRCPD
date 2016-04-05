@@ -71,15 +71,22 @@ class MetaData
         METADATA_ID_LAST = INTERNAL_DRCPD_URL,
     };
 
+    enum class CopyMode
+    {
+        ALL,
+        NON_EMPTY,
+    };
+
     MetaData(const MetaData &) = delete;
-    MetaData &operator=(const MetaData &) = default;
+    MetaData &operator=(const MetaData &) = delete;
 
     explicit MetaData() {}
 
     std::array<std::string, METADATA_ID_LAST + 1> values_;
 
-    void clear(bool is_update);
+    void clear(bool keep_internals);
     void add(const char *key, const char *value, const Reformatters &reformat);
+    void copy_from(const MetaData &src, CopyMode mode);
 
     bool operator==(const MetaData &other) const;
 };

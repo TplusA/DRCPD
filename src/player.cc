@@ -505,9 +505,9 @@ void Playback::Player::do_skip_to_next(LockWithStopRequest &lockstop)
     do_skip_to_next__unlocked();
 }
 
-void Playback::Player::meta_data_add_begin(bool is_update)
+void Playback::Player::meta_data_add_begin()
 {
-    incoming_meta_data_.clear(is_update);
+    incoming_meta_data_.clear(true);
 }
 
 void Playback::Player::meta_data_add(const char *key, const char *value)
@@ -515,18 +515,18 @@ void Playback::Player::meta_data_add(const char *key, const char *value)
     incoming_meta_data_.add(key, value, meta_data_reformatters_);
 }
 
-bool Playback::Player::meta_data_add_end__locked()
+bool Playback::Player::meta_data_add_end__locked(PlayInfo::MetaData::CopyMode mode)
 {
     std::lock_guard<std::mutex> lock_csd(current_stream_data_.lock_);
-    return do_meta_data_add_end();
+    return do_meta_data_add_end(mode);
 }
 
-bool Playback::Player::meta_data_add_end__unlocked()
+bool Playback::Player::meta_data_add_end__unlocked(PlayInfo::MetaData::CopyMode mode)
 {
-    return do_meta_data_add_end();
+    return do_meta_data_add_end(mode);
 }
 
-bool Playback::Player::do_meta_data_add_end()
+bool Playback::Player::do_meta_data_add_end(PlayInfo::MetaData::CopyMode mode)
 {
     if(incoming_meta_data_ == current_stream_data_.track_info_.meta_data_)
     {
@@ -535,7 +535,8 @@ bool Playback::Player::do_meta_data_add_end()
     }
     else
     {
-        current_stream_data_.track_info_.meta_data_ = incoming_meta_data_;
+        current_stream_data_.track_info_.meta_data_.copy_from(incoming_meta_data_,
+                                                              mode);
         incoming_meta_data_.clear(true);
         return true;
     }

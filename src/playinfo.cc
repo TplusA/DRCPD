@@ -21,12 +21,13 @@
 #endif /* HAVE_CONFIG_H */
 
 #include <cstring>
+#include <algorithm>
 
 #include "playinfo.hh"
 
-void PlayInfo::MetaData::clear(bool is_update)
+void PlayInfo::MetaData::clear(bool keep_internals)
 {
-    const size_t last = is_update ? METADATA_ID_LAST_REGULAR : METADATA_ID_LAST;
+    const size_t last = keep_internals ? METADATA_ID_LAST_REGULAR : METADATA_ID_LAST;
 
     for(size_t i = 0; i <= last; ++i)
         values_[i].clear();
@@ -97,6 +98,31 @@ void PlayInfo::MetaData::add(const char *key, const char *value,
 
             return;
         }
+    }
+}
+
+void PlayInfo::MetaData::copy_from(const MetaData &src, CopyMode mode)
+{
+    switch(mode)
+    {
+      case CopyMode::ALL:
+        std::copy(src.values_.begin(), src.values_.end(), values_.begin());
+        break;
+
+      case CopyMode::NON_EMPTY:
+        {
+            auto dest(values_.begin());
+
+            for(auto &it : src.values_)
+            {
+                if(!it.empty())
+                    *dest = it;
+
+                ++dest;
+            }
+        }
+
+        break;
     }
 }
 

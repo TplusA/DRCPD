@@ -52,10 +52,10 @@ class MetaDataStoreIface
 
     virtual ~MetaDataStoreIface() {}
 
-    virtual void meta_data_add_begin(bool is_update) = 0;
+    virtual void meta_data_add_begin() = 0;
     virtual void meta_data_add(const char *key, const char *value) = 0;
-    virtual bool meta_data_add_end__locked() = 0;
-    virtual bool meta_data_add_end__unlocked() = 0;
+    virtual bool meta_data_add_end__locked(PlayInfo::MetaData::CopyMode mode) = 0;
+    virtual bool meta_data_add_end__unlocked(PlayInfo::MetaData::CopyMode mode) = 0;
 };
 
 /*!
@@ -633,13 +633,13 @@ class Player: public PlayerIface, public MetaDataStoreIface
     void skip_to_previous(std::chrono::milliseconds rewind_threshold) override;
     void skip_to_next() override;
 
-    void meta_data_add_begin(bool is_update) override;
+    void meta_data_add_begin() override;
     void meta_data_add(const char *key, const char *value) override;
-    bool meta_data_add_end__locked() override;
-    bool meta_data_add_end__unlocked() override;
+    bool meta_data_add_end__locked(PlayInfo::MetaData::CopyMode mode) override;
+    bool meta_data_add_end__unlocked(PlayInfo::MetaData::CopyMode mode) override;
 
   private:
-    bool do_meta_data_add_end();
+    bool do_meta_data_add_end(PlayInfo::MetaData::CopyMode mode);
     bool is_active_mode(const Playback::State *new_state = nullptr);
     bool is_different_active_mode(const Playback::State *new_state);
     void set_assumed_stream_state(PlayInfo::Data::StreamState state);
