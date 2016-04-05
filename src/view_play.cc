@@ -155,34 +155,17 @@ void ViewPlay::View::notify_stream_meta_data_changed()
     view_manager_->update_view_if_active(this);
 }
 
-static const std::string mk_alt_track_name(const PlayInfo::MetaData &meta_data,
-                                           size_t max_length)
+static const std::string &mk_alt_track_name(const PlayInfo::MetaData &meta_data)
 {
-    log_assert(max_length > 0);
+    if(!meta_data.values_[PlayInfo::MetaData::INTERNAL_DRCPD_TITLE].empty())
+        return meta_data.values_[PlayInfo::MetaData::INTERNAL_DRCPD_TITLE];
 
-    const std::string &alt_track =
-        (meta_data.values_[PlayInfo::MetaData::INTERNAL_DRCPD_TITLE].empty()
-         ? meta_data.values_[PlayInfo::MetaData::INTERNAL_DRCPD_URL]
-         : meta_data.values_[PlayInfo::MetaData::INTERNAL_DRCPD_TITLE]);
+    if(!meta_data.values_[PlayInfo::MetaData::INTERNAL_DRCPD_URL].empty())
+        return meta_data.values_[PlayInfo::MetaData::INTERNAL_DRCPD_URL];
 
-    if(!alt_track.empty())
-    {
-        const glong len = g_utf8_strlen(alt_track.c_str(), -1);
+    static const std::string no_name_fallback("(no data available)");
+    return no_name_fallback;
 
-        if(len > 0)
-        {
-            if(size_t(len) <= max_length)
-                return alt_track;
-
-            const gchar *const end = g_utf8_offset_to_pointer(alt_track.c_str(), max_length);
-            const ptrdiff_t num_of_bytes = end - alt_track.c_str();
-
-            if(num_of_bytes > 0)
-                return std::string(alt_track, 0, num_of_bytes);
-        }
-    }
-
-    return std::string("NO NAME", max_length);
 }
 
 static const std::string &get_bitrate(const PlayInfo::MetaData &md)
@@ -222,7 +205,7 @@ bool ViewPlay::View::write_xml(std::ostream &os, const DCP::Queue::Data &data)
            << XmlEscape(md.values_[PlayInfo::MetaData::TITLE])
            << "</text>";
         os << "<text id=\"alttrack\">"
-           << XmlEscape(mk_alt_track_name(md, 32))
+           << XmlEscape(mk_alt_track_name(md))
            << "</text>";
         os << "<text id=\"album\">"
            << XmlEscape(md.values_[PlayInfo::MetaData::ALBUM])
