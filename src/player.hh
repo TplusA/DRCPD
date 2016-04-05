@@ -171,8 +171,12 @@ class PlayerIface
     /*!
      * To be called when the stream player notifies that is has started
      * playing a new stream.
+     *
+     * \returns
+     *     True if partial, preloaded meta data were already set by this
+     *     function; false otherwise.
      */
-    virtual void start_notification(ID::Stream stream_id, bool try_enqueue) = 0;
+    virtual bool start_notification(ID::Stream stream_id, bool try_enqueue) = 0;
 
     /*!
      * To be called when the stream player notifies that it has stopped playing
@@ -615,7 +619,7 @@ class Player: public PlayerIface, public MetaDataStoreIface
 
     void append_referenced_lists(std::vector<ID::List> &list_ids) override;
 
-    void start_notification(ID::Stream stream_id, bool try_enqueue) override;
+    bool start_notification(ID::Stream stream_id, bool try_enqueue) override;
     void stop_notification() override;
     void pause_notification() override;
     bool track_times_notification(const std::chrono::milliseconds &position,

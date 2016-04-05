@@ -379,7 +379,8 @@ static void handle_now_playing(ID::Stream stream_id, const char *url_string,
         return;
     }
 
-    data.player_.start_notification(stream_id, !queue_is_full);
+    const bool have_preloaded_meta_data =
+        data.player_.start_notification(stream_id, !queue_is_full);
 
     {
         const auto info = data.player_.get_stream_info(stream_id);
@@ -390,11 +391,19 @@ static void handle_now_playing(ID::Stream stream_id, const char *url_string,
                       "No fallback title found for stream ID %u",
                       stream_id.get_raw_id());
 
+        const PlayInfo::MetaData::CopyMode copy_mode =
+            (have_preloaded_meta_data || info_item != nullptr)
+            ? PlayInfo::MetaData::CopyMode::NON_EMPTY
+            : PlayInfo::MetaData::CopyMode::ALL;
+
         (void)process_meta_data(data.mdstore_, meta_data, false,
-                                PlayInfo::MetaData::CopyMode::ALL, true,
+                                copy_mode, info_item == nullptr,
                                 (info_item != nullptr) ? &info_item->alt_name_ : nullptr,
                                 url_string);
     }
+
+    if(have_preloaded_meta_data)
+        data.play_view_->notify_stream_meta_data_changed();
 
     data.play_view_->notify_stream_start();
     data.mgr_.activate_view_by_name(ViewNames::PLAYER);

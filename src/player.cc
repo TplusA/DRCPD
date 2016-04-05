@@ -193,7 +193,7 @@ void Playback::Player::append_referenced_lists(std::vector<ID::List> &list_ids)
     current_stream_data_.stream_info_.append_referenced_lists(list_ids);
 }
 
-void Playback::Player::start_notification(ID::Stream stream_id,
+bool Playback::Player::start_notification(ID::Stream stream_id,
                                           bool try_enqueue)
 {
     log_assert(stream_id.is_valid());
@@ -201,6 +201,7 @@ void Playback::Player::start_notification(ID::Stream stream_id,
     std::lock_guard<std::mutex> lock_csd(current_stream_data_.lock_);
 
     auto maybe_our_stream(ID::OurStream::make_from_generic_id(stream_id));
+    const StreamInfoItem *stream_info_item = nullptr;
 
     if(current_stream_data_.stream_info_.lookup(maybe_our_stream) == nullptr)
     {
@@ -214,25 +215,46 @@ void Playback::Player::start_notification(ID::Stream stream_id,
             current_stream_data_.stream_info_.forget(current_stream_data_.stream_id_);
 
         current_stream_data_.stream_id_ = maybe_our_stream;
-
-        const StreamInfoItem *const info =
+        stream_info_item =
             current_stream_data_.stream_info_.lookup(current_stream_data_.stream_id_);
+    }
 
-        if(info != NULL &&
-           !tdbus_dcpd_playback_call_set_stream_info_sync(dbus_get_dcpd_playback_iface(),
+    /* this also clears the associated meta data */
+    current_stream_data_.track_info_.set_playing();
+
+    bool retval = false;
+
+    if(stream_info_item != NULL)
+    {
+        const PreloadedMetaData &preloaded(stream_info_item->preloaded_meta_data_);
+        PlayInfo::MetaData &md(current_stream_data_.track_info_.meta_data_);
+
+        if(preloaded.have_anything())
+        {
+            md.values_[PlayInfo::MetaData::ARTIST] = preloaded.artist_;
+            md.values_[PlayInfo::MetaData::ALBUM]  = preloaded.album_;
+            md.values_[PlayInfo::MetaData::TITLE]  = preloaded.title_;
+
+            retval = true;
+        }
+
+        md.values_[PlayInfo::MetaData::INTERNAL_DRCPD_TITLE] = stream_info_item->alt_name_;
+        md.values_[PlayInfo::MetaData::INTERNAL_DRCPD_URL]   = stream_info_item->url_;
+
+        if(!tdbus_dcpd_playback_call_set_stream_info_sync(dbus_get_dcpd_playback_iface(),
                                                           current_stream_data_.stream_id_.get().get_raw_id(),
-                                                          info->alt_name_.c_str(),
-                                                          info->url_.c_str(),
+                                                          stream_info_item->alt_name_.c_str(),
+                                                          stream_info_item->url_.c_str(),
                                                           NULL, NULL))
             msg_error(0, LOG_NOTICE, "Failed sending stream information to dcpd");
     }
-
-    current_stream_data_.track_info_.set_playing();
 
     if(is_active_mode())
         send_message(std::move(std::bind(&Player::do_start_notification, this,
                                          std::placeholders::_1,
                                          stream_id, try_enqueue)));
+
+    return retval;
 }
 
 void Playback::Player::do_start_notification(LockWithStopRequest &lockstop,
