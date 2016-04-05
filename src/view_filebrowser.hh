@@ -24,6 +24,7 @@
 #include "view.hh"
 #include "view_serialize.hh"
 #include "playbackmode_state.hh"
+#include "streaminfo.hh"
 #include "search_parameters.hh"
 #include "timeout.hh"
 #include "dbuslist.hh"
@@ -167,6 +168,7 @@ class FileItem: public List::TextItem
 {
   private:
     ListItemKind kind_;
+    PreloadedMetaData preloaded_meta_data_;
 
   public:
     FileItem(const FileItem &) = delete;
@@ -174,13 +176,19 @@ class FileItem: public List::TextItem
     explicit FileItem(FileItem &&) = default;
 
     explicit FileItem(const char *text, unsigned int flags,
-                      ListItemKind item_kind):
+                      ListItemKind item_kind, PreloadedMetaData &&meta_data):
         List::Item(flags),
         List::TextItem(text, true, flags),
-        kind_(item_kind)
+        kind_(item_kind),
+        preloaded_meta_data_(std::move(meta_data))
     {}
 
     ListItemKind get_kind() const { return kind_; }
+
+    const PreloadedMetaData &get_preloaded_meta_data() const
+    {
+        return preloaded_meta_data_;
+    }
 };
 
 };

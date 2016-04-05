@@ -63,7 +63,8 @@ void StreamInfo::clear()
     referenced_lists_.clear();
 }
 
-ID::OurStream StreamInfo::insert(const char *fallback_title,
+ID::OurStream StreamInfo::insert(const PreloadedMetaData &preloaded_meta_data,
+                                 const char *fallback_title,
                                  ID::List list_id, unsigned int line)
 {
     log_assert(fallback_title != nullptr);
@@ -81,7 +82,8 @@ ID::OurStream StreamInfo::insert(const char *fallback_title,
         ++next_free_id_;
 
         const auto result =
-            stream_names_.emplace(id, StreamInfoItem(fallback_title,
+            stream_names_.emplace(id, StreamInfoItem(preloaded_meta_data,
+                                                     fallback_title,
                                                      list_id, line));
 
         if(result.first != stream_names_.end() && result.second)

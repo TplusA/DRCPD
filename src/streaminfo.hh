@@ -31,9 +31,50 @@
  */
 /*!@{*/
 
+/*!
+ * Minimalist version of #PlayInfo::MetaData.
+ *
+ * This structure is going to be embedded into each list item, so it better be
+ * small. It represents the essential stream meta data in cases where the meta
+ * data is extracted from an external source, not from the stream itself.
+ *
+ * This is often the case with streams from TIDAL or Deezer played over
+ * Airable. In this setting, the streams frequently do not contain any useful
+ * meta data, but these data can be extracted from the Airable directory.
+ */
+class PreloadedMetaData
+{
+  public:
+    std::string artist_;
+    std::string album_;
+    std::string title_;
+
+    explicit PreloadedMetaData() {}
+
+    explicit PreloadedMetaData(const char *artist, const char *album,
+                               const char *title):
+        artist_(artist != nullptr ? artist : ""),
+        album_(album != nullptr ? album : ""),
+        title_(title != nullptr ? title : "")
+    {}
+
+    bool have_anything() const
+    {
+        return !artist_.empty() || !album_.empty() || !title_.empty();
+    }
+
+    void clear()
+    {
+        artist_.clear();
+        album_.clear();
+        title_.clear();
+    }
+};
+
 class StreamInfoItem
 {
   public:
+    PreloadedMetaData preloaded_meta_data_;
     const std::string alt_name_;
     std::string url_;
     const ID::List list_id_;
@@ -43,7 +84,8 @@ class StreamInfoItem
     StreamInfoItem(const StreamInfoItem &) = delete;
     StreamInfoItem &operator=(const StreamInfoItem &) = delete;
 
-    explicit StreamInfoItem(std::string &&alt_name,
+    explicit StreamInfoItem(const PreloadedMetaData &preloaded_meta_data,
+                            std::string &&alt_name,
                             ID::List list_id, unsigned int line):
         alt_name_(alt_name),
         list_id_(list_id),
@@ -86,7 +128,8 @@ class StreamInfo
     {}
 
     void clear();
-    ID::OurStream insert(const char *fallback_title,
+    ID::OurStream insert(const PreloadedMetaData &preloaded_meta_data,
+                         const char *fallback_title,
                          ID::List list_id, unsigned int line);
     void forget(ID::OurStream id);
     StreamInfoItem *lookup_for_update(ID::OurStream id);

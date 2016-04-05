@@ -33,7 +33,7 @@
 List::Item *ViewFileBrowser::construct_file_item(const char *name,
                                                  ListItemKind kind)
 {
-    return new FileItem(name, 0, kind);
+    return new FileItem(name, 0, kind, PreloadedMetaData());
 }
 
 bool ViewFileBrowser::View::init()

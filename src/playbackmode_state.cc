@@ -735,7 +735,7 @@ bool Playback::State::enqueue_next(StreamInfo &sinfo, bool skip_to_next,
             if(send_status == SendStatus::OK)
             {
                 const ID::OurStream fallback_title_id =
-                    sinfo.insert(item->get_text(),
+                    sinfo.insert(item->get_preloaded_meta_data(), item->get_text(),
                                  dbus_list_.get_list_id(), current_line);
                 StreamInfoItem *info_item = sinfo.lookup_for_update(fallback_title_id);
 

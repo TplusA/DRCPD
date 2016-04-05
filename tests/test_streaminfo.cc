@@ -39,6 +39,7 @@ namespace streaminfo_tests
 
 static MockMessages *mock_messages;
 
+static PreloadedMetaData *empty_preloaded;
 static StreamInfo *sinfo;
 static std::array<ID::List, StreamInfo::MAX_ENTRIES> referenced_lists;
 
@@ -48,6 +49,9 @@ void cut_setup()
     cppcut_assert_not_null(mock_messages);
     mock_messages->init();
     mock_messages_singleton = mock_messages;
+
+    empty_preloaded = new PreloadedMetaData();
+    cut_assert_not_null(empty_preloaded);
 
     sinfo = new StreamInfo;
     cut_assert_not_null(sinfo);
@@ -60,6 +64,9 @@ void cut_teardown()
 {
     delete sinfo;
     sinfo = nullptr;
+
+    delete empty_preloaded;
+    empty_preloaded = nullptr;
 
     mock_messages->check();
     mock_messages_singleton = nullptr;
@@ -76,7 +83,7 @@ void test_insert_lookup_forget_one_title()
     static constexpr const auto expected_id(ID::OurStream::make());
     ID::List expected_list(5);
 
-    const ID::OurStream id = sinfo->insert(expected_title.c_str(), expected_list, 10);
+    const ID::OurStream id = sinfo->insert(*empty_preloaded, expected_title.c_str(), expected_list, 10);
     cppcut_assert_equal(expected_id.get(), id.get());
     cppcut_assert_equal(size_t(1), sinfo->get_referenced_lists(referenced_lists));
 
@@ -100,7 +107,7 @@ static void insert_titles(const std::array<ID::OurStream, N> &expected_ids,
 {
     for(size_t i = 0; i < N; ++i)
     {
-        const auto id = sinfo->insert(expected_titles[i].c_str(), ID::List(8), i);
+        const auto id = sinfo->insert(*empty_preloaded, expected_titles[i].c_str(), ID::List(8), i);
         cppcut_assert_equal(expected_ids[i].get(), id.get());
     }
 }
@@ -250,10 +257,10 @@ void test_ids_are_not_reused()
 void test_maximum_number_of_entries_is_enforced()
 {
     for(size_t i = 0; i < StreamInfo::MAX_ENTRIES; ++i)
-        cut_assert_true(sinfo->insert("Testing", ID::List(23), 42).get().is_valid());
+        cut_assert_true(sinfo->insert(*empty_preloaded, "Testing", ID::List(23), 42).get().is_valid());
 
     mock_messages->expect_msg_error(0, LOG_CRIT, "BUG: Too many stream IDs");
-    cut_assert_false(sinfo->insert("Too many", ID::List(23), 43).get().is_valid());
+    cut_assert_false(sinfo->insert(*empty_preloaded, "Too many", ID::List(23), 43).get().is_valid());
 }
 
 /*!\test
@@ -280,12 +287,12 @@ void test_ids_are_not_reused_on_overflow()
         i <= STREAM_ID_COOKIE_MAX;
         ++i)
     {
-        const auto id = sinfo->insert("Dummy", ID::List(23), 42);
+        const auto id = sinfo->insert(*empty_preloaded, "Dummy", ID::List(23), 42);
         cppcut_assert_equal(stream_id_t(i), id.get().get_cookie());
         sinfo->forget(id);
     }
 
-    const auto id = sinfo->insert("Overflown", ID::List(23), 43);
+    const auto id = sinfo->insert(*empty_preloaded, "Overflown", ID::List(23), 43);
     cppcut_assert_equal(stream_id_t(expected_ids[expected_ids.size() - 1].get().get_cookie() + 1),
                         id.get().get_cookie());
 }
@@ -307,25 +314,25 @@ void test_referenced_list_ids_are_returned_uniquely()
 {
     std::vector<ID::OurStream> stream_ids;
 
-    stream_ids.push_back(sinfo->insert("Item 5 in list 5",  ID::List(5),  5));
+    stream_ids.push_back(sinfo->insert(*empty_preloaded, "Item 5 in list 5",  ID::List(5),  5));
     expect_referenced_lists(std::array<ID::List, 1>{ ID::List(5), });
 
-    stream_ids.push_back(sinfo->insert("Item 1 in list 3",  ID::List(3),  1));
+    stream_ids.push_back(sinfo->insert(*empty_preloaded, "Item 1 in list 3",  ID::List(3),  1));
     expect_referenced_lists(std::array<ID::List, 2>{ ID::List(3), ID::List(5), });
 
-    stream_ids.push_back(sinfo->insert("Item 2 in list 10", ID::List(10), 2));
+    stream_ids.push_back(sinfo->insert(*empty_preloaded, "Item 2 in list 10", ID::List(10), 2));
     expect_referenced_lists(std::array<ID::List, 3>{ ID::List(3), ID::List(5), ID::List(10), });
 
-    stream_ids.push_back(sinfo->insert("Item 7 in list 10", ID::List(10), 7));
+    stream_ids.push_back(sinfo->insert(*empty_preloaded, "Item 7 in list 10", ID::List(10), 7));
     expect_referenced_lists(std::array<ID::List, 3>{ ID::List(3), ID::List(5), ID::List(10), });
 
-    stream_ids.push_back(sinfo->insert("Item 6 in list 3",  ID::List(3),  6));
+    stream_ids.push_back(sinfo->insert(*empty_preloaded, "Item 6 in list 3",  ID::List(3),  6));
     expect_referenced_lists(std::array<ID::List, 3>{ ID::List(3), ID::List(5), ID::List(10), });
 
-    stream_ids.push_back(sinfo->insert("Item 3 in list 5",  ID::List(5),  3));
+    stream_ids.push_back(sinfo->insert(*empty_preloaded, "Item 3 in list 5",  ID::List(5),  3));
     expect_referenced_lists(std::array<ID::List, 3>{ ID::List(3), ID::List(5), ID::List(10), });
 
-    stream_ids.push_back(sinfo->insert("Item 4 in list 1",  ID::List(1),  4));
+    stream_ids.push_back(sinfo->insert(*empty_preloaded, "Item 4 in list 1",  ID::List(1),  4));
     expect_referenced_lists(std::array<ID::List, 4>{ ID::List(1), ID::List(3), ID::List(5), ID::List(10), });
 
     cppcut_assert_equal(size_t(7), stream_ids.size());
