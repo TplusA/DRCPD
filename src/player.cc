@@ -338,22 +338,26 @@ Playback::Player::get_times__unlocked() const
                current_stream_data_.track_info_.stream_duration_);
 }
 
-const std::string *Playback::Player::get_original_stream_name(ID::Stream id) const
+std::pair<const StreamInfoItem *, std::unique_lock<std::mutex>>
+Playback::Player::get_stream_info(ID::Stream id) const
 {
+    auto ret =
+        std::make_pair(static_cast<const StreamInfoItem *>(nullptr),
+                       std::move(std::unique_lock<std::mutex>(const_cast<Player *>(this)->current_stream_data_.lock_)));
+
     const auto our_id(ID::OurStream::make_from_generic_id(id));
 
     if(our_id.get().is_valid())
-        return get_original_stream_name(our_id);
-    else
-        return nullptr;
-}
+    {
+        ret.first = current_stream_data_.stream_info_.lookup(our_id);
 
-const std::string *Playback::Player::get_original_stream_name(ID::OurStream id) const
-{
-    std::lock_guard<std::mutex> lock_csd(const_cast<Player *>(this)->current_stream_data_.lock_);
+        if(ret.first != nullptr)
+            return ret;
+    }
 
-    const auto *const info = current_stream_data_.stream_info_.lookup(id);
-    return (info != nullptr) ? &info->alt_name_ : nullptr;
+    ret.second.unlock();
+
+    return ret;
 }
 
 static bool restart_stream()
@@ -511,10 +515,19 @@ void Playback::Player::meta_data_add(const char *key, const char *value)
     incoming_meta_data_.add(key, value, meta_data_reformatters_);
 }
 
-bool Playback::Player::meta_data_add_end()
+bool Playback::Player::meta_data_add_end__locked()
 {
     std::lock_guard<std::mutex> lock_csd(current_stream_data_.lock_);
+    return do_meta_data_add_end();
+}
 
+bool Playback::Player::meta_data_add_end__unlocked()
+{
+    return do_meta_data_add_end();
+}
+
+bool Playback::Player::do_meta_data_add_end()
+{
     if(incoming_meta_data_ == current_stream_data_.track_info_.meta_data_)
     {
         incoming_meta_data_.clear(true);

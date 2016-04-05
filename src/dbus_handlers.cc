@@ -312,7 +312,9 @@ static bool process_meta_data(Playback::MetaDataStoreIface &mds,
             mds.meta_data_add("x-drcpd-url", url);
     }
 
-    const bool ret = mds.meta_data_add_end();
+    const bool ret = (is_update
+                      ? mds.meta_data_add_end__locked()
+                      : mds.meta_data_add_end__unlocked());
 
     return ret;
 }
@@ -377,14 +379,19 @@ static void handle_now_playing(ID::Stream stream_id, const char *url_string,
 
     data.player_.start_notification(stream_id, !queue_is_full);
 
-    auto fallback_title = data.player_.get_original_stream_name(stream_id);
-    if(fallback_title == nullptr)
-        msg_error(EINVAL, LOG_ERR,
-                  "No fallback title found for stream ID %u",
-                  stream_id.get_raw_id());
+    {
+        const auto info = data.player_.get_stream_info(stream_id);
+        const StreamInfoItem *const &info_item = info.first;
 
-    (void)process_meta_data(data.mdstore_, meta_data, false,
-                            fallback_title, url_string);
+        if(info_item == nullptr)
+            msg_error(EINVAL, LOG_ERR,
+                      "No fallback title found for stream ID %u",
+                      stream_id.get_raw_id());
+
+        (void)process_meta_data(data.mdstore_, meta_data, false,
+                                (info_item != nullptr) ? &info_item->alt_name_ : nullptr,
+                                url_string);
+    }
 
     data.play_view_->notify_stream_start();
     data.mgr_.activate_view_by_name(ViewNames::PLAYER);

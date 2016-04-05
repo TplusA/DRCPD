@@ -54,7 +54,8 @@ class MetaDataStoreIface
 
     virtual void meta_data_add_begin(bool is_update) = 0;
     virtual void meta_data_add(const char *key, const char *value) = 0;
-    virtual bool meta_data_add_end() = 0;
+    virtual bool meta_data_add_end__locked() = 0;
+    virtual bool meta_data_add_end__unlocked() = 0;
 };
 
 /*!
@@ -212,11 +213,9 @@ class PlayerIface
     virtual std::pair<std::chrono::milliseconds, std::chrono::milliseconds> get_times() const = 0;
 
     /*!
-     * Return name of stream with given ID as it appeared in the list.
-     *
-     * Used as fallback in case no other meta information are available.
+     * Return information about stream with given ID.
      */
-    virtual const std::string *get_original_stream_name(ID::Stream id) const = 0;
+    virtual std::pair<const StreamInfoItem *, std::unique_lock<std::mutex>> get_stream_info(ID::Stream id) const = 0;
 
     /*!
      * Force skipping to previous track, if any.
@@ -629,20 +628,21 @@ class Player: public PlayerIface, public MetaDataStoreIface
     PlayInfo::Data::StreamState get_assumed_stream_state__unlocked() const;
     std::pair<std::chrono::milliseconds, std::chrono::milliseconds> get_times() const override;
     std::pair<std::chrono::milliseconds, std::chrono::milliseconds> get_times__unlocked() const;
-    const std::string *get_original_stream_name(ID::Stream id) const override;
+    std::pair<const StreamInfoItem *, std::unique_lock<std::mutex>> get_stream_info(ID::Stream id) const override;
 
     void skip_to_previous(std::chrono::milliseconds rewind_threshold) override;
     void skip_to_next() override;
 
     void meta_data_add_begin(bool is_update) override;
     void meta_data_add(const char *key, const char *value) override;
-    bool meta_data_add_end() override;
+    bool meta_data_add_end__locked() override;
+    bool meta_data_add_end__unlocked() override;
 
   private:
+    bool do_meta_data_add_end();
     bool is_active_mode(const Playback::State *new_state = nullptr);
     bool is_different_active_mode(const Playback::State *new_state);
     void set_assumed_stream_state(PlayInfo::Data::StreamState state);
-    const std::string *get_original_stream_name(ID::OurStream id) const;
 
     bool try_take(State &playback_state, const List::DBusList &file_list,
                   int line, IsBufferingCallback buffering_callback);
