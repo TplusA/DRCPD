@@ -52,7 +52,7 @@ List::Item *construct_file_item(const char *name, ListItemKind kind);
 class View: public ViewIface, public ViewSerializeBase
 {
   private:
-    static constexpr unsigned int assumed_streamplayer_fifo_size = 4;
+    static constexpr unsigned int assumed_streamplayer_fifo_size = 2;
 
     ID::List current_list_id_;
 
