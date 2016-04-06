@@ -20,6 +20,8 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
+#include <cstring>
+
 #include "view_filebrowser.hh"
 #include "view_filebrowser_utils.hh"
 #include "view_search.hh"
@@ -69,6 +71,49 @@ bool ViewFileBrowser::View::late_init()
     return sync_with_list_broker();
 }
 
+static uint32_t get_default_flags_for_context(const char *string_id)
+{
+    static constexpr const std::array<std::pair<const char *const, const uint32_t>, 3> ids =
+    {
+        std::make_pair("tidal",  List::ContextInfo::HAS_EXTERNAL_META_DATA),
+        std::make_pair("deezer", List::ContextInfo::HAS_EXTERNAL_META_DATA),
+        std::make_pair("qobuz",  List::ContextInfo::HAS_EXTERNAL_META_DATA),
+    };
+
+    for(const auto &id : ids)
+    {
+        if(strcmp(std::get<0>(id), string_id) == 0)
+            return std::get<1>(id);
+    }
+
+    return 0;
+}
+
+static void fill_context_map_from_variant(List::ContextMap &context_map,
+                                          GVariant *contexts, const char *self)
+{
+    context_map.clear();
+
+    GVariantIter iter;
+
+    if(g_variant_iter_init(&iter, contexts) <= 0)
+        return;
+
+    const gchar *id;
+    const gchar *desc;
+
+    while(g_variant_iter_next(&iter, "(&s&s)", &id, &desc))
+    {
+        if(context_map.append(id, desc, get_default_flags_for_context(id)) == List::ContextMap::INVALID_ID)
+            msg_error(0, LOG_NOTICE,
+                      "List context %s (\"%s\") cannot be used by %s browser",
+                      id, desc, self);
+        else
+            msg_info("Added list context %s (\"%s\") to %s browser",
+                     id, desc, self);
+    }
+}
+
 bool ViewFileBrowser::View::sync_with_list_broker(bool is_first_call)
 {
     GVariant *empty_list = g_variant_new("au", NULL);
@@ -79,11 +124,26 @@ bool ViewFileBrowser::View::sync_with_list_broker(bool is_first_call)
                                                     empty_list, &expiry_ms,
                                                     &dummy, NULL, NULL))
     {
-        msg_error(0, LOG_ERR, "Failed querying gc expiry time");
+        msg_error(0, LOG_ERR, "Failed querying gc expiry time (%s)", name_);
         expiry_ms = 0;
     }
     else
         g_variant_unref(dummy);
+
+    GVariant *out_contexts;
+
+    if(!tdbus_lists_navigation_call_get_list_contexts_sync(file_list_.get_dbus_proxy(),
+                                                           &out_contexts,
+                                                           NULL, NULL))
+    {
+        msg_error(0, LOG_ERR, "Failed querying list contexts (%s)", name_);
+        list_contexts_.clear();
+    }
+    else
+    {
+        fill_context_map_from_variant(list_contexts_, out_contexts, name_);
+        g_variant_unref(out_contexts);
+    }
 
     if(!is_first_call)
         keep_lists_alive_timeout_.stop();

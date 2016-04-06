@@ -31,11 +31,12 @@ drcpd_SOURCES = \
     view_config.hh view_filebrowser.hh view_filebrowser_utils.hh view_play.hh \
     view_search.hh \
     ui_parameters.hh search_parameters.hh \
-    playinfo.hh idtypes.hh stream_id.h stream_id.hh \
+    playinfo.hh idtypes.hh stream_id.h stream_id.hh context_map.hh \
     player.hh playbackmode.hh playbackmode_state.hh \
     playback_abort_enqueue.hh busy.hh \
     $(DBUS_IFACES)/de_tahifi_lists_errors.hh \
     $(DBUS_IFACES)/de_tahifi_lists_errors.h \
+    $(DBUS_IFACES)/de_tahifi_lists_context.h \
     $(DBUS_IFACES)/de_tahifi_lists_item_kinds.hh \
     $(DBUS_IFACES)/de_tahifi_lists_item_kinds.h
 

@@ -26,6 +26,7 @@
 #include "playbackmode_state.hh"
 #include "streaminfo.hh"
 #include "search_parameters.hh"
+#include "context_map.hh"
 #include "timeout.hh"
 #include "dbuslist.hh"
 #include "dbus_iface.h"
@@ -54,6 +55,8 @@ class View: public ViewIface, public ViewSerializeBase
 {
   private:
     static constexpr unsigned int assumed_streamplayer_fifo_size = 2;
+
+    List::ContextMap list_contexts_;
 
     ID::List current_list_id_;
 
