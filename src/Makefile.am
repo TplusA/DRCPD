@@ -21,7 +21,8 @@ ACLOCAL_AMFLAGS = -I ../m4
 bin_PROGRAMS = drcpd
 
 drcpd_SOURCES = \
-    drcpd.cc drcp_commands.hh i18n.h i18n.c messages.h messages.c \
+    drcpd.cc drcp_commands.hh i18n.h i18n.c \
+    messages.h messages.c messages_glib.h messages_glib.c \
     timeout.cc timeout.hh \
     os.c os.h named_pipe.c named_pipe.h fdstreambuf.hh \
     dbus_iface.c dbus_iface.h dbus_iface_deep.h dbus_handlers.hh \

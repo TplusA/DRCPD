@@ -37,6 +37,7 @@
 #include "dbus_handlers.hh"
 #include "busy.hh"
 #include "messages.h"
+#include "messages_glib.h"
 #include "fdstreambuf.hh"
 #include "timeout.hh"
 #include "os.h"
@@ -205,6 +206,7 @@ static int setup(const struct parameters *parameters,
                  GMainLoop **loop)
 {
     msg_enable_syslog(!parameters->run_in_foreground);
+    msg_enable_glib_message_redirection();
 
     if(!parameters->run_in_foreground)
         openlog("drcpd", LOG_PID, LOG_DAEMON);
