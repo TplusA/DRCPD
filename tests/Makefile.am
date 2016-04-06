@@ -40,6 +40,7 @@ LIBS += $(CPPCUTTER_LIBS)
 check_LTLIBRARIES = \
     test_list.la \
     test_listnav.la \
+    test_contextmap.la \
     test_dbus_handlers.la \
     test_view_manager.la \
     test_dcp_transaction.la \
@@ -55,6 +56,13 @@ test_listnav_la_SOURCES = test_listnav.cc
 test_listnav_la_LIBADD = $(top_builddir)/src/liblist.la
 test_listnav_la_CFLAGS = $(AM_CFLAGS)
 test_listnav_la_CXXFLAGS = $(AM_CXXFLAGS)
+
+test_contextmap_la_SOURCES = \
+    test_contextmap.cc mock_expectation.hh \
+    mock_messages.hh mock_messages.cc
+test_contextmap_la_LIBADD = $(top_builddir)/src/libcontextmap.la
+test_contextmap_la_CFLAGS = $(AM_CFLAGS)
+test_contextmap_la_CXXFLAGS = $(AM_CXXFLAGS)
 
 test_dbus_handlers_la_SOURCES = \
     test_dbus_handlers.cc mock_expectation.hh \

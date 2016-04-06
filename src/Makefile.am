@@ -54,6 +54,7 @@ noinst_LTLIBRARIES = \
     libplayback.la \
     libdcp_transaction.la \
     liblist.la \
+    libcontextmap.la \
     libdbus_handlers.la \
     libdrcpd_dbus_client.la \
     libstreaminfo.la \
@@ -108,6 +109,13 @@ libstreaminfo_la_CXXFLAGS = $(AM_CXXFLAGS)
 libbusystate_la_SOURCES = busy.hh busy.cc
 libbusystate_la_CFLAGS = $(AM_CFLAGS)
 libbusystate_la_CXXFLAGS = $(AM_CXXFLAGS)
+
+libcontextmap_la_SOURCES = \
+    context_map.cc context_map.hh \
+    messages.h \
+    $(DBUS_IFACES)/de_tahifi_lists_context.h
+libcontextmap_la_CFLAGS = $(AM_CFLAGS)
+libcontextmap_la_CXXFLAGS = $(AM_CXXFLAGS)
 
 nodist_libdrcpd_dbus_client_la_SOURCES = \
     dcpd_dbus.c dcpd_dbus.h \
