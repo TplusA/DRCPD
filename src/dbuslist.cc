@@ -168,18 +168,16 @@ static void fill_cache_list(List::RamList &items,
     if(g_variant_iter_init(&iter, dbus_data) <= 0)
         return;
 
-    gchar *name;
+    const gchar *name;
     uint8_t item_kind;
 
-    while(g_variant_iter_next(&iter, "(sy)", &name, &item_kind))
+    while(g_variant_iter_next(&iter, "(&sy)", &name, &item_kind))
     {
         if(replace_mode)
             items.replace(cache_list_index++,
                           new_item_fn(name, ListItemKind(item_kind)));
         else
             items.append(new_item_fn(name, ListItemKind(item_kind)));
-
-        g_free(name);
     }
 }
 
