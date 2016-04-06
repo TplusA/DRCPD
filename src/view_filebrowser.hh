@@ -114,6 +114,14 @@ class View: public ViewIface, public ViewSerializeBase
     void focus() override;
     void defocus() override;
 
+    /*!
+     * Query properties of associated list broker.
+     *
+     * Should be called by #ViewIface::late_init() and whenever the list broker
+     * has presumably been restarted.
+     */
+    bool sync_with_list_broker(bool is_first_call = false);
+
     InputResult input(DrcpCommand command,
                       std::unique_ptr<const UI::Parameters> parameters) override;
 

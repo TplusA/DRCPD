@@ -66,6 +66,11 @@ bool ViewFileBrowser::View::late_init()
     if(search_parameters_view_ == nullptr)
         return false;
 
+    return sync_with_list_broker();
+}
+
+bool ViewFileBrowser::View::sync_with_list_broker(bool is_first_call)
+{
     GVariant *empty_list = g_variant_new("au", NULL);
     guint64 expiry_ms;
     GVariant *dummy = NULL;
@@ -79,6 +84,9 @@ bool ViewFileBrowser::View::late_init()
     }
     else
         g_variant_unref(dummy);
+
+    if(!is_first_call)
+        keep_lists_alive_timeout_.stop();
 
     return keep_lists_alive_timeout_.start(
             compute_keep_alive_timeout(expiry_ms, 50,
