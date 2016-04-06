@@ -48,12 +48,16 @@ check_LTLIBRARIES = \
     test_streaminfo.la
 
 test_list_la_SOURCES = test_list.cc
-test_list_la_LIBADD = $(top_builddir)/src/liblist.la
+test_list_la_LIBADD = \
+    $(top_builddir)/src/liblist.la \
+    $(top_builddir)/src/libcontextmap.la
 test_list_la_CFLAGS = $(AM_CFLAGS)
 test_list_la_CXXFLAGS = $(AM_CXXFLAGS)
 
 test_listnav_la_SOURCES = test_listnav.cc
-test_listnav_la_LIBADD = $(top_builddir)/src/liblist.la
+test_listnav_la_LIBADD = \
+    $(top_builddir)/src/liblist.la \
+    $(top_builddir)/src/libcontextmap.la
 test_listnav_la_CFLAGS = $(AM_CFLAGS)
 test_listnav_la_CXXFLAGS = $(AM_CXXFLAGS)
 
@@ -71,6 +75,7 @@ test_dbus_handlers_la_SOURCES = \
 test_dbus_handlers_la_LIBADD = \
     $(top_builddir)/src/libviews.la \
     $(top_builddir)/src/liblist.la \
+    $(top_builddir)/src/libcontextmap.la \
     $(top_builddir)/src/libplayback.la \
     $(top_builddir)/src/libdbus_handlers.la
 test_dbus_handlers_la_CFLAGS = $(DRCPD_DEPENDENCIES_CFLAGS) $(AM_CFLAGS)
@@ -83,7 +88,8 @@ test_view_manager_la_SOURCES = \
 test_view_manager_la_LIBADD = \
     $(top_builddir)/src/libviews.la \
     $(top_builddir)/src/libdcp_transaction.la \
-    $(top_builddir)/src/liblist.la
+    $(top_builddir)/src/liblist.la \
+    $(top_builddir)/src/libcontextmap.la
 test_view_manager_la_CFLAGS = $(AM_CFLAGS)
 test_view_manager_la_CXXFLAGS = $(AM_CXXFLAGS)
 
@@ -97,7 +103,8 @@ test_playinfo_la_SOURCES = \
     mock_messages.hh mock_messages.cc
 test_playinfo_la_LIBADD = \
     $(top_builddir)/src/libviews.la \
-    $(top_builddir)/src/liblist.la
+    $(top_builddir)/src/liblist.la \
+    $(top_builddir)/src/libcontextmap.la
 test_playinfo_la_CFLAGS = $(AM_CFLAGS)
 test_playinfo_la_CXXFLAGS = $(AM_CXXFLAGS)
 

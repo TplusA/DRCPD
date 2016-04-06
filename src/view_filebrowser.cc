@@ -33,9 +33,15 @@
 #include "messages.h"
 
 List::Item *ViewFileBrowser::construct_file_item(const char *name,
-                                                 ListItemKind kind)
+                                                 ListItemKind kind,
+                                                 const char *const *names)
 {
-    return new FileItem(name, 0, kind, PreloadedMetaData());
+    if(names == nullptr)
+        return new FileItem(name, 0, kind,
+                            PreloadedMetaData());
+    else
+        return new FileItem(name, 0, kind,
+                            PreloadedMetaData(names[0], names[1], names[2]));
 }
 
 bool ViewFileBrowser::View::init()

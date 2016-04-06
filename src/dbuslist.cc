@@ -22,6 +22,8 @@
 
 #include "dbuslist.hh"
 #include "de_tahifi_lists_errors.hh"
+#include "de_tahifi_lists_context.h"
+#include "context_map.hh"
 #include "messages.h"
 
 constexpr const char *ListError::names_[];
@@ -121,9 +123,20 @@ bool List::DBusList::is_line_cached(unsigned int line) const
             line - window_.first_item_line_ < window_.items_.get_number_of_items());
 }
 
-static void fetch_window(tdbuslistsNavigation *proxy, ID::List list_id,
-                         unsigned int line, unsigned int count,
-                         GVariant **out_list)
+/*!
+ * Fetch a range of items from a list broker.
+ *
+ * \retval false Returned list is generic, simple flavor.
+ * \retval true  Returned list contains some meta data.
+ *
+ * \see
+ *     #tdbus_lists_navigation_call_get_range_sync(),
+ *     #tdbus_lists_navigation_call_get_range_with_meta_data_sync()
+ */
+static bool fetch_window(tdbuslistsNavigation *proxy,
+                         const List::ContextMap &list_contexts,
+                         ID::List list_id, unsigned int line,
+                         unsigned int count, GVariant **out_list)
     throw(List::DBusListException)
 {
     msg_info("Fetch %u lines of list %u, starting at %u",
@@ -131,11 +144,29 @@ static void fetch_window(tdbuslistsNavigation *proxy, ID::List list_id,
 
     guchar error_code;
     guint first_item;
+    gboolean success;
+    bool have_meta_data;
 
-    if(!tdbus_lists_navigation_call_get_range_sync(proxy,
-                                                   list_id.get_raw_id(), line, count,
-                                                   &error_code, &first_item,
-                                                   out_list, NULL, NULL))
+    const uint32_t list_flags(list_contexts[DBUS_LISTS_CONTEXT_GET(list_id.get_raw_id())].get_flags());
+
+    if((list_flags & List::ContextInfo::HAS_EXTERNAL_META_DATA) != 0)
+    {
+        success =
+            tdbus_lists_navigation_call_get_range_with_meta_data_sync(
+                proxy, list_id.get_raw_id(), line, count,
+                &error_code, &first_item, out_list, NULL, NULL);
+        have_meta_data = true;
+    }
+    else
+    {
+        success =
+            tdbus_lists_navigation_call_get_range_sync(
+                proxy, list_id.get_raw_id(), line, count,
+                &error_code, &first_item, out_list, NULL, NULL);
+        have_meta_data = false;
+    }
+
+    if(!success)
     {
         msg_error(0, LOG_NOTICE,
                   "Failed obtaining contents of list %u", list_id.get_raw_id());
@@ -156,12 +187,14 @@ static void fetch_window(tdbuslistsNavigation *proxy, ID::List list_id,
     }
 
     log_assert(g_variant_type_is_array(g_variant_get_type(*out_list)));
+
+    return have_meta_data;
 }
 
-static void fill_cache_list(List::RamList &items,
-                            List::DBusList::NewItemFn new_item_fn,
-                            unsigned int cache_list_index, bool replace_mode,
-                            GVariant *dbus_data)
+static void fill_cache_list_generic(List::RamList &items,
+                                    List::DBusList::NewItemFn new_item_fn,
+                                    unsigned int cache_list_index,
+                                    bool replace_mode, GVariant *dbus_data)
 {
     GVariantIter iter;
 
@@ -175,9 +208,45 @@ static void fill_cache_list(List::RamList &items,
     {
         if(replace_mode)
             items.replace(cache_list_index++,
-                          new_item_fn(name, ListItemKind(item_kind)));
+                          new_item_fn(name, ListItemKind(item_kind), nullptr));
         else
-            items.append(new_item_fn(name, ListItemKind(item_kind)));
+            items.append(new_item_fn(name, ListItemKind(item_kind), nullptr));
+    }
+}
+
+static void fill_cache_list_with_meta_data(List::RamList &items,
+                                           List::DBusList::NewItemFn new_item_fn,
+                                           unsigned int cache_list_index,
+                                           bool replace_mode,
+                                           GVariant *dbus_data)
+{
+    GVariantIter iter;
+
+    if(g_variant_iter_init(&iter, dbus_data) <= 0)
+        return;
+
+    const gchar *names[3];
+    uint8_t primary_name_index;
+    uint8_t item_kind;
+
+    while(g_variant_iter_next(&iter, "(&s&s&syy)",
+                              &names[0], &names[1], &names[2],
+                              &primary_name_index, &item_kind))
+    {
+        if(primary_name_index > sizeof(names) / sizeof(names[0]))
+        {
+            BUG("Got unexpected index of primary name (%u)",
+                primary_name_index);
+            primary_name_index = 0;
+        }
+
+        if(replace_mode)
+            items.replace(cache_list_index++,
+                          new_item_fn(names[primary_name_index],
+                                      ListItemKind(item_kind), names));
+        else
+            items.append(new_item_fn(names[primary_name_index],
+                                     ListItemKind(item_kind), names));
     }
 }
 
@@ -243,7 +312,9 @@ bool List::DBusList::scroll_to_line(unsigned int line)
 
     GVariant *out_list;
 
-    fetch_window(dbus_proxy_, window_.list_id_, fetch_head, gap, &out_list);
+    const bool have_meta_data =
+        fetch_window(dbus_proxy_, list_contexts_, window_.list_id_,
+                     fetch_head, gap, &out_list);
 
     log_assert(g_variant_n_children(out_list) == gap);
 
@@ -253,8 +324,14 @@ bool List::DBusList::scroll_to_line(unsigned int line)
         window_.items_.shift_up(gap);
 
     window_.first_item_line_ = new_first_line;
-    fill_cache_list(window_.items_, new_item_fn_, cache_list_replace_index,
-                    true, out_list);
+
+    if(have_meta_data)
+        fill_cache_list_with_meta_data(window_.items_, new_item_fn_,
+                                       cache_list_replace_index, true,
+                                       out_list);
+    else
+        fill_cache_list_generic(window_.items_, new_item_fn_,
+                                cache_list_replace_index, true, out_list);
 
     g_variant_unref(out_list);
 
@@ -272,12 +349,19 @@ void List::DBusList::fill_cache_from_scratch(unsigned int line)
 
     GVariant *out_list;
 
-    fetch_window(dbus_proxy_, window_.list_id_, window_.first_item_line_,
-                 number_of_prefetched_items_, &out_list);
+    const bool have_meta_data =
+        fetch_window(dbus_proxy_, list_contexts_, window_.list_id_,
+                     window_.first_item_line_,
+                     number_of_prefetched_items_, &out_list);
 
     log_assert(g_variant_n_children(out_list) <= number_of_prefetched_items_);
 
-    fill_cache_list(window_.items_, new_item_fn_, 0, false, out_list);
+    if(have_meta_data)
+        fill_cache_list_with_meta_data(window_.items_, new_item_fn_,
+                                       0, false, out_list);
+    else
+        fill_cache_list_generic(window_.items_, new_item_fn_,
+                                0, false, out_list);
 
     log_assert(g_variant_n_children(out_list) == window_.items_.get_number_of_items());
 

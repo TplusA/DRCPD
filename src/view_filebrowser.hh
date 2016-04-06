@@ -49,7 +49,8 @@ namespace Playback { class Player; }
 namespace ViewFileBrowser
 {
 
-List::Item *construct_file_item(const char *name, ListItemKind kind);
+List::Item *construct_file_item(const char *name, ListItemKind kind,
+                                const char *const *names);
 
 class View: public ViewIface, public ViewSerializeBase
 {
@@ -95,10 +96,10 @@ class View: public ViewIface, public ViewSerializeBase
         ViewSerializeBase(on_screen_name, "browse", 102U),
         current_list_id_(0),
         file_list_(dbus_get_lists_navigation_iface(listbroker_id),
-                   max_lines,
+                   list_contexts_, max_lines,
                    construct_file_item),
         traversal_list_(dbus_get_lists_navigation_iface(listbroker_id),
-                        assumed_streamplayer_fifo_size + 1,
+                        list_contexts_, assumed_streamplayer_fifo_size + 1,
                         construct_file_item),
         item_flags_(&file_list_),
         navigation_(max_lines, item_flags_),

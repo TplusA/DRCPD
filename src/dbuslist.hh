@@ -22,6 +22,7 @@
 #include "list.hh"
 #include "lists_dbus.h"
 #include "ramlist.hh"
+#include "context_map.hh"
 #include "messages.h"
 #include "dbuslist_exception.hh"
 #include "de_tahifi_lists_item_kinds.hh"
@@ -41,10 +42,19 @@ namespace List
 class DBusList: public ListIface
 {
   public:
-    typedef List::Item *(*const NewItemFn)(const char *name, ListItemKind kind);
+    typedef List::Item *(*const NewItemFn)(const char *name, ListItemKind kind,
+                                           const char *const *names);
 
   private:
     tdbuslistsNavigation *const dbus_proxy_;
+
+    /*!
+     * List contexts known by the list broker we are going to talk to.
+     *
+     * So that we can decide which D-Bus method to call when requesting a range
+     * of items from a list.
+     */
+    const List::ContextMap &list_contexts_;
 
     /*!
      * Window size.
@@ -95,9 +105,11 @@ class DBusList: public ListIface
     DBusList(const DBusList &) = delete;
     DBusList &operator=(const DBusList &) = delete;
 
-    explicit DBusList(tdbuslistsNavigation *nav_proxy, unsigned int prefetch,
-                      NewItemFn new_item_fn):
+    explicit DBusList(tdbuslistsNavigation *nav_proxy,
+                      const List::ContextMap &list_contexts,
+                      unsigned int prefetch, NewItemFn new_item_fn):
         dbus_proxy_(nav_proxy),
+        list_contexts_(list_contexts),
         number_of_prefetched_items_(prefetch),
         new_item_fn_(new_item_fn),
         number_of_items_(0)
