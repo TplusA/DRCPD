@@ -1,3 +1,18 @@
+2016-04-08  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 1.16 released.
+
+	* Playback: Use stream meta data preloaded from external sources where
+	  suspected to be available. Currently, this includes the TIDAL and
+	  Deezer sections of the Airable directory.
+
+	* Playback: Various other fixes concerning display of stream meta
+	  data.
+
+	* TA Control: Catch stream meta data for externally started streams
+	  and use them to generate DRC screen updates. Such streams usually
+	  originate from the smartphone app.
+
 2016-03-30  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 1.15 released.
