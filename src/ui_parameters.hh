@@ -56,6 +56,8 @@ class SpecificParameters: public Parameters
     T value_;
 
   public:
+    using value_type = T;
+
     SpecificParameters(const SpecificParameters &) = delete;
     SpecificParameters &operator=(const SpecificParameters &) = delete;
     SpecificParameters(SpecificParameters &&) = default;
