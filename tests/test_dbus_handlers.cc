@@ -27,6 +27,7 @@
 #include "de_tahifi_lists_errors.hh"
 #include "player.hh"
 #include "view_play.hh"
+#include "ui_parameters_predefined.hh"
 
 #include "mock_view_manager.hh"
 #include "mock_messages.hh"
@@ -220,8 +221,8 @@ static void check_speed_parameter(const UI::Parameters *expected_parameters,
 {
     check_speed_parameter_called = true;
 
-    const auto *expected = dynamic_cast<const UI::SpecificParameters<double> *>(expected_parameters);
-    const auto *actual = dynamic_cast<const UI::SpecificParameters<double> *>(actual_parameters.get());
+    const auto *expected = dynamic_cast<const UI::ParamsFWSpeed *>(expected_parameters);
+    const auto *actual = dynamic_cast<const UI::ParamsFWSpeed *>(actual_parameters.get());
 
     cppcut_assert_not_null(expected);
     cppcut_assert_not_null(actual);
@@ -238,7 +239,7 @@ void test_dcpd_playback_fast_wind_set_factor(void)
     DBusSignalData dbus_signal_data(mk_dbus_signal_data());
     mock_messages->expect_msg_info_formatted("de.tahifi.Dcpd.Playback signal from ':1.123': FastWindSetFactor");
 
-    const UI::SpecificParameters<double> speed_factor(6.2);
+    const UI::ParamsFWSpeed speed_factor(6.2);
     mock_view_manager->expect_input_with_callback(DrcpCommand::FAST_WIND_SET_SPEED,
                                                   &speed_factor,
                                                   check_speed_parameter);

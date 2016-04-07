@@ -25,6 +25,7 @@
 #include "view_play.hh"
 #include "view_manager.hh"
 #include "player.hh"
+#include "ui_parameters_predefined.hh"
 #include "dbus_iface_deep.h"
 #include "xmlescape.hh"
 #include "messages.h"
@@ -93,11 +94,10 @@ ViewIface::InputResult ViewPlay::View::input(DrcpCommand command,
       case DrcpCommand::FAST_WIND_SET_SPEED:
         {
             const auto speed =
-                UI::Parameters::downcast<const UI::SpecificParameters<double>>(parameters);
-            msg_info("PLAY VIEW: Set fast wind speed, parameters %p", speed.get());
+                UI::Parameters::downcast<const UI::ParamsFWSpeed>(parameters);
 
-            if(parameters != nullptr)
-                msg_info("Need to handle FastWindSetFactor %f", speed->get_specific());
+            if(speed != nullptr)
+                BUG("Not implemented: FastWindSetFactor %f", speed->get_specific());
         }
 
         break;

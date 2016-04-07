@@ -29,6 +29,7 @@
 #include "view_play.hh"
 #include "view_filebrowser.hh"
 #include "search_parameters.hh"
+#include "ui_parameters_predefined.hh"
 #include "player.hh"
 #include "messages.h"
 
@@ -80,7 +81,7 @@ void dbussignal_dcpd_playback(GDBusProxy *proxy, const gchar *sender_name,
     {
         check_parameter_assertions(parameters, 1);
 
-        auto speed = std::unique_ptr<UI::SpecificParameters<double>>(new UI::SpecificParameters<double>());
+        auto speed = std::unique_ptr<UI::ParamsFWSpeed>(new UI::ParamsFWSpeed());
         g_variant_get(parameters, "(d)", speed->get_pointer_to_raw_data());
 
         data->mgr_.input(DrcpCommand::FAST_WIND_SET_SPEED, std::move(speed));

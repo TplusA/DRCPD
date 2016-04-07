@@ -31,7 +31,7 @@ drcpd_SOURCES = \
     view_manager.hh xmlescape.hh \
     view_config.hh view_filebrowser.hh view_filebrowser_utils.hh view_play.hh \
     view_search.hh \
-    ui_parameters.hh search_parameters.hh \
+    ui_parameters.hh ui_parameters_predefined.hh search_parameters.hh \
     playinfo.hh idtypes.hh stream_id.h stream_id.hh context_map.hh \
     player.hh playbackmode.hh playbackmode_state.hh \
     playback_abort_enqueue.hh busy.hh \
@@ -79,7 +79,7 @@ libviews_la_SOURCES = \
     view_search.hh view_search.cc \
     view_manager.hh view_manager.cc \
     idtypes.hh stream_id.h stream_id.hh \
-    ui_parameters.hh search_parameters.hh \
+    ui_parameters.hh ui_parameters_predefined.hh search_parameters.hh \
     dbuslist.hh dbuslist_exception.hh \
     playbackmode.hh playbackmode_state.hh \
     playback_abort_enqueue.hh

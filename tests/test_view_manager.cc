@@ -25,6 +25,8 @@
 
 #include "view_manager.hh"
 #include "view_nop.hh"
+#include "ui_parameters_predefined.hh"
+
 #include "view_mock.hh"
 #include "mock_messages.hh"
 
@@ -674,7 +676,7 @@ void test_input_command_with_data(void)
     cut_assert_true(vm->add_view(&view));
 
     auto speed_factor =
-        std::unique_ptr<UI::SpecificParameters<double>>(new UI::SpecificParameters<double>(12.5));
+        std::unique_ptr<UI::ParamsFWSpeed>(new UI::ParamsFWSpeed(12.5));
     view.expect_input_with_callback(ViewIface::InputResult::OK,
                                     DrcpCommand::FAST_WIND_SET_SPEED,
                                     speed_factor.get(), check_equal_parameters);
