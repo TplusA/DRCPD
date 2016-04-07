@@ -102,6 +102,23 @@ ViewIface::InputResult ViewPlay::View::input(DrcpCommand command,
 
         break;
 
+      case DrcpCommand::X_TA_SET_STREAM_INFO:
+        {
+            const auto external_stream_info =
+                UI::Parameters::downcast<const UI::ParamsStreamInfo>(parameters);
+
+            msg_info("PLAY VIEW: Set external stream information %p", external_stream_info.get());
+
+            if(external_stream_info != nullptr)
+            {
+                const auto &info(external_stream_info->get_specific());
+                player_.set_external_stream_meta_data(std::get<0>(info), std::get<1>(info),
+                                                      std::get<2>(info), std::get<3>(info));
+            }
+        }
+
+        break;
+
       default:
         break;
     }

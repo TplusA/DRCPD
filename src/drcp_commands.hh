@@ -89,6 +89,7 @@ enum class DrcpCommand
     SEARCH                         = 0x9b,
     X_TA_SEARCH_PARAMETERS         = 0x9c,
     JUMP_TO_NEXT                   = 0x9d,
+    X_TA_SET_STREAM_INFO           = 0xa0,
     GOTO_INTERNET_RADIO            = 0xaa,
     GOTO_FAVORITES                 = 0xab,
     GOTO_HOME                      = 0xac,
