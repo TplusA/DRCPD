@@ -87,6 +87,7 @@ class StreamInfoItem
     explicit StreamInfoItem(const PreloadedMetaData &preloaded_meta_data,
                             std::string &&alt_name,
                             ID::List list_id, unsigned int line):
+        preloaded_meta_data_(preloaded_meta_data),
         alt_name_(alt_name),
         list_id_(list_id),
         line_(line)
