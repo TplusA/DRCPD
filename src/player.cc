@@ -200,21 +200,22 @@ bool Playback::Player::start_notification(ID::Stream stream_id,
 
     std::lock_guard<std::mutex> lock_csd(current_stream_data_.lock_);
 
-    auto maybe_our_stream(ID::OurStream::make_from_generic_id(stream_id));
     const StreamInfoItem *stream_info_item = nullptr;
 
-    if(current_stream_data_.stream_info_.lookup(maybe_our_stream) == nullptr)
+    if(current_stream_data_.stream_info_.lookup(stream_id) == nullptr)
     {
         msg_info("Got start notification for unknown stream ID %u",
                  stream_id.get_raw_id());
-        current_stream_data_.stream_id_ = ID::OurStream::make_invalid();
+        current_stream_data_.stream_id_ = ID::Stream::make_invalid();
     }
-    else if(maybe_our_stream.get() != current_stream_data_.stream_id_.get())
+    else if(stream_id != current_stream_data_.stream_id_)
     {
-        if(current_stream_data_.stream_id_.get().is_valid())
-            current_stream_data_.stream_info_.forget(current_stream_data_.stream_id_);
+        const auto maybe_our_stream(ID::OurStream::make_from_generic_id(current_stream_data_.stream_id_));
 
-        current_stream_data_.stream_id_ = maybe_our_stream;
+        if(maybe_our_stream.get().is_valid())
+            current_stream_data_.stream_info_.forget(maybe_our_stream);
+
+        current_stream_data_.stream_id_ = stream_id;
         stream_info_item =
             current_stream_data_.stream_info_.lookup(current_stream_data_.stream_id_);
     }
@@ -242,7 +243,7 @@ bool Playback::Player::start_notification(ID::Stream stream_id,
         md.values_[PlayInfo::MetaData::INTERNAL_DRCPD_URL]   = stream_info_item->url_;
 
         if(!tdbus_dcpd_playback_call_set_stream_info_sync(dbus_get_dcpd_playback_iface(),
-                                                          current_stream_data_.stream_id_.get().get_raw_id(),
+                                                          current_stream_data_.stream_id_.get_raw_id(),
                                                           stream_info_item->alt_name_.c_str(),
                                                           stream_info_item->url_.c_str(),
                                                           NULL, NULL))
@@ -273,16 +274,20 @@ void Playback::Player::do_start_notification(LockWithStopRequest &lockstop,
     lockstop.lock();
 
     bool enqueued_anything;
+    auto our_stream_id =
+        ID::OurStream::make_from_generic_id(current_stream_data_.stream_id_);
+    const bool can_enqueue_next =
+        (!current_state->set_skip_mode_forward(current_stream_data_.stream_info_,
+                                               our_stream_id,
+                                               lockstop, false,
+                                               enqueued_anything) &&
+         try_enqueue && !enqueued_anything);
 
-    if(!current_state->set_skip_mode_forward(current_stream_data_.stream_info_,
-                                             current_stream_data_.stream_id_,
-                                             lockstop, false,
-                                             enqueued_anything) &&
-       try_enqueue && !enqueued_anything)
-    {
+    current_stream_data_.stream_id_ = our_stream_id.get();
+
+    if(can_enqueue_next)
         current_state->enqueue_next(current_stream_data_.stream_info_,
                                     false, lockstop);
-    }
 }
 
 void Playback::Player::stop_notification()
@@ -298,7 +303,7 @@ void Playback::Player::stop_notification()
 
     std::lock_guard<std::mutex> lock_csd(current_stream_data_.lock_);
 
-    current_stream_data_.stream_id_ = ID::OurStream::make_invalid();
+    current_stream_data_.stream_id_ = ID::Stream::make_invalid();
     current_stream_data_.stream_info_.clear();
     current_stream_data_.track_info_.set_stopped();
 
@@ -367,17 +372,10 @@ Playback::Player::get_stream_info(ID::Stream id) const
         std::make_pair(static_cast<const StreamInfoItem *>(nullptr),
                        std::move(std::unique_lock<std::mutex>(const_cast<Player *>(this)->current_stream_data_.lock_)));
 
-    const auto our_id(ID::OurStream::make_from_generic_id(id));
+    ret.first = current_stream_data_.stream_info_.lookup(id);
 
-    if(our_id.get().is_valid())
-    {
-        ret.first = current_stream_data_.stream_info_.lookup(our_id);
-
-        if(ret.first != nullptr)
-            return ret;
-    }
-
-    ret.second.unlock();
+    if(ret.first == nullptr)
+        ret.second.unlock();
 
     return ret;
 }
@@ -411,9 +409,10 @@ void Playback::Player::skip_to_previous(std::chrono::milliseconds rewind_thresho
     if(get_assumed_stream_state__unlocked() == PlayInfo::Data::STREAM_BUFFERING)
         return;
 
-    if(!current_stream_data_.stream_id_.get().is_valid())
+    if(!ID::OurStream::compatible_with(current_stream_data_.stream_id_))
     {
-        BUG("Got skip back command for invalid stream ID");
+        BUG("Got skip back command for invalid stream ID %u",
+            current_stream_data_.stream_id_.get_raw_id());
         return;
     }
 
@@ -446,15 +445,19 @@ void Playback::Player::do_skip_to_previous(LockWithStopRequest &lockstop,
     lockstop.lock();
 
     bool enqueued_anything;
+    auto our_stream_id =
+        ID::OurStream::make_from_generic_id(current_stream_data_.stream_id_);
+    const bool can_restart_stream =
+        (!current_state->set_skip_mode_reverse(current_stream_data_.stream_info_,
+                                               our_stream_id,
+                                               lockstop, true,
+                                               enqueued_anything) &&
+         allow_restart_stream && !enqueued_anything);
 
-    if(!current_state->set_skip_mode_reverse(current_stream_data_.stream_info_,
-                                             current_stream_data_.stream_id_,
-                                             lockstop, true,
-                                             enqueued_anything) &&
-       allow_restart_stream && !enqueued_anything)
-    {
+    current_stream_data_.stream_id_ = our_stream_id.get();
+
+    if(can_restart_stream)
         restart_stream();
-    }
 }
 
 static bool do_skip_to_next__unlocked()
@@ -479,13 +482,16 @@ bool Playback::Player::try_fast_skip()
     if(get_assumed_stream_state__unlocked() == PlayInfo::Data::STREAM_BUFFERING)
         return true;
 
-    if(!current_stream_data_.stream_id_.get().is_valid())
+    const auto maybe_our_stream(ID::OurStream::make_from_generic_id(current_stream_data_.stream_id_));
+
+    if(!maybe_our_stream.get().is_valid())
     {
-        BUG("Got skip forward command for invalid stream ID");
+        BUG("Got skip forward command for invalid stream ID %u",
+            current_stream_data_.stream_id_.get_raw_id());
         return true;
     }
 
-    if(current_stream_data_.stream_info_.lookup(current_stream_data_.stream_id_) != nullptr &&
+    if(current_stream_data_.stream_info_.lookup_own(maybe_our_stream) != nullptr &&
        current_stream_data_.stream_info_.get_number_of_known_streams() < 2)
     {
         /* currently playing stream is ours and we have nothing queued, so we
@@ -562,6 +568,30 @@ bool Playback::Player::do_meta_data_add_end(PlayInfo::MetaData::CopyMode mode)
         incoming_meta_data_.clear(true);
         return true;
     }
+}
+
+void Playback::Player::set_external_stream_meta_data(ID::Stream stream_id,
+                                                     const std::string &artist,
+                                                     const std::string &album,
+                                                     const std::string &title)
+{
+    if(!stream_id.is_valid())
+    {
+        BUG("Got invalid external stream ID %u (rejected)",
+            stream_id.get_raw_id());
+        return;
+    }
+
+    if(ID::OurStream::compatible_with(stream_id))
+    {
+        BUG("Got external stream ID %u which looks like our own (rejected)",
+            stream_id.get_raw_id());
+        return;
+    }
+
+    std::lock_guard<std::mutex> lock_csd(current_stream_data_.lock_);
+    current_stream_data_.stream_info_.set_external_stream_meta_data(
+        stream_id, PreloadedMetaData(artist, album, title));
 }
 
 bool Playback::Player::is_active_mode(const Playback::State *new_state)

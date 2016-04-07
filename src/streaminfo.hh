@@ -58,6 +58,14 @@ class PreloadedMetaData
         title_(title != nullptr ? title : "")
     {}
 
+    explicit PreloadedMetaData(const std::string &artist,
+                               const std::string &album,
+                               const std::string &title):
+        artist_(artist),
+        album_(album),
+        title_(title)
+    {}
+
     bool have_anything() const
     {
         return !artist_.empty() || !album_.empty() || !title_.empty();
@@ -75,14 +83,15 @@ class StreamInfoItem
 {
   public:
     PreloadedMetaData preloaded_meta_data_;
-    const std::string alt_name_;
+    std::string alt_name_;
     std::string url_;
-    const ID::List list_id_;
-    const unsigned int line_;
+    ID::List list_id_;
+    unsigned int line_;
 
     StreamInfoItem(StreamInfoItem &&) = default;
     StreamInfoItem(const StreamInfoItem &) = delete;
     StreamInfoItem &operator=(const StreamInfoItem &) = delete;
+    StreamInfoItem &operator=(StreamInfoItem &&) = default;
 
     explicit StreamInfoItem(const PreloadedMetaData &preloaded_meta_data,
                             std::string &&alt_name,
@@ -102,11 +111,6 @@ class StreamInfo
   private:
     /*!
      * Map stream ID to stream information.
-     *
-     * \todo In this implemententation, we store stream information only for
-     *     streams sent by us. For streams not started by us, the external
-     *     applications that started the streams would have to tell us
-     *     something about them.
      */
     std::map<ID::OurStream, StreamInfoItem> stream_names_;
 
@@ -114,6 +118,16 @@ class StreamInfo
      * IDs assigned by this application.
      */
     ID::OurStream next_free_id_;
+
+    /*!
+     * ID of externally started stream, if any.
+     */
+    ID::Stream external_stream_id_;
+
+    /*!
+     * Meta data for externally started stream.
+     */
+    StreamInfoItem external_stream_data_;
 
     /*!
      * IDs of all referenced lists.
@@ -125,7 +139,9 @@ class StreamInfo
     StreamInfo &operator=(const StreamInfo &) = delete;
 
     explicit StreamInfo():
-        next_free_id_(ID::OurStream::make())
+        next_free_id_(ID::OurStream::make()),
+        external_stream_id_(ID::Stream::make_invalid()),
+        external_stream_data_(PreloadedMetaData(), "", ID::List(), 0)
     {}
 
     void clear();
@@ -135,15 +151,30 @@ class StreamInfo
     void forget(ID::OurStream id);
     StreamInfoItem *lookup_for_update(ID::OurStream id);
 
-    const StreamInfoItem *lookup(ID::OurStream id) const
+    const StreamInfoItem *lookup(ID::Stream id) const
+    {
+        const auto maybe_our_id(ID::OurStream::make_from_generic_id(id));
+
+        if(maybe_our_id.get().is_valid())
+            return lookup_own(maybe_our_id);
+        else
+            return lookup_external_data(id);
+    }
+
+    const StreamInfoItem *lookup_own(ID::OurStream id) const
     {
         return const_cast<StreamInfo *>(this)->lookup_for_update(id);
     }
+
+    const StreamInfoItem *lookup_external_data(ID::Stream id) const;
 
     size_t get_number_of_known_streams() const { return stream_names_.size(); }
 
     size_t get_referenced_lists(std::array<ID::List, MAX_ENTRIES> &list_ids) const;
     void append_referenced_lists(std::vector<ID::List> &list_ids) const;
+
+    void set_external_stream_meta_data(ID::Stream stream_id,
+                                       const PreloadedMetaData &preloaded_meta_data);
 };
 
 /*!@}*/

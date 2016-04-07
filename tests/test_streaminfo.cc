@@ -89,7 +89,7 @@ void test_insert_lookup_forget_one_title()
 
     cppcut_assert_equal(expected_list.get_raw_id(), referenced_lists[0].get_raw_id());
 
-    const StreamInfoItem *info = sinfo->lookup(expected_id);
+    const StreamInfoItem *info = sinfo->lookup_own(expected_id);
     cppcut_assert_not_null(info);
     cppcut_assert_equal(expected_title, info->alt_name_);
     cppcut_assert_equal(expected_list.get_raw_id(), info->list_id_.get_raw_id());
@@ -97,7 +97,7 @@ void test_insert_lookup_forget_one_title()
 
     sinfo->forget(expected_id);
 
-    cppcut_assert_null(sinfo->lookup(expected_id));
+    cppcut_assert_null(sinfo->lookup_own(expected_id));
     cppcut_assert_equal(size_t(0), sinfo->get_referenced_lists(referenced_lists));
 }
 
@@ -134,13 +134,13 @@ void test_insert_lookup_forget_multiple_titles()
 
     for(size_t i = 0; i < expected_ids.size(); ++i)
     {
-        const auto *info = sinfo->lookup(expected_ids[i]);
+        const auto *info = sinfo->lookup_own(expected_ids[i]);
         cppcut_assert_not_null(info);
         cppcut_assert_equal(expected_titles[i], info->alt_name_);
 
         sinfo->forget(expected_ids[i]);
 
-        cppcut_assert_null(sinfo->lookup(expected_ids[i]));
+        cppcut_assert_null(sinfo->lookup_own(expected_ids[i]));
 
         if(i < expected_ids.size() - 1)
         {
@@ -176,7 +176,7 @@ void test_forget_title_in_middle()
 
     sinfo->forget(expected_ids[2]);
 
-    const auto *info = sinfo->lookup(expected_ids[0]);
+    const auto *info = sinfo->lookup_own(expected_ids[0]);
     cppcut_assert_not_null(info);
     cppcut_assert_equal(expected_titles[0], info->alt_name_);
     cppcut_assert_equal(size_t(1), sinfo->get_referenced_lists(referenced_lists));
@@ -184,7 +184,7 @@ void test_forget_title_in_middle()
 
     sinfo->forget(expected_ids[0]);
 
-    info = sinfo->lookup(expected_ids[1]);
+    info = sinfo->lookup_own(expected_ids[1]);
     cppcut_assert_not_null(info);
     cppcut_assert_equal(expected_titles[1], info->alt_name_);
     cppcut_assert_equal(size_t(1), sinfo->get_referenced_lists(referenced_lists));
@@ -192,10 +192,10 @@ void test_forget_title_in_middle()
 
     sinfo->forget(expected_ids[1]);
 
-    info = sinfo->lookup(expected_ids[2]);
+    info = sinfo->lookup_own(expected_ids[2]);
     cppcut_assert_null(info);
 
-    info = sinfo->lookup(expected_ids[3]);
+    info = sinfo->lookup_own(expected_ids[3]);
     cppcut_assert_not_null(info);
     cppcut_assert_equal(expected_titles[3], info->alt_name_);
     cppcut_assert_equal(size_t(1), sinfo->get_referenced_lists(referenced_lists));
@@ -224,8 +224,8 @@ void test_all_information_are_lost_on_clear()
 
     sinfo->clear();
 
-    cppcut_assert_null(sinfo->lookup(expected_ids[0]));
-    cppcut_assert_null(sinfo->lookup(expected_ids[1]));
+    cppcut_assert_null(sinfo->lookup_own(expected_ids[0]));
+    cppcut_assert_null(sinfo->lookup_own(expected_ids[1]));
     cppcut_assert_equal(size_t(0), sinfo->get_referenced_lists(referenced_lists));
 }
 

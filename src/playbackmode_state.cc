@@ -431,7 +431,16 @@ static bool try_clear_url_fifo_for_set_skip_mode(const Playback::CurrentMode &mo
         for(size_t i = 0; i < g_variant_n_children(queued_ids_array); ++i)
         {
             GVariant *id_variant = g_variant_get_child_value(queued_ids_array, i);
-            log_assert(sinfo.lookup(ID::OurStream::make_from_generic_id(ID::Stream::make_from_raw_id(g_variant_get_uint16(id_variant)))) != nullptr);
+
+            const auto stream_id =
+                ID::Stream::make_from_raw_id(g_variant_get_uint16(id_variant));
+            const auto should_be_ours =
+                ID::OurStream::make_from_generic_id(stream_id);
+
+            if(sinfo.lookup_own(should_be_ours) == nullptr)
+                BUG("Stream %u is still queued in stream player, "
+                    "but does not belong to us", stream_id.get_raw_id());
+
             g_variant_unref(id_variant);
         }
 
@@ -467,10 +476,13 @@ bool Playback::State::set_skip_mode_reverse(StreamInfo &sinfo,
                                             bool skip_to_next,
                                             bool &enqueued_anything)
 {
+    enqueued_anything = false;
+
+    if(!current_stream_id.get().is_valid())
+        return false;
+
     {
         auto unlock(abort_enqueue.temporary_data_unlock());
-
-        enqueued_anything = false;
 
         if(is_reverse_traversal_)
         {
@@ -478,7 +490,7 @@ bool Playback::State::set_skip_mode_reverse(StreamInfo &sinfo,
             return true;
         }
 
-        const auto *const info = sinfo.lookup(current_stream_id);
+        const auto *const info = sinfo.lookup_own(current_stream_id);
 
         if(info == nullptr)
         {
@@ -522,10 +534,13 @@ bool Playback::State::set_skip_mode_forward(StreamInfo &sinfo,
                                             bool skip_to_next,
                                             bool &enqueued_anything)
 {
+    enqueued_anything = false;
+
+    if(!current_stream_id.get().is_valid())
+        return false;
+
     {
         auto unlock(abort_enqueue.temporary_data_unlock());
-
-        enqueued_anything = false;
 
         if(!is_reverse_traversal_)
         {
@@ -533,7 +548,7 @@ bool Playback::State::set_skip_mode_forward(StreamInfo &sinfo,
             return false;
         }
 
-        const auto *const info = sinfo.lookup(current_stream_id);
+        const auto *const info = sinfo.lookup_own(current_stream_id);
 
         if(info == nullptr)
         {

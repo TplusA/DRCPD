@@ -28,7 +28,7 @@
 static ID::List get_list_id_for_stream_id(const StreamInfo &sinfo,
                                           ID::OurStream stream_id)
 {
-    const auto item = sinfo.lookup(stream_id);
+    const auto item = sinfo.lookup_own(stream_id);
     return (item != nullptr) ? item->list_id_ : ID::List();
 }
 
@@ -112,6 +112,17 @@ StreamInfoItem *StreamInfo::lookup_for_update(ID::OurStream id)
     return (result != stream_names_.end()) ? &result->second : nullptr;
 }
 
+const StreamInfoItem *StreamInfo::lookup_external_data(ID::Stream id) const
+{
+    if(!id.is_valid())
+        return nullptr;
+
+    if(external_stream_id_ != id)
+        return nullptr;
+
+    return &external_stream_data_;
+}
+
 size_t StreamInfo::get_referenced_lists(std::array<ID::List, MAX_ENTRIES> &list_ids) const
 {
     if(referenced_lists_.empty())
@@ -131,4 +142,13 @@ void StreamInfo::append_referenced_lists(std::vector<ID::List> &list_ids) const
 {
     for(const auto &it : referenced_lists_)
         list_ids.push_back(it.first);
+}
+
+void StreamInfo::set_external_stream_meta_data(ID::Stream stream_id,
+                                               const PreloadedMetaData &preloaded_meta_data)
+{
+    log_assert(stream_id.is_valid());
+
+    external_stream_id_ = stream_id;
+    external_stream_data_ = StreamInfoItem(preloaded_meta_data, "", ID::List(), 0);
 }

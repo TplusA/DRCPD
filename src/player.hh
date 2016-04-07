@@ -362,12 +362,12 @@ class Player: public PlayerIface, public MetaDataStoreIface
     {
         std::mutex lock_;
 
-        ID::OurStream stream_id_;
+        ID::Stream stream_id_;
         StreamInfo stream_info_;
         PlayInfo::Data track_info_;
 
         explicit CurrentStreamData():
-            stream_id_(ID::OurStream::make_invalid()),
+            stream_id_(ID::Stream::make_invalid()),
             track_info_(PlayInfo::Data::STREAM_STOPPED)
         {}
     };
@@ -641,6 +641,11 @@ class Player: public PlayerIface, public MetaDataStoreIface
     void meta_data_add(const char *key, const char *value) override;
     bool meta_data_add_end__locked(PlayInfo::MetaData::CopyMode mode) override;
     bool meta_data_add_end__unlocked(PlayInfo::MetaData::CopyMode mode) override;
+
+    void set_external_stream_meta_data(ID::Stream stream_id,
+                                       const std::string &artist,
+                                       const std::string &album,
+                                       const std::string &title);
 
   private:
     bool do_meta_data_add_end(PlayInfo::MetaData::CopyMode mode);
