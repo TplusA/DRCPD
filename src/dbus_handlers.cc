@@ -92,20 +92,23 @@ void dbussignal_dcpd_playback(GDBusProxy *proxy, const gchar *sender_name,
         data->mgr_.input(DrcpCommand::SHUFFLE_MODE_TOGGLE);
     else if(strcmp(signal_name, "StreamInfo") == 0)
     {
-        check_parameter_assertions(parameters, 4);
+        check_parameter_assertions(parameters, 6);
 
         guint16 raw_stream_id;
         const char *artist = NULL;
         const char *album = NULL;
         const char *title = NULL;
+        const char *alttrack = NULL;
+        const char *url = NULL;
 
-        g_variant_get(parameters, "(q&s&s&s)", &raw_stream_id, &artist, &album, &title);
+        g_variant_get(parameters, "(q&s&s&s&s&s)",
+                      &raw_stream_id, &artist, &album, &title, &alttrack, &url);
 
         auto external_stream_info =
             std::unique_ptr<UI::ParamsStreamInfo>(
                 new UI::ParamsStreamInfo(UI::ParamsStreamInfo::value_type(
                     ID::Stream::make_from_raw_id(raw_stream_id),
-                    artist, album, title)));
+                    artist, album, title, alttrack, url)));
 
         data->mgr_.input(DrcpCommand::X_TA_SET_STREAM_INFO,
                          std::move(external_stream_info));

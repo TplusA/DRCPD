@@ -573,7 +573,9 @@ bool Playback::Player::do_meta_data_add_end(PlayInfo::MetaData::CopyMode mode)
 void Playback::Player::set_external_stream_meta_data(ID::Stream stream_id,
                                                      const std::string &artist,
                                                      const std::string &album,
-                                                     const std::string &title)
+                                                     const std::string &title,
+                                                     const std::string &alttrack,
+                                                     const std::string &url)
 {
     if(!stream_id.is_valid())
     {
@@ -591,7 +593,7 @@ void Playback::Player::set_external_stream_meta_data(ID::Stream stream_id,
 
     std::lock_guard<std::mutex> lock_csd(current_stream_data_.lock_);
     current_stream_data_.stream_info_.set_external_stream_meta_data(
-        stream_id, PreloadedMetaData(artist, album, title));
+        stream_id, PreloadedMetaData(artist, album, title), alttrack, url);
 }
 
 bool Playback::Player::is_active_mode(const Playback::State *new_state)

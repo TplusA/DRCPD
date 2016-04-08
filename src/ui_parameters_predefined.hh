@@ -29,7 +29,7 @@ namespace UI
 {
 
 using ParamsFWSpeed = SpecificParameters<double>;
-using ParamsStreamInfo = SpecificParameters<std::tuple<ID::Stream, const std::string, const std::string, const std::string>>;
+using ParamsStreamInfo = SpecificParameters<std::tuple<ID::Stream, const std::string, const std::string, const std::string, const std::string, const std::string>>;
 
 }
 

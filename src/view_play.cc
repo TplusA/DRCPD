@@ -113,7 +113,8 @@ ViewIface::InputResult ViewPlay::View::input(DrcpCommand command,
             {
                 const auto &info(external_stream_info->get_specific());
                 player_.set_external_stream_meta_data(std::get<0>(info), std::get<1>(info),
-                                                      std::get<2>(info), std::get<3>(info));
+                                                      std::get<2>(info), std::get<3>(info),
+                                                      std::get<4>(info), std::get<5>(info));
             }
         }
 

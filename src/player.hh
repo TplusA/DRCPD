@@ -645,7 +645,9 @@ class Player: public PlayerIface, public MetaDataStoreIface
     void set_external_stream_meta_data(ID::Stream stream_id,
                                        const std::string &artist,
                                        const std::string &album,
-                                       const std::string &title);
+                                       const std::string &title,
+                                       const std::string &alttrack,
+                                       const std::string &url);
 
   private:
     bool do_meta_data_add_end(PlayInfo::MetaData::CopyMode mode);

@@ -145,10 +145,15 @@ void StreamInfo::append_referenced_lists(std::vector<ID::List> &list_ids) const
 }
 
 void StreamInfo::set_external_stream_meta_data(ID::Stream stream_id,
-                                               const PreloadedMetaData &preloaded_meta_data)
+                                               const PreloadedMetaData &preloaded_meta_data,
+                                               const std::string &alttrack,
+                                               const std::string &url)
 {
     log_assert(stream_id.is_valid());
 
     external_stream_id_ = stream_id;
-    external_stream_data_ = StreamInfoItem(preloaded_meta_data, "", ID::List(), 0);
+    external_stream_data_ =
+        StreamInfoItem(preloaded_meta_data, std::string(alttrack),
+                       ID::List(), 0);
+    external_stream_data_.url_ = url;
 }

@@ -174,7 +174,9 @@ class StreamInfo
     void append_referenced_lists(std::vector<ID::List> &list_ids) const;
 
     void set_external_stream_meta_data(ID::Stream stream_id,
-                                       const PreloadedMetaData &preloaded_meta_data);
+                                       const PreloadedMetaData &preloaded_meta_data,
+                                       const std::string &alttrack,
+                                       const std::string &url);
 };
 
 /*!@}*/
