@@ -107,8 +107,6 @@ ViewIface::InputResult ViewPlay::View::input(DrcpCommand command,
             const auto external_stream_info =
                 UI::Parameters::downcast<const UI::ParamsStreamInfo>(parameters);
 
-            msg_info("PLAY VIEW: Set external stream information %p", external_stream_info.get());
-
             if(external_stream_info != nullptr)
             {
                 const auto &info(external_stream_info->get_specific());
