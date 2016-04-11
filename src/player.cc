@@ -334,13 +334,13 @@ bool Playback::Player::track_times_notification(const std::chrono::milliseconds 
 }
 
 std::pair<const PlayInfo::MetaData *, std::unique_lock<std::mutex>>
-Playback::Player::get_track_meta_data() const
+Playback::Player::get_track_meta_data__locked() const
 {
     return std::make_pair(&current_stream_data_.track_info_.meta_data_,
                           std::move(std::unique_lock<std::mutex>(const_cast<Player *>(this)->current_stream_data_.lock_)));
 }
 
-PlayInfo::Data::StreamState Playback::Player::get_assumed_stream_state() const
+PlayInfo::Data::StreamState Playback::Player::get_assumed_stream_state__locked() const
 {
     std::lock_guard<std::mutex> lock_csd(const_cast<Player *>(this)->current_stream_data_.lock_);
     return get_assumed_stream_state__unlocked();
@@ -351,7 +351,7 @@ PlayInfo::Data::StreamState Playback::Player::get_assumed_stream_state__unlocked
     return current_stream_data_.track_info_.assumed_stream_state_;
 }
 
-std::pair<std::chrono::milliseconds, std::chrono::milliseconds> Playback::Player::get_times() const
+std::pair<std::chrono::milliseconds, std::chrono::milliseconds> Playback::Player::get_times__locked() const
 {
     std::lock_guard<std::mutex> lock_csd(const_cast<Player *>(this)->current_stream_data_.lock_);
     return get_times__unlocked();
@@ -366,7 +366,7 @@ Playback::Player::get_times__unlocked() const
 }
 
 std::pair<const StreamInfoItem *, std::unique_lock<std::mutex>>
-Playback::Player::get_stream_info(ID::Stream id) const
+Playback::Player::get_stream_info__locked(ID::Stream id) const
 {
     auto ret =
         std::make_pair(static_cast<const StreamInfoItem *>(nullptr),

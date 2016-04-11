@@ -51,7 +51,7 @@ ViewIface::InputResult ViewPlay::View::input(DrcpCommand command,
     switch(command)
     {
       case DrcpCommand::PLAYBACK_START:
-        switch(player_.get_assumed_stream_state())
+        switch(player_.get_assumed_stream_state__locked())
         {
           case PlayInfo::Data::STREAM_BUFFERING:
           case PlayInfo::Data::STREAM_PLAYING:
@@ -200,7 +200,7 @@ static const std::string &get_bitrate(const PlayInfo::MetaData &md)
 
 bool ViewPlay::View::write_xml(std::ostream &os, const DCP::Queue::Data &data)
 {
-    const auto &md_with_lock = player_.get_track_meta_data();
+    const auto &md_with_lock = player_.get_track_meta_data__locked();
     const auto &md(*md_with_lock.first);
     const bool is_buffering =
         (player_.get_assumed_stream_state__unlocked() == PlayInfo::Data::STREAM_BUFFERING);
@@ -288,7 +288,7 @@ void ViewPlay::View::serialize(DCP::Queue &queue, std::ostream *debug_os)
 
     static_assert(sizeof(stream_state_string) / sizeof(stream_state_string[0]) == PlayInfo::Data::STREAM_STATE_LAST + 1, "Array has wrong size");
 
-    const auto &md_with_lock = player_.get_track_meta_data();
+    const auto &md_with_lock = player_.get_track_meta_data__locked();
     const auto &md(*md_with_lock.first);
 
     *debug_os << "URL: \""

@@ -204,22 +204,22 @@ class PlayerIface
      *     the moment.
      */
     virtual std::pair<const PlayInfo::MetaData *, std::unique_lock<std::mutex>>
-    get_track_meta_data() const = 0;
+    get_track_meta_data__locked() const = 0;
 
     /*!
      * Return current (assumed) stream playback state.
      */
-    virtual PlayInfo::Data::StreamState get_assumed_stream_state() const = 0;
+    virtual PlayInfo::Data::StreamState get_assumed_stream_state__locked() const = 0;
 
     /*!
      * Return current track's position and total duration (in this order).
      */
-    virtual std::pair<std::chrono::milliseconds, std::chrono::milliseconds> get_times() const = 0;
+    virtual std::pair<std::chrono::milliseconds, std::chrono::milliseconds> get_times__locked() const = 0;
 
     /*!
      * Return information about stream with given ID.
      */
-    virtual std::pair<const StreamInfoItem *, std::unique_lock<std::mutex>> get_stream_info(ID::Stream id) const = 0;
+    virtual std::pair<const StreamInfoItem *, std::unique_lock<std::mutex>> get_stream_info__locked(ID::Stream id) const = 0;
 
     /*!
      * Force skipping to previous track, if any.
@@ -626,13 +626,13 @@ class Player: public PlayerIface, public MetaDataStoreIface
                                   const std::chrono::milliseconds &duration) override;
 
     std::pair<const PlayInfo::MetaData *, std::unique_lock<std::mutex>>
-    get_track_meta_data() const override;
+    get_track_meta_data__locked() const override;
 
-    PlayInfo::Data::StreamState get_assumed_stream_state() const override;
+    PlayInfo::Data::StreamState get_assumed_stream_state__locked() const override;
     PlayInfo::Data::StreamState get_assumed_stream_state__unlocked() const;
-    std::pair<std::chrono::milliseconds, std::chrono::milliseconds> get_times() const override;
+    std::pair<std::chrono::milliseconds, std::chrono::milliseconds> get_times__locked() const override;
     std::pair<std::chrono::milliseconds, std::chrono::milliseconds> get_times__unlocked() const;
-    std::pair<const StreamInfoItem *, std::unique_lock<std::mutex>> get_stream_info(ID::Stream id) const override;
+    std::pair<const StreamInfoItem *, std::unique_lock<std::mutex>> get_stream_info__locked(ID::Stream id) const override;
 
     void skip_to_previous(std::chrono::milliseconds rewind_threshold) override;
     void skip_to_next() override;

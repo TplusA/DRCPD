@@ -407,7 +407,7 @@ static void handle_now_playing(ID::Stream stream_id, const char *url_string,
         data.player_.start_notification(stream_id, !queue_is_full);
 
     {
-        const auto info = data.player_.get_stream_info(stream_id);
+        const auto info = data.player_.get_stream_info__locked(stream_id);
         const StreamInfoItem *const &info_item = info.first;
 
         if(info_item == nullptr)
