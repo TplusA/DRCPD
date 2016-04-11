@@ -19,6 +19,7 @@
 #ifndef BUSY_HH
 #define BUSY_HH
 
+#include <functional>
 #include <inttypes.h>
 
 namespace Busy

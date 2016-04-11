@@ -53,7 +53,7 @@ bool Playback::Player::try_take(State &playback_state,
                                 IsBufferingCallback buffering_callback)
 {
     auto current_state_ref(controller_.update_and_ref(&playback_state));
-    std::unique_lock<std::mutex> lock_csd(current_stream_data_.lock_);
+    LoggedLock::UniqueLock lock_csd(current_stream_data_.lock_);
 
     current_stream_data_.stream_info_.clear();
 
@@ -185,7 +185,7 @@ void Playback::Player::append_referenced_lists(std::vector<ID::List> &list_ids)
 {
     auto current_state_ref(controller_.ref());
     auto current_state(current_state_ref.get());
-    std::lock_guard<std::mutex> lock_csd(current_stream_data_.lock_);
+    std::lock_guard<LoggedLock::Mutex> lock_csd(current_stream_data_.lock_);
 
     if(current_state != nullptr)
         current_state->append_referenced_lists(list_ids);
@@ -198,7 +198,7 @@ bool Playback::Player::start_notification(ID::Stream stream_id,
 {
     log_assert(stream_id.is_valid());
 
-    std::lock_guard<std::mutex> lock_csd(current_stream_data_.lock_);
+    std::lock_guard<LoggedLock::Mutex> lock_csd(current_stream_data_.lock_);
 
     const StreamInfoItem *stream_info_item = nullptr;
 
@@ -301,7 +301,7 @@ void Playback::Player::stop_notification()
     auto current_state_ref(controller_.ref());
     auto current_state(current_state_ref.get());
 
-    std::lock_guard<std::mutex> lock_csd(current_stream_data_.lock_);
+    std::lock_guard<LoggedLock::Mutex> lock_csd(current_stream_data_.lock_);
 
     current_stream_data_.stream_id_ = ID::Stream::make_invalid();
     current_stream_data_.stream_info_.clear();
@@ -321,7 +321,7 @@ void Playback::Player::pause_notification()
 bool Playback::Player::track_times_notification(const std::chrono::milliseconds &position,
                                                 const std::chrono::milliseconds &duration)
 {
-    std::lock_guard<std::mutex> lock_csd(current_stream_data_.lock_);
+    std::lock_guard<LoggedLock::Mutex> lock_csd(current_stream_data_.lock_);
 
     if(current_stream_data_.track_info_.stream_position_ == position &&
        current_stream_data_.track_info_.stream_duration_ == duration)
@@ -333,16 +333,16 @@ bool Playback::Player::track_times_notification(const std::chrono::milliseconds 
     return true;
 }
 
-std::pair<const PlayInfo::MetaData *, std::unique_lock<std::mutex>>
+std::pair<const PlayInfo::MetaData *, LoggedLock::UniqueLock>
 Playback::Player::get_track_meta_data__locked() const
 {
     return std::make_pair(&current_stream_data_.track_info_.meta_data_,
-                          std::move(std::unique_lock<std::mutex>(const_cast<Player *>(this)->current_stream_data_.lock_)));
+                          std::move(LoggedLock::UniqueLock(const_cast<Player *>(this)->current_stream_data_.lock_)));
 }
 
 PlayInfo::Data::StreamState Playback::Player::get_assumed_stream_state__locked() const
 {
-    std::lock_guard<std::mutex> lock_csd(const_cast<Player *>(this)->current_stream_data_.lock_);
+    std::lock_guard<LoggedLock::Mutex> lock_csd(const_cast<Player *>(this)->current_stream_data_.lock_);
     return get_assumed_stream_state__unlocked();
 }
 
@@ -353,7 +353,7 @@ PlayInfo::Data::StreamState Playback::Player::get_assumed_stream_state__unlocked
 
 std::pair<std::chrono::milliseconds, std::chrono::milliseconds> Playback::Player::get_times__locked() const
 {
-    std::lock_guard<std::mutex> lock_csd(const_cast<Player *>(this)->current_stream_data_.lock_);
+    std::lock_guard<LoggedLock::Mutex> lock_csd(const_cast<Player *>(this)->current_stream_data_.lock_);
     return get_times__unlocked();
 }
 
@@ -365,12 +365,12 @@ Playback::Player::get_times__unlocked() const
                current_stream_data_.track_info_.stream_duration_);
 }
 
-std::pair<const StreamInfoItem *, std::unique_lock<std::mutex>>
+std::pair<const StreamInfoItem *, LoggedLock::UniqueLock>
 Playback::Player::get_stream_info__locked(ID::Stream id) const
 {
     auto ret =
         std::make_pair(static_cast<const StreamInfoItem *>(nullptr),
-                       std::move(std::unique_lock<std::mutex>(const_cast<Player *>(this)->current_stream_data_.lock_)));
+                       std::move(LoggedLock::UniqueLock(const_cast<Player *>(this)->current_stream_data_.lock_)));
 
     ret.first = current_stream_data_.stream_info_.lookup(id);
 
@@ -404,7 +404,7 @@ void Playback::Player::skip_to_previous(std::chrono::milliseconds rewind_thresho
     message_queue_.drain(requests_.stop_enqueuing_,
                          requests_.shutdown_request_);
 
-    std::lock_guard<std::mutex> lock_csd(current_stream_data_.lock_);
+    std::lock_guard<LoggedLock::Mutex> lock_csd(current_stream_data_.lock_);
 
     if(get_assumed_stream_state__unlocked() == PlayInfo::Data::STREAM_BUFFERING)
         return;
@@ -477,7 +477,7 @@ static bool do_skip_to_next__unlocked()
 
 bool Playback::Player::try_fast_skip()
 {
-    std::lock_guard<std::mutex> lock_csd(current_stream_data_.lock_);
+    std::lock_guard<LoggedLock::Mutex> lock_csd(current_stream_data_.lock_);
 
     if(get_assumed_stream_state__unlocked() == PlayInfo::Data::STREAM_BUFFERING)
         return true;
@@ -545,7 +545,7 @@ void Playback::Player::meta_data_add(const char *key, const char *value)
 
 bool Playback::Player::meta_data_add_end__locked(PlayInfo::MetaData::CopyMode mode)
 {
-    std::lock_guard<std::mutex> lock_csd(current_stream_data_.lock_);
+    std::lock_guard<LoggedLock::Mutex> lock_csd(current_stream_data_.lock_);
     return do_meta_data_add_end(mode);
 }
 
@@ -591,7 +591,7 @@ void Playback::Player::set_external_stream_meta_data(ID::Stream stream_id,
         return;
     }
 
-    std::lock_guard<std::mutex> lock_csd(current_stream_data_.lock_);
+    std::lock_guard<LoggedLock::Mutex> lock_csd(current_stream_data_.lock_);
     current_stream_data_.stream_info_.set_external_stream_meta_data(
         stream_id, PreloadedMetaData(artist, album, title), alttrack, url);
 }
@@ -614,7 +614,7 @@ bool Playback::Player::is_different_active_mode(const Playback::State *new_state
 
 void Playback::Player::set_assumed_stream_state(PlayInfo::Data::StreamState state)
 {
-    std::lock_guard<std::mutex> lock_csd(current_stream_data_.lock_);
+    std::lock_guard<LoggedLock::Mutex> lock_csd(current_stream_data_.lock_);
     current_stream_data_.track_info_.assumed_stream_state_ = state;
 }
 

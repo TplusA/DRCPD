@@ -33,7 +33,7 @@ drcpd_SOURCES = \
     view_search.hh \
     ui_parameters.hh ui_parameters_predefined.hh search_parameters.hh \
     playinfo.hh idtypes.hh stream_id.h stream_id.hh context_map.hh \
-    player.hh playbackmode.hh playbackmode_state.hh \
+    player.hh playbackmode.hh playbackmode_state.hh logged_lock.hh \
     playback_abort_enqueue.hh busy.hh \
     $(DBUS_IFACES)/de_tahifi_lists_errors.hh \
     $(DBUS_IFACES)/de_tahifi_lists_errors.h \
@@ -81,14 +81,14 @@ libviews_la_SOURCES = \
     idtypes.hh stream_id.h stream_id.hh \
     ui_parameters.hh ui_parameters_predefined.hh search_parameters.hh \
     dbuslist.hh dbuslist_exception.hh \
-    playbackmode.hh playbackmode_state.hh \
+    playbackmode.hh playbackmode_state.hh logged_lock.hh \
     playback_abort_enqueue.hh
 libviews_la_CFLAGS = $(AM_CFLAGS)
 libviews_la_CXXFLAGS = $(AM_CXXFLAGS)
 
 libplayback_la_SOURCES = \
     player.cc player.hh \
-    idtypes.hh stream_id.h stream_id.hh \
+    idtypes.hh stream_id.h stream_id.hh logged_lock.hh \
     playbackmode.hh playbackmode_state.hh playbackmode_state.cc \
     playback_abort_enqueue.hh
 libplayback_la_CFLAGS = $(CRELAXEDWARNINGS)
@@ -108,7 +108,7 @@ libstreaminfo_la_SOURCES = streaminfo.hh streaminfo.cc
 libstreaminfo_la_CFLAGS = $(AM_CFLAGS)
 libstreaminfo_la_CXXFLAGS = $(AM_CXXFLAGS)
 
-libbusystate_la_SOURCES = busy.hh busy.cc
+libbusystate_la_SOURCES = busy.hh busy.cc logged_lock.hh
 libbusystate_la_CFLAGS = $(AM_CFLAGS)
 libbusystate_la_CXXFLAGS = $(AM_CXXFLAGS)
 

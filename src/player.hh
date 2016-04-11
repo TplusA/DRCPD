@@ -24,14 +24,13 @@
 #include <deque>
 #include <vector>
 #include <thread>
-#include <mutex>
-#include <condition_variable>
 #include <atomic>
 
 #include "streaminfo.hh"
 #include "playinfo.hh"
 #include "playback_abort_enqueue.hh"
 #include "busy.hh"
+#include "logged_lock.hh"
 #include "messages.h"
 
 namespace List { class DBusList; }
@@ -203,7 +202,7 @@ class PlayerIface
      *     Track meta data, or \c nullptr in case there is not track playing at
      *     the moment.
      */
-    virtual std::pair<const PlayInfo::MetaData *, std::unique_lock<std::mutex>>
+    virtual std::pair<const PlayInfo::MetaData *, LoggedLock::UniqueLock>
     get_track_meta_data__locked() const = 0;
 
     /*!
@@ -219,7 +218,7 @@ class PlayerIface
     /*!
      * Return information about stream with given ID.
      */
-    virtual std::pair<const StreamInfoItem *, std::unique_lock<std::mutex>> get_stream_info__locked(ID::Stream id) const = 0;
+    virtual std::pair<const StreamInfoItem *, LoggedLock::UniqueLock> get_stream_info__locked(ID::Stream id) const = 0;
 
     /*!
      * Force skipping to previous track, if any.
@@ -278,8 +277,8 @@ class Player: public PlayerIface, public MetaDataStoreIface
     class Controller
     {
       private:
-        std::mutex lock_;
-        std::condition_variable wait_for_last_unref_;
+        LoggedLock::Mutex lock_;
+        LoggedLock::ConditionVariable wait_for_last_unref_;
 
         /* avoid pulling the rug from under users of the #State object */
         std::atomic_uint refcount_;
@@ -297,7 +296,7 @@ class Player: public PlayerIface, public MetaDataStoreIface
             explicit RefCountWrapper(Controller &controller):
                 controller_(controller)
             {
-                std::lock_guard<std::mutex> lock(controller_.lock_);
+                std::lock_guard<LoggedLock::Mutex> lock(controller_.lock_);
 
                 if(controller_.current_state_ != nullptr)
                     ++controller_.refcount_;
@@ -313,7 +312,7 @@ class Player: public PlayerIface, public MetaDataStoreIface
 
             ~RefCountWrapper()
             {
-                std::lock_guard<std::mutex> lock(controller_.lock_);
+                std::lock_guard<LoggedLock::Mutex> lock(controller_.lock_);
 
                 if(controller_.current_state_ == nullptr)
                     return;
@@ -332,7 +331,10 @@ class Player: public PlayerIface, public MetaDataStoreIface
         explicit Controller():
             refcount_(0),
             current_state_(nullptr)
-        {}
+        {
+            LoggedLock::set_name(lock_, "Controller");
+            LoggedLock::set_name(wait_for_last_unref_, "ControllerLastUnref");
+        }
 
         RefCountWrapper ref()
         {
@@ -341,7 +343,7 @@ class Player: public PlayerIface, public MetaDataStoreIface
 
         RefCountWrapper update_and_ref(State *new_state)
         {
-            std::unique_lock<std::mutex> lock(lock_);
+            LoggedLock::UniqueLock lock(lock_);
 
             wait_for_last_unref_.wait(lock,
                                       [this] () { return refcount_ == 0; });
@@ -360,7 +362,7 @@ class Player: public PlayerIface, public MetaDataStoreIface
 
     struct CurrentStreamData
     {
-        std::mutex lock_;
+        LoggedLock::Mutex lock_;
 
         ID::Stream stream_id_;
         StreamInfo stream_info_;
@@ -369,30 +371,37 @@ class Player: public PlayerIface, public MetaDataStoreIface
         explicit CurrentStreamData():
             stream_id_(ID::Stream::make_invalid()),
             track_info_(PlayInfo::Data::STREAM_STOPPED)
-        {}
+        {
+            LoggedLock::set_name(lock_, "CurrentStreamData");
+        }
     };
 
     class SynchronizedRequest
     {
       private:
-        std::mutex lock_;
-        std::condition_variable done_;
+        LoggedLock::Mutex lock_;
+        LoggedLock::ConditionVariable done_;
         std::atomic_bool requested_;
 
       public:
         SynchronizedRequest(const SynchronizedRequest &) = delete;
         SynchronizedRequest &operator=(const SynchronizedRequest &) = delete;
 
-        explicit SynchronizedRequest(): requested_(false) {}
+        explicit SynchronizedRequest():
+            requested_(false)
+        {
+            LoggedLock::set_name(lock_, "SynchronizedRequest");
+            LoggedLock::set_name(done_, "SynchronizedRequestDone");
+        }
 
         bool is_requested()
         {
             return requested_.load();
         }
 
-        std::unique_lock<std::mutex> lock()
+        LoggedLock::UniqueLock lock()
         {
-            return std::unique_lock<std::mutex>(lock_);
+            return LoggedLock::UniqueLock(lock_);
         }
 
         bool request()
@@ -400,13 +409,13 @@ class Player: public PlayerIface, public MetaDataStoreIface
             return requested_.exchange(true);
         }
 
-        void wait(std::unique_lock<std::mutex> &lock_req)
+        void wait(LoggedLock::UniqueLock &lock_req)
         {
             done_.wait(lock_req, [this] () { return !requested_.load(); });
         }
 
         /*
-        std::unique_lock<std::mutex> synchronize(bool set_request)
+           LoggedLock::UniqueLock synchronize(bool set_request)
         {
             if(set_request)
                 request();
@@ -420,7 +429,7 @@ class Player: public PlayerIface, public MetaDataStoreIface
 
         void ack()
         {
-            std::lock_guard<std::mutex> lock_req(lock_);
+            std::lock_guard<LoggedLock::Mutex> lock_req(lock_);
 
             if(requested_.exchange(false))
                 done_.notify_all();
@@ -444,7 +453,7 @@ class Player: public PlayerIface, public MetaDataStoreIface
     struct LockWithStopRequest: public AbortEnqueueIface
     {
       private:
-        std::unique_lock<std::mutex> lock_csd_;
+        LoggedLock::UniqueLock lock_csd_;
         Requests &requests_;
         std::atomic_bool &is_enqueuing_flag_;
         bool is_unlocked_;
@@ -511,9 +520,9 @@ class Player: public PlayerIface, public MetaDataStoreIface
     class MessageQueue
     {
       private:
-        std::mutex lock_;
-        std::condition_variable have_messages_;
-        std::condition_variable is_idle_;
+        LoggedLock::Mutex lock_;
+        LoggedLock::ConditionVariable have_messages_;
+        LoggedLock::ConditionVariable is_idle_;
         bool processing_message_;
 
       public:
@@ -524,15 +533,19 @@ class Player: public PlayerIface, public MetaDataStoreIface
 
         explicit MessageQueue():
             processing_message_(false)
-        {}
-
-        std::unique_lock<std::mutex> lock()
         {
-            return std::unique_lock<std::mutex>(lock_);
+            LoggedLock::set_name(lock_, "MessageQueue");
+            LoggedLock::set_name(have_messages_, "MessageQueueHaveMessages");
+            LoggedLock::set_name(is_idle_, "MessageQueueIsIdle");
         }
 
-        std::unique_lock<std::mutex> drain(std::atomic_bool &waiting_for_idle,
-                                           std::atomic_bool &shutdown_request)
+        LoggedLock::UniqueLock lock()
+        {
+            return LoggedLock::UniqueLock(lock_);
+        }
+
+        LoggedLock::UniqueLock drain(std::atomic_bool &waiting_for_idle,
+                                     std::atomic_bool &shutdown_request)
         {
             waiting_for_idle.exchange(true);
 
@@ -556,7 +569,7 @@ class Player: public PlayerIface, public MetaDataStoreIface
             have_messages_.notify_one();
         }
 
-        void wait(std::unique_lock<std::mutex> &queue_lock,
+        void wait(LoggedLock::UniqueLock &queue_lock,
                   std::atomic_bool &shutdown_request)
         {
             have_messages_.wait(queue_lock,
@@ -625,14 +638,14 @@ class Player: public PlayerIface, public MetaDataStoreIface
     bool track_times_notification(const std::chrono::milliseconds &position,
                                   const std::chrono::milliseconds &duration) override;
 
-    std::pair<const PlayInfo::MetaData *, std::unique_lock<std::mutex>>
+    std::pair<const PlayInfo::MetaData *, LoggedLock::UniqueLock>
     get_track_meta_data__locked() const override;
 
     PlayInfo::Data::StreamState get_assumed_stream_state__locked() const override;
     PlayInfo::Data::StreamState get_assumed_stream_state__unlocked() const;
     std::pair<std::chrono::milliseconds, std::chrono::milliseconds> get_times__locked() const override;
     std::pair<std::chrono::milliseconds, std::chrono::milliseconds> get_times__unlocked() const;
-    std::pair<const StreamInfoItem *, std::unique_lock<std::mutex>> get_stream_info__locked(ID::Stream id) const override;
+    std::pair<const StreamInfoItem *, LoggedLock::UniqueLock> get_stream_info__locked(ID::Stream id) const override;
 
     void skip_to_previous(std::chrono::milliseconds rewind_threshold) override;
     void skip_to_next() override;

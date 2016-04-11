@@ -16,9 +16,8 @@
  * along with DRCPD.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <mutex>
-
 #include "busy.hh"
+#include "logged_lock.hh"
 
 /*!
  * A class wrapping our busy state flags.
@@ -31,7 +30,7 @@
 class GlobalBusyState
 {
   private:
-    std::mutex lock_;
+    LoggedLock::Mutex lock_;
     uint32_t busy_flags_;
     std::function<void(bool)> notify_busy_state_changed_;
 
@@ -46,11 +45,13 @@ class GlobalBusyState
         busy_flags_(0),
         last_read_busy_state_(false),
         last_notified_busy_state_(false)
-    {}
+    {
+        LoggedLock::set_name(lock_, "GlobalBusyState");
+    }
 
     void set_callback(const std::function<void(bool)> &callback)
     {
-        std::unique_lock<std::mutex> lock(lock_);
+        LoggedLock::UniqueLock lock(lock_);
 
         notify_busy_state_changed_ = callback;
 
@@ -60,7 +61,7 @@ class GlobalBusyState
 
     void set(uint32_t mask)
     {
-        std::unique_lock<std::mutex> lock(lock_);
+        LoggedLock::UniqueLock lock(lock_);
 
         busy_flags_ |= mask;
 
@@ -69,7 +70,7 @@ class GlobalBusyState
 
     void clear(uint32_t mask)
     {
-        std::unique_lock<std::mutex> lock(lock_);
+        LoggedLock::UniqueLock lock(lock_);
 
         busy_flags_ &= ~mask;
 
@@ -78,14 +79,14 @@ class GlobalBusyState
 
     bool has_busy_state_changed()
     {
-        std::lock_guard<std::mutex> lock(lock_);
+        std::lock_guard<LoggedLock::Mutex> lock(lock_);
 
         return has_busy_state_changed(last_read_busy_state_);
     }
 
     bool is_busy()
     {
-        std::lock_guard<std::mutex> lock(lock_);
+        std::lock_guard<LoggedLock::Mutex> lock(lock_);
 
         last_read_busy_state_ = is_busy__uncached();
 
@@ -105,7 +106,7 @@ class GlobalBusyState
      *     (without explicitly checking it), no object data may be accessed
      *     after calling this function.
      */
-    void notify_if_necessary(std::unique_lock<std::mutex> &lock)
+    void notify_if_necessary(LoggedLock::UniqueLock &lock)
     {
         if(!has_busy_state_changed(last_notified_busy_state_))
             return;

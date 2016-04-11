@@ -21,8 +21,6 @@
 #endif /* HAVE_CONFIG_H */
 
 #include <cstring>
-#include <mutex>
-#include <condition_variable>
 #include <future>
 
 #include "playbackmode_state.hh"
