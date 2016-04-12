@@ -118,6 +118,7 @@ void Playback::Player::do_take(LockWithStopRequest &lockstop,
                                     true, lockstop))
     {
         current_stream_data_.track_info_.set_stopped();
+        lockstop.unlock();
         buffering_callback(false);
     }
 }
@@ -155,8 +156,6 @@ void Playback::Player::do_release(LockWithStopRequest &lockstop,
 {
     log_assert(requests_.release_player_.is_requested());
 
-    lockstop.lock();
-
     if(is_active_mode())
     {
         if(stop_playbackmode_state_if_active)
@@ -170,6 +169,8 @@ void Playback::Player::do_release(LockWithStopRequest &lockstop,
 
         controller_.update_and_ref(nullptr);
     }
+
+    lockstop.lock();
 
     if(active_stop_command)
     {
@@ -198,6 +199,7 @@ bool Playback::Player::start_notification(ID::Stream stream_id,
 {
     log_assert(stream_id.is_valid());
 
+    auto current_state_ref(controller_.ref());
     std::lock_guard<LoggedLock::Mutex> lock_csd(current_stream_data_.lock_);
 
     const StreamInfoItem *stream_info_item = nullptr;
@@ -656,8 +658,10 @@ void Playback::Player::worker_main()
         if(!get_next_message(message_queue_, requests_.shutdown_request_, message))
             break;
 
-        LockWithStopRequest lockstop(current_stream_data_, requests_, enqueuing_in_progress_);
-        message(lockstop);
+        {
+            LockWithStopRequest lockstop(current_stream_data_, requests_, enqueuing_in_progress_);
+            message(lockstop);
+        }
 
         message_queue_.message_processed();
     }
