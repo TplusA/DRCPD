@@ -29,6 +29,7 @@
 #include "view_names.hh"
 #include "player.hh"
 #include "busy.hh"
+#include "de_tahifi_lists_context.h"
 #include "xmlescape.hh"
 #include "messages.h"
 
@@ -180,6 +181,7 @@ void ViewFileBrowser::View::defocus()
 
 static bool request_search_parameters_from_user(ViewManager::VMIface &vm,
                                                 ViewSearch::View &view,
+                                                List::ContextInfo &ctx,
                                                 const SearchParameters *&params)
 {
     params = view.get_parameters();
@@ -187,7 +189,7 @@ static bool request_search_parameters_from_user(ViewManager::VMIface &vm,
     if(params != nullptr)
         return false;
 
-    view.request_parameters_for_context("dummy");
+    view.request_parameters_for_context(ctx.string_id_);
     vm.serialize_view_forced(&view);
 
     return true;
@@ -361,6 +363,7 @@ ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command,
 
                 if(request_search_parameters_from_user(*view_manager_,
                                                        *static_cast<ViewSearch::View *>(search_parameters_view_),
+                                                       list_contexts_[DBUS_LISTS_CONTEXT_GET(file_list_.get_list_id().get_raw_id())],
                                                        params))
                     wait_helper.keep_waiting();
 

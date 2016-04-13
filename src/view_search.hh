@@ -80,6 +80,11 @@ class View: public ViewIface, public ViewSerializeBase
         request_context_ = context;
     }
 
+    void request_parameters_for_context(const std::string &context)
+    {
+        request_context_ = context;
+    }
+
     const SearchParameters *get_parameters() const
     {
         return (query_ != nullptr)
