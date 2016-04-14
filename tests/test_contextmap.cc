@@ -28,6 +28,8 @@
 #include "mock_messages.hh"
 
 constexpr const uint32_t List::ContextInfo::HAS_EXTERNAL_META_DATA;
+constexpr const uint32_t List::ContextInfo::HAS_PROPER_SEARCH_FORM;
+constexpr const uint32_t List::ContextInfo::SEARCH_NOT_POSSIBLE;
 constexpr const uint32_t List::ContextInfo::INTERNAL_INVALID;
 constexpr const uint32_t List::ContextInfo::INTERNAL_FLAGS_MASK;
 constexpr const uint32_t List::ContextInfo::PUBLIC_FLAGS_MASK;
@@ -85,6 +87,7 @@ static void access_with_unknown_id_expect_invalid_ctx(const T &unknown_id)
 
     List::ContextInfo &info(map[unknown_id]);
     cppcut_assert_equal(0U, info.get_flags());
+    cut_assert_false(info.check_flags(UINT32_MAX));
     cut_assert_false(info.is_valid());
 
     cppcut_assert_equal("#INVALID#", info.string_id_.c_str());
@@ -185,11 +188,15 @@ void test_not_all_context_information_flags_can_be_set()
     List::ContextInfo &info(map[List::context_id_t(0)]);
     cut_assert_true(info.is_valid());
     cppcut_assert_equal(0U, info.get_flags());
+    cut_assert_false(info.check_flags(UINT32_MAX));
 
     info.set_flags(UINT32_MAX);
     cppcut_assert_equal(List::ContextInfo::PUBLIC_FLAGS_MASK, info.get_flags());
     cppcut_assert_not_equal(UINT32_MAX, info.get_flags());
     cppcut_assert_not_equal(0U, info.get_flags());
+    cut_assert_true(info.check_flags(UINT32_MAX));
+    cut_assert_true(info.check_flags(List::ContextInfo::PUBLIC_FLAGS_MASK));
+    cut_assert_false(info.check_flags(List::ContextInfo::INTERNAL_FLAGS_MASK));
 }
 
 /*!\test
