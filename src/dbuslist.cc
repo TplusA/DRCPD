@@ -233,20 +233,28 @@ static void fill_cache_list_with_meta_data(List::RamList &items,
                               &names[0], &names[1], &names[2],
                               &primary_name_index, &item_kind))
     {
-        if(primary_name_index > sizeof(names) / sizeof(names[0]))
+        if(primary_name_index > sizeof(names) / sizeof(names[0]) &&
+           primary_name_index != UINT8_MAX)
         {
             BUG("Got unexpected index of primary name (%u)",
                 primary_name_index);
             primary_name_index = 0;
         }
 
+        static const char empty_item_string[] = "----";
+
+        const gchar *name = ((primary_name_index != UINT8_MAX)
+                             ? names[primary_name_index]
+                             : empty_item_string);
+
+        if(primary_name_index == UINT8_MAX)
+            item_kind = ListItemKind::LOCKED;
+
         if(replace_mode)
             items.replace(cache_list_index++,
-                          new_item_fn(names[primary_name_index],
-                                      ListItemKind(item_kind), names));
+                          new_item_fn(name, ListItemKind(item_kind), names));
         else
-            items.append(new_item_fn(names[primary_name_index],
-                                     ListItemKind(item_kind), names));
+            items.append(new_item_fn(name, ListItemKind(item_kind), names));
     }
 }
 
