@@ -352,13 +352,6 @@ ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command,
                 break;
 
               case ListItemKind::SEARCH_FORM:
-                if(wait_helper.was_waiting())
-                {
-                    /* quick/impatient user, keep up waiting state */
-                    wait_helper.keep_waiting();
-                    break;
-                }
-
                 const SearchParameters *params = nullptr;
 
                 if(request_search_parameters_from_user(*view_manager_,
