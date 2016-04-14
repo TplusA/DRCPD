@@ -1,3 +1,19 @@
+2016-04-14  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 1.17 released.
+
+	* User interface: Broken TIDAL lists are being worked around. The
+	  lists do not disappear anymore, but instead the extra empty lines
+	  sent by TIDAL are displayed as unplayable "----" lines.
+
+	* User interface: Search box can be reopened as expected after it has
+	  been closed due to timeout or stop command.
+
+	* Stability: Avoid hanging process in various occasions. There were
+	  several deadlocks in the audio player module.
+
+	* DRCP: Send proper context ID with search forms.
+
 2016-04-08  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 1.16 released.
