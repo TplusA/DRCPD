@@ -80,11 +80,14 @@ bool ViewFileBrowser::View::late_init()
 
 static uint32_t get_default_flags_for_context(const char *string_id)
 {
-    static constexpr const std::array<std::pair<const char *const, const uint32_t>, 3> ids =
+    static constexpr const std::array<std::pair<const char *const, const uint32_t>, 6> ids =
     {
-        std::make_pair("tidal",  List::ContextInfo::HAS_EXTERNAL_META_DATA),
-        std::make_pair("deezer", List::ContextInfo::HAS_EXTERNAL_META_DATA),
-        std::make_pair("qobuz",  List::ContextInfo::HAS_EXTERNAL_META_DATA),
+        std::make_pair("airable",        List::ContextInfo::SEARCH_NOT_POSSIBLE),
+        std::make_pair("airable.radios", List::ContextInfo::HAS_PROPER_SEARCH_FORM),
+        std::make_pair("airable.feeds",  List::ContextInfo::HAS_PROPER_SEARCH_FORM),
+        std::make_pair("tidal",  List::ContextInfo::HAS_EXTERNAL_META_DATA | List::ContextInfo::HAS_PROPER_SEARCH_FORM),
+        std::make_pair("deezer", List::ContextInfo::HAS_EXTERNAL_META_DATA | List::ContextInfo::HAS_PROPER_SEARCH_FORM),
+        std::make_pair("qobuz",  List::ContextInfo::HAS_EXTERNAL_META_DATA | List::ContextInfo::HAS_PROPER_SEARCH_FORM),
     };
 
     for(const auto &id : ids)
