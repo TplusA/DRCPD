@@ -182,7 +182,7 @@ void dbussignal_dcpd_views(GDBusProxy *proxy, const gchar *sender_name,
         }
 
         if(search_string.empty())
-            BUG("Triggering searches by context is not implemented yet");
+            data->mgr_.input(DrcpCommand::SEARCH);
         else
         {
             auto query =

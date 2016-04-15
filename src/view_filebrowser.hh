@@ -36,6 +36,8 @@
 
 namespace Playback { class Player; }
 
+class WaitForParametersHelper;
+
 /*!
  * \addtogroup view_filesystem Filesystem browsing
  * \ingroup views
@@ -157,6 +159,11 @@ class View: public ViewIface, public ViewSerializeBase
     bool point_to_child_directory(const SearchParameters *search_parameters = nullptr);
 
     /*!
+     * Find best matching item in current list and move selection there.
+     */
+    bool point_to_item(const ViewIface &view, const SearchParameters &search_parameters);
+
+    /*!
      * Load whole parent directory into internal list.
      *
      * \returns
@@ -174,6 +181,7 @@ class View: public ViewIface, public ViewSerializeBase
      */
     bool write_xml(std::ostream &os, const DCP::Queue::Data &data) override;
 
+    bool wait_for_search_parameters(WaitForParametersHelper &wait_helper, bool via_form);
     bool apply_search_parameters();
 
     std::chrono::milliseconds keep_lists_alive_timer_callback();

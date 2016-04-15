@@ -51,13 +51,6 @@ static bool sanitize_search_parameters(const SearchParameters &params)
 ViewIface::InputResult ViewSearch::View::input(DrcpCommand command,
                                                std::unique_ptr<const UI::Parameters> parameters)
 {
-    static constexpr const ViewManager::InputBouncer::Item bounce_table_data[] =
-    {
-        ViewManager::InputBouncer::Item(DrcpCommand::X_TA_SEARCH_PARAMETERS, ViewNames::BROWSER_INETRADIO),
-    };
-
-    static constexpr const ViewManager::InputBouncer bounce_table(bounce_table_data);
-
     if(command == DrcpCommand::X_TA_SEARCH_PARAMETERS)
     {
         /* Happy path: take search parameters, check them, tell browse view
@@ -67,15 +60,23 @@ ViewIface::InputResult ViewSearch::View::input(DrcpCommand command,
         query_ = std::move(parameters);
         const auto *query = dynamic_cast<const ParamType *>(query_.get());
 
-        if(query != nullptr)
+        if(query != nullptr && request_view_ != nullptr)
         {
             const SearchParameters &params(query->get_specific());
 
             if(sanitize_search_parameters(params))
             {
-                msg_info("Search for \"%s\" in \"%s\"",
+                msg_info("Search for \"%s\" in view \"%s\", context \"%s\"",
                          params.get_query().c_str(),
+                         request_view_->name_,
                          params.get_context().c_str());
+
+                const ViewManager::InputBouncer::Item bounce_table_data[] =
+                {
+                    ViewManager::InputBouncer::Item(DrcpCommand::X_TA_SEARCH_PARAMETERS,
+                                                    request_view_->name_),
+                };
+                const ViewManager::InputBouncer bounce_table(bounce_table_data);
 
                 return view_manager_->input_bounce(bounce_table, command);
             }

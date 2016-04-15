@@ -41,6 +41,7 @@ class View: public ViewIface, public ViewSerializeBase
     using ParamType = UI::SpecificParameters<SearchParameters>;
     std::unique_ptr<const UI::Parameters> query_;
 
+    const ViewIface *request_view_;
     std::string request_context_;
 
   public:
@@ -50,7 +51,8 @@ class View: public ViewIface, public ViewSerializeBase
     explicit View(const char *on_screen_name, unsigned int max_lines,
                   ViewManager::VMIface *view_manager):
         ViewIface(ViewNames::SEARCH_OPTIONS, false, view_manager),
-        ViewSerializeBase(on_screen_name, "edit", 123U)
+        ViewSerializeBase(on_screen_name, "edit", 123U),
+        request_view_(nullptr)
     {}
 
     virtual ~View() {}
@@ -75,13 +77,15 @@ class View: public ViewIface, public ViewSerializeBase
             ViewSerializeBase::update(queue, debug_os);
     }
 
-    void request_parameters_for_context(const char *context)
+    void request_parameters_for_context(const ViewIface *view, const char *context)
     {
+        request_view_ = view;
         request_context_ = context;
     }
 
-    void request_parameters_for_context(const std::string &context)
+    void request_parameters_for_context(const ViewIface *view, const std::string &context)
     {
+        request_view_ = view;
         request_context_ = context;
     }
 
@@ -92,7 +96,14 @@ class View: public ViewIface, public ViewSerializeBase
             : nullptr;
     }
 
-    void forget_parameters() { query_ = nullptr; }
+    const ViewIface *get_request_view() const { return request_view_; }
+
+    void forget_parameters()
+    {
+        query_ = nullptr;
+        request_view_ = nullptr;
+        request_context_.clear();
+    }
 
   private:
     bool write_xml(std::ostream &os, const DCP::Queue::Data &data) override;

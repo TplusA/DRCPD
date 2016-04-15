@@ -184,7 +184,8 @@ void ViewFileBrowser::View::defocus()
 
 static bool request_search_parameters_from_user(ViewManager::VMIface &vm,
                                                 ViewSearch::View &view,
-                                                List::ContextInfo &ctx,
+                                                const ViewIface &from_view,
+                                                const List::ContextInfo &ctx,
                                                 const SearchParameters *&params)
 {
     params = view.get_parameters();
@@ -192,19 +193,46 @@ static bool request_search_parameters_from_user(ViewManager::VMIface &vm,
     if(params != nullptr)
         return false;
 
-    view.request_parameters_for_context(ctx.string_id_);
+    view.request_parameters_for_context(&from_view, ctx.string_id_);
     vm.serialize_view_forced(&view);
 
     return true;
 }
 
+bool ViewFileBrowser::View::point_to_item(const ViewIface &view,
+                                          const SearchParameters &search_parameters)
+{
+    BUG("Should perform binary search in view \"%s\" using string \"%s\" in context \"%s\"",
+        view.name_, search_parameters.get_query().c_str(),
+        search_parameters.get_context().c_str());
+    return false;
+}
+
 bool ViewFileBrowser::View::apply_search_parameters()
 {
-    const auto *params =
-        static_cast<ViewSearch::View *>(search_parameters_view_)->get_parameters();
+    const auto &ctx(list_contexts_[DBUS_LISTS_CONTEXT_GET(file_list_.get_list_id().get_raw_id())]);
+
+    if(ctx.check_flags(List::ContextInfo::SEARCH_NOT_POSSIBLE))
+    {
+        BUG("Passed search parameters in context %s", ctx.string_id_.c_str());
+        return false;
+    }
+
+    const auto *sview = static_cast<ViewSearch::View *>(search_parameters_view_);
+    const auto *params = sview->get_parameters();
     log_assert(params != nullptr);
 
-    const bool retval = point_to_child_directory(params);
+    bool retval;
+
+    if(ctx.check_flags(List::ContextInfo::HAS_PROPER_SEARCH_FORM))
+        retval = point_to_child_directory(params);
+    else
+    {
+        const auto *rview = sview->get_request_view();
+        log_assert(rview != nullptr);
+
+        retval = (ctx.is_valid() && point_to_item(*rview, *params));
+    }
 
     stop_waiting_for_search_parameters(*search_parameters_view_);
 
@@ -290,12 +318,60 @@ class WaitForParametersHelper
     void keep_parameters() { keep_preloaded_parameters_ = true; }
 };
 
+bool ViewFileBrowser::View::wait_for_search_parameters(WaitForParametersHelper &wait_helper,
+                                                       bool via_form)
+{
+    const auto &ctx(list_contexts_[DBUS_LISTS_CONTEXT_GET(file_list_.get_list_id().get_raw_id())]);
+
+    if(!ctx.is_valid())
+        return true;
+
+    msg_info("Trigger new search in context \"%s\"", ctx.string_id_.c_str());
+
+    if(ctx.check_flags(List::ContextInfo::SEARCH_NOT_POSSIBLE))
+    {
+        msg_info("Searching is not possible in context \"%s\"",
+                 ctx.string_id_.c_str());
+        return true;
+    }
+
+    if(ctx.check_flags(List::ContextInfo::HAS_PROPER_SEARCH_FORM) && !via_form)
+    {
+        BUG("New search by context via search form not implemented yet");
+        return true;
+    }
+
+    const SearchParameters *params = nullptr;
+
+    if(request_search_parameters_from_user(*view_manager_,
+                                           *static_cast<ViewSearch::View *>(search_parameters_view_),
+                                           *this, ctx, params))
+        wait_helper.keep_waiting();
+
+    if(params == nullptr)
+    {
+        /* just do nothing, i.e., keep idling, wait until the
+         * search parameters are sent, or stop waiting when the
+         * user does something else */
+        return true;
+    }
+
+    return false;
+}
+
+static inline bool have_search_parameters(const ViewIface *view)
+{
+    return
+        view != nullptr &&
+        static_cast<const ViewSearch::View *>(view)->get_parameters() != nullptr;
+}
+
 ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command,
                                                     std::unique_ptr<const UI::Parameters> parameters)
 {
     WaitForParametersHelper wait_helper(
         waiting_for_search_parameters_,
-        static_cast<ViewSearch::View *>(search_parameters_view_)->get_parameters() != nullptr,
+        have_search_parameters(search_parameters_view_),
         [this] ()
         {
             stop_waiting_for_search_parameters(*search_parameters_view_);
@@ -303,6 +379,19 @@ ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command,
 
     switch(command)
     {
+      case DrcpCommand::SEARCH:
+        if((!wait_helper.was_waiting() ||
+            !have_search_parameters(search_parameters_view_)) &&
+           wait_for_search_parameters(wait_helper, false))
+        {
+            break;
+        }
+
+        if(apply_search_parameters())
+            return InputResult::UPDATE_NEEDED;
+
+        break;
+
       case DrcpCommand::X_TA_SEARCH_PARAMETERS:
         if(!wait_helper.was_waiting())
         {
@@ -355,21 +444,8 @@ ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command,
                 break;
 
               case ListItemKind::SEARCH_FORM:
-                const SearchParameters *params = nullptr;
-
-                if(request_search_parameters_from_user(*view_manager_,
-                                                       *static_cast<ViewSearch::View *>(search_parameters_view_),
-                                                       list_contexts_[DBUS_LISTS_CONTEXT_GET(file_list_.get_list_id().get_raw_id())],
-                                                       params))
-                    wait_helper.keep_waiting();
-
-                if(params == nullptr)
-                {
-                    /* just do nothing, i.e., keep idling, wait until the
-                     * search parameters are sent, or stop waiting when the
-                     * user does something else */
+                if(wait_for_search_parameters(wait_helper, true))
                     break;
-                }
 
                 /* got preloaded parameters */
                 if(apply_search_parameters())
