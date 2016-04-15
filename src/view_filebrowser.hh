@@ -61,6 +61,8 @@ class View: public ViewIface, public ViewSerializeBase
 
     ID::List current_list_id_;
 
+    dbus_listbroker_id_t listbroker_id_;
+
     /* list for the user */
     List::DBusList file_list_;
 
@@ -95,10 +97,11 @@ class View: public ViewIface, public ViewSerializeBase
         ViewIface(name, true, view_manager),
         ViewSerializeBase(on_screen_name, "browse", 102U),
         current_list_id_(0),
-        file_list_(dbus_get_lists_navigation_iface(listbroker_id),
+        listbroker_id_(listbroker_id),
+        file_list_(dbus_get_lists_navigation_iface(listbroker_id_),
                    list_contexts_, max_lines,
                    construct_file_item),
-        traversal_list_(dbus_get_lists_navigation_iface(listbroker_id),
+        traversal_list_(dbus_get_lists_navigation_iface(listbroker_id_),
                         list_contexts_, assumed_streamplayer_fifo_size + 1,
                         construct_file_item),
         item_flags_(&file_list_),
