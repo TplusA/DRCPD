@@ -27,6 +27,7 @@
 #include "view_search.hh"
 #include "view_manager.hh"
 #include "view_names.hh"
+#include "search_algo.hh"
 #include "player.hh"
 #include "busy.hh"
 #include "de_tahifi_lists_context.h"
@@ -202,10 +203,50 @@ static bool request_search_parameters_from_user(ViewManager::VMIface &vm,
 bool ViewFileBrowser::View::point_to_item(const ViewIface &view,
                                           const SearchParameters &search_parameters)
 {
-    BUG("Should perform binary search in view \"%s\" using string \"%s\" in context \"%s\"",
-        view.name_, search_parameters.get_query().c_str(),
-        search_parameters.get_context().c_str());
-    return false;
+    List::DBusList search_list(dbus_get_lists_navigation_iface(listbroker_id_),
+                               list_contexts_, 1, construct_file_item);
+
+    try
+    {
+        BUG("Cloned list should either not prefetch or start at center position");
+        search_list.clone_state(file_list_);
+    }
+    catch(const List::DBusListException &e)
+    {
+        msg_error(0, LOG_ERR,
+                  "Failed start searching for string, got hard %s error: %s",
+                  e.is_dbus_error() ? "D-Bus" : "list retrieval", e.what());
+        return false;
+    }
+
+    ssize_t found;
+
+    try
+    {
+        found = Search::binary_search_utf8(search_list,
+                                           search_parameters.get_query());
+    }
+    catch(const Search::UnsortedException &e)
+    {
+        msg_error(0, LOG_ERR, "Binary search failed, list not sorted");
+        return false;
+    }
+    catch(const List::DBusListException &e)
+    {
+        msg_error(0, LOG_ERR,
+                  "Binary search failed, got hard %s error: %s",
+                  e.is_dbus_error() ? "D-Bus" : "list retrieval", e.what());
+        return false;
+    }
+
+    msg_info("Result of binary search: %zd", found);
+
+    if(found < 0)
+        return false;
+
+    navigation_.set_cursor_by_line_number(found);
+
+    return true;
 }
 
 bool ViewFileBrowser::View::apply_search_parameters()
