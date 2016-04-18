@@ -676,7 +676,7 @@ bool ViewFileBrowser::View::point_to_child_directory(const SearchParameters *sea
     try
     {
         ID::List list_id =
-            get_child_item_id(file_list_, current_list_id_, navigation_ ,
+            get_child_item_id(file_list_, current_list_id_, navigation_,
                               search_parameters);
 
         const bool retval = list_id.is_valid();
