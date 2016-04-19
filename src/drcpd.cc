@@ -381,31 +381,31 @@ static void connect_everything(ViewManager::Manager &views,
                                Playback::Player &player,
                                DBusSignalData &dbus_data)
 {
-    static const unsigned int number_of_lines_on_display = 3;
-
-    static ViewConfig::View cfg(N_("Configuration"), number_of_lines_on_display);
+    static ViewConfig::View cfg(N_("Configuration"),
+                                views.NUMBER_OF_LINES_ON_DISPLAY);
     static ViewFileBrowser::View fs(ViewNames::BROWSER_FILESYSTEM,
                                     N_("USB devices"), 1,
-                                    number_of_lines_on_display,
+                                    views.NUMBER_OF_LINES_ON_DISPLAY,
                                     DBUS_LISTBROKER_ID_FILESYSTEM,
                                     player, Playback::Mode::LINEAR,
                                     &views);
     static ViewFileBrowser::View tunein(ViewNames::BROWSER_INETRADIO,
                                         N_("Airable internet radio"), 3,
-                                        number_of_lines_on_display,
+                                        views.NUMBER_OF_LINES_ON_DISPLAY,
                                         DBUS_LISTBROKER_ID_TUNEIN,
                                         player, Playback::Mode::LINEAR,
                                         &views);
     static ViewFileBrowser::View upnp(ViewNames::BROWSER_UPNP,
                                       N_("UPnP media servers"), 4,
-                                      number_of_lines_on_display,
+                                      views.NUMBER_OF_LINES_ON_DISPLAY,
                                       DBUS_LISTBROKER_ID_UPNP,
                                       player, Playback::Mode::LINEAR,
                                       &views);
     static ViewPlay::View play(N_("Stream information"),
-                               number_of_lines_on_display, player, &views);
+                               views.NUMBER_OF_LINES_ON_DISPLAY,
+                               player, &views);
     static ViewSearch::View search(N_("Search parameters"),
-                                   number_of_lines_on_display, &views);
+                                   views.NUMBER_OF_LINES_ON_DISPLAY, &views);
 
     if(!cfg.init())
         return;

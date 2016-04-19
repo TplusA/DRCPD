@@ -100,6 +100,8 @@ class VMIface
     explicit VMIface() {}
 
   public:
+    static constexpr const unsigned int NUMBER_OF_LINES_ON_DISPLAY = 3;
+
     VMIface(const VMIface &) = delete;
     VMIface &operator=(const VMIface &) = delete;
 
