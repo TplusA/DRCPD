@@ -23,6 +23,7 @@
 #include "view_manager.hh"
 #include "view_filebrowser.hh"
 #include "view_nop.hh"
+#include "ui_parameters_predefined.hh"
 #include "messages.h"
 #include "os.h"
 
@@ -189,56 +190,72 @@ bool ViewManager::Manager::do_input_bounce(const ViewManager::InputBouncer &boun
     return false;
 }
 
-static bool move_cursor_multiple_steps(int steps, DrcpCommand down_cmd,
-                                       DrcpCommand up_cmd, ViewIface &view,
-                                       DCP::Queue &queue,
-                                       ViewIface::InputResult &result,
-                                       std::ostream *debug_stream)
+static ViewIface::InputResult move_cursor_multi(DrcpCommand command, int units,
+                                                ViewIface &view)
 {
-    if(steps == 0)
-        return false;
+    log_assert(command == DrcpCommand::SCROLL_DOWN_MANY ||
+               command == DrcpCommand::SCROLL_UP_MANY);
+    log_assert(units != 0);
 
-    const DrcpCommand command = (steps > 0) ? down_cmd : up_cmd;
+    if(units < 0)
+        units = -units;
 
-    if(steps < 0)
-        steps = -steps;
+    auto packaged_units =
+        std::unique_ptr<UI::ParamsUpDownSteps>(new UI::ParamsUpDownSteps(units));
 
-    result = ViewIface::InputResult::OK;
+    return view.input(command, std::move(packaged_units));
+}
 
-    for(/* nothing */; steps > 0; --steps)
-    {
-        const ViewIface::InputResult temp = view.input(command, nullptr);
+static const DrcpCommand count_to_command(int count, DrcpCommand one_down_cmd,
+                                          DrcpCommand one_up_cmd)
+{
+    return (count == 0
+            ? DrcpCommand::UNDEFINED_COMMAND
+            : (count > 0
+               ? (count == 1
+                  ? one_down_cmd
+                  : DrcpCommand::SCROLL_DOWN_MANY
+                 )
+               : (count == -1
+                  ? one_up_cmd
+                  : DrcpCommand::SCROLL_UP_MANY)));
+}
 
-        if(temp != ViewIface::InputResult::OK)
-            result = temp;
+static ViewIface::InputResult move_cursor_generic(ViewIface &view,
+                                                  int count, int multiplier,
+                                                  DrcpCommand one_down_command,
+                                                  DrcpCommand one_up_command)
+{
+    if(count == 0 || multiplier == 0)
+        return ViewIface::InputResult::OK;
 
-        if(temp != ViewIface::InputResult::UPDATE_NEEDED)
-           break;
-    }
+    const DrcpCommand command =
+        count_to_command(count, one_down_command, one_up_command);
 
-    return true;
+    if(count == -1 || count == 1)
+        return view.input(command, nullptr);
+
+    return move_cursor_multi(command, count * multiplier, view);
 }
 
 void ViewManager::Manager::input_move_cursor_by_line(int lines)
 {
-    ViewIface::InputResult result;
+    const ViewIface::InputResult result =
+        move_cursor_generic(*active_view_, lines, 1,
+                            DrcpCommand::SCROLL_DOWN_ONE,
+                            DrcpCommand::SCROLL_UP_ONE);
 
-    if(move_cursor_multiple_steps(lines, DrcpCommand::SCROLL_DOWN_ONE,
-                                  DrcpCommand::SCROLL_UP_ONE,
-                                  *active_view_, dcp_transaction_queue_,
-                                  result, debug_stream_))
-        handle_input_result(result, *active_view_);
+    handle_input_result(result, *active_view_);
 }
 
 void ViewManager::Manager::input_move_cursor_by_page(int pages)
 {
-    ViewIface::InputResult result;
+    const ViewIface::InputResult result =
+        move_cursor_generic(*active_view_, pages, NUMBER_OF_LINES_ON_DISPLAY,
+                            DrcpCommand::SCROLL_PAGE_DOWN,
+                            DrcpCommand::SCROLL_PAGE_UP);
 
-    if(move_cursor_multiple_steps(pages, DrcpCommand::SCROLL_PAGE_DOWN,
-                                  DrcpCommand::SCROLL_PAGE_UP,
-                                  *active_view_, dcp_transaction_queue_, result,
-                                  debug_stream_))
-        handle_input_result(result, *active_view_);
+    handle_input_result(result, *active_view_);
 }
 
 static ViewIface *lookup_view_by_name(ViewManager::Manager::ViewsContainer &container,

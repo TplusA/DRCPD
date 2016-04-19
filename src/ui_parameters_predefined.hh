@@ -29,6 +29,7 @@ namespace UI
 {
 
 using ParamsFWSpeed = SpecificParameters<double>;
+using ParamsUpDownSteps = SpecificParameters<unsigned int>;
 using ParamsStreamInfo = SpecificParameters<std::tuple<ID::Stream, const std::string, const std::string, const std::string, const std::string, const std::string>>;
 
 }

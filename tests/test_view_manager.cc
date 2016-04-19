@@ -259,6 +259,21 @@ void test_move_cursor_by_zero_lines(void)
     vm->input_move_cursor_by_line(0);
 }
 
+static bool check_equal_lines_parameter_called;
+static void check_equal_lines_parameter(const UI::Parameters *expected_parameters,
+                                        const std::unique_ptr<const UI::Parameters> &actual_parameters)
+{
+    check_equal_lines_parameter_called = true;
+
+    const auto *expected = dynamic_cast<const UI::ParamsUpDownSteps *>(expected_parameters);
+    const auto *actual = dynamic_cast<const UI::ParamsUpDownSteps *>(actual_parameters.get());
+
+    cppcut_assert_not_null(expected);
+    cppcut_assert_not_null(actual);
+
+    cppcut_assert_equal(expected->get_specific(), actual->get_specific());
+}
+
 /*!\test
  * Requests to move the cursor by multiple lines up are transformed into
  * multiple virtual key presses for the current view.
@@ -267,14 +282,19 @@ void test_move_cursor_by_zero_lines(void)
  */
 void test_move_cursor_up_by_multiple_lines(void)
 {
-    mock_view->expect_input(ViewIface::InputResult::UPDATE_NEEDED,
-                            DrcpCommand::SCROLL_UP_ONE, false);
-    mock_view->expect_input(ViewIface::InputResult::UPDATE_NEEDED,
-                            DrcpCommand::SCROLL_UP_ONE, false);
+    auto lines =
+        std::unique_ptr<UI::ParamsUpDownSteps>(new UI::ParamsUpDownSteps(2));
+
+    mock_view->expect_input_with_callback(ViewIface::InputResult::UPDATE_NEEDED,
+                                          DrcpCommand::SCROLL_UP_MANY,
+                                          lines.get(), check_equal_lines_parameter);
     mock_view->expect_update(*views_output);
     mock_view->expect_write_xml_begin(true, false);
 
+    check_equal_lines_parameter_called = false;
     vm->input_move_cursor_by_line(-2);
+    cut_assert_true(check_equal_lines_parameter_called);
+
     vm->serialization_result(DCP::Transaction::OK);
 
     check_and_clear_ostream("Mock update\n", *views_output);
@@ -288,16 +308,19 @@ void test_move_cursor_up_by_multiple_lines(void)
  */
 void test_move_cursor_down_by_multiple_lines(void)
 {
-    mock_view->expect_input(ViewIface::InputResult::UPDATE_NEEDED,
-                            DrcpCommand::SCROLL_DOWN_ONE, false);
-    mock_view->expect_input(ViewIface::InputResult::UPDATE_NEEDED,
-                            DrcpCommand::SCROLL_DOWN_ONE, false);
-    mock_view->expect_input(ViewIface::InputResult::UPDATE_NEEDED,
-                            DrcpCommand::SCROLL_DOWN_ONE, false);
+    auto lines =
+        std::unique_ptr<UI::ParamsUpDownSteps>(new UI::ParamsUpDownSteps(3));
+
+    mock_view->expect_input_with_callback(ViewIface::InputResult::UPDATE_NEEDED,
+                                          DrcpCommand::SCROLL_DOWN_MANY,
+                                          lines.get(), check_equal_lines_parameter);
     mock_view->expect_update(*views_output);
     mock_view->expect_write_xml_begin(true, false);
 
+    check_equal_lines_parameter_called = false;
     vm->input_move_cursor_by_line(3);
+    cut_assert_true(check_equal_lines_parameter_called);
+
     vm->serialization_result(DCP::Transaction::OK);
 
     check_and_clear_ostream("Mock update\n", *views_output);
@@ -309,14 +332,19 @@ void test_move_cursor_down_by_multiple_lines(void)
  */
 void test_move_cursor_by_multiple_lines_up_stops_at_beginning_of_list(void)
 {
-    mock_view->expect_input(ViewIface::InputResult::UPDATE_NEEDED,
-                            DrcpCommand::SCROLL_UP_ONE, false);
-    mock_view->expect_input(ViewIface::InputResult::OK,
-                            DrcpCommand::SCROLL_UP_ONE, false);
+    auto lines =
+        std::unique_ptr<UI::ParamsUpDownSteps>(new UI::ParamsUpDownSteps(5));
+
+    mock_view->expect_input_with_callback(ViewIface::InputResult::UPDATE_NEEDED,
+                                          DrcpCommand::SCROLL_UP_MANY,
+                                          lines.get(), check_equal_lines_parameter);
     mock_view->expect_update(*views_output);
     mock_view->expect_write_xml_begin(true, false);
 
+    check_equal_lines_parameter_called = false;
     vm->input_move_cursor_by_line(-5);
+    cut_assert_true(check_equal_lines_parameter_called);
+
     vm->serialization_result(DCP::Transaction::OK);
 
     check_and_clear_ostream("Mock update\n", *views_output);
@@ -328,14 +356,19 @@ void test_move_cursor_by_multiple_lines_up_stops_at_beginning_of_list(void)
  */
 void test_move_cursor_by_multiple_lines_down_stops_at_end_of_list(void)
 {
-    mock_view->expect_input(ViewIface::InputResult::UPDATE_NEEDED,
-                            DrcpCommand::SCROLL_DOWN_ONE, false);
-    mock_view->expect_input(ViewIface::InputResult::OK,
-                            DrcpCommand::SCROLL_DOWN_ONE, false);
+    auto lines =
+        std::unique_ptr<UI::ParamsUpDownSteps>(new UI::ParamsUpDownSteps(5));
+
+    mock_view->expect_input_with_callback(ViewIface::InputResult::UPDATE_NEEDED,
+                                          DrcpCommand::SCROLL_DOWN_MANY,
+                                          lines.get(), check_equal_lines_parameter);
     mock_view->expect_update(*views_output);
     mock_view->expect_write_xml_begin(true, false);
 
+    check_equal_lines_parameter_called = false;
     vm->input_move_cursor_by_line(5);
+    cut_assert_true(check_equal_lines_parameter_called);
+
     vm->serialization_result(DCP::Transaction::OK);
 
     check_and_clear_ostream("Mock update\n", *views_output);
@@ -357,18 +390,19 @@ void test_move_cursor_by_zero_pages(void)
  */
 void test_move_cursor_up_by_multiple_pages(void)
 {
-    mock_view->expect_input(ViewIface::InputResult::UPDATE_NEEDED,
-                            DrcpCommand::SCROLL_PAGE_UP, false);
-    mock_view->expect_input(ViewIface::InputResult::UPDATE_NEEDED,
-                            DrcpCommand::SCROLL_PAGE_UP, false);
-    mock_view->expect_input(ViewIface::InputResult::UPDATE_NEEDED,
-                            DrcpCommand::SCROLL_PAGE_UP, false);
-    mock_view->expect_input(ViewIface::InputResult::UPDATE_NEEDED,
-                            DrcpCommand::SCROLL_PAGE_UP, false);
+    auto lines =
+        std::unique_ptr<UI::ParamsUpDownSteps>(new UI::ParamsUpDownSteps(4 * ViewManager::VMIface::NUMBER_OF_LINES_ON_DISPLAY));
+
+    mock_view->expect_input_with_callback(ViewIface::InputResult::UPDATE_NEEDED,
+                                          DrcpCommand::SCROLL_UP_MANY,
+                                          lines.get(), check_equal_lines_parameter);
     mock_view->expect_update(*views_output);
     mock_view->expect_write_xml_begin(true, false);
 
+    check_equal_lines_parameter_called = false;
     vm->input_move_cursor_by_page(-4);
+    cut_assert_true(check_equal_lines_parameter_called);
+
     vm->serialization_result(DCP::Transaction::OK);
 
     check_and_clear_ostream("Mock update\n", *views_output);
@@ -382,14 +416,19 @@ void test_move_cursor_up_by_multiple_pages(void)
  */
 void test_move_cursor_down_by_multiple_pages(void)
 {
-    mock_view->expect_input(ViewIface::InputResult::UPDATE_NEEDED,
-                            DrcpCommand::SCROLL_PAGE_DOWN, false);
-    mock_view->expect_input(ViewIface::InputResult::UPDATE_NEEDED,
-                            DrcpCommand::SCROLL_PAGE_DOWN, false);
+    auto lines =
+        std::unique_ptr<UI::ParamsUpDownSteps>(new UI::ParamsUpDownSteps(2 * ViewManager::VMIface::NUMBER_OF_LINES_ON_DISPLAY));
+
+    mock_view->expect_input_with_callback(ViewIface::InputResult::UPDATE_NEEDED,
+                                          DrcpCommand::SCROLL_DOWN_MANY,
+                                          lines.get(), check_equal_lines_parameter);
     mock_view->expect_update(*views_output);
     mock_view->expect_write_xml_begin(true, false);
 
+    check_equal_lines_parameter_called = false;
     vm->input_move_cursor_by_page(2);
+    cut_assert_true(check_equal_lines_parameter_called);
+
     vm->serialization_result(DCP::Transaction::OK);
 
     check_and_clear_ostream("Mock update\n", *views_output);

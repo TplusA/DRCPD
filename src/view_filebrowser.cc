@@ -29,6 +29,7 @@
 #include "view_names.hh"
 #include "search_algo.hh"
 #include "player.hh"
+#include "ui_parameters_predefined.hh"
 #include "busy.hh"
 #include "de_tahifi_lists_context.h"
 #include "xmlescape.hh"
@@ -407,6 +408,30 @@ static inline bool have_search_parameters(const ViewIface *view)
         static_cast<const ViewSearch::View *>(view)->get_parameters() != nullptr;
 }
 
+static ViewIface::InputResult move_down_multi(List::Nav &navigation,
+                                              unsigned int lines)
+{
+    log_assert(lines > 0);
+
+    const bool moved = ((navigation.distance_to_bottom() == 0)
+                        ? navigation.down(lines)
+                        : navigation.down(navigation.distance_to_bottom()));
+
+    return moved ? ViewIface::InputResult::UPDATE_NEEDED : ViewIface::InputResult::OK;
+}
+
+static ViewIface::InputResult move_up_multi(List::Nav &navigation,
+                                            unsigned int lines)
+{
+    log_assert(lines > 0);
+
+    const bool moved = ((navigation.distance_to_top() == 0)
+                        ? navigation.up(lines)
+                        : navigation.up(navigation.distance_to_top()));
+
+    return moved ? ViewIface::InputResult::UPDATE_NEEDED : ViewIface::InputResult::OK;
+}
+
 ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command,
                                                     std::unique_ptr<const UI::Parameters> parameters)
 {
@@ -532,22 +557,30 @@ ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command,
         return navigation_.up() ? InputResult::UPDATE_NEEDED : InputResult::OK;
 
       case DrcpCommand::SCROLL_PAGE_DOWN:
-      {
-        bool moved =
-            ((navigation_.distance_to_bottom() == 0)
-             ? navigation_.down(navigation_.maximum_number_of_displayed_lines_)
-             : navigation_.down(navigation_.distance_to_bottom()));
-        return moved ? InputResult::UPDATE_NEEDED : InputResult::OK;
-      }
+        return move_down_multi(navigation_, navigation_.maximum_number_of_displayed_lines_);
 
       case DrcpCommand::SCROLL_PAGE_UP:
-      {
-        bool moved =
-            ((navigation_.distance_to_top() == 0)
-             ? navigation_.up(navigation_.maximum_number_of_displayed_lines_)
-             : navigation_.up(navigation_.distance_to_top()));
-        return moved ? InputResult::UPDATE_NEEDED : InputResult::OK;
-      }
+        return move_up_multi(navigation_, navigation_.maximum_number_of_displayed_lines_);
+
+      case DrcpCommand::SCROLL_DOWN_MANY:
+      case DrcpCommand::SCROLL_UP_MANY:
+        {
+            const auto lines =
+                UI::Parameters::downcast<const UI::ParamsUpDownSteps>(parameters);
+
+            if(lines == nullptr)
+            {
+                BUG("Number of lines missing");
+                break;
+            }
+
+            if(command == DrcpCommand::SCROLL_DOWN_MANY)
+                return move_down_multi(navigation_, lines->get_specific());
+            else
+                return move_up_multi(navigation_, lines->get_specific());
+        }
+
+        break;
 
       default:
         break;
