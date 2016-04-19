@@ -394,7 +394,7 @@ class Player: public PlayerIface, public MetaDataStoreIface
             LoggedLock::set_name(done_, "SynchronizedRequestDone");
         }
 
-        bool is_requested()
+        bool is_requested() const
         {
             return requested_.load();
         }
@@ -609,7 +609,7 @@ class Player: public PlayerIface, public MetaDataStoreIface
                     bool stop_playbackmode_state_if_active);
     void do_start_notification(LockWithStopRequest &lockstop, ID::Stream stream_id, bool try_enqueue);
     void do_skip_to_previous(LockWithStopRequest &lockstop, bool allow_restart_stream);
-    void do_skip_to_next(LockWithStopRequest &lockstop);
+    void do_skip_to_next(LockWithStopRequest &lockstop) const;
 
     bool send_message(Message &&message);
 

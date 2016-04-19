@@ -525,7 +525,7 @@ void Playback::Player::skip_to_next()
     }
 }
 
-void Playback::Player::do_skip_to_next(LockWithStopRequest &lockstop)
+void Playback::Player::do_skip_to_next(LockWithStopRequest &lockstop) const
 {
     if(requests_.release_player_.is_requested())
         return;
