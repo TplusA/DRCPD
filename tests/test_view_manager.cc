@@ -658,11 +658,11 @@ void test_input_command_with_need_to_hide_browse_view_never_works(void)
     vm->input(DrcpCommand::PLAYBACK_START, nullptr);
 }
 
-static bool check_equal_parameters_called;
-static void check_equal_parameters(const UI::Parameters *expected_parameters,
-                                   const std::unique_ptr<const UI::Parameters> &actual_parameters)
+static bool check_equal_parameters_by_pointer_called;
+static void check_equal_parameters_by_pointer(const UI::Parameters *expected_parameters,
+                                              const std::unique_ptr<const UI::Parameters> &actual_parameters)
 {
-    check_equal_parameters_called = true;
+    check_equal_parameters_by_pointer_called = true;
     cppcut_assert_equal(expected_parameters, actual_parameters.get());
 }
 
@@ -679,13 +679,13 @@ void test_input_command_with_data(void)
         std::unique_ptr<UI::ParamsFWSpeed>(new UI::ParamsFWSpeed(12.5));
     view.expect_input_with_callback(ViewIface::InputResult::OK,
                                     DrcpCommand::FAST_WIND_SET_SPEED,
-                                    speed_factor.get(), check_equal_parameters);
+                                    speed_factor.get(), check_equal_parameters_by_pointer);
 
     mock_messages->expect_msg_info("Dispatching DRCP command %d%s");
 
-    check_equal_parameters_called = false;
+    check_equal_parameters_by_pointer_called = false;
     vm->input(DrcpCommand::FAST_WIND_SET_SPEED, std::move(speed_factor));
-    cut_assert_true(check_equal_parameters_called);
+    cut_assert_true(check_equal_parameters_by_pointer_called);
 }
 
 class DummyTypeForTesting
@@ -712,13 +712,13 @@ void test_input_command_with_unexpected_data(void)
     view.expect_input_with_callback(ViewIface::InputResult::OK,
                                     DrcpCommand::FAST_WIND_SET_SPEED,
                                     completely_unexpected_data.get(),
-                                    check_equal_parameters);
+                                    check_equal_parameters_by_pointer);
 
     mock_messages->expect_msg_info("Dispatching DRCP command %d%s");
 
-    check_equal_parameters_called = false;
+    check_equal_parameters_by_pointer_called = false;
     vm->input(DrcpCommand::FAST_WIND_SET_SPEED, std::move(completely_unexpected_data));
-    cut_assert_true(check_equal_parameters_called);
+    cut_assert_true(check_equal_parameters_by_pointer_called);
 }
 
 /*!\test
@@ -734,13 +734,13 @@ void test_input_command_with_missing_data(void)
     const UI::SpecificParameters<DummyTypeForTesting *> completely_unexpected_data(nullptr);
     view.expect_input_with_callback(ViewIface::InputResult::OK,
                                     DrcpCommand::FAST_WIND_SET_SPEED,
-                                    nullptr, check_equal_parameters);
+                                    nullptr, check_equal_parameters_by_pointer);
 
     mock_messages->expect_msg_info("Dispatching DRCP command %d%s");
 
-    check_equal_parameters_called = false;
+    check_equal_parameters_by_pointer_called = false;
     vm->input(DrcpCommand::FAST_WIND_SET_SPEED);
-    cut_assert_true(check_equal_parameters_called);
+    cut_assert_true(check_equal_parameters_by_pointer_called);
 }
 
 /*!\test
