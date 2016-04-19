@@ -1,3 +1,26 @@
+2016-04-21  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 1.18 released.
+
+	* User interface: Searching in lists outside of Airable domain is
+	  possible. As long as the lists are sorted, hitting the search button
+	  in UPnP or USB view opens a search dialog. The entered string is
+	  searched within the currently displayed list, and the selection
+	  moves to the entry whose prefix matches best.
+
+	* User interface: Search button within Airable directory jumps
+	  directly to the search form of the currently browsed domain.
+
+	* User interface: Moving quickly through long lists by holding the up
+	  or down key is actually useful now. It was way too slow in previous
+	  versions.
+
+	* User interface: Lists wrap around, jumping to the end of a list is
+	  easy and fast now.
+
+	* Stability: Avoid hanging process in various occasions. Some more
+	  deadlocks fixed.
+
 2016-04-14  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 1.17 released.
