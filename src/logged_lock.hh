@@ -53,13 +53,18 @@ class Mutex
         owner_(0)
     {}
 
+    void about_to_lock(bool is_direct) const
+    {
+        if(owner_ == pthread_self())
+            BUG("Mutex %s: DEADLOCK for <%08lx> (%sdirect)",
+                name_, pthread_self(), is_direct ? "" : "in");
+    }
+
     void lock()
     {
         msg_info("<%08lx> Mutex %s: lock", pthread_self(), name_);
 
-        if(owner_ == pthread_self())
-            BUG("Mutex %s: DEADLOCK for <%08lx>", name_, pthread_self());
-
+        about_to_lock(true);
         lock_.lock();
         set_owner();
         msg_info("<%08lx> Mutex %s: locked", pthread_self(), name_);
@@ -142,15 +147,18 @@ class UniqueLock
 
     ~UniqueLock()
     {
-        msg_info("<%08lx> UniqueLock %p: dtor with mutex %s",
-                 pthread_self(), this, lock_name_);
-        logged_mutex_.clear_owner(false);
+        msg_info("<%08lx> UniqueLock %p: dtor with mutex %s owned by <%08lx>",
+                 pthread_self(), this, lock_name_, get_mutex_owner());
+
+        if(lock_.owns_lock())
+            logged_mutex_.clear_owner(true);
     }
 
     void lock()
     {
         msg_info("<%08lx> UniqueLock %p: lock mutex %s",
                  pthread_self(), this, lock_name_);
+        logged_mutex_.about_to_lock(false);
         lock_.lock();
         logged_mutex_.set_owner();
         msg_info("<%08lx> UniqueLock %p: locked mutex %s",
