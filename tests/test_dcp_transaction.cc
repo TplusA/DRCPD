@@ -77,12 +77,40 @@ static void check_and_clear_ostream(std::ostringstream *ss, const char *expected
 void test_one_transaction()
 {
     cut_assert_false(dt->is_in_progress());
+    cut_assert_false(dt->is_started_async());
     cut_assert_true(dt->start());
     cut_assert_true(dt->is_in_progress());
+    cut_assert_false(dt->is_started_async());
     cppcut_assert_not_null(dt->stream());
     *dt->stream() << "Simple!";
     cut_assert_true(dt->commit());
     check_and_clear_ostream(captured, "Size: 7\nSimple!");
+    cut_assert_true(dt->is_in_progress());
+    cut_assert_true(dt->done());
+    cut_assert_false(dt->is_in_progress());
+}
+
+/*!\test
+ * One asynchronous transaction.
+ */
+void test_one_async_transaction()
+{
+    /* start asynchronously */
+    cut_assert_false(dt->is_in_progress());
+    cut_assert_false(dt->is_started_async());
+    cut_assert_false(dt->start(true));
+    cut_assert_true(dt->is_in_progress());
+    cut_assert_true(dt->is_started_async());
+    cppcut_assert_null(dt->stream());
+
+    /* second time, this time for real */
+    cut_assert_true(dt->start());
+    cut_assert_true(dt->is_in_progress());
+    cut_assert_false(dt->is_started_async());
+    cppcut_assert_not_null(dt->stream());
+    *dt->stream() << "Simple async!";
+    cut_assert_true(dt->commit());
+    check_and_clear_ostream(captured, "Size: 13\nSimple async!");
     cut_assert_true(dt->is_in_progress());
     cut_assert_true(dt->done());
     cut_assert_false(dt->is_in_progress());

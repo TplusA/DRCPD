@@ -116,6 +116,10 @@ void DCP::Queue::transaction_observer(DCP::Transaction::state state)
         configure_timeout_callback(false);
         break;
 
+      case DCP::Transaction::STARTED_ASYNC:
+        /* not implemented yet */
+        break;
+
       case DCP::Transaction::WAIT_FOR_COMMIT:
         /* we are not considering this case because we assume that a commit
          * follows quickly, with no significant delay, and without any

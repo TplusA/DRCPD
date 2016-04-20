@@ -28,22 +28,32 @@ static void clear_stream(std::ostringstream &ss)
     ss.clear();
 }
 
-bool DCP::Transaction::start()
+bool DCP::Transaction::start(bool force_async)
 {
     switch(state_)
     {
       case IDLE:
-        break;
+        clear_stream(sstr_);
+
+        if(force_async)
+        {
+            set_state(STARTED_ASYNC);
+            break;
+        }
+
+        /* fall-through */
+
+      case STARTED_ASYNC:
+        set_state(WAIT_FOR_COMMIT);
+
+        return true;
 
       case WAIT_FOR_COMMIT:
       case WAIT_FOR_ANSWER:
-        return false;
+        break;
     }
 
-    clear_stream(sstr_);
-    set_state(WAIT_FOR_COMMIT);
-
-    return true;
+    return false;
 }
 
 bool DCP::Transaction::commit()
@@ -54,6 +64,7 @@ bool DCP::Transaction::commit()
         break;
 
       case IDLE:
+      case STARTED_ASYNC:
       case WAIT_FOR_ANSWER:
         return false;
     }
@@ -82,6 +93,7 @@ bool DCP::Transaction::done()
         break;
 
       case IDLE:
+      case STARTED_ASYNC:
       case WAIT_FOR_COMMIT:
         return false;
     }
@@ -96,6 +108,7 @@ bool DCP::Transaction::abort()
 {
     switch(state_)
     {
+      case STARTED_ASYNC:
       case WAIT_FOR_COMMIT:
       case WAIT_FOR_ANSWER:
         break;

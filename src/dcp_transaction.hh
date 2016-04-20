@@ -35,6 +35,7 @@ class Transaction
     enum state
     {
         IDLE,
+        STARTED_ASYNC,
         WAIT_FOR_COMMIT,
         WAIT_FOR_ANSWER,
     };
@@ -79,10 +80,37 @@ class Transaction
         return state_ != IDLE;
     }
 
+    bool is_started_async() const
+    {
+        return state_ == STARTED_ASYNC;
+    }
+
     /*!
      * Start a transaction.
+     *
+     * This function activates an idle transaction. The actual transaction may
+     * be initiated by the caller if this function returns true.
+     *
+     * Asynchronous operation is supported, i.e., the transaction work is
+     * deferred to the main thread's main loop. This mode is required in some
+     * situations to avoid deadlocks, and it may be convenient to use it in
+     * other situations to increase overall system responsiveness.
+     *
+     * In case asynchronous operation is requested, this function returns false
+     * even for an idle transaction object. Another call of this function is
+     * required to set it to the same state as for synchronous operation, thus
+     * to make it return true. Callers need to call
+     * #DCP::Transaction::is_started_async() to distinguish this case from a
+     * failed transaction start.
+     *
+     * \param force_async
+     *     Whether or not to force asynchronous mode. This parameter is only
+     *     evaluated for truly idle transactions.
+     *
+     * \returns
+     *     True if the actual transaction may begin, false if not.
      */
-    bool start();
+    bool start(bool force_async = false);
 
     /*!
      * Commence sending the data, no further writes are allowed.
