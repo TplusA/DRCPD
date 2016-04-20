@@ -82,7 +82,8 @@ class View: public ViewIface, public ViewSerializeBase
     void notify_stream_position_changed() override;
     void notify_stream_meta_data_changed() override;
 
-    void serialize(DCP::Queue &queue, std::ostream *debug_os) override;
+    void serialize(DCP::Queue &queue, DCP::Queue::Mode mode,
+                   std::ostream *debug_os) override;
 
   private:
     /*!

@@ -340,7 +340,7 @@ static int process_command_line(int argc, char *argv[],
     return 0;
 }
 
-gboolean do_call_in_main_context(gpointer user_data)
+static gboolean do_call_in_main_context(gpointer user_data)
 {
     auto *fn = static_cast<std::function<void()> *>(user_data);
     log_assert(fn != nullptr);
@@ -354,27 +354,74 @@ gboolean do_call_in_main_context(gpointer user_data)
         /* doesn't really matter, but don't mess up the GLib path */
     }
 
-    delete fn;
-
     return G_SOURCE_REMOVE;
+}
+
+static void do_call_in_main_context_dtor(gpointer user_data)
+{
+    auto *fn = static_cast<std::function<void()> *>(user_data);
+    delete fn;
 }
 
 /*!
  * Call given function in main context.
  *
- * To avoid the grief of adding proper locking to all view implementations in
- * order to make them thread-safe, we resort to asynchronous function calls via
- * GLib mechanisms. The views may continue to assume they are being used in a
- * single-threaded process.
+ * For functions that must not be called from threads other than the main
+ * thread.
+ *
+ * \param fn_object
+ *     Dynamically allocated function object that is called from the main
+ *     thread's main loop. If \c nullptr, then an out-of-memory error message
+ *     is emitted (the caller may therefore conveniently pass the result of
+ *     \c new directly to this function). The object is freed via \c delete
+ *     after the function object has been called.
+ *
+ * \param allow_direct_call
+ *     If this is true, then the function is called directly in case the
+ *     current context is the main context. Note that this may lead to
+ *     deadlocks.
  */
-static void call_in_main_context(const std::function<void(bool)> &fn, bool arg)
+static void call_in_main_context(std::function<void()> *fn_object,
+                                 bool allow_direct_call)
 {
-    auto *fn_object = new std::function<void()>(std::bind(fn, arg));
-
-    if(fn_object != nullptr)
-        g_main_context_invoke(NULL, do_call_in_main_context, fn_object);
-    else
+    if(fn_object == nullptr)
+    {
         msg_out_of_memory("function object");
+        return;
+    }
+
+    if(allow_direct_call)
+        g_main_context_invoke_full(NULL, G_PRIORITY_DEFAULT,
+                                   do_call_in_main_context, fn_object,
+                                   do_call_in_main_context_dtor);
+    else
+    {
+        GSource *const source = g_idle_source_new();
+
+        g_source_set_priority(source, G_PRIORITY_DEFAULT);
+        g_source_set_callback(source, do_call_in_main_context, fn_object,
+                              do_call_in_main_context_dtor);
+        g_source_attach(source, g_main_context_default());
+        g_source_unref(source);
+    }
+}
+
+/*!
+ * Process DCP transaction queue in the main loop of the main context.
+ *
+ * To avoid the grief of adding proper locking to all view implementations in
+ * order to make them thread-safe and reentrant, we resort to asynchronous
+ * function calls via GLib mechanisms. The views may continue to assume they
+ * are being used in a single-threaded process.
+ */
+static void defer_dcp_transfer(DCP::Queue *queue)
+{
+    log_assert(queue != nullptr);
+
+    auto *fn_object =
+        new std::function<void()>(std::bind(&DCP::Queue::process_pending_transactions, queue));
+
+    call_in_main_context(fn_object, false);
 }
 
 static void connect_everything(ViewManager::Manager &views,
@@ -437,11 +484,8 @@ static void connect_everything(ViewManager::Manager &views,
 
     dbus_data.play_view_ = views.get_view_by_name(ViewNames::PLAYER);
 
-    Busy::init(std::bind(call_in_main_context,
-                         std::function<void(bool)>(
-                             std::bind(&ViewManager::Manager::busy_state_notification,
-                                       &views, std::placeholders::_1)),
-                         std::placeholders::_1));
+    Busy::init(std::bind(&ViewManager::Manager::busy_state_notification,
+                         &views, std::placeholders::_1));
 
     views.activate_view_by_name(ViewNames::BROWSER_UPNP);
 }
@@ -485,7 +529,8 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
 
     static DCP::Queue dcp_transaction_queue(
-        std::bind(timeout_config, std::placeholders::_1, &dcp_dispatch_data));
+        std::bind(timeout_config, std::placeholders::_1, &dcp_dispatch_data),
+        std::bind(defer_dcp_transfer, &dcp_transaction_queue));
     static FdStreambuf fd_sbuf(files.dcp_fifo.out_fd);
     static std::ostream fd_out(&fd_sbuf);
     static ViewManager::Manager view_manager(dcp_transaction_queue);

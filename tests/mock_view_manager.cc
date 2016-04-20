@@ -429,17 +429,17 @@ bool MockViewManager::is_active_view(const ViewIface *view) const
     return false;
 }
 
-void MockViewManager::serialize_view_if_active(const ViewIface *view) const
+void MockViewManager::serialize_view_if_active(const ViewIface *view, DCP::Queue::Mode mode) const
 {
     cut_fail("Not implemented");
 }
 
-void MockViewManager::serialize_view_forced(const ViewIface *view) const
+void MockViewManager::serialize_view_forced(const ViewIface *view, DCP::Queue::Mode mode) const
 {
     cut_fail("Not implemented");
 }
 
-void MockViewManager::update_view_if_active(const ViewIface *view) const
+void MockViewManager::update_view_if_active(const ViewIface *view, DCP::Queue::Mode mode) const
 {
     cut_fail("Not implemented");
 }

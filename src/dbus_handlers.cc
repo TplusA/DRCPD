@@ -281,7 +281,8 @@ void dbussignal_lists_navigation(GDBusProxy *proxy, const gchar *sender_name,
         if(view == nullptr)
             BUG("Could not find view for D-Bus proxy");
         else if(view->list_invalidate(list_id, new_list_id))
-            data->mgr_.update_view_if_active(view);
+            data->mgr_.update_view_if_active(view,
+                                             DCP::Queue::Mode::FORCE_ASYNC);
     }
     else
         unknown_signal(iface_name, signal_name, sender_name);

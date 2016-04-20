@@ -251,9 +251,10 @@ ViewIface::InputResult ViewConfig::View::input(DrcpCommand command,
     return InputResult::OK;
 }
 
-void ViewConfig::View::serialize(DCP::Queue &queue, std::ostream *debug_os)
+void ViewConfig::View::serialize(DCP::Queue &queue, DCP::Queue::Mode mode,
+                                 std::ostream *debug_os)
 {
-    ViewSerializeBase::serialize(queue);
+    ViewSerializeBase::serialize(queue, mode);
 
     if(!debug_os)
         return;

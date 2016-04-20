@@ -134,8 +134,10 @@ class View: public ViewIface, public ViewSerializeBase
     InputResult input(DrcpCommand command,
                       std::unique_ptr<const UI::Parameters> parameters) override;
 
-    void serialize(DCP::Queue &queue, std::ostream *debug_os) override;
-    void update(DCP::Queue &queue, std::ostream *debug_os) override;
+    void serialize(DCP::Queue &queue, DCP::Queue::Mode mode,
+                   std::ostream *debug_os) override;
+    void update(DCP::Queue &queue, DCP::Queue::Mode mode,
+                std::ostream *debug_os) override;
 
     bool owns_dbus_proxy(const void *dbus_proxy) const;
     bool list_invalidate(ID::List list_id, ID::List replacement_id);

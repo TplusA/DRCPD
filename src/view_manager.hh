@@ -131,9 +131,9 @@ class VMIface
     virtual void toggle_views_by_name(const char *view_name_a,
                                       const char *view_name_b) = 0;
     virtual bool is_active_view(const ViewIface *view) const = 0;
-    virtual void serialize_view_if_active(const ViewIface *view) const = 0;
-    virtual void serialize_view_forced(const ViewIface *view) const = 0;
-    virtual void update_view_if_active(const ViewIface *view) const = 0;
+    virtual void serialize_view_if_active(const ViewIface *view, DCP::Queue::Mode mode) const = 0;
+    virtual void serialize_view_forced(const ViewIface *view, DCP::Queue::Mode mode) const = 0;
+    virtual void update_view_if_active(const ViewIface *view, DCP::Queue::Mode mode) const = 0;
     virtual void hide_view_if_active(const ViewIface *view) = 0;
 };
 
@@ -183,9 +183,9 @@ class Manager: public VMIface
     void toggle_views_by_name(const char *view_name_a,
                               const char *view_name_b) override;
     bool is_active_view(const ViewIface *view) const override;
-    void serialize_view_if_active(const ViewIface *view) const override;
-    void serialize_view_forced(const ViewIface *view) const override;
-    void update_view_if_active(const ViewIface *view) const override;
+    void serialize_view_if_active(const ViewIface *view, DCP::Queue::Mode mode) const override;
+    void serialize_view_forced(const ViewIface *view, DCP::Queue::Mode mode) const override;
+    void update_view_if_active(const ViewIface *view, DCP::Queue::Mode mode) const override;
     void hide_view_if_active(const ViewIface *view) override;
 
     void busy_state_notification(bool is_busy);

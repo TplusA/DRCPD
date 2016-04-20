@@ -31,9 +31,18 @@ class ViewSerializeBase;
 namespace DCP
 {
 
+/*!
+ * TODO: Make this thing thread-safe.
+ */
 class Queue
 {
   public:
+    enum class Mode
+    {
+        SYNC_IF_POSSIBLE,
+        FORCE_ASYNC,
+    };
+
     class Data
     {
       public:
@@ -59,28 +68,35 @@ class Queue
     Transaction dcpd_;
 
     static std::function<void(bool)> configure_timeout_callback;
+    static std::function<void()> schedule_async_processing_callback;
     static void transaction_observer(Transaction::state state);
 
   public:
     Queue(const Queue &) = delete;
     Queue &operator=(const Queue &) = delete;
 
-    explicit Queue(const std::function<void(bool)> &configure_timeout_fn):
+    explicit Queue(const std::function<void(bool)> &configure_timeout_fn,
+                   const std::function<void()> &schedule_async_processing_fn):
         dcpd_(transaction_observer)
     {
         configure_timeout_callback = configure_timeout_fn;
+        schedule_async_processing_callback = schedule_async_processing_fn;
     }
 
     void set_output_stream(std::ostream *os) { dcpd_.set_output_stream(os); }
 
-    void add(ViewSerializeBase *view, bool is_full_serialize,
-             uint32_t view_update_flags = 0);
-    bool start_transaction();
+    void add(ViewSerializeBase *view,
+             bool is_full_serialize, uint32_t view_update_flags);
+    bool start_transaction(Mode mode);
+    bool process_pending_transactions();
     bool finish_transaction(DCP::Transaction::Result result);
 
     bool is_empty() const { return data_.empty(); }
     bool is_in_progress() const { return dcpd_.is_in_progress(); }
     bool is_idle() const { return is_empty() && !is_in_progress(); }
+
+  private:
+    bool process();
 };
 
 }

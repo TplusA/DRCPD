@@ -130,7 +130,7 @@ void ViewPlay::View::notify_stream_start()
     msg_info("Play view: stream started, %s",
              is_visible_ ? "send screen update" : "but view is invisible");
 
-    view_manager_->serialize_view_if_active(this);
+    view_manager_->serialize_view_if_active(this, DCP::Queue::Mode::FORCE_ASYNC);
 }
 
 void ViewPlay::View::notify_stream_stop()
@@ -140,7 +140,7 @@ void ViewPlay::View::notify_stream_stop()
 
     player_.release(false);
     add_update_flags(UPDATE_FLAGS_PLAYBACK_STATE);
-    view_manager_->update_view_if_active(this);
+    view_manager_->update_view_if_active(this, DCP::Queue::Mode::FORCE_ASYNC);
     view_manager_->hide_view_if_active(this);
 }
 
@@ -150,7 +150,7 @@ void ViewPlay::View::notify_stream_pause()
              is_visible_ ? "send screen update" : "but view is invisible");
 
     add_update_flags(UPDATE_FLAGS_PLAYBACK_STATE);
-    view_manager_->update_view_if_active(this);
+    view_manager_->update_view_if_active(this, DCP::Queue::Mode::FORCE_ASYNC);
 }
 
 void ViewPlay::View::notify_stream_position_changed()
@@ -159,7 +159,7 @@ void ViewPlay::View::notify_stream_position_changed()
              is_visible_ ? "send screen update" : "but view is invisible");
 
     add_update_flags(UPDATE_FLAGS_STREAM_POSITION);
-    view_manager_->update_view_if_active(this);
+    view_manager_->update_view_if_active(this, DCP::Queue::Mode::FORCE_ASYNC);
 }
 
 void ViewPlay::View::notify_stream_meta_data_changed()
@@ -168,7 +168,7 @@ void ViewPlay::View::notify_stream_meta_data_changed()
              is_visible_ ? "send screen update" : "but view is invisible");
 
     add_update_flags(UPDATE_FLAGS_META_DATA);
-    view_manager_->update_view_if_active(this);
+    view_manager_->update_view_if_active(this, DCP::Queue::Mode::FORCE_ASYNC);
 }
 
 static const std::string &mk_alt_track_name(const PlayInfo::MetaData &meta_data)
@@ -267,12 +267,13 @@ bool ViewPlay::View::write_xml(std::ostream &os, const DCP::Queue::Data &data)
     return true;
 }
 
-void ViewPlay::View::serialize(DCP::Queue &queue, std::ostream *debug_os)
+void ViewPlay::View::serialize(DCP::Queue &queue, DCP::Queue::Mode mode,
+                               std::ostream *debug_os)
 {
     if(!is_visible_)
         BUG("serializing invisible ViewPlay::View");
 
-    ViewSerializeBase::serialize(queue);
+    ViewSerializeBase::serialize(queue, mode);
 
     if(!debug_os)
         return;

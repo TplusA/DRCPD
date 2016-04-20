@@ -282,7 +282,8 @@ bool ViewMock::View::write_xml_end(std::ostream &os,
     return true;
 }
 
-void ViewMock::View::serialize(DCP::Queue &queue, std::ostream *debug_os)
+void ViewMock::View::serialize(DCP::Queue &queue, DCP::Queue::Mode mode,
+                               std::ostream *debug_os)
 {
     if(!ignore_all_)
     {
@@ -298,7 +299,8 @@ void ViewMock::View::serialize(DCP::Queue &queue, std::ostream *debug_os)
     cppcut_assert_equal(was_idle, succeeded);
 }
 
-void ViewMock::View::update(DCP::Queue &queue, std::ostream *debug_os)
+void ViewMock::View::update(DCP::Queue &queue, DCP::Queue::Mode mode,
+                            std::ostream *debug_os)
 {
     if(!ignore_all_)
     {

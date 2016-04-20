@@ -26,9 +26,10 @@
 #include "view_serialize.hh"
 
 std::function<void(bool)> DCP::Queue::configure_timeout_callback;
+std::function<void()> DCP::Queue::schedule_async_processing_callback;
 
-void DCP::Queue::add(ViewSerializeBase *view, bool is_full_serialize,
-                     uint32_t view_update_flags)
+void DCP::Queue::add(ViewSerializeBase *view,
+                     bool is_full_serialize, uint32_t view_update_flags)
 {
     const auto &it(std::find_if(data_.begin(), data_.end(),
                                 [view] (const std::unique_ptr<Data> &d) -> bool
@@ -49,11 +50,47 @@ void DCP::Queue::add(ViewSerializeBase *view, bool is_full_serialize,
     }
 }
 
-bool DCP::Queue::start_transaction()
+bool DCP::Queue::start_transaction(Mode mode)
 {
     if(data_.empty())
         return false;
 
+    if(dcpd_.is_started_async())
+    {
+        /* there is already an asynchronous transaction sitting there to be
+         * processed in a safe context, so we cannot do anything here at the
+         * moment */
+        return true;
+    }
+
+    switch(mode)
+    {
+      case Mode::SYNC_IF_POSSIBLE:
+        break;
+
+      case Mode::FORCE_ASYNC:
+        if(dcpd_.start(true))
+            BUG("Unexpected result for starting asynchronous DCP transaction");
+
+        return dcpd_.is_started_async();
+    }
+
+    return process_pending_transactions();
+}
+
+bool DCP::Queue::process_pending_transactions()
+{
+    if(!process())
+        return false;
+
+    while(process())
+        ;
+
+    return true;
+}
+
+bool DCP::Queue::process()
+{
     while(!data_.empty())
     {
         if(!dcpd_.start())
@@ -117,7 +154,7 @@ void DCP::Queue::transaction_observer(DCP::Transaction::state state)
         break;
 
       case DCP::Transaction::STARTED_ASYNC:
-        /* not implemented yet */
+        schedule_async_processing_callback();
         break;
 
       case DCP::Transaction::WAIT_FOR_COMMIT:

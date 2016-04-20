@@ -58,8 +58,8 @@ class View: public ViewIface, public ViewSerializeBase
         return InputResult::SHOULD_HIDE;
     }
 
-    void serialize(DCP::Queue &queue, std::ostream *debug_os) override {}
-    void update(DCP::Queue &queue, std::ostream *debug_os) override {}
+    void serialize(DCP::Queue &queue, DCP::Queue::Mode mode, std::ostream *debug_os) override {}
+    void update(DCP::Queue &queue, DCP::Queue::Mode mode, std::ostream *debug_os) override {}
 };
 
 };

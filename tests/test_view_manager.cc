@@ -55,7 +55,13 @@ static void dcp_transaction_setup_timeout(bool start_timeout_timer)
     /* nothing */
 }
 
+static void dcp_deferred_tx()
+{
+    /* nothing */
+}
+
 static const std::function<void(bool)> transaction_observer(dcp_transaction_setup_timeout);
+static const std::function<void()> deferred_dcp_transfer_observer(dcp_deferred_tx);
 
 namespace view_manager_tests_basics
 {
@@ -75,7 +81,7 @@ void cut_setup(void)
     mock_messages->init();
     mock_messages_singleton = mock_messages;
 
-    queue = new DCP::Queue(transaction_observer);
+    queue = new DCP::Queue(transaction_observer, deferred_dcp_transfer_observer);
     cppcut_assert_not_null(queue);
 
     vm = new ViewManager::Manager(*queue);
@@ -214,7 +220,7 @@ void cut_setup(void)
     cppcut_assert_not_null(mock_view);
     cut_assert_true(mock_view->init());
 
-    queue = new DCP::Queue(dcp_transaction_setup_timeout);
+    queue = new DCP::Queue(dcp_transaction_setup_timeout, dcp_deferred_tx);
     cppcut_assert_not_null(queue);
 
     vm = new ViewManager::Manager(*queue);
@@ -484,7 +490,7 @@ void cut_setup(void)
     mock_messages->init();
     mock_messages_singleton = mock_messages;
 
-    queue = new DCP::Queue(dcp_transaction_setup_timeout);
+    queue = new DCP::Queue(dcp_transaction_setup_timeout, dcp_deferred_tx);
     cppcut_assert_not_null(queue);
 
     vm = new ViewManager::Manager(*queue);
@@ -944,7 +950,7 @@ void cut_setup(void)
     cppcut_assert_not_null(mock_view);
     cut_assert_true(mock_view->init());
 
-    queue = new DCP::Queue(dcp_transaction_setup_timeout);
+    queue = new DCP::Queue(dcp_transaction_setup_timeout, dcp_deferred_tx);
     cppcut_assert_not_null(queue);
 
     vm = new ViewManager::Manager(*queue);

@@ -93,13 +93,16 @@ class ViewSerializeBase
      *
      * \param queue
      *     A transaction queue object to send the XML to.
+     * \param mode
+     *     DCP queuing mode.
      * \param debug_os
      *     An optional debug output stream to see what's going on (not used in
      *     base class implementation).
      */
-    virtual void serialize(DCP::Queue &queue, std::ostream *debug_os = nullptr)
+    virtual void serialize(DCP::Queue &queue, DCP::Queue::Mode mode,
+                           std::ostream *debug_os = nullptr)
     {
-        do_serialize(queue, true);
+        do_serialize(queue, mode, true);
     }
 
     /*!
@@ -108,9 +111,10 @@ class ViewSerializeBase
      * This function does the same as #serialize(), but only emits things that
      * have changed.
      */
-    virtual void update(DCP::Queue &queue, std::ostream *debug_os = nullptr)
+    virtual void update(DCP::Queue &queue, DCP::Queue::Mode mode,
+                        std::ostream *debug_os = nullptr)
     {
-        do_serialize(queue, false);
+        do_serialize(queue, mode, false);
     }
 
     bool write_whole_xml(std::ostream &os, const DCP::Queue::Data &data)
@@ -190,11 +194,11 @@ class ViewSerializeBase
     void add_update_flags(uint32_t flags) { update_flags_ |= flags; }
 
   private:
-    bool do_serialize(DCP::Queue &queue, bool is_full_view)
+    bool do_serialize(DCP::Queue &queue, DCP::Queue::Mode mode, bool is_full_view)
     {
         queue.add(this, is_full_view, update_flags_);
         update_flags_ = 0;
-        return queue.start_transaction();
+        return queue.start_transaction(mode);
     }
 
   public:
@@ -204,7 +208,8 @@ class ViewSerializeBase
         static inline bool do_serialize(ViewSerializeBase &view,
                                         DCP::Queue &queue, bool is_full_view)
         {
-            return view.do_serialize(queue, is_full_view);
+            return view.do_serialize(queue, DCP::Queue::Mode::SYNC_IF_POSSIBLE,
+                                     is_full_view);
         }
 
         friend class ViewMock::View;

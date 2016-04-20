@@ -196,7 +196,7 @@ static bool request_search_parameters_from_user(ViewManager::VMIface &vm,
         return false;
 
     view.request_parameters_for_context(&from_view, ctx.string_id_);
-    vm.serialize_view_forced(&view);
+    vm.serialize_view_forced(&view, DCP::Queue::Mode::SYNC_IF_POSSIBLE);
 
     return true;
 }
@@ -680,9 +680,10 @@ bool ViewFileBrowser::View::write_xml(std::ostream &os,
     return true;
 }
 
-void ViewFileBrowser::View::serialize(DCP::Queue &queue, std::ostream *debug_os)
+void ViewFileBrowser::View::serialize(DCP::Queue &queue, DCP::Queue::Mode mode,
+                                      std::ostream *debug_os)
 {
-    ViewSerializeBase::serialize(queue);
+    ViewSerializeBase::serialize(queue, mode);
 
     if(!debug_os)
         return;
@@ -713,9 +714,10 @@ void ViewFileBrowser::View::serialize(DCP::Queue &queue, std::ostream *debug_os)
     }
 }
 
-void ViewFileBrowser::View::update(DCP::Queue &queue, std::ostream *debug_os)
+void ViewFileBrowser::View::update(DCP::Queue &queue, DCP::Queue::Mode mode,
+                                   std::ostream *debug_os)
 {
-    serialize(queue, debug_os);
+    serialize(queue, mode, debug_os);
 }
 
 bool ViewFileBrowser::View::owns_dbus_proxy(const void *dbus_proxy) const

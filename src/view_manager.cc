@@ -88,7 +88,7 @@ void ViewManager::Manager::serialization_result(DCP::Transaction::Result result)
     if(dcp_transaction_queue_.finish_transaction(result))
     {
         /* just start the next transaction with not delay */
-        (void)dcp_transaction_queue_.start_transaction();
+        (void)dcp_transaction_queue_.start_transaction(DCP::Queue::Mode::SYNC_IF_POSSIBLE);
         return;
     }
 
@@ -133,6 +133,7 @@ void ViewManager::Manager::handle_input_result(ViewIface::InputResult result,
 
       case ViewIface::InputResult::FORCE_SERIALIZE:
         dynamic_cast<ViewSerializeBase &>(view).update(dcp_transaction_queue_,
+                                                       DCP::Queue::Mode::SYNC_IF_POSSIBLE,
                                                        debug_stream_);
         break;
 
@@ -297,6 +298,7 @@ void ViewManager::Manager::activate_view(ViewIface *view)
     active_view_->focus();
 
     dynamic_cast<ViewSerializeBase *>(active_view_)->serialize(dcp_transaction_queue_,
+                                                               DCP::Queue::Mode::SYNC_IF_POSSIBLE,
                                                                debug_stream_);
 
     if(view->is_browse_view_)
@@ -352,24 +354,27 @@ bool ViewManager::Manager::is_active_view(const ViewIface *view) const
     return view == active_view_;
 }
 
-void ViewManager::Manager::update_view_if_active(const ViewIface *view) const
+void ViewManager::Manager::update_view_if_active(const ViewIface *view,
+                                                 DCP::Queue::Mode mode) const
 {
     if(is_active_view(view))
         dynamic_cast<ViewSerializeBase *>(active_view_)->update(
-            dcp_transaction_queue_, debug_stream_);
+            dcp_transaction_queue_, mode, debug_stream_);
 }
 
-void ViewManager::Manager::serialize_view_if_active(const ViewIface *view) const
+void ViewManager::Manager::serialize_view_if_active(const ViewIface *view,
+                                                    DCP::Queue::Mode mode) const
 {
     if(is_active_view(view))
         dynamic_cast<ViewSerializeBase *>(active_view_)->serialize(
-            dcp_transaction_queue_, debug_stream_);
+            dcp_transaction_queue_, mode, debug_stream_);
 }
 
-void ViewManager::Manager::serialize_view_forced(const ViewIface *view) const
+void ViewManager::Manager::serialize_view_forced(const ViewIface *view,
+                                                 DCP::Queue::Mode mode) const
 {
     dynamic_cast<ViewSerializeBase *>(const_cast<ViewIface *>(view))->serialize(
-        dcp_transaction_queue_, debug_stream_);
+        dcp_transaction_queue_, mode, debug_stream_);
 }
 
 void ViewManager::Manager::hide_view_if_active(const ViewIface *view)
@@ -384,5 +389,6 @@ void ViewManager::Manager::busy_state_notification(bool is_busy)
     log_assert(view != nullptr);
 
     view->add_base_update_flags(ViewSerializeBase::UPDATE_FLAGS_BASE_BUSY_FLAG);
-    view->update(dcp_transaction_queue_, debug_stream_);
+    view->update(dcp_transaction_queue_, DCP::Queue::Mode::FORCE_ASYNC,
+                 debug_stream_);
 }

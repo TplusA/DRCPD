@@ -65,8 +65,8 @@ class View: public ViewIface, public ViewSerializeBase
     bool write_xml_begin(std::ostream &os, const DCP::Queue::Data &data_full_view) override;
     bool write_xml(std::ostream &os, const DCP::Queue::Data &data_full_view) override;
     bool write_xml_end(std::ostream &os, const DCP::Queue::Data &data_full_view) override;
-    void serialize(DCP::Queue &queue, std::ostream *debug_os) override;
-    void update(DCP::Queue &queue, std::ostream *debug_os) override;
+    void serialize(DCP::Queue &queue, DCP::Queue::Mode mode, std::ostream *debug_os) override;
+    void update(DCP::Queue &queue, DCP::Queue::Mode mode, std::ostream *debug_os) override;
 };
 
 };

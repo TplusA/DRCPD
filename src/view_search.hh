@@ -65,16 +65,18 @@ class View: public ViewIface, public ViewSerializeBase
     InputResult input(DrcpCommand command,
                       std::unique_ptr<const UI::Parameters> parameters) override;
 
-    void serialize(DCP::Queue &queue, std::ostream *debug_os = nullptr) override
+    void serialize(DCP::Queue &queue, DCP::Queue::Mode mode,
+                   std::ostream *debug_os = nullptr) override
     {
         if(can_serialize())
-            ViewSerializeBase::serialize(queue, debug_os);
+            ViewSerializeBase::serialize(queue, mode, debug_os);
     }
 
-    void update(DCP::Queue &queue, std::ostream *debug_os = nullptr) override
+    void update(DCP::Queue &queue, DCP::Queue::Mode mode,
+                std::ostream *debug_os = nullptr) override
     {
         if(can_serialize())
-            ViewSerializeBase::update(queue, debug_os);
+            ViewSerializeBase::update(queue, mode, debug_os);
     }
 
     void request_parameters_for_context(const ViewIface *view, const char *context)
