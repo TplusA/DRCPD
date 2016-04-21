@@ -455,8 +455,10 @@ bool Playback::State::try_set_position(const StreamInfoItem &info)
 {
     try
     {
-        ViewFileBrowser::enter_list_at(dbus_list_, item_flags_, navigation_,
-                                       info.list_id_, info.line_, false);
+        ViewFileBrowser::Utils::enter_list_at(dbus_list_, item_flags_,
+                                              navigation_,
+                                              info.list_id_, info.line_,
+                                              false);
     }
     catch(const List::DBusListException &e)
     {
@@ -595,9 +597,9 @@ bool Playback::State::try_start()
     if(mode_.get() != Playback::Mode::LINEAR)
         return false;
 
-    ViewFileBrowser::enter_list_at(dbus_list_, item_flags_, navigation_,
-                                   user_list_id_, user_list_line_,
-                                   is_reverse_traversal_);
+    ViewFileBrowser::Utils::enter_list_at(dbus_list_, item_flags_, navigation_,
+                                          user_list_id_, user_list_line_,
+                                          is_reverse_traversal_);
 
     if(!try_descend())
         return true;
@@ -840,16 +842,16 @@ bool Playback::State::try_descend()
     }
 
     ID::List list_id =
-        ViewFileBrowser::get_child_item_id(dbus_list_,
-                                           dbus_list_.get_list_id(),
-                                           navigation_, nullptr, true);
+        ViewFileBrowser::Utils::get_child_item_id(dbus_list_,
+                                                  dbus_list_.get_list_id(),
+                                                  navigation_, nullptr, true);
 
     if(!list_id.is_valid())
         return false;
 
-    ViewFileBrowser::enter_list_at(dbus_list_,
-                                   item_flags_, navigation_, list_id, 0,
-                                   is_reverse_traversal_);
+    ViewFileBrowser::Utils::enter_list_at(dbus_list_,
+                                          item_flags_, navigation_, list_id, 0,
+                                          is_reverse_traversal_);
 
     return true;
 }
@@ -883,9 +885,9 @@ bool Playback::State::find_next(const List::TextItem *directory,
         /* end of directory reached, go up again */
         unsigned int item_id;
         const ID::List list_id =
-            ViewFileBrowser::get_parent_link_id(dbus_list_,
-                                                dbus_list_.get_list_id(),
-                                                item_id);
+            ViewFileBrowser::Utils::get_parent_link_id(dbus_list_,
+                                                       dbus_list_.get_list_id(),
+                                                       item_id);
 
         if(!list_id.is_valid())
         {
@@ -893,9 +895,9 @@ bool Playback::State::find_next(const List::TextItem *directory,
             break;
         }
 
-        ViewFileBrowser::enter_list_at(dbus_list_, item_flags_, navigation_,
-                                       list_id, item_id,
-                                       false);
+        ViewFileBrowser::Utils::enter_list_at(dbus_list_, item_flags_,
+                                              navigation_, list_id, item_id,
+                                              false);
     }
 
     return false;

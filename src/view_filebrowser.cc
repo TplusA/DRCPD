@@ -791,7 +791,8 @@ static ID::List go_to_root_directory(List::DBusList &file_list,
 
     const ID::List id(list_id);
 
-    ViewFileBrowser::enter_list_at(file_list, item_flags, navigation, id, 0);
+    ViewFileBrowser::Utils::enter_list_at(file_list, item_flags, navigation,
+                                          id, 0);
 
     return id;
 }
@@ -828,14 +829,15 @@ bool ViewFileBrowser::View::point_to_child_directory(const SearchParameters *sea
     try
     {
         ID::List list_id =
-            get_child_item_id(file_list_, current_list_id_, navigation_,
-                              search_parameters);
+            Utils::get_child_item_id(file_list_, current_list_id_, navigation_,
+                                     search_parameters);
 
         const bool retval = list_id.is_valid();
 
         if(retval)
         {
-            enter_list_at(file_list_, item_flags_, navigation_, list_id, 0);
+            Utils::enter_list_at(file_list_, item_flags_, navigation_,
+                                 list_id, 0);
             current_list_id_ = list_id;
         }
 
@@ -885,11 +887,12 @@ bool ViewFileBrowser::View::point_to_parent_link()
     {
         unsigned int item_id;
         ID::List list_id =
-            get_parent_link_id(file_list_, current_list_id_, item_id);
+            Utils::get_parent_link_id(file_list_, current_list_id_, item_id);
 
         if(list_id.is_valid())
         {
-            enter_list_at(file_list_, item_flags_, navigation_, list_id, item_id);
+            Utils::enter_list_at(file_list_, item_flags_, navigation_,
+                                 list_id, item_id);
             current_list_id_ = list_id;
 
             return true;
@@ -935,7 +938,8 @@ void ViewFileBrowser::View::reload_list()
     {
         try
         {
-            enter_list_at(file_list_, item_flags_, navigation_, current_list_id_, line);
+            Utils::enter_list_at(file_list_, item_flags_, navigation_,
+                                 current_list_id_, line);
             return;
         }
         catch(const List::DBusListException &e)
