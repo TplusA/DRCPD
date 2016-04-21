@@ -28,6 +28,7 @@
 
 #include "i18n.h"
 #include "view_filebrowser.hh"
+#include "view_filebrowser_airable.hh"
 #include "view_config.hh"
 #include "view_manager.hh"
 #include "view_play.hh"
@@ -436,12 +437,12 @@ static void connect_everything(ViewManager::Manager &views,
                                     DBUS_LISTBROKER_ID_FILESYSTEM,
                                     player, Playback::Mode::LINEAR,
                                     &views);
-    static ViewFileBrowser::View tunein(ViewNames::BROWSER_INETRADIO,
-                                        N_("Airable internet radio"), 3,
-                                        views.NUMBER_OF_LINES_ON_DISPLAY,
-                                        DBUS_LISTBROKER_ID_TUNEIN,
-                                        player, Playback::Mode::LINEAR,
-                                        &views);
+    static ViewFileBrowser::AirableView tunein(ViewNames::BROWSER_INETRADIO,
+                                               N_("Airable internet radio"), 3,
+                                               views.NUMBER_OF_LINES_ON_DISPLAY,
+                                               DBUS_LISTBROKER_ID_TUNEIN,
+                                               player, Playback::Mode::LINEAR,
+                                               &views);
     static ViewFileBrowser::View upnp(ViewNames::BROWSER_UPNP,
                                       N_("UPnP media servers"), 4,
                                       views.NUMBER_OF_LINES_ON_DISPLAY,

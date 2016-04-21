@@ -360,8 +360,7 @@ class WaitForParametersHelper
     void keep_parameters() { keep_preloaded_parameters_ = true; }
 };
 
-bool ViewFileBrowser::View::wait_for_search_parameters(WaitForParametersHelper &wait_helper,
-                                                       bool via_form)
+bool ViewFileBrowser::View::waiting_for_search_parameters(WaitForParametersHelper &wait_helper)
 {
     const auto &ctx(list_contexts_[DBUS_LISTS_CONTEXT_GET(file_list_.get_list_id().get_raw_id())]);
 
@@ -374,12 +373,6 @@ bool ViewFileBrowser::View::wait_for_search_parameters(WaitForParametersHelper &
     {
         msg_info("Searching is not possible in context \"%s\"",
                  ctx.string_id_.c_str());
-        return true;
-    }
-
-    if(ctx.check_flags(List::ContextInfo::HAS_PROPER_SEARCH_FORM) && !via_form)
-    {
-        BUG("New search by context via search form not implemented yet");
         return true;
     }
 
@@ -397,6 +390,34 @@ bool ViewFileBrowser::View::wait_for_search_parameters(WaitForParametersHelper &
          * user does something else */
         return true;
     }
+
+    return false;
+}
+
+bool ViewFileBrowser::View::point_to_search_form_and_wait(WaitForParametersHelper &wait_helper,
+                                                          ViewIface::InputResult &result)
+{
+    const List::context_id_t ctx_id(DBUS_LISTS_CONTEXT_GET(file_list_.get_list_id().get_raw_id()));
+
+    switch(point_to_search_form(ctx_id))
+    {
+      case GoToSearchForm::NOT_SUPPORTED:
+        /* resort to binary search within current list */
+        result = InputResult::OK;
+        return !waiting_for_search_parameters(wait_helper);
+
+      case GoToSearchForm::FOUND:
+        result = InputResult::UPDATE_NEEDED;
+        return !waiting_for_search_parameters(wait_helper);
+
+      case GoToSearchForm::NOT_AVAILABLE:
+        break;
+    }
+
+    const auto &ctx(list_contexts_[ctx_id]);
+    msg_info("No search form found for context \"%s\", cannot search",
+             ctx.string_id_.c_str());
+    result = InputResult::OK;
 
     return false;
 }
@@ -447,10 +468,12 @@ ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command,
     {
       case DrcpCommand::SEARCH:
         if((!wait_helper.was_waiting() ||
-            !have_search_parameters(search_parameters_view_)) &&
-           wait_for_search_parameters(wait_helper, false))
+            !have_search_parameters(search_parameters_view_)))
         {
-            break;
+            ViewIface::InputResult result;
+
+            if(!point_to_search_form_and_wait(wait_helper, result))
+                return result;
         }
 
         if(apply_search_parameters())
@@ -510,7 +533,7 @@ ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command,
                 break;
 
               case ListItemKind::SEARCH_FORM:
-                if(wait_for_search_parameters(wait_helper, true))
+                if(waiting_for_search_parameters(wait_helper))
                     break;
 
                 /* got preloaded parameters */

@@ -59,20 +59,22 @@ class View: public ViewIface, public ViewSerializeBase
   private:
     static constexpr unsigned int assumed_streamplayer_fifo_size = 2;
 
+    dbus_listbroker_id_t listbroker_id_;
+
+  protected:
     List::ContextMap list_contexts_;
 
     ID::List current_list_id_;
 
-    dbus_listbroker_id_t listbroker_id_;
-
     /* list for the user */
     List::DBusList file_list_;
 
-    /* list for the automatic directory traversal */
-    List::DBusList traversal_list_;
-
     List::NavItemNoFilter item_flags_;
     List::Nav navigation_;
+
+  private:
+    /* list for the automatic directory traversal */
+    List::DBusList traversal_list_;
 
     const uint8_t drcp_browse_id_;
 
@@ -98,16 +100,16 @@ class View: public ViewIface, public ViewSerializeBase
                   ViewManager::VMIface *view_manager):
         ViewIface(name, true, view_manager),
         ViewSerializeBase(on_screen_name, "browse", 102U),
-        current_list_id_(0),
         listbroker_id_(listbroker_id),
+        current_list_id_(0),
         file_list_(dbus_get_lists_navigation_iface(listbroker_id_),
                    list_contexts_, max_lines,
                    construct_file_item),
+        item_flags_(&file_list_),
+        navigation_(max_lines, item_flags_),
         traversal_list_(dbus_get_lists_navigation_iface(listbroker_id_),
                         list_contexts_, assumed_streamplayer_fifo_size + 1,
                         construct_file_item),
-        item_flags_(&file_list_),
-        navigation_(max_lines, item_flags_),
         drcp_browse_id_(drcp_browse_id),
         player_(player),
         player_is_mine_(false),
@@ -117,11 +119,11 @@ class View: public ViewIface, public ViewSerializeBase
         waiting_for_search_parameters_(false)
     {}
 
-    bool init() override;
-    bool late_init() override;
+    bool init() final override;
+    bool late_init() final override;
 
-    void focus() override;
-    void defocus() override;
+    void focus() final override;
+    void defocus() final override;
 
     /*!
      * Query properties of associated list broker.
@@ -132,17 +134,17 @@ class View: public ViewIface, public ViewSerializeBase
     bool sync_with_list_broker(bool is_first_call = false);
 
     InputResult input(DrcpCommand command,
-                      std::unique_ptr<const UI::Parameters> parameters) override;
+                      std::unique_ptr<const UI::Parameters> parameters) final override;
 
     void serialize(DCP::Queue &queue, DCP::Queue::Mode mode,
-                   std::ostream *debug_os) override;
+                   std::ostream *debug_os) final override;
     void update(DCP::Queue &queue, DCP::Queue::Mode mode,
-                std::ostream *debug_os) override;
+                std::ostream *debug_os) final override;
 
     bool owns_dbus_proxy(const void *dbus_proxy) const;
     bool list_invalidate(ID::List list_id, ID::List replacement_id);
 
-  private:
+  protected:
     /*!
      * Load whole root directory into internal list.
      *
@@ -150,7 +152,7 @@ class View: public ViewIface, public ViewSerializeBase
      *     True on success, false on error. In any case the list will have been
      *     modified (empty on error).
      */
-    bool point_to_root_directory();
+    virtual bool point_to_root_directory();
 
     /*!
      * Load whole selected subdirectory into internal list.
@@ -158,8 +160,21 @@ class View: public ViewIface, public ViewSerializeBase
      * \returns
      *     True if the list was updated, false if the list remained unchanged.
      */
-    bool point_to_child_directory(const SearchParameters *search_parameters = nullptr);
+    virtual bool point_to_child_directory(const SearchParameters *search_parameters = nullptr);
 
+    enum class GoToSearchForm
+    {
+        NOT_SUPPORTED, /*!< Search forms are not supported at all. */
+        NOT_AVAILABLE, /*!< Search form should be there, but isn't (error). */
+        FOUND,         /*!< Search form found. */
+    };
+
+    virtual GoToSearchForm point_to_search_form(List::context_id_t ctx_id)
+    {
+        return GoToSearchForm::NOT_SUPPORTED;
+    }
+
+  private:
     /*!
      * Find best matching item in current list and move selection there.
      */
@@ -181,9 +196,11 @@ class View: public ViewIface, public ViewSerializeBase
     /*!
      * Generate XML document from current state.
      */
-    bool write_xml(std::ostream &os, const DCP::Queue::Data &data) override;
+    bool write_xml(std::ostream &os, const DCP::Queue::Data &data) final override;
 
-    bool wait_for_search_parameters(WaitForParametersHelper &wait_helper, bool via_form);
+    bool waiting_for_search_parameters(WaitForParametersHelper &wait_helper);
+    bool point_to_search_form_and_wait(WaitForParametersHelper &wait_helper,
+                                       InputResult &result);
     bool apply_search_parameters();
 
     std::chrono::milliseconds keep_lists_alive_timer_callback();
