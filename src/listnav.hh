@@ -232,31 +232,118 @@ class Nav
             return 0;
     }
 
-    bool down(unsigned int count = 1)
+  private:
+    bool fixup_down_count_by_wrap_mode(unsigned int &count)
     {
         if(count == 0)
             return false;
 
-        const bool full_update_required = item_filter_.ensure_consistency();
+        const int current_line = get_line_number_by_cursor();
+
+        if(current_line < 0)
+        {
+            count = 0;
+            return false;
+        }
+
+        const unsigned int visible_items = get_total_number_of_visible_items();
+
+        if(visible_items == 0)
+        {
+            count = 0;
+            return false;
+        }
+
+        if(count > UINT_MAX - current_line ||
+           current_line + count >= visible_items)
+        {
+            switch(wrap_mode_)
+            {
+              case WrapMode::FULL_WRAP:
+              case WrapMode::WRAP_TO_TOP:
+                if(visible_items - current_line > 1)
+                    break;
+
+                count = visible_items;
+                return true;
+
+              case WrapMode::NO_WRAP:
+              case WrapMode::WRAP_TO_BOTTOM:
+                break;
+            }
+
+            count = visible_items - current_line - 1;
+        }
+
+        return false;
+    }
+
+    bool fixup_up_count_by_wrap_mode(unsigned int &count)
+    {
+        if(count == 0)
+            return false;
+
+        const int current_line = get_line_number_by_cursor();
+
+        if(current_line < 0)
+        {
+            count = 0;
+            return false;
+        }
+
+        const unsigned int visible_items = get_total_number_of_visible_items();
+
+        if(visible_items == 0)
+        {
+            count = 0;
+            return false;
+        }
+
+        if(count > static_cast<unsigned int>(current_line))
+        {
+            switch(wrap_mode_)
+            {
+              case WrapMode::FULL_WRAP:
+              case WrapMode::WRAP_TO_BOTTOM:
+                if(current_line > 1)
+                    break;
+
+                count = visible_items;
+                return true;
+
+              case WrapMode::NO_WRAP:
+              case WrapMode::WRAP_TO_TOP:
+                break;
+            }
+
+            count = current_line;
+        }
+
+        return false;
+    }
+
+  public:
+    bool down(unsigned int count = 1)
+    {
+        if(fixup_down_count_by_wrap_mode(count))
+        {
+            set_cursor_by_line_number(0);
+            return count > 1;
+        }
+        else if(count == 0 && !item_filter_.ensure_consistency())
+            return false;
 
         if(!is_selectable(cursor_))
             recover_cursor_and_selection();
 
         const unsigned int last_selectable = item_filter_.get_last_selectable_item();
-        const bool moved = (cursor_ < last_selectable);
 
-        if(!moved && !full_update_required)
-            return false;
-
-        if(moved)
+        for(unsigned int i = 0; i < count && cursor_ < last_selectable; ++i)
         {
-            for(unsigned int i = 0; i < count && cursor_ < last_selectable; ++i)
-            {
-                cursor_ = step_forward_selection(cursor_);
+            cursor_ = step_forward_selection(cursor_);
 
-                if(selected_line_number_ < maximum_number_of_displayed_lines_ - 1)
-                    ++selected_line_number_;
-            }
+            if(selected_line_number_ < maximum_number_of_displayed_lines_ - 1)
+                ++selected_line_number_;
         }
 
         if(cursor_ == last_selectable)
@@ -265,34 +352,35 @@ class Nav
 
         recover_first_displayed_item_by_cursor();
 
-        return moved;
+        return true;
     }
 
     bool up(unsigned int count = 1)
     {
-        if(count == 0)
-            return false;
+        if(fixup_up_count_by_wrap_mode(count))
+        {
+            if(count > 0)
+                set_cursor_by_line_number(count - 1);
 
-        const bool full_update_required = item_filter_.ensure_consistency();
+            return count > 1;
+        }
+        else if(count == 0 && !item_filter_.ensure_consistency())
+            return false;
 
         if(!is_selectable(cursor_))
             recover_cursor_and_selection();
 
         const unsigned int first_selectable = item_filter_.get_first_selectable_item();
-        const bool moved = (cursor_ > first_selectable);
 
-        if(!moved && !full_update_required)
+        if(cursor_ <= first_selectable)
             return false;
 
-        if(moved)
+        for(unsigned int i = 0; i < count && cursor_ > first_selectable; ++i)
         {
-            for(unsigned int i = 0; i < count && cursor_ > first_selectable; ++i)
-            {
-                cursor_ = step_back_selection(cursor_);
+            cursor_ = step_back_selection(cursor_);
 
-                if(selected_line_number_ > 0)
-                    --selected_line_number_;
-            }
+            if(selected_line_number_ > 0)
+                --selected_line_number_;
         }
 
         if(cursor_ == first_selectable)
@@ -301,7 +389,7 @@ class Nav
 
         recover_first_displayed_item_by_cursor();
 
-        return moved;
+        return true;
     }
 
     unsigned int get_cursor()

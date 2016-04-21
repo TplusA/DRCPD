@@ -413,7 +413,7 @@ void test_move_down_and_up_with_scrolling()
 }
 
 /*!\test
- * We cannot select negative lines.
+ * We cannot select negative lines in non-wrapping lists.
  */
 void test_cannot_move_before_first_line()
 {
@@ -431,7 +431,7 @@ void test_cannot_move_before_first_line()
 }
 
 /*!\test
- * We cannot select lines beyond the last one.
+ * We cannot select lines beyond the last one in non-wrapping lists.
  */
 void test_cannot_move_beyond_last_line()
 {
@@ -454,6 +454,299 @@ void test_cannot_move_beyond_last_line()
     cut_assert_true(nav.up());
     cppcut_assert_equal(N - 1, nav.get_cursor());
     check_display(*list, nav, std::array<unsigned int, 3>({N - 2, N - 1, N}));
+}
+
+static void move_multiple_lines_with_no_attempt_to_cross_boundaries(List::Nav &nav)
+{
+    const unsigned int N = list->get_number_of_items() - 1;
+
+    cut_assert_true(nav.down(N));
+    cppcut_assert_equal(N, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 3>({N - 2, N - 1, N}));
+
+    cut_assert_true(nav.up(N));
+    cppcut_assert_equal(0U, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 3>({0, 1, 2}));
+
+    cut_assert_true(nav.down(N + 1));
+    cppcut_assert_equal(N, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 3>({N - 2, N - 1, N}));
+
+    cut_assert_true(nav.up(N + 1));
+    cppcut_assert_equal(0U, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 3>({0, 1, 2}));
+
+    cut_assert_true(nav.down(N + 2));
+    cppcut_assert_equal(N, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 3>({N - 2, N - 1, N}));
+
+    cut_assert_true(nav.up(N + 2));
+    cppcut_assert_equal(0U, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 3>({0, 1, 2}));
+
+    cut_assert_true(nav.down(UINT_MAX));
+    cppcut_assert_equal(N, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 3>({N - 2, N - 1, N}));
+
+    cut_assert_true(nav.up(UINT_MAX));
+    cppcut_assert_equal(0U, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 3>({0, 1, 2}));
+}
+
+/*!\test
+ * Moving by multiple lines in non-wrapping list, cursor never crosses list
+ * boundaries.
+ */
+void test_move_multiple_lines_in_nonwrapping_list()
+{
+    List::NavItemNoFilter no_filter(list);
+    List::Nav nav(3, List::Nav::WrapMode::NO_WRAP, no_filter);
+
+    move_multiple_lines_with_no_attempt_to_cross_boundaries(nav);
+}
+
+static void move_multiple_lines_down_with_crossing_boundaries(List::Nav &nav)
+{
+    /* behavior is the same as for non-wrapping list as long as the boundaries
+     * are not knowingly crossed */
+    move_multiple_lines_with_no_attempt_to_cross_boundaries(nav);
+
+    nav.set_cursor_by_line_number(0);
+
+    const unsigned int N = list->get_number_of_items() - 1;
+
+    check_display(*list, nav, std::array<unsigned int, 3>({0, 1, 2}));
+    cut_assert_true(nav.down(N));
+    cppcut_assert_equal(N, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 3>({N - 2, N - 1, N}));
+
+    /* always wraps around exactly one line */
+    cut_assert_true(nav.down(2));
+    cppcut_assert_equal(0U, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 3>({0, 1, 2}));
+
+    /* snaps to bottom */
+    cut_assert_true(nav.down(2));
+    cppcut_assert_equal(2U, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 3>({0, 1, 2}));
+    cut_assert_true(nav.down(N));
+    cppcut_assert_equal(N, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 3>({N - 2, N - 1, N}));
+
+    /* wraps around by one line also for big numbers */
+    cut_assert_true(nav.down(6 * N + 4));
+    cppcut_assert_equal(0U, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 3>({0, 1, 2}));
+
+    /* and also works for very big numbers */
+    cut_assert_true(nav.down(UINT_MAX));
+    cppcut_assert_equal(N, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 3>({N - 2, N - 1, N}));
+    cut_assert_true(nav.down(UINT_MAX));
+    cppcut_assert_equal(0U, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 3>({0, 1, 2}));
+}
+
+static void move_multiple_lines_up_with_crossing_boundaries(List::Nav &nav)
+{
+    /* behavior is the same as for non-wrapping list as long as the boundaries
+     * are not knowingly crossed */
+    move_multiple_lines_with_no_attempt_to_cross_boundaries(nav);
+
+    nav.set_cursor_by_line_number(0);
+
+    const unsigned int N = list->get_number_of_items() - 1;
+
+    check_display(*list, nav, std::array<unsigned int, 3>({0, 1, 2}));
+
+    /* always wraps around exactly one line */
+    cut_assert_true(nav.up(2));
+    cppcut_assert_equal(N, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 3>({N - 2, N - 1, N}));
+
+    /* snaps to top */
+    cut_assert_true(nav.up(2));
+    cppcut_assert_equal(N - 2, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 3>({N - 2, N - 1, N}));
+    cut_assert_true(nav.up(N));
+    cppcut_assert_equal(0U, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 3>({0, 1, 2}));
+
+    /* wraps around by one line also for big numbers */
+    cut_assert_true(nav.up(6 * N + 4));
+    cppcut_assert_equal(N, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 3>({N - 2, N - 1, N}));
+
+    /* and also works for very big numbers */
+    cut_assert_true(nav.up(UINT_MAX));
+    cppcut_assert_equal(0U, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 3>({0, 1, 2}));
+    cut_assert_true(nav.up(UINT_MAX));
+    cppcut_assert_equal(N, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 3>({N - 2, N - 1, N}));
+}
+
+/*!\test
+ * Moving by multiple lines down in fully wrapping list, cursor crosses list
+ * boundaries in a predictable way.
+ */
+void test_move_multiple_lines_down_in_fully_wrapping_list()
+{
+    List::NavItemNoFilter no_filter(list);
+    List::Nav nav(3, List::Nav::WrapMode::FULL_WRAP, no_filter);
+
+    move_multiple_lines_down_with_crossing_boundaries(nav);
+}
+
+/*!\test
+ * Moving by multiple lines in wrap-to-top list, cursor crosses list boundaries
+ * in a predictable way.
+ */
+void test_move_multiple_lines_down_in_wrap_to_top_list()
+{
+    List::NavItemNoFilter no_filter(list);
+    List::Nav nav(3, List::Nav::WrapMode::WRAP_TO_TOP, no_filter);
+
+    move_multiple_lines_down_with_crossing_boundaries(nav);
+}
+
+/*!\test
+ * Moving by multiple lines up in fully wrapping list, cursor crosses list
+ * boundaries in a predictable way.
+ */
+void test_move_multiple_lines_up_in_fully_wrapping_list()
+{
+    List::NavItemNoFilter no_filter(list);
+    List::Nav nav(3, List::Nav::WrapMode::FULL_WRAP, no_filter);
+
+    move_multiple_lines_up_with_crossing_boundaries(nav);
+}
+
+/*!\test
+ * Moving by multiple lines in wrap-to-bottom list, cursor crosses list
+ * boundaries in a predictable way.
+ */
+void test_move_multiple_lines_up_in_wrap_to_bottom_list()
+{
+    List::NavItemNoFilter no_filter(list);
+    List::Nav nav(3, List::Nav::WrapMode::WRAP_TO_BOTTOM, no_filter);
+
+    move_multiple_lines_up_with_crossing_boundaries(nav);
+}
+
+static void can_wrap_from_top_to_bottom(List::Nav::WrapMode wrap_mode)
+{
+    List::NavItemNoFilter no_filter(list);
+    List::Nav nav(3, wrap_mode, no_filter);
+
+    const unsigned int N = list->get_number_of_items() - 1;
+
+    /* do it twice to catch funny overflows or other mistakes */
+    for(int passes = 0; passes < 2; ++passes)
+    {
+        cut_assert_true(nav.up());
+        cppcut_assert_equal(N, nav.get_cursor());
+        check_display(*list, nav, std::array<unsigned int, 3>({N - 2, N - 1, N}));
+
+        for(unsigned int i = 0; i < N; ++i)
+            cut_assert_true(nav.up());
+
+        cppcut_assert_equal(0U, nav.get_cursor());
+        check_display(*list, nav, std::array<unsigned int, 3>({0, 1, 2}));
+    }
+}
+
+static void can_wrap_from_bottom_to_top(List::Nav::WrapMode wrap_mode)
+{
+    List::NavItemNoFilter no_filter(list);
+    List::Nav nav(3, wrap_mode, no_filter);
+
+    const unsigned int N = list->get_number_of_items() - 1;
+
+    /* do it twice to catch funny overflows or other mistakes */
+    for(int passes = 0; passes < 2; ++passes)
+    {
+        for(unsigned int i = 0; i < N; ++i)
+            cut_assert_true(nav.down());
+
+        cppcut_assert_equal(N, nav.get_cursor());
+        check_display(*list, nav, std::array<unsigned int, 3>({N - 2, N - 1, N}));
+
+        cut_assert_true(nav.down());
+        cppcut_assert_equal(0U, nav.get_cursor());
+        check_display(*list, nav, std::array<unsigned int, 3>({0, 1, 2}));
+    }
+}
+
+/*!\test
+ * We can wrap from top to bottom in non-wrapping lists.
+ */
+void test_move_before_first_line_in_fully_wrapped_list()
+{
+    can_wrap_from_top_to_bottom(List::Nav::WrapMode::FULL_WRAP);
+}
+
+/*!\test
+ * We can wrap from bottom to top in non-wrapping lists.
+ */
+void test_move_beyond_last_line_in_fully_wrapped_list()
+{
+    can_wrap_from_bottom_to_top(List::Nav::WrapMode::FULL_WRAP);
+}
+
+/*!\test
+ * We cannot wrap from top to bottom in wrap-to-top lists.
+ */
+void test_cannot_move_before_first_line_in_wrap_to_top_list()
+{
+    List::NavItemNoFilter no_filter(list);
+    List::Nav nav(5, List::Nav::WrapMode::WRAP_TO_TOP, no_filter);
+
+    cppcut_assert_equal(0U, nav.get_cursor());
+
+    cut_assert_false(nav.up());
+
+    cppcut_assert_equal(0U, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 5>({0, 1, 2, 3, 4}));
+}
+
+/*!\test
+ * We can wrap from bottom to top in wrap-to-top lists.
+ */
+void test_move_beyond_last_line_in_wrap_to_top_list()
+{
+    can_wrap_from_bottom_to_top(List::Nav::WrapMode::WRAP_TO_TOP);
+}
+
+/*!\test
+ * We can wrap from top to bottom in wrap-to-bottom lists.
+ */
+void test_move_before_first_line_in_wrap_to_bottom_list()
+{
+    can_wrap_from_top_to_bottom(List::Nav::WrapMode::WRAP_TO_BOTTOM);
+}
+
+/*!\test
+ * We cannot wrap from bottom to top in wrap-to-bottom lists.
+ */
+void test_cannot_move_beyond_last_line_in_wrap_to_bottom_list()
+{
+    List::NavItemNoFilter no_filter(list);
+    List::Nav nav(5, List::Nav::WrapMode::WRAP_TO_BOTTOM, no_filter);
+
+    cppcut_assert_equal(0U, nav.get_cursor());
+
+    const unsigned int N = list->get_number_of_items() - 1;
+
+    for(unsigned int i = 0; i < N; ++i)
+        cut_assert_true(nav.down());
+
+    cppcut_assert_equal(N, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 5>({N - 4, N - 3, N - 2, N - 1, N}));
+
+    cut_assert_false(nav.down());
+    cppcut_assert_equal(N, nav.get_cursor());
+    check_display(*list, nav, std::array<unsigned int, 5>({N - 4, N - 3, N - 2, N - 1, N}));
 }
 
 /*!\test
