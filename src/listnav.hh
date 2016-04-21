@@ -259,9 +259,9 @@ class Nav
             }
         }
 
-        if(cursor_ == item_filter_.get_last_selectable_item())
+        if(cursor_ == last_selectable)
             selected_line_number_ -=
-                item_filter_.get_last_visible_item() - item_filter_.get_last_selectable_item();
+                item_filter_.get_last_visible_item() - last_selectable;
 
         recover_first_displayed_item_by_cursor();
 
@@ -295,9 +295,9 @@ class Nav
             }
         }
 
-        if(cursor_ == item_filter_.get_first_selectable_item())
+        if(cursor_ == first_selectable)
             selected_line_number_ +=
-                item_filter_.get_first_selectable_item() - item_filter_.get_first_visible_item();
+                first_selectable - item_filter_.get_first_visible_item();
 
         recover_first_displayed_item_by_cursor();
 
