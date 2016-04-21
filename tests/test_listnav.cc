@@ -309,7 +309,7 @@ static void check_display(const List::RamList &l, const List::Nav &nav,
 namespace list_navigation_tests
 {
 
-void cut_setup(void)
+void cut_setup()
 {
     list = new List::RamList();
     cppcut_assert_not_null(list);
@@ -317,7 +317,7 @@ void cut_setup(void)
         List::append(list, List::TextItem(t, false, 0));
 }
 
-void cut_teardown(void)
+void cut_teardown()
 {
     delete list;
     list = nullptr;
@@ -326,7 +326,7 @@ void cut_teardown(void)
 /*!\test
  * Navigation should start in first line, with first line displayed first.
  */
-void test_simple_navigation_init(void)
+void test_simple_navigation_init()
 {
     List::NavItemNoFilter no_filter(list);
     List::Nav nav(3, List::Nav::WrapMode::NO_WRAP, no_filter);
@@ -338,7 +338,7 @@ void test_simple_navigation_init(void)
 /*!\test
  * Navigation in visible lines does not change number of first line.
  */
-void test_move_down_and_up_within_displayed_lines(void)
+void test_move_down_and_up_within_displayed_lines()
 {
     List::NavItemNoFilter no_filter(list);
     List::Nav nav(3, List::Nav::WrapMode::NO_WRAP, no_filter);
@@ -357,7 +357,7 @@ void test_move_down_and_up_within_displayed_lines(void)
 /*!\test
  * Attempting to not move the selection up fails.
  */
-void test_move_up_by_zero_fails(void)
+void test_move_up_by_zero_fails()
 {
     List::NavItemNoFilter no_filter(list);
     List::Nav nav(3, List::Nav::WrapMode::NO_WRAP, no_filter);
@@ -370,7 +370,7 @@ void test_move_up_by_zero_fails(void)
 /*!\test
  * Attempting to not move the selection down fails.
  */
-void test_move_down_by_zero_fails(void)
+void test_move_down_by_zero_fails()
 {
     List::NavItemNoFilter no_filter(list);
     List::Nav nav(3, List::Nav::WrapMode::NO_WRAP, no_filter);
@@ -382,7 +382,7 @@ void test_move_down_by_zero_fails(void)
 /*!\test
  * Moving beyond displayed lines scrolls the list.
  */
-void test_move_down_and_up_with_scrolling(void)
+void test_move_down_and_up_with_scrolling()
 {
     List::NavItemNoFilter no_filter(list);
     List::Nav nav(2, List::Nav::WrapMode::NO_WRAP, no_filter);
@@ -415,7 +415,7 @@ void test_move_down_and_up_with_scrolling(void)
 /*!\test
  * We cannot select negative lines.
  */
-void test_cannot_move_before_first_line(void)
+void test_cannot_move_before_first_line()
 {
     List::NavItemNoFilter no_filter(list);
     List::Nav nav(2, List::Nav::WrapMode::NO_WRAP, no_filter);
@@ -433,7 +433,7 @@ void test_cannot_move_before_first_line(void)
 /*!\test
  * We cannot select lines beyond the last one.
  */
-void test_cannot_move_beyond_last_line(void)
+void test_cannot_move_beyond_last_line()
 {
     List::NavItemNoFilter no_filter(list);
     List::Nav nav(3, List::Nav::WrapMode::NO_WRAP, no_filter);
@@ -461,7 +461,7 @@ void test_cannot_move_beyond_last_line(void)
  * shown lines, where the currently shown lines here are the first few items
  * stored in the list.
  */
-void test_const_iterator_steps_through_visible_lines_from_first(void)
+void test_const_iterator_steps_through_visible_lines_from_first()
 {
     List::NavItemNoFilter no_filter(list);
     List::Nav nav(3, List::Nav::WrapMode::NO_WRAP, no_filter);
@@ -481,7 +481,7 @@ void test_const_iterator_steps_through_visible_lines_from_first(void)
  * The iterator defined for unfiltered List::Nav iterates over the currently
  * shown lines in a scrolled list.
  */
-void test_const_iterator_steps_through_visible_lines_scrolled_down(void)
+void test_const_iterator_steps_through_visible_lines_scrolled_down()
 {
     List::NavItemNoFilter no_filter(list);
     List::Nav nav(3, List::Nav::WrapMode::NO_WRAP, no_filter);
@@ -510,7 +510,7 @@ void test_const_iterator_steps_through_visible_lines_scrolled_down(void)
  * The iterator defined for unfiltered List::Nav iterates over the currently
  * shown lines in a list scrolled down all way down
  */
-void test_const_iterator_steps_through_visible_lines_at_end_of_list(void)
+void test_const_iterator_steps_through_visible_lines_at_end_of_list()
 {
     List::NavItemNoFilter no_filter(list);
     List::Nav nav(3, List::Nav::WrapMode::NO_WRAP, no_filter);
@@ -537,7 +537,7 @@ void test_const_iterator_steps_through_visible_lines_at_end_of_list(void)
  * The iterator defined for unfiltered List::Nav does not get confused if there
  * are fewer visible items than the maximum number of lines on the display.
  */
-void test_const_iterator_steps_through_visible_lines_on_big_display(void)
+void test_const_iterator_steps_through_visible_lines_on_big_display()
 {
     List::NavItemNoFilter no_filter(list);
     List::Nav nav(50, List::Nav::WrapMode::NO_WRAP, no_filter);
@@ -556,7 +556,7 @@ void test_const_iterator_steps_through_visible_lines_on_big_display(void)
     cppcut_assert_equal(list->get_number_of_items(), expected_current_line);
 }
 
-void test_const_iterator_on_empty_list(void)
+void test_const_iterator_on_empty_list()
 {
     List::RamList empty_list;
 
@@ -574,7 +574,7 @@ void test_const_iterator_on_empty_list(void)
 /*!\test
  * Tying of list to filter can be done after construction of the filter object.
  */
-void test_late_binding_of_navigation_and_filter(void)
+void test_late_binding_of_navigation_and_filter()
 {
     List::NavItemNoFilter no_filter(nullptr);
     List::Nav nav(4, List::Nav::WrapMode::NO_WRAP, no_filter);
@@ -603,7 +603,7 @@ void test_late_binding_of_navigation_and_filter(void)
 /*!\test
  * Selection of a line by line number, not item identifier.
  */
-void test_set_cursor_by_line_number(void)
+void test_set_cursor_by_line_number()
 {
     List::NavItemNoFilter no_filter(list);
     List::Nav nav(4, List::Nav::WrapMode::NO_WRAP, no_filter);
@@ -631,7 +631,7 @@ void test_set_cursor_by_line_number(void)
 /*!\test
  * Selection of a non-existent (out of range) line changes nothing.
  */
-void test_set_cursor_by_invalid_line_number(void)
+void test_set_cursor_by_invalid_line_number()
 {
     List::NavItemNoFilter no_filter(list);
     List::Nav nav(4, List::Nav::WrapMode::NO_WRAP, no_filter);
@@ -651,7 +651,7 @@ void test_set_cursor_by_invalid_line_number(void)
 /*!\test
  * Selection of line in empty list changes nothing.
  */
-void test_set_cursor_in_empty_list(void)
+void test_set_cursor_in_empty_list()
 {
     List::RamList empty_list;
     List::NavItemNoFilter no_filter(&empty_list);
@@ -672,7 +672,7 @@ void test_set_cursor_in_empty_list(void)
 /*!\test
  * Selection of line in very short lists does not move the list.
  */
-void test_set_cursor_in_half_filled_screen(void)
+void test_set_cursor_in_half_filled_screen()
 {
     List::NavItemNoFilter no_filter(list);
     List::Nav nav(50, List::Nav::WrapMode::NO_WRAP, no_filter);
@@ -701,7 +701,7 @@ void test_set_cursor_in_half_filled_screen(void)
  *
  * This test may catch bugs in some corner cases.
  */
-void test_set_cursor_in_exactly_fitting_list(void)
+void test_set_cursor_in_exactly_fitting_list()
 {
     List::NavItemNoFilter no_filter(list);
     List::Nav nav(7, List::Nav::WrapMode::NO_WRAP, no_filter);
@@ -727,7 +727,7 @@ void test_set_cursor_in_exactly_fitting_list(void)
 /*!\test
  * Get absolute line number for a list item.
  */
-void test_get_line_number_by_item(void)
+void test_get_line_number_by_item()
 {
     List::NavItemNoFilter no_filter(list);
     List::Nav nav(2, List::Nav::WrapMode::NO_WRAP, no_filter);
@@ -740,7 +740,7 @@ void test_get_line_number_by_item(void)
 /*!\test
  * Getting the absolute line number for a non-existent list item fails.
  */
-void test_get_line_number_by_item_fails_for_invalid_item(void)
+void test_get_line_number_by_item_fails_for_invalid_item()
 {
     List::NavItemNoFilter no_filter(list);
     List::Nav nav(2, List::Nav::WrapMode::NO_WRAP, no_filter);
@@ -754,7 +754,7 @@ void test_get_line_number_by_item_fails_for_invalid_item(void)
 /*!\test
  * Get absolute line number for the currently selected item.
  */
-void test_get_line_number_by_cursor(void)
+void test_get_line_number_by_cursor()
 {
     List::NavItemNoFilter no_filter(list);
     List::Nav nav(2, List::Nav::WrapMode::NO_WRAP, no_filter);
@@ -769,7 +769,7 @@ void test_get_line_number_by_cursor(void)
 /*!\test
  * Getting absolute line numbers for items in an empty list fails.
  */
-void test_get_line_number_in_empty_list(void)
+void test_get_line_number_in_empty_list()
 {
     List::RamList empty_list;
     List::NavItemNoFilter no_filter(&empty_list);
@@ -785,7 +785,7 @@ void test_get_line_number_in_empty_list(void)
  *
  * Only the screen size in lines determines the outcome in this case.
  */
-void test_distance_from_top_and_bottom_in_filled_screen(void)
+void test_distance_from_top_and_bottom_in_filled_screen()
 {
     List::NavItemNoFilter no_filter(list);
     List::Nav nav(3, List::Nav::WrapMode::NO_WRAP, no_filter);
@@ -812,7 +812,7 @@ void test_distance_from_top_and_bottom_in_filled_screen(void)
  * It must be possible to determine the total number of visible items to get
  * this case right.
  */
-void test_distance_from_top_and_bottom_in_half_filled_screen(void)
+void test_distance_from_top_and_bottom_in_half_filled_screen()
 {
     List::NavItemNoFilter no_filter(list);
     List::Nav nav(50, List::Nav::WrapMode::NO_WRAP, no_filter);
@@ -836,7 +836,7 @@ void test_distance_from_top_and_bottom_in_half_filled_screen(void)
 /*!\test
  * Distance functions return 0 for empty lists.
  */
-void test_distance_from_top_and_bottom_in_empty_list(void)
+void test_distance_from_top_and_bottom_in_empty_list()
 {
     List::RamList empty_list;
 
@@ -855,7 +855,7 @@ void test_distance_from_top_and_bottom_in_empty_list(void)
 namespace list_navigation_tests_with_unselectable_items
 {
 
-void cut_setup(void)
+void cut_setup()
 {
     list = new List::RamList();
     cppcut_assert_not_null(list);
@@ -878,7 +878,7 @@ void cut_setup(void)
     }
 }
 
-void cut_teardown(void)
+void cut_teardown()
 {
     delete list;
     list = nullptr;
@@ -887,7 +887,7 @@ void cut_teardown(void)
 /*!\test
  * Navigation should start in third line, with first two lines displayed first.
  */
-void test_navigation_init_with_first_lines_unselectable(void)
+void test_navigation_init_with_first_lines_unselectable()
 {
     NavItemFlags flags(list);
     List::Nav nav(4, List::Nav::WrapMode::NO_WRAP, flags);
@@ -901,7 +901,7 @@ void test_navigation_init_with_first_lines_unselectable(void)
 /*!\test
  * Navigation should start in second line, with first line displayed first.
  */
-void test_navigation_init_with_first_lines_unselectable_with_late_list_population(void)
+void test_navigation_init_with_first_lines_unselectable_with_late_list_population()
 {
     List::RamList local_list;
     NavItemFlags flags(&local_list);
@@ -926,7 +926,7 @@ void test_navigation_init_with_first_lines_unselectable_with_late_list_populatio
 /*!\test
  * Navigation should start in first (nonexistent) line, with no lines displayed.
  */
-void test_navigation_init_with_empty_list(void)
+void test_navigation_init_with_empty_list()
 {
     List::RamList empty_list;
     NavItemFlags flags(&empty_list);
@@ -942,7 +942,7 @@ void test_navigation_init_with_empty_list(void)
 /*!\test
  * First two lines are unselectable, so we cannot select them.
  */
-void test_cannot_select_unselectable_first_lines(void)
+void test_cannot_select_unselectable_first_lines()
 {
     NavItemFlags flags(list);
     List::Nav nav(4, List::Nav::WrapMode::NO_WRAP, flags);
@@ -963,7 +963,7 @@ void test_cannot_select_unselectable_first_lines(void)
  * First two lines are unselectable, but they must become visible when
  * scrolling up.
  */
-void test_scroll_to_unselectable_first_lines(void)
+void test_scroll_to_unselectable_first_lines()
 {
     NavItemFlags flags(list);
     List::Nav nav(4, List::Nav::WrapMode::NO_WRAP, flags);
@@ -995,7 +995,7 @@ void test_scroll_to_unselectable_first_lines(void)
 /*!\test
  * Last line is unselectable, but it must become visible when scrolling down.
  */
-void test_scroll_to_unselectable_last_line(void)
+void test_scroll_to_unselectable_last_line()
 {
     NavItemFlags flags(list);
     List::Nav nav(3, List::Nav::WrapMode::NO_WRAP, flags);
@@ -1023,7 +1023,7 @@ void test_scroll_to_unselectable_last_line(void)
 /*!\test
  * Tying of list to filter can be done after construction of the filter object.
  */
-void test_late_binding_of_navigation_and_filter(void)
+void test_late_binding_of_navigation_and_filter()
 {
     NavItemFlags flags(nullptr);
     List::Nav nav(4, List::Nav::WrapMode::NO_WRAP, flags);
@@ -1055,7 +1055,7 @@ void test_late_binding_of_navigation_and_filter(void)
 namespace list_navigation_tests_with_invisible_items
 {
 
-void cut_setup(void)
+void cut_setup()
 {
     list = new List::RamList();
     cppcut_assert_not_null(list);
@@ -1084,7 +1084,7 @@ void cut_setup(void)
     }
 }
 
-void cut_teardown(void)
+void cut_teardown()
 {
     delete list;
     list = nullptr;
@@ -1094,7 +1094,7 @@ void cut_teardown(void)
  * Navigation should start in first visible line, corresponding to the second
  * item in the list.
  */
-void test_navigation_with_first_line_invisible(void)
+void test_navigation_with_first_line_invisible()
 {
     NavItemFlags flags(list);
     List::Nav nav(4, List::Nav::WrapMode::NO_WRAP, flags);
@@ -1112,7 +1112,7 @@ void test_navigation_with_first_line_invisible(void)
  * Last list item is invisible and therefore neither be seen nor selected.
  * item in the list.
  */
-void test_navigation_with_last_line_invisible(void)
+void test_navigation_with_last_line_invisible()
 {
     NavItemFlags flags(list);
     List::Nav nav(4, List::Nav::WrapMode::NO_WRAP, flags);
@@ -1138,7 +1138,7 @@ void test_navigation_with_last_line_invisible(void)
 /*!\test
  * Every other list item is invisible.
  */
-void test_navigation_with_odd_lines_invisible(void)
+void test_navigation_with_odd_lines_invisible()
 {
     NavItemFlags flags(list);
     List::Nav nav(4, List::Nav::WrapMode::NO_WRAP, flags);
@@ -1162,7 +1162,7 @@ void test_navigation_with_odd_lines_invisible(void)
 /*!\test
  * Every third list item is invisible.
  */
-void test_navigation_with_every_third_line_invisible(void)
+void test_navigation_with_every_third_line_invisible()
 {
     NavItemFlags flags(list);
     List::Nav nav(4, List::Nav::WrapMode::NO_WRAP, flags);
@@ -1187,7 +1187,7 @@ void test_navigation_with_every_third_line_invisible(void)
  * Union of #test_navigation_with_odd_lines_invisible() and
  * #test_navigation_with_every_third_line_invisible().
  */
-void test_navigation_with_odd_and_every_third_line_invisible(void)
+void test_navigation_with_odd_and_every_third_line_invisible()
 {
     NavItemFlags flags(list);
     List::Nav nav(4, List::Nav::WrapMode::NO_WRAP, flags);
@@ -1218,7 +1218,7 @@ void test_navigation_with_odd_and_every_third_line_invisible(void)
 /*!\test
  * Total number of visible items changes when applying the filter.
  */
-void test_get_number_of_visible_items(void)
+void test_get_number_of_visible_items()
 {
     NavItemFlags flags(list);
     List::Nav nav(2, List::Nav::WrapMode::NO_WRAP, flags);
@@ -1244,7 +1244,7 @@ void test_get_number_of_visible_items(void)
 /*!\test
  * Selection of a line by line number in filtered list, not item identifier.
  */
-void test_set_cursor_by_line_number(void)
+void test_set_cursor_by_line_number()
 {
     NavItemFlags flags(list);
     List::Nav nav(3, List::Nav::WrapMode::NO_WRAP, flags);
@@ -1274,7 +1274,7 @@ void test_set_cursor_by_line_number(void)
 /*!\test
  * Selection of a non-existent (out of range) line changes nothing.
  */
-void test_set_cursor_by_invalid_line_number(void)
+void test_set_cursor_by_invalid_line_number()
 {
     NavItemFlags flags(list);
     List::Nav nav(4, List::Nav::WrapMode::NO_WRAP, flags);
@@ -1300,7 +1300,7 @@ void test_set_cursor_by_invalid_line_number(void)
 /*!\test
  * Selection of line in list with all items filtered out changes nothing.
  */
-void test_set_cursor_in_filtered_list(void)
+void test_set_cursor_in_filtered_list()
 {
     List::RamList short_list;
 
@@ -1335,7 +1335,7 @@ void test_set_cursor_in_filtered_list(void)
  * filtering makes the displayed list shorter so that it fits entirely to
  * screen.
  */
-void test_set_cursor_in_half_filled_screen(void)
+void test_set_cursor_in_half_filled_screen()
 {
     NavItemFlags flags(list);
     List::Nav nav(6, List::Nav::WrapMode::NO_WRAP, flags);
@@ -1366,7 +1366,7 @@ void test_set_cursor_in_half_filled_screen(void)
  *
  * This test may catch bugs in some corner cases.
  */
-void test_set_cursor_in_exactly_fitting_list(void)
+void test_set_cursor_in_exactly_fitting_list()
 {
     NavItemFlags flags(list);
     List::Nav nav(4, List::Nav::WrapMode::NO_WRAP, flags);
@@ -1395,7 +1395,7 @@ void test_set_cursor_in_exactly_fitting_list(void)
 /*!\test
  * Get absolute line number for a list item in filtered list.
  */
-void test_get_line_number_by_item(void)
+void test_get_line_number_by_item()
 {
     NavItemFlags flags(list);
     List::Nav nav(10, List::Nav::WrapMode::NO_WRAP, flags);
@@ -1413,7 +1413,7 @@ void test_get_line_number_by_item(void)
  * The absolute line number of list items may be different for different
  * filters.
  */
-void test_get_line_number_by_item_changes_with_different_filters(void)
+void test_get_line_number_by_item_changes_with_different_filters()
 {
     NavItemFlags flags(list);
     List::Nav nav(10, List::Nav::WrapMode::NO_WRAP, flags);
@@ -1442,7 +1442,7 @@ void test_get_line_number_by_item_changes_with_different_filters(void)
  * Getting the absolute line number of a list item works if the item was not
  * filtered out, and fails if the item was filtered out.
  */
-void test_get_line_number_by_item_fails_or_succeeds_for_different_filters(void)
+void test_get_line_number_by_item_fails_or_succeeds_for_different_filters()
 {
     NavItemFlags flags(list);
     List::Nav nav(10, List::Nav::WrapMode::NO_WRAP, flags);
@@ -1463,7 +1463,7 @@ void test_get_line_number_by_item_fails_or_succeeds_for_different_filters(void)
 /*!\test
  * Getting the absolute line number for a non-existent list item fails.
  */
-void test_get_line_number_by_item_fails_for_invalid_item(void)
+void test_get_line_number_by_item_fails_for_invalid_item()
 {
     NavItemFlags flags(list);
     List::Nav nav(10, List::Nav::WrapMode::NO_WRAP, flags);
@@ -1479,7 +1479,7 @@ void test_get_line_number_by_item_fails_for_invalid_item(void)
 /*!\test
  * Get absolute line number for the currently selected item.
  */
-void test_get_line_number_by_cursor(void)
+void test_get_line_number_by_cursor()
 {
     NavItemFlags flags(list);
     List::Nav nav(2, List::Nav::WrapMode::NO_WRAP, flags);
@@ -1501,7 +1501,7 @@ void test_get_line_number_by_cursor(void)
  * Getting absolute line numbers for items in an list with completely filtered
  * content fails.
  */
-void test_get_line_number_in_filtered_list(void)
+void test_get_line_number_in_filtered_list()
 {
     List::RamList short_list;
 
@@ -1523,7 +1523,7 @@ void test_get_line_number_in_filtered_list(void)
  *
  * Only the screen size in lines determines the outcome in this case.
  */
-void test_distance_from_top_and_bottom_in_filled_screen(void)
+void test_distance_from_top_and_bottom_in_filled_screen()
 {
     NavItemFlags flags(list);
     List::Nav nav(3, List::Nav::WrapMode::NO_WRAP, flags);
@@ -1552,7 +1552,7 @@ void test_distance_from_top_and_bottom_in_filled_screen(void)
  * It must be possible to determine the total number of visible items to get
  * this case right.
  */
-void test_distance_from_top_and_bottom_in_half_filled_screen(void)
+void test_distance_from_top_and_bottom_in_half_filled_screen()
 {
     NavItemFlags flags(list);
     List::Nav nav(10, List::Nav::WrapMode::NO_WRAP, flags);
@@ -1577,7 +1577,7 @@ void test_distance_from_top_and_bottom_in_half_filled_screen(void)
 /*!\test
  * Distance functions return 0 for lists with all items filtered out.
  */
-void test_distance_from_top_and_bottom_in_filtered_list(void)
+void test_distance_from_top_and_bottom_in_filtered_list()
 {
     List::RamList short_list;
 
