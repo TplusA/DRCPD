@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -163,6 +163,15 @@ class NavItemNoFilter: public NavItemFilterIface
  */
 class Nav
 {
+  public:
+    enum class WrapMode
+    {
+        NO_WRAP,
+        WRAP_TO_TOP,
+        WRAP_TO_BOTTOM,
+        FULL_WRAP,
+    };
+
   private:
     /*!
      * The currently selected item number in the underlying list.
@@ -179,6 +188,8 @@ class Nav
      */
     unsigned int selected_line_number_;
 
+    WrapMode wrap_mode_;
+
   public:
     const unsigned int maximum_number_of_displayed_lines_;
 
@@ -189,9 +200,10 @@ class Nav
     Nav(const Nav &) = delete;
     Nav &operator=(const Nav &) = delete;
 
-    explicit Nav(unsigned int max_display_lines,
+    explicit Nav(unsigned int max_display_lines, WrapMode initial_wrap_mode,
                  const NavItemFilterIface &item_filter):
         first_displayed_item_(0),
+        wrap_mode_(initial_wrap_mode),
         maximum_number_of_displayed_lines_(max_display_lines),
         item_filter_(item_filter)
     {

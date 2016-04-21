@@ -224,7 +224,7 @@ class View: public ViewIface, public ViewSerializeBase
         ViewIface(ViewNames::CONFIGURATION, false, nullptr),
         ViewSerializeBase(on_screen_name, "config", 73U),
         item_flags_(&editable_menu_items_),
-        navigation_(max_lines, item_flags_)
+        navigation_(max_lines, List::Nav::WrapMode::FULL_WRAP, item_flags_)
     {}
 
     bool init() override;

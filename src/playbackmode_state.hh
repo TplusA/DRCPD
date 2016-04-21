@@ -87,7 +87,7 @@ class State
     explicit State(List::DBusList &traversal_list, CurrentMode &mode):
         dbus_list_(traversal_list),
         item_flags_(&traversal_list),
-        navigation_(1, item_flags_),
+        navigation_(1, List::Nav::WrapMode::NO_WRAP, item_flags_),
         mode_(mode),
         is_list_processed_(false),
         user_list_line_(0),

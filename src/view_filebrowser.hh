@@ -106,7 +106,7 @@ class View: public ViewIface, public ViewSerializeBase
                    list_contexts_, max_lines,
                    construct_file_item),
         item_flags_(&file_list_),
-        navigation_(max_lines, item_flags_),
+        navigation_(max_lines, List::Nav::WrapMode::FULL_WRAP, item_flags_),
         traversal_list_(dbus_get_lists_navigation_iface(listbroker_id_),
                         list_contexts_, assumed_streamplayer_fifo_size + 1,
                         construct_file_item),
