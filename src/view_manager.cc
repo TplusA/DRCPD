@@ -301,8 +301,8 @@ void ViewManager::Manager::activate_view(ViewIface *view)
                                                                DCP::Queue::Mode::SYNC_IF_POSSIBLE,
                                                                debug_stream_);
 
-    if(view->is_browse_view_)
-        last_browse_view_ = view;
+    if(active_view_->is_browse_view_)
+        last_browse_view_ = active_view_;
 }
 
 ViewIface *ViewManager::Manager::get_view_by_name(const char *view_name)
