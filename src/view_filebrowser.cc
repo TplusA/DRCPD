@@ -928,7 +928,10 @@ ViewFileBrowser::View::process_event(UI::ViewEventID event_id,
 bool ViewFileBrowser::View::write_xml(std::ostream &os,
                                       const DCP::Queue::Data &data)
 {
-    os << "<text id=\"cbid\">" << int(drcp_browse_id_) << "</text>";
+    os << "<text id=\"cbid\">" << int(drcp_browse_id_) << "</text>"
+       << "<context>"
+       << list_contexts_[DBUS_LISTS_CONTEXT_GET(current_list_id_.get_raw_id())].string_id_.c_str()
+       << "</context>";
 
     if(!file_list_.get_list_id().is_valid())
         return true;
