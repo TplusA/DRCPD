@@ -133,11 +133,13 @@ class Data
         meta_data_.clear(false);
     }
 
-    void set_playing()
+    void set_playing(bool clear_meta_data)
     {
         Busy::clear(Busy::Source::BUFFERING_STREAM);
         assumed_stream_state_ = STREAM_PLAYING;
-        meta_data_.clear(false);
+
+        if(clear_meta_data)
+            meta_data_.clear(false);
     }
 
     void set_paused() { assumed_stream_state_ = STREAM_PAUSED; }

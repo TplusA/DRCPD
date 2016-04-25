@@ -203,6 +203,7 @@ bool Playback::Player::start_notification(ID::Stream stream_id,
     std::lock_guard<LoggedLock::Mutex> lock_csd(current_stream_data_.lock_);
 
     const StreamInfoItem *stream_info_item = nullptr;
+    bool is_new_stream = true;
 
     if(current_stream_data_.stream_info_.lookup(stream_id) == nullptr)
     {
@@ -221,9 +222,11 @@ bool Playback::Player::start_notification(ID::Stream stream_id,
         stream_info_item =
             current_stream_data_.stream_info_.lookup(current_stream_data_.stream_id_);
     }
+    else
+        is_new_stream = false;
 
     /* this also clears the associated meta data */
-    current_stream_data_.track_info_.set_playing();
+    current_stream_data_.track_info_.set_playing(is_new_stream);
 
     bool retval = false;
 
