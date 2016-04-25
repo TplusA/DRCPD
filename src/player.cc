@@ -317,7 +317,8 @@ void Playback::Player::stop_notification()
 
 void Playback::Player::pause_notification()
 {
-    set_assumed_stream_state(PlayInfo::Data::STREAM_PAUSED);
+    std::lock_guard<LoggedLock::Mutex> lock_csd(current_stream_data_.lock_);
+    current_stream_data_.track_info_.set_paused();
 }
 
 bool Playback::Player::track_times_notification(const std::chrono::milliseconds &position,
@@ -350,7 +351,7 @@ PlayInfo::Data::StreamState Playback::Player::get_assumed_stream_state__locked()
 
 PlayInfo::Data::StreamState Playback::Player::get_assumed_stream_state__unlocked() const
 {
-    return current_stream_data_.track_info_.assumed_stream_state_;
+    return current_stream_data_.track_info_.get_assumed_state();
 }
 
 std::pair<std::chrono::milliseconds, std::chrono::milliseconds> Playback::Player::get_times__locked() const
@@ -612,12 +613,6 @@ bool Playback::Player::is_different_active_mode(const Playback::State *new_state
     auto current_state(current_state_ref.get());
 
     return current_state != nullptr && current_state != new_state;
-}
-
-void Playback::Player::set_assumed_stream_state(PlayInfo::Data::StreamState state)
-{
-    std::lock_guard<LoggedLock::Mutex> lock_csd(current_stream_data_.lock_);
-    current_stream_data_.track_info_.assumed_stream_state_ = state;
 }
 
 bool Playback::Player::send_message(Message &&message)

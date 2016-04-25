@@ -666,7 +666,6 @@ class Player: public PlayerIface, public MetaDataStoreIface
     bool do_meta_data_add_end(PlayInfo::MetaData::CopyMode mode);
     bool is_active_mode(const Playback::State *new_state = nullptr);
     bool is_different_active_mode(const Playback::State *new_state);
-    void set_assumed_stream_state(PlayInfo::Data::StreamState state);
 
     bool try_take(State &playback_state, const List::DBusList &file_list,
                   int line, IsBufferingCallback buffering_callback);

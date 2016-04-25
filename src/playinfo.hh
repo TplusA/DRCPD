@@ -97,9 +97,6 @@ class MetaData
 class Data
 {
   public:
-    Data(const Data &) = delete;
-    Data &operator=(const Data &) = delete;
-
     enum StreamState
     {
         STREAM_STOPPED,
@@ -110,10 +107,16 @@ class Data
         STREAM_STATE_LAST = STREAM_PAUSED,
     };
 
+  private:
     StreamState assumed_stream_state_;
+
+  public:
     MetaData meta_data_;
     std::chrono::milliseconds stream_position_;
     std::chrono::milliseconds stream_duration_;
+
+    Data(const Data &) = delete;
+    Data &operator=(const Data &) = delete;
 
     explicit Data(StreamState state = STREAM_STOPPED):
         assumed_stream_state_(state),
@@ -137,6 +140,8 @@ class Data
         meta_data_.clear(false);
     }
 
+    void set_paused() { assumed_stream_state_ = STREAM_PAUSED; }
+
     void set_stopped()
     {
         Busy::clear(Busy::Source::BUFFERING_STREAM);
@@ -145,6 +150,8 @@ class Data
         stream_position_ = std::chrono::milliseconds(-1);
         stream_duration_ = std::chrono::milliseconds(-1);
     }
+
+    StreamState get_assumed_state() const throw() { return assumed_stream_state_; }
 };
 
 };
