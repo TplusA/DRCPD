@@ -193,7 +193,7 @@ static void timeout_config(bool start_timeout_timer,
                            struct dcp_fifo_dispatch_data_t *dispatch_data)
 {
     if(start_timeout_timer)
-        dispatch_data->timeout.start(std::chrono::seconds(2),
+        dispatch_data->timeout.start(std::chrono::seconds(4),
             std::bind(transaction_timeout_exceeded, dispatch_data->vm));
     else
         dispatch_data->timeout.stop();
