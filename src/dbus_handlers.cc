@@ -470,9 +470,9 @@ void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
     }
     else if(strcmp(signal_name, "MetaDataChanged") == 0)
     {
-        check_parameter_assertions(parameters, 1);
+        check_parameter_assertions(parameters, 2);
 
-        GVariant *meta_data = g_variant_get_child_value(parameters, 0);
+        GVariant *meta_data = g_variant_get_child_value(parameters, 1);
 
         if(process_meta_data(data->mdstore_, meta_data, true,
                              PlayInfo::MetaData::CopyMode::NON_EMPTY))
@@ -482,6 +482,7 @@ void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
     }
     else if(strcmp(signal_name, "Stopped") == 0)
     {
+        check_parameter_assertions(parameters, 1);
         data->player_.stop_notification();
         data->play_view_->notify_stream_stop();
 
@@ -491,15 +492,16 @@ void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
     }
     else if(strcmp(signal_name, "Paused") == 0)
     {
+        check_parameter_assertions(parameters, 1);
         data->player_.pause_notification();
         data->play_view_->notify_stream_pause();
     }
     else if(strcmp(signal_name, "PositionChanged") == 0)
     {
-        check_parameter_assertions(parameters, 4);
+        check_parameter_assertions(parameters, 5);
         std::chrono::milliseconds position, duration;
-        parse_stream_position(parameters, 0, 1, position);
-        parse_stream_position(parameters, 2, 3, duration);
+        parse_stream_position(parameters, 1, 2, position);
+        parse_stream_position(parameters, 3, 4, duration);
 
         if(data->player_.track_times_notification(position, duration))
             data->play_view_->notify_stream_position_changed();
