@@ -24,6 +24,33 @@
 #include <algorithm>
 
 #include "playinfo.hh"
+#include "messages.h"
+
+static const struct
+{
+    /*!
+     * A key a sent by Streamplayer, thus GStreamer.
+     */
+    const char *const key;
+
+    /*!
+     * Internally used ID for GStreamer keys.
+     */
+    PlayInfo::MetaData::ID id;
+}
+key_to_id[PlayInfo::MetaData::METADATA_ID_LAST + 1] =
+{
+    { "title",           PlayInfo::MetaData::TITLE, },
+    { "artist",          PlayInfo::MetaData::ARTIST, },
+    { "album",           PlayInfo::MetaData::ALBUM, },
+    { "audio-codec",     PlayInfo::MetaData::CODEC, },
+    { "bitrate",         PlayInfo::MetaData::BITRATE, },
+    { "minimum-bitrate", PlayInfo::MetaData::BITRATE_MIN, },
+    { "maximum-bitrate", PlayInfo::MetaData::BITRATE_MAX, },
+    { "nominal-bitrate", PlayInfo::MetaData::BITRATE_NOM, },
+    { "x-drcpd-title",   PlayInfo::MetaData::INTERNAL_DRCPD_TITLE, },
+    { "x-drcpd-url",     PlayInfo::MetaData::INTERNAL_DRCPD_URL, },
+};
 
 void PlayInfo::MetaData::clear(bool keep_internals)
 {
@@ -36,32 +63,6 @@ void PlayInfo::MetaData::clear(bool keep_internals)
 void PlayInfo::MetaData::add(const char *key, const char *value,
                              const Reformatters &reformat)
 {
-    static const struct
-    {
-        /*!
-         * A key a sent by Streamplayer, thus GStreamer.
-         */
-        const char *const key;
-
-        /*!
-         * Internally used ID for GStreamer keys.
-         */
-        PlayInfo::MetaData::ID id;
-    }
-    key_to_id[METADATA_ID_LAST + 1] =
-    {
-        { "title",           TITLE, },
-        { "artist",          ARTIST, },
-        { "album",           ALBUM, },
-        { "audio-codec",     CODEC, },
-        { "bitrate",         BITRATE, },
-        { "minimum-bitrate", BITRATE_MIN, },
-        { "maximum-bitrate", BITRATE_MAX, },
-        { "nominal-bitrate", BITRATE_NOM, },
-        { "x-drcpd-title",   INTERNAL_DRCPD_TITLE, },
-        { "x-drcpd-url",     INTERNAL_DRCPD_URL, },
-    };
-
     for(const auto &entry : key_to_id)
     {
         if(strcmp(key, entry.key) == 0)
@@ -133,4 +134,12 @@ bool PlayInfo::MetaData::operator==(const MetaData &other) const
             return false;
 
     return true;
+}
+
+void PlayInfo::MetaData::dump(const char *what) const
+{
+    msg_info("Meta data \"%s\"", what);
+
+    for(const auto &entry : key_to_id)
+        msg_info("%18s: \"%s\"", entry.key, values_[entry.id].c_str());
 }

@@ -89,6 +89,8 @@ class MetaData
     void copy_from(const MetaData &src, CopyMode mode);
 
     bool operator==(const MetaData &other) const;
+
+    void dump(const char *what) const;
 };
 
 /*!
