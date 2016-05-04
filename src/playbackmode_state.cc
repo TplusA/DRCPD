@@ -659,6 +659,7 @@ static inline bool can_queue_item(const ViewFileBrowser::FileItem &item)
       case ListItemKind::SERVER:
       case ListItemKind::STORAGE_DEVICE:
       case ListItemKind::SEARCH_FORM:
+      case ListItemKind::LOGOUT_LINK:
         return false;
     }
 

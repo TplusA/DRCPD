@@ -178,3 +178,8 @@ ViewFileBrowser::AirableView::point_to_search_form(List::context_id_t ctx_id)
 
     return GoToSearchForm::NOT_AVAILABLE;
 }
+
+void ViewFileBrowser::AirableView::log_out_from_context(List::context_id_t context)
+{
+    search_forms_.erase(context);
+}

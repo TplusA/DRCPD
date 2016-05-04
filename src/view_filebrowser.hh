@@ -174,6 +174,8 @@ class View: public ViewIface, public ViewSerializeBase
         return GoToSearchForm::NOT_SUPPORTED;
     }
 
+    virtual void log_out_from_context(List::context_id_t context) {}
+
   private:
     /*!
      * Find best matching item in current list and move selection there.

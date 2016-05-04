@@ -55,6 +55,7 @@ class AirableView: public View
     bool point_to_root_directory() final override;
     bool point_to_child_directory(const SearchParameters *search_parameters = nullptr) final override;
     GoToSearchForm point_to_search_form(List::context_id_t ctx_id) final override;
+    void log_out_from_context(List::context_id_t context) final override;
 };
 
 }
