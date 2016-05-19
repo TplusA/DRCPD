@@ -94,6 +94,15 @@ class ContextMap
     bool exists(const char *id) const { return ((*this)[id].is_valid()); }
     bool exists(const std::string &id) const { return exists(id.c_str()); }
 
+    const ContextInfo &get_context_info_by_string_id(const char *id,
+                                                     context_id_t &ctx_id) const;
+
+    const ContextInfo &get_context_info_by_string_id(const std::string &id,
+                                                     context_id_t &ctx_id) const
+    {
+        return get_context_info_by_string_id(id.c_str(), ctx_id);
+    }
+
     const ContextInfo &operator[](context_id_t i) const
     {
         if(i < contexts_.size())
@@ -107,7 +116,11 @@ class ContextMap
         return const_cast<ContextInfo &>((*static_cast<const ContextMap *>(this))[i]);
     }
 
-    const ContextInfo &operator[](const char *id) const;
+    const ContextInfo &operator[](const char *id) const
+    {
+        context_id_t dummy;
+        return get_context_info_by_string_id(id, dummy);
+    }
 
     ContextInfo &operator[](const char *id)
     {

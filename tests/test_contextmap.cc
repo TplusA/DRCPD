@@ -136,6 +136,33 @@ static void access_by_ids(const T &id1, const T &id2)
     cppcut_assert_equal(List::ContextInfo::HAS_EXTERNAL_META_DATA, info2.get_flags());
 }
 
+template <typename T>
+static void detailed_access_by_ids(const T &id1, const T &id2)
+{
+    List::ContextMap &map(*cmap);
+
+    cut_assert_true(map.exists(id1));
+    cut_assert_true(map.exists(id2));
+
+    List::context_id_t ctx_id1;
+    const List::ContextInfo &info1(map.get_context_info_by_string_id(id1, ctx_id1));
+    cut_assert_true(info1.is_valid());
+    cppcut_assert_equal("first", info1.string_id_.c_str());
+    cppcut_assert_equal("First list context", info1.description_.c_str());
+    cppcut_assert_equal(0U, info1.get_flags());
+    cppcut_assert_equal(&info1, &(map[ctx_id1]));
+
+    List::context_id_t ctx_id2;
+    const List::ContextInfo &info2(map.get_context_info_by_string_id(id2, ctx_id2));
+    cut_assert_true(info2.is_valid());
+    cppcut_assert_equal("second", info2.string_id_.c_str());
+    cppcut_assert_equal("Second list context", info2.description_.c_str());
+    cppcut_assert_equal(List::ContextInfo::HAS_EXTERNAL_META_DATA, info2.get_flags());
+    cppcut_assert_equal(&info2, &(map[ctx_id2]));
+
+    cppcut_assert_not_equal(ctx_id1, ctx_id2);
+}
+
 /*!\test
  * Context information can be retrieved by numeric ID.
  */
@@ -161,6 +188,24 @@ void test_access_by_cppstring_id()
 {
     access_by_ids(std::string("first"),
                   std::string("second"));
+}
+
+/*!\test
+ * Context information can be retrieved by string ID as C string.
+ */
+void test_detailed_access_by_cstring_id()
+{
+    detailed_access_by_ids(std::string("first"),
+                           std::string("second"));
+}
+
+/*!\test
+ * Context information can be retrieved by string ID as C++ string.
+ */
+void test_detailed_access_by_cppstring_id()
+{
+    detailed_access_by_ids(std::string("first"),
+                           std::string("second"));
 }
 
 /*!\test

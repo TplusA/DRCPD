@@ -72,7 +72,9 @@ List::ContextMap::append(const char *id, const char *description,
     return new_id;
 }
 
-const List::ContextInfo &List::ContextMap::operator[](const char *id) const
+const List::ContextInfo &
+List::ContextMap::get_context_info_by_string_id(const char *id,
+                                                context_id_t &ctx_id) const
 {
     const auto &found =
         std::find_if(contexts_.begin(), contexts_.end(),
@@ -82,7 +84,13 @@ const List::ContextInfo &List::ContextMap::operator[](const char *id) const
                      });
 
     if(found != contexts_.end())
+    {
+        ctx_id = found - contexts_.begin();
         return *found;
+    }
     else
+    {
+        ctx_id = INVALID_ID;
         return List::ContextMap::default_context_;
+    }
 }
