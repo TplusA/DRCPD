@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -52,6 +52,9 @@ void dbussignal_splay_urlfifo(GDBusProxy *proxy, const gchar *sender_name,
 void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
                                const gchar *signal_name, GVariant *parameters,
                                gpointer user_data);
+void dbussignal_airable_sec(GDBusProxy *proxy, const gchar *sender_name,
+                            const gchar *signal_name, GVariant *parameters,
+                            gpointer user_data);
 
 #ifdef __cplusplus
 }

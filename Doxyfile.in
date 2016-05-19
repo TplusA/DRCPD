@@ -794,6 +794,7 @@ RECURSIVE              = YES
 # run.
 
 EXCLUDE                = \
+    @abs_builddir@/src/airable_dbus.c \
     @abs_builddir@/src/dcpd_dbus.c \
     @abs_builddir@/src/lists_dbus.c \
     @abs_builddir@/src/streamplayer_dbus.c \

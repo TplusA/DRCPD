@@ -519,8 +519,7 @@ ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command,
 
               case ListItemKind::LOGOUT_LINK:
                 log_out_from_context(DBUS_LISTS_CONTEXT_GET(file_list_.get_list_id().get_raw_id()));
-
-                /* fall-through */
+                break;
 
               case ListItemKind::DIRECTORY:
               case ListItemKind::PLAYLIST_DIRECTORY:

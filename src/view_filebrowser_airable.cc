@@ -25,6 +25,26 @@
 #include "de_tahifi_lists_context.h"
 #include "messages.h"
 
+void ViewFileBrowser::AirableView::logged_out_from_service_notification(const char *service_id,
+                                                                        enum ActorID actor_id)
+{
+    msg_info("Logged out from \"%s\" by %u\n", service_id, actor_id);
+
+    List::context_id_t ctx_id;
+    const auto &ctx(list_contexts_.get_context_info_by_string_id(service_id, ctx_id));
+
+    if(!ctx.is_valid())
+        return;
+
+    const List::context_id_t current_browse_context =
+        DBUS_LISTS_CONTEXT_GET(current_list_id_.get_raw_id());
+
+    if(current_browse_context == ctx_id)
+        point_to_root_directory();
+
+    search_forms_.erase(ctx_id);
+}
+
 bool ViewFileBrowser::AirableView::point_to_root_directory()
 {
     const bool ret = View::point_to_root_directory();
@@ -181,5 +201,9 @@ ViewFileBrowser::AirableView::point_to_search_form(List::context_id_t ctx_id)
 
 void ViewFileBrowser::AirableView::log_out_from_context(List::context_id_t context)
 {
-    search_forms_.erase(context);
+    const auto &ctx(list_contexts_[context]);
+    tdbus_airable_call_external_service_logout_sync(dbus_get_airable_sec_iface(),
+                                                    ctx.string_id_.c_str(), "",
+                                                    true, ACTOR_ID_LOCAL_UI,
+                                                    NULL, NULL);
 }

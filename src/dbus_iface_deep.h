@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -23,6 +23,7 @@
 #include "dcpd_dbus.h"
 #include "lists_dbus.h"
 #include "streamplayer_dbus.h"
+#include "airable_dbus.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -32,6 +33,7 @@ tdbuslistsNavigation *dbus_get_lists_navigation_iface(dbus_listbroker_id_t id);
 tdbussplayURLFIFO *dbus_get_streamplayer_urlfifo_iface(void);
 tdbussplayPlayback *dbus_get_streamplayer_playback_iface(void);
 tdbusdcpdPlayback *dbus_get_dcpd_playback_iface(void);
+tdbusAirable *dbus_get_airable_sec_iface(void);
 
 #ifdef __cplusplus
 }

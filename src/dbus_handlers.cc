@@ -28,6 +28,7 @@
 #include "view_manager.hh"
 #include "view_play.hh"
 #include "view_filebrowser.hh"
+#include "view_filebrowser_airable.hh"
 #include "search_parameters.hh"
 #include "ui_parameters_predefined.hh"
 #include "player.hh"
@@ -505,6 +506,57 @@ void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
 
         if(data->player_.track_times_notification(position, duration))
             data->play_view_->notify_stream_position_changed();
+    }
+    else
+        unknown_signal(iface_name, signal_name, sender_name);
+}
+
+void dbussignal_airable_sec(GDBusProxy *proxy, const gchar *sender_name,
+                            const gchar *signal_name, GVariant *parameters,
+                            gpointer user_data)
+{
+    static const char iface_name[] = "de.tahifi.Streamplayer.Playback";
+
+    msg_info("%s signal from '%s': %s", iface_name, sender_name, signal_name);
+
+    auto *data = static_cast<DBusSignalData *>(user_data);
+    log_assert(data != nullptr);
+
+    if(strcmp(signal_name, "ExternalServiceLoginStatus") == 0)
+    {
+        check_parameter_assertions(parameters, 5);
+
+        const gchar *service_id;
+        const gchar *info;
+        uint8_t raw_actor_id;
+        gboolean is_login;
+        gboolean has_failed;
+
+        g_variant_get(parameters, "(&sybb&s)",
+                      &service_id, &raw_actor_id, &is_login, &has_failed, &info);
+
+        if(!has_failed)
+        {
+            auto *const airable_view =
+                dynamic_cast<ViewFileBrowser::AirableView *>(data->mgr_.get_view_by_name(ViewNames::BROWSER_INETRADIO));
+
+            if(airable_view == nullptr)
+                BUG("Could not find Airable browse view");
+            else if(!is_login)
+            {
+                const enum ActorID actor_id =
+                    (raw_actor_id <= int(ACTOR_ID_LAST_ID))
+                    ? ActorID(raw_actor_id)
+                    : ACTOR_ID_INVALID;
+
+                airable_view->logged_out_from_service_notification(service_id,
+                                                                   actor_id);
+            }
+        }
+        else
+        {
+            /* ignore silently, not interesting at the moment */
+        }
     }
     else
         unknown_signal(iface_name, signal_name, sender_name);

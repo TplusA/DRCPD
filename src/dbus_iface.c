@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -44,6 +44,8 @@ struct dbus_data
 
     tdbussplayURLFIFO *splay_urlfifo_proxy;
     tdbussplayPlayback *splay_playback_proxy;
+
+    tdbusAirable *airable_sec_proxy;
 };
 
 static void bus_acquired(GDBusConnection *connection,
@@ -130,6 +132,21 @@ static void connect_signals_streamplayer(GDBusConnection *connection,
     handle_error(&error);
 }
 
+static void connect_signals_airable(GDBusConnection *connection,
+                                    tdbusAirable **proxy,
+                                    GDBusProxyFlags flags,
+                                    const char *bus_name,
+                                    const char *object_path)
+{
+    GError *error = NULL;
+
+    *proxy =
+        tdbus_airable_proxy_new_sync(connection, flags,
+                                     bus_name, object_path,
+                                     NULL, &error);
+    handle_error(&error);
+}
+
 static void name_acquired(GDBusConnection *connection,
                           const gchar *name, gpointer user_data)
 {
@@ -154,6 +171,9 @@ static void name_acquired(GDBusConnection *connection,
                                 "de.tahifi.UPnPBroker", "/de/tahifi/UPnPBroker");
     connect_signals_streamplayer(connection, data, G_DBUS_PROXY_FLAGS_NONE,
                                  "de.tahifi.Streamplayer", "/de/tahifi/Streamplayer");
+    connect_signals_airable(connection, &data->airable_sec_proxy,
+                            G_DBUS_PROXY_FLAGS_NONE,
+                            "de.tahifi.TuneInBroker", "/de/tahifi/TuneInBroker");
 }
 
 static void name_lost(GDBusConnection *connection,
@@ -204,6 +224,11 @@ tdbusdcpdPlayback *dbus_get_dcpd_playback_iface(void)
     return dbus_data.dcpd_playback_proxy;
 }
 
+tdbusAirable *dbus_get_airable_sec_iface(void)
+{
+    return dbus_data.airable_sec_proxy;
+}
+
 int dbus_setup(GMainLoop *loop, bool connect_to_session_bus,
                void *dbus_signal_data_for_dbus_handlers)
 {
@@ -245,6 +270,7 @@ int dbus_setup(GMainLoop *loop, bool connect_to_session_bus,
     log_assert(dbus_data.upnpbroker_lists_navigation_proxy != NULL);
     log_assert(dbus_data.splay_urlfifo_proxy != NULL);
     log_assert(dbus_data.splay_playback_proxy != NULL);
+    log_assert(dbus_data.airable_sec_proxy != NULL);
 
     g_signal_connect(dbus_data.dcpd_playback_proxy, "g-signal",
                      G_CALLBACK(dbussignal_dcpd_playback),
@@ -282,6 +308,10 @@ int dbus_setup(GMainLoop *loop, bool connect_to_session_bus,
                      G_CALLBACK(dbussignal_splay_playback),
                      dbus_signal_data_for_dbus_handlers);
 
+    g_signal_connect(dbus_data.airable_sec_proxy, "g-signal",
+                     G_CALLBACK(dbussignal_airable_sec),
+                     dbus_signal_data_for_dbus_handlers);
+
     g_main_loop_ref(loop);
 
     return 0;
@@ -304,5 +334,6 @@ void dbus_shutdown(GMainLoop *loop)
     g_object_unref(dbus_data.upnpbroker_lists_navigation_proxy);
     g_object_unref(dbus_data.splay_urlfifo_proxy);
     g_object_unref(dbus_data.splay_playback_proxy);
+    g_object_unref(dbus_data.airable_sec_proxy);
 
 }

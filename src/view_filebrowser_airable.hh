@@ -23,6 +23,7 @@
 
 #include "view_filebrowser.hh"
 #include "context_map.hh"
+#include "actor_id.h"
 
 namespace ViewFileBrowser
 {
@@ -50,6 +51,9 @@ class AirableView: public View
     {}
 
     ~AirableView() {}
+
+    void logged_out_from_service_notification(const char *service_id,
+                                              enum ActorID actor_id);
 
   private:
     bool point_to_root_directory() final override;

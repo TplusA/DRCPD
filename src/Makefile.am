@@ -33,6 +33,7 @@ drcpd_SOURCES = \
     view_filebrowser_utils.hh view_play.hh \
     view_search.hh \
     search_algo.hh \
+    actor_id.h \
     ui_parameters.hh ui_parameters_predefined.hh search_parameters.hh \
     playinfo.hh idtypes.hh stream_id.h stream_id.hh context_map.hh \
     player.hh playbackmode.hh playbackmode_state.hh logged_lock.hh \
@@ -85,6 +86,7 @@ libviews_la_SOURCES = \
     idtypes.hh stream_id.h stream_id.hh \
     ui_parameters.hh ui_parameters_predefined.hh search_parameters.hh \
     search_algo.hh \
+    actor_id.h \
     dbuslist.hh dbuslist_exception.hh \
     playbackmode.hh playbackmode_state.hh logged_lock.hh \
     playback_abort_enqueue.hh
@@ -105,7 +107,7 @@ libdcp_transaction_la_SOURCES = \
 libdcp_transaction_la_CFLAGS = $(AM_CFLAGS)
 libdcp_transaction_la_CXXFLAGS = $(AM_CXXFLAGS)
 
-libdbus_handlers_la_SOURCES = dbus_handlers.h dbus_handlers.hh dbus_handlers.cc
+libdbus_handlers_la_SOURCES = dbus_handlers.h dbus_handlers.hh dbus_handlers.cc actor_id.h
 libdbus_handlers_la_CFLAGS = $(AM_CFLAGS)
 libdbus_handlers_la_CXXFLAGS = $(AM_CXXFLAGS)
 
@@ -131,16 +133,25 @@ liblistsearch_la_CXXFLAGS = $(CXXRELAXEDWARNINGS)
 nodist_libdrcpd_dbus_client_la_SOURCES = \
     dcpd_dbus.c dcpd_dbus.h \
     lists_dbus.c lists_dbus.h \
-    streamplayer_dbus.c streamplayer_dbus.h
+    streamplayer_dbus.c streamplayer_dbus.h \
+    airable_dbus.c airable_dbus.h
 libdrcpd_dbus_client_la_CFLAGS = $(CRELAXEDWARNINGS)
 libdrcpd_dbus_client_la_CXXFLAGS = $(CXXRELAXEDWARNINGS)
 
 BUILT_SOURCES = \
     $(nodist_libdrcpd_dbus_client_la_SOURCES) \
-    de_tahifi_dcpd.h de_tahifi_dcpd.md \
-    de_tahifi_lists.h de_tahifi_lists.md \
-    de_tahifi_streamplayer.h de_tahifi_streamplayer.md \
-    dcpd_dbus.stamp lists_dbus.stamp streamplayer_dbus.stamp
+    de_tahifi_dcpd.h \
+    de_tahifi_dcpd.md \
+    dcpd_dbus.stamp \
+    de_tahifi_lists.h \
+    de_tahifi_lists.md \
+    lists_dbus.stamp \
+    de_tahifi_streamplayer.h \
+    de_tahifi_streamplayer.md \
+    streamplayer_dbus.stamp \
+    de_tahifi_airable.h \
+    de_tahifi_airable.md \
+    airable_dbus.stamp
 
 CLEANFILES = $(BUILT_SOURCES)
 
@@ -169,4 +180,13 @@ streamplayer_dbus.h: streamplayer_dbus.stamp
 streamplayer_dbus.stamp: $(DBUS_IFACES)/de_tahifi_streamplayer.xml
 	$(GDBUS_CODEGEN) --generate-c-code=streamplayer_dbus --c-namespace tdbus_splay --interface-prefix de.tahifi.Streamplayer. $<
 	$(DBUS_IFACES)/extract_documentation.py -i $< -o de_tahifi_streamplayer.md -H de_tahifi_streamplayer.h -c tdbus_splay -s de.tahifi.Streamplayer. -n 'Streamplayer'
+	touch $@
+
+de_tahifi_airable.h: airable_dbus.stamp
+de_tahifi_airable.md: airable_dbus.stamp
+airable_dbus.c: airable_dbus.stamp
+airable_dbus.h: airable_dbus.stamp
+airable_dbus.stamp: $(DBUS_IFACES)/de_tahifi_airable.xml
+	$(GDBUS_CODEGEN) --generate-c-code=airable_dbus --c-namespace tdbus --interface-prefix de.tahifi. $<
+	$(DBUS_IFACES)/extract_documentation.py -i $< -o de_tahifi_airable.md -H de_tahifi_airable.h -c tdbus -s de.tahifi. -n "$(PACKAGE_NAME) (Airable HTTP session security)"
 	touch $@
