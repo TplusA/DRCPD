@@ -27,18 +27,6 @@
 class StreamInfo;
 class StreamInfoItem;
 
-class AsyncDBusCall
-{
-  protected:
-    explicit AsyncDBusCall() {}
-
-  public:
-    AsyncDBusCall(const AsyncDBusCall &) = delete;
-    AsyncDBusCall &operator=(const AsyncDBusCall &) = delete;
-
-    virtual ~AsyncDBusCall() {}
-};
-
 namespace Playback
 {
 

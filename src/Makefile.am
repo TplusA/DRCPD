@@ -26,6 +26,7 @@ drcpd_SOURCES = \
     timeout.cc timeout.hh \
     os.c os.h named_pipe.c named_pipe.h fdstreambuf.hh \
     dbus_iface.c dbus_iface.h dbus_iface_deep.h dbus_handlers.hh \
+    dbus_async.hh \
     list.hh ramlist.hh dbuslist.hh dbuslist_exception.hh listnav.hh \
     view.hh view_serialize.hh view_names.hh view_nop.hh \
     view_manager.hh xmlescape.hh \
@@ -97,7 +98,8 @@ libplayback_la_SOURCES = \
     player.cc player.hh \
     idtypes.hh stream_id.h stream_id.hh logged_lock.hh \
     playbackmode.hh playbackmode_state.hh playbackmode_state.cc \
-    playback_abort_enqueue.hh
+    playback_abort_enqueue.hh \
+    dbus_async.hh
 libplayback_la_CFLAGS = $(CRELAXEDWARNINGS)
 libplayback_la_CXXFLAGS = $(CXXRELAXEDWARNINGS)
 

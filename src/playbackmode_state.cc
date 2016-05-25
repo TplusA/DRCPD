@@ -28,6 +28,7 @@
 #include "view_filebrowser.hh"
 #include "view_filebrowser_utils.hh"
 #include "dbus_iface_deep.h"
+#include "dbus_async.hh"
 #include "de_tahifi_lists_errors.hh"
 
 enum class SendStatus
@@ -65,138 +66,6 @@ static gchar *select_uri_from_list(gchar **uri_list)
     return NULL;
 }
 
-template <typename ProxyType, typename ReturnType>
-class AsyncSpecificDBusCall: public AsyncDBusCall
-{
-  public:
-    using PromiseReturnType = ReturnType;
-    using PromiseType = std::promise<PromiseReturnType>;
-
-    using ToProxyFunction = std::function<ProxyType *(GObject *)>;
-    using PutResultFunction = std::function<void(bool &was_successful,
-                                                 PromiseType &, ProxyType *,
-                                                 GAsyncResult *, GError **)>;
-    using DestroyResultFunction = std::function<void(PromiseReturnType &)>;
-
-  private:
-    ProxyType *const proxy_;
-    ToProxyFunction to_proxy_fn_;
-    PutResultFunction put_result_fn_;
-    DestroyResultFunction destroy_result_fn_;
-    std::function<bool(void)> may_continue_fn_;
-
-    GCancellable *cancellable_;
-    GError *error_;
-    bool has_completed_;
-    bool was_successful_;
-    bool is_zombie_;
-
-    std::promise<PromiseReturnType> promise_;
-    PromiseReturnType return_value_;
-
-  public:
-    AsyncSpecificDBusCall(const AsyncSpecificDBusCall &) = delete;
-    AsyncSpecificDBusCall &operator=(const AsyncSpecificDBusCall &) = delete;
-
-    explicit AsyncSpecificDBusCall(ProxyType *proxy,
-                                   ToProxyFunction to_proxy,
-                                   PutResultFunction put_result,
-                                   DestroyResultFunction destroy_result,
-                                   std::function<bool(void)> may_continue):
-        proxy_(proxy),
-        to_proxy_fn_(to_proxy),
-        put_result_fn_(put_result),
-        destroy_result_fn_(destroy_result),
-        may_continue_fn_(may_continue),
-        cancellable_(g_cancellable_new()),
-        error_(nullptr),
-        has_completed_(false),
-        was_successful_(false),
-        is_zombie_(false)
-    {}
-
-    virtual ~AsyncSpecificDBusCall()
-    {
-        if(error_ != nullptr)
-            g_error_free(error_);
-
-        g_object_unref(G_OBJECT(cancellable_));
-
-        if(was_successful_)
-            destroy_result_fn_(return_value_);
-    }
-
-    template <typename DBusMethodType, typename... Args>
-    const PromiseReturnType &invoke(DBusMethodType dbus_method, Args&&... args)
-    {
-        dbus_method(proxy_, args..., cancellable_, async_ready_trampoline, this);
-
-        auto future(promise_.get_future());
-        if(!future.valid())
-            return return_value_;
-
-        if(!g_cancellable_is_cancelled(cancellable_))
-        {
-            while(future.wait_for(std::chrono::milliseconds(300)) != std::future_status::ready)
-            {
-                if(!may_continue_fn_())
-                {
-                    g_cancellable_cancel(cancellable_);
-                    break;
-                }
-            }
-        }
-
-        if(!g_cancellable_is_cancelled(cancellable_))
-            return_value_ = future.get();
-
-        return return_value_;
-    }
-
-    bool is_complete() const { return has_completed_; }
-    bool success() const { return was_successful_; }
-
-    void bang_you_are_dead() { is_zombie_ = true; }
-    bool is_zombie() const { return is_zombie_; }
-
-  private:
-    static void async_ready_trampoline(GObject *source_object,
-                                       GAsyncResult *res, gpointer user_data)
-    {
-        auto async(static_cast<AsyncSpecificDBusCall *>(user_data));
-
-        if(async->is_zombie())
-        {
-            /*
-             * Retarded GLib does not cancel asynchronous I/O operations
-             * immediately, but insists on cancelling them asynchronously
-             * ("cancelling an asynchronous operation causes it to complete
-             * asynchronously"). We must return to the main loop to make this
-             * happen, and we therefore had to leak the async object at hand at
-             * the time we cancelled it. Because we must use the async object
-             * in this callback, we marked it as dead when we knew it should be
-             * dead. Should GLib ever get this wrong, we'll leak memory.
-             *
-             * Please, GLib, stop wasting our time already.
-             */
-            delete async;
-        }
-        else
-            async->ready(async->to_proxy_fn_(source_object), res);
-    }
-
-    void ready(ProxyType *proxy, GAsyncResult *res)
-    {
-        has_completed_ = true;
-        put_result_fn_(was_successful_, promise_, proxy_, res, &error_);
-
-        if(!was_successful_)
-            msg_error(0, LOG_NOTICE,
-                      "Async D-Bus method call failed: %s",
-                      error_ != nullptr ? error_->message : "*NULL*");
-    }
-};
-
 /*!
  * Retrieve URI associated with selected item.
  *
@@ -222,20 +91,25 @@ static std::string get_selected_uri(ID::List list_id, unsigned int item_id,
                                     Playback::AbortEnqueueIface &abort_enqueue,
                                     SendStatus &send_status)
 {
-    using AsyncCallType = AsyncSpecificDBusCall<tdbuslistsNavigation, std::tuple<guchar, gchar **>>;
+    using AsyncCallType = DBus::AsyncCall<tdbuslistsNavigation, std::tuple<guchar, gchar **>>;
 
     auto *async_call = new AsyncCallType(
         proxy,
         [] (GObject *source_object) { return TDBUS_LISTS_NAVIGATION(source_object); },
         [] (bool &was_successful, AsyncCallType::PromiseType &promise,
-            tdbuslistsNavigation *p, GAsyncResult *async_result, GError **error)
+            tdbuslistsNavigation *p, GAsyncResult *async_result, GError *&error)
         {
             guchar error_code = 0;
             gchar **uri_list = NULL;
 
             was_successful =
                 tdbus_lists_navigation_call_get_uris_finish(p, &error_code, &uri_list,
-                                                            async_result, error);
+                                                            async_result, &error);
+
+            if(!was_successful)
+                msg_error(0, LOG_NOTICE,
+                          "Async D-Bus method call failed: %s",
+                          error != nullptr ? error->message : "*NULL*");
 
             /*
              * For correct synchronization, this call must be the last
@@ -258,8 +132,9 @@ static std::string get_selected_uri(ID::List list_id, unsigned int item_id,
         },
         [&abort_enqueue] () { return abort_enqueue.may_continue(); });
 
-    const auto &result(async_call->invoke(tdbus_lists_navigation_call_get_uris,
-                                          list_id.get_raw_id(), item_id));
+    async_call->invoke(tdbus_lists_navigation_call_get_uris,
+                       list_id.get_raw_id(), item_id);
+    const auto &result(async_call->wait_for_result());
 
     static const std::string empty_string;
 
