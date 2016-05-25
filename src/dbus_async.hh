@@ -27,14 +27,73 @@ namespace DBus
 
 class AsyncCall_
 {
+  private:
+    bool is_zombie_;
+
   protected:
-    explicit AsyncCall_() {}
+    bool has_completed_;
+    bool was_successful_;
+
+    explicit AsyncCall_():
+        is_zombie_(false),
+        has_completed_(false),
+        was_successful_(false)
+    {}
 
   public:
     AsyncCall_(const AsyncCall_ &) = delete;
     AsyncCall_ &operator=(const AsyncCall_ &) = delete;
 
     virtual ~AsyncCall_() {}
+
+    bool is_complete() const { return has_completed_; }
+    bool success() const { return was_successful_; }
+
+    /*!
+     * If the asynchronous call failed, clean up already.
+     *
+     * \retval True
+     *     The asynchronous D-Bus call has failed and the passed object has
+     *     either been deleted, or turned into a zombie and will be deleted at
+     *     some later point. In neither case the passed pointer shall be
+     *     dereferenced or used otherwise by the caller anymore.
+     * \retval False
+     *     The asynchronous D-Bus call was successful and the result is usable.
+     *     The caller must delete the object when it is done with it. Note that
+     *     the result returned by #DBus::AsyncCall::wait_for_result() returns a
+     *     \e reference to an object owned by the #DBus::AsyncCall object.
+     *     Deleting the #DBus::AsyncCall object also destroys the result.
+     */
+    static bool cleanup_if_failed(AsyncCall_ *call)
+    {
+        if(call->success())
+            return false;
+
+        if(call->is_complete())
+            delete call;
+        else
+        {
+            /*
+             * We must leak the async object as a zombie here and
+             * rely on the final head shot being applied in the
+             * \c GAsyncReadyCallback callback. Check out the comments
+             * in #DBus::AsyncCall::async_ready_trampoline() for
+             * more details.
+             *
+             * Note that this is also the reason why the caller cannot make use
+             * of \c std::unique_ptr, at least not in a usefully narrowed down
+             * scope.
+             */
+            call->is_zombie_ = true;
+        }
+
+        return true;
+    }
+
+    void bang_you_are_dead() { is_zombie_ = true; }
+
+  protected:
+    bool is_zombie() const { return is_zombie_; }
 };
 
 template <typename ProxyType, typename ReturnType>
@@ -59,9 +118,6 @@ class AsyncCall: public DBus::AsyncCall_
 
     GCancellable *cancellable_;
     GError *error_;
-    bool has_completed_;
-    bool was_successful_;
-    bool is_zombie_;
 
     std::promise<PromiseReturnType> promise_;
     PromiseReturnType return_value_;
@@ -121,10 +177,7 @@ class AsyncCall: public DBus::AsyncCall_
         destroy_result_fn_(destroy_result),
         may_continue_fn_(may_continue),
         cancellable_(g_cancellable_new()),
-        error_(nullptr),
-        has_completed_(false),
-        was_successful_(false),
-        is_zombie_(false)
+        error_(nullptr)
     {}
 
     virtual ~AsyncCall()
@@ -144,6 +197,12 @@ class AsyncCall: public DBus::AsyncCall_
         dbus_method(proxy_, args..., cancellable_, async_ready_trampoline, this);
     }
 
+    /*!
+     * Wait for the asynchronous D-Bus call to finish.
+     *
+     * Call #DBus::AsyncCall::cleanup_if_failed() after this function has
+     * returned. Do not use the result before doing this.
+     */
     const PromiseReturnType &wait_for_result()
     {
         auto future(promise_.get_future());
@@ -167,12 +226,6 @@ class AsyncCall: public DBus::AsyncCall_
 
         return return_value_;
     }
-
-    bool is_complete() const { return has_completed_; }
-    bool success() const { return was_successful_; }
-
-    void bang_you_are_dead() { is_zombie_ = true; }
-    bool is_zombie() const { return is_zombie_; }
 
   private:
     static void async_ready_trampoline(GObject *source_object,
