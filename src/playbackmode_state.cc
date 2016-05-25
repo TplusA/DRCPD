@@ -170,9 +170,15 @@ static std::string get_selected_uri(ID::List list_id, unsigned int item_id,
         },
         [&abort_enqueue] () { return abort_enqueue.may_continue(); });
 
+    if(async_call == nullptr)
+    {
+        msg_out_of_memory("asynchronous D-Bus call");
+        return empty_string;
+    }
+
     async_call->invoke(tdbus_lists_navigation_call_get_uris,
                        list_id.get_raw_id(), item_id);
-    const auto &result(async_call->wait_for_result());
+    async_call->wait_for_result();
 
     if(AsyncCallType::cleanup_if_failed(async_call))
     {
@@ -181,6 +187,9 @@ static std::string get_selected_uri(ID::List list_id, unsigned int item_id,
 
         return empty_string;
     }
+
+    DBus::AsyncResult async_result;
+    const auto &result(async_call->get_result(async_result));
 
     const ListError error(std::get<0>(result));
     gchar **const uri_list(std::get<1>(result));

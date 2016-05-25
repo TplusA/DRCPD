@@ -107,6 +107,12 @@ class AsyncCall_
     /*!
      * If the asynchronous call failed, clean up already.
      *
+     * \param call
+     *     An asynchronous call context that shall be freed. Do \e not delete
+     *     or use the passed object if this function returns \c true. Delete
+     *     the passed \p call after use if and only if this function returns
+     *     \c false.
+     *
      * \retval True
      *     The asynchronous D-Bus call has failed and the passed object has
      *     either been deleted, or turned into a zombie and will be deleted at
@@ -115,7 +121,7 @@ class AsyncCall_
      * \retval False
      *     The asynchronous D-Bus call was successful and the result is usable.
      *     The caller must delete the object when it is done with it. Note that
-     *     the result returned by #DBus::AsyncCall::wait_for_result() returns a
+     *     the result returned by #DBus::AsyncCall::get_result() returns a
      *     \e reference to an object owned by the #DBus::AsyncCall object.
      *     Deleting the #DBus::AsyncCall object also destroys the result.
      */
@@ -124,7 +130,7 @@ class AsyncCall_
         if(call->success())
             return false;
 
-        if(call->is_complete())
+        if(!call->is_running() || call->is_complete())
             delete call;
         else
         {
@@ -207,9 +213,11 @@ class AsyncCall: public DBus::AsyncCall_
      *     obtain the results, using the passed \c GAsyncResult and \c GError
      *     pointers as parameters; (2) assign the return value of \c _finish()
      *     to the passed \c bool reference; (3) pack the results returned by
-     *     the \c _finish() function into the passed \c std::promise. The final
-     *     step, calling \c set_value() for the \c std::promise, \e must be the
-     *     last statement in the function to ensure correct synchronization.
+     *     the \c _finish() function into the passed \c std::promise, or, in
+     *     case of failure, pack fallback values into the \c std::promise. The
+     *     final step, calling \c set_value() for the \c std::promise, \e must
+     *     be the last statement in the function to ensure correct
+     *     synchronization.
      *
      * \param destroy_result
      *     Called from the #AsyncCall destructor to free the result placed into
@@ -259,11 +267,12 @@ class AsyncCall: public DBus::AsyncCall_
      * Call #DBus::AsyncCall::cleanup_if_failed() after this function has
      * returned. Do not use the result before doing this.
      */
-    const PromiseReturnType &wait_for_result()
+    AsyncResult wait_for_result()
     {
+        log_assert(is_running());
+
         auto future(promise_.get_future());
-        if(!future.valid())
-            return return_value_;
+        log_assert(future.valid());
 
         if(!g_cancellable_is_cancelled(cancellable_))
         {
@@ -280,6 +289,12 @@ class AsyncCall: public DBus::AsyncCall_
         if(!g_cancellable_is_cancelled(cancellable_))
             return_value_ = future.get();
 
+        return call_state_;
+    }
+
+    const PromiseReturnType &get_result(AsyncResult &async_result) const
+    {
+        log_assert(success());
         return return_value_;
     }
 
