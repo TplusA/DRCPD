@@ -42,6 +42,8 @@ enum class SendStatus
     PLAYBACK_FAILURE,
 };
 
+static const std::string empty_string;
+
 static gchar *select_uri_from_list(gchar **uri_list)
 {
     for(gchar **ptr = uri_list; *ptr != NULL; ++ptr)
@@ -64,6 +66,42 @@ static gchar *select_uri_from_list(gchar **uri_list)
     }
 
     return NULL;
+}
+
+static std::string copy_selected_uri(gchar **const uri_list,
+                                     const ListError error,
+                                     ID::List list_id, unsigned int item_id,
+                                     SendStatus &send_status)
+{
+    if(error != ListError::Code::OK)
+    {
+        msg_error(0, LOG_NOTICE,
+                  "Got error %s instead of URI for item %u in list %u",
+                  error.to_string(), item_id, list_id.get_raw_id());
+        send_status = SendStatus::BROKER_FAILURE;
+        return empty_string;
+    }
+
+    if(uri_list == NULL || uri_list[0] == NULL)
+    {
+        msg_info("No URI for item %u in list %u", item_id, list_id.get_raw_id());
+        send_status = SendStatus::NO_URI;
+        return empty_string;
+    }
+
+    gchar *const selected_uri = select_uri_from_list(uri_list);
+
+    if(selected_uri == NULL || selected_uri[0] == '\0')
+    {
+        msg_info("No suitable URI found for item %u in list %u",
+                 item_id, list_id.get_raw_id());
+        send_status = SendStatus::NO_URI;
+        return empty_string;
+    }
+
+    send_status = SendStatus::OK;
+
+    return selected_uri;
 }
 
 /*!
@@ -136,8 +174,6 @@ static std::string get_selected_uri(ID::List list_id, unsigned int item_id,
                        list_id.get_raw_id(), item_id);
     const auto &result(async_call->wait_for_result());
 
-    static const std::string empty_string;
-
     if(AsyncCallType::cleanup_if_failed(async_call))
     {
         msg_info("Failed obtaining URI for item %u in list %u", item_id, list_id.get_raw_id());
@@ -149,33 +185,10 @@ static std::string get_selected_uri(ID::List list_id, unsigned int item_id,
     const ListError error(std::get<0>(result));
     gchar **const uri_list(std::get<1>(result));
 
-    if(error != ListError::Code::OK)
-    {
-        msg_error(0, LOG_NOTICE,
-                  "Got error %s instead of URI for item %u in list %u",
-                  error.to_string(), item_id, list_id.get_raw_id());
-        send_status = SendStatus::BROKER_FAILURE;
-        return empty_string;
-    }
+    const std::string selected_uri =
+        copy_selected_uri(uri_list, error, list_id, item_id, send_status);
 
-    if(uri_list == NULL || uri_list[0] == NULL)
-    {
-        msg_info("No URI for item %u in list %u", item_id, list_id.get_raw_id());
-        send_status = SendStatus::NO_URI;
-        return empty_string;
-    }
-
-    gchar *const selected_uri = select_uri_from_list(uri_list);
-
-    if(selected_uri == NULL || selected_uri[0] == '\0')
-    {
-        msg_info("No suitable URI found for item %u in list %u",
-                 item_id, list_id.get_raw_id());
-        send_status = SendStatus::NO_URI;
-        return empty_string;
-    }
-
-    send_status = SendStatus::OK;
+    delete async_call;
 
     return selected_uri;
 }
