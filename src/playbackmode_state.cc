@@ -138,24 +138,10 @@ static std::string get_selected_uri(ID::List list_id, unsigned int item_id,
 
     static const std::string empty_string;
 
-    if(!async_call->is_complete() || !async_call->success())
+    if(AsyncCallType::cleanup_if_failed(async_call))
     {
         msg_info("Failed obtaining URI for item %u in list %u", item_id, list_id.get_raw_id());
         send_status = SendStatus::BROKER_FAILURE;
-
-        if(async_call->is_complete())
-            delete async_call;
-        else
-        {
-            /*
-             * We must leak the async object as a zombie here and
-             * rely on the final head shot being applied in the
-             * \c GAsyncReadyCallback callback. Check out the comments
-             * in #AsyncSpecificDBusCall::async_ready_trampoline() for
-             * more details.
-             */
-            async_call->bang_you_are_dead();
-        }
 
         return empty_string;
     }

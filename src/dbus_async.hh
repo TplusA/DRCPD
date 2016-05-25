@@ -90,8 +90,6 @@ class AsyncCall_
         return true;
     }
 
-    void bang_you_are_dead() { is_zombie_ = true; }
-
   protected:
     bool is_zombie() const { return is_zombie_; }
 };
