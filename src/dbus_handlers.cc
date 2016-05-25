@@ -59,7 +59,7 @@ void dbussignal_dcpd_playback(GDBusProxy *proxy, const gchar *sender_name,
 
     msg_info("%s signal from '%s': %s", iface_name, sender_name, signal_name);
 
-    auto *data = static_cast<DBusSignalData *>(user_data);
+    auto *data = static_cast<DBus::SignalData *>(user_data);
     log_assert(data != nullptr);
 
     if(strcmp(signal_name, "Start") == 0)
@@ -126,7 +126,7 @@ void dbussignal_dcpd_views(GDBusProxy *proxy, const gchar *sender_name,
 
     msg_info("%s signal from '%s': %s", iface_name, sender_name, signal_name);
 
-    auto *data = static_cast<DBusSignalData *>(user_data);
+    auto *data = static_cast<DBus::SignalData *>(user_data);
     log_assert(data != nullptr);
 
     if(strcmp(signal_name, "Open") == 0)
@@ -208,7 +208,7 @@ void dbussignal_dcpd_listnav(GDBusProxy *proxy, const gchar *sender_name,
 
     msg_info("%s signal from '%s': %s", iface_name, sender_name, signal_name);
 
-    auto *data = static_cast<DBusSignalData *>(user_data);
+    auto *data = static_cast<DBus::SignalData *>(user_data);
     log_assert(data != nullptr);
 
     if(strcmp(signal_name, "LevelUp") == 0)
@@ -260,7 +260,7 @@ void dbussignal_lists_navigation(GDBusProxy *proxy, const gchar *sender_name,
 
     msg_info("%s signal from '%s': %s", iface_name, sender_name, signal_name);
 
-    auto *data = static_cast<DBusSignalData *>(user_data);
+    auto *data = static_cast<DBus::SignalData *>(user_data);
     log_assert(data != nullptr);
 
     if(strcmp(signal_name, "ListInvalidate") == 0)
@@ -395,7 +395,7 @@ static bool get_queue_full(GVariant *parameters, guint id_index)
 
 static void handle_now_playing(ID::Stream stream_id, const char *url_string,
                                bool queue_is_full, GVariant *meta_data,
-                               DBusSignalData &data)
+                               DBus::SignalData &data)
 {
     if(!stream_id.is_valid())
     {
@@ -447,7 +447,7 @@ void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
 
     msg_info("%s signal from '%s': %s", iface_name, sender_name, signal_name);
 
-    auto *data = static_cast<DBusSignalData *>(user_data);
+    auto *data = static_cast<DBus::SignalData *>(user_data);
     log_assert(data != nullptr);
 
     if(strcmp(signal_name, "NowPlaying") == 0)
@@ -515,11 +515,11 @@ void dbussignal_airable_sec(GDBusProxy *proxy, const gchar *sender_name,
                             const gchar *signal_name, GVariant *parameters,
                             gpointer user_data)
 {
-    static const char iface_name[] = "de.tahifi.Streamplayer.Playback";
+    static const char iface_name[] = "de.tahifi.Airable";
 
     msg_info("%s signal from '%s': %s", iface_name, sender_name, signal_name);
 
-    auto *data = static_cast<DBusSignalData *>(user_data);
+    auto *data = static_cast<DBus::SignalData *>(user_data);
     log_assert(data != nullptr);
 
     if(strcmp(signal_name, "ExternalServiceLoginStatus") == 0)

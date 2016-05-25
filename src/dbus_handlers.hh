@@ -38,27 +38,35 @@ namespace Playback
  */
 /*!@{*/
 
-class DBusSignalData
+namespace DBus
+{
+
+/*!
+ * Data used in several D-Bus signal handlers.
+ */
+class SignalData
 {
   public:
-    DBusSignalData(const DBusSignalData &) = delete;
-    DBusSignalData &operator=(const DBusSignalData &) = delete;
-    DBusSignalData(DBusSignalData &&) = default;
+    SignalData(const SignalData &) = delete;
+    SignalData &operator=(const SignalData &) = delete;
+    SignalData(SignalData &&) = default;
 
     ViewManager::VMIface &mgr_;
     ViewIface *play_view_;
     Playback::PlayerIface &player_;
     Playback::MetaDataStoreIface &mdstore_;
 
-    explicit DBusSignalData(ViewManager::VMIface &mgr,
-                            Playback::PlayerIface &player,
-                            Playback::MetaDataStoreIface &mdstore):
+    explicit SignalData(ViewManager::VMIface &mgr,
+                        Playback::PlayerIface &player,
+                        Playback::MetaDataStoreIface &mdstore):
         mgr_(mgr),
         play_view_(nullptr),
         player_(player),
         mdstore_(mdstore)
     {}
 };
+
+}
 
 /*!@}*/
 

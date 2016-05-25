@@ -427,7 +427,7 @@ static void defer_dcp_transfer(DCP::Queue *queue)
 
 static void connect_everything(ViewManager::Manager &views,
                                Playback::Player &player,
-                               DBusSignalData &dbus_data)
+                               DBus::SignalData &dbus_data)
 {
     static ViewConfig::View cfg(N_("Configuration"),
                                 views.NUMBER_OF_LINES_ON_DISPLAY);
@@ -537,7 +537,7 @@ int main(int argc, char *argv[])
     static ViewManager::Manager view_manager(dcp_transaction_queue);
 
     static Playback::Player player_singleton(ViewPlay::meta_data_reformatters);
-    static DBusSignalData dbus_signal_data(view_manager, player_singleton, player_singleton);
+    static DBus::SignalData dbus_signal_data(view_manager, player_singleton, player_singleton);
 
     view_manager.set_output_stream(fd_out);
     view_manager.set_debug_stream(std::cout);
