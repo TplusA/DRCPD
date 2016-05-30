@@ -25,19 +25,26 @@
 namespace DBus
 {
 
+enum class AsyncResult
+{
+    INITIALIZED,
+    IN_PROGRESS,
+    DONE,
+    CANCELED,
+    FAILED,
+};
+
 class AsyncCall_
 {
   private:
     bool is_zombie_;
 
   protected:
-    bool has_completed_;
-    bool was_successful_;
+    AsyncResult call_state_;
 
     explicit AsyncCall_():
         is_zombie_(false),
-        has_completed_(false),
-        was_successful_(false)
+        call_state_(AsyncResult::INITIALIZED)
     {}
 
   public:
@@ -46,8 +53,56 @@ class AsyncCall_
 
     virtual ~AsyncCall_() {}
 
-    bool is_complete() const { return has_completed_; }
-    bool success() const { return was_successful_; }
+    bool is_running() const
+    {
+        switch(call_state_)
+        {
+          case AsyncResult::IN_PROGRESS:
+            return true;
+
+          case AsyncResult::INITIALIZED:
+          case AsyncResult::DONE:
+          case AsyncResult::CANCELED:
+          case AsyncResult::FAILED:
+            break;
+        }
+
+        return false;
+    }
+
+    bool is_complete() const
+    {
+        switch(call_state_)
+        {
+          case AsyncResult::DONE:
+          case AsyncResult::CANCELED:
+          case AsyncResult::FAILED:
+            return true;
+
+          case AsyncResult::INITIALIZED:
+          case AsyncResult::IN_PROGRESS:
+            break;
+        }
+
+        return false;
+    }
+
+    bool success() const
+    {
+        switch(call_state_)
+        {
+          case AsyncResult::DONE:
+            return true;
+
+          case AsyncResult::INITIALIZED:
+          case AsyncResult::IN_PROGRESS:
+          case AsyncResult::CANCELED:
+          case AsyncResult::FAILED:
+            break;
+        }
+
+        return false;
+    }
 
     /*!
      * If the asynchronous call failed, clean up already.
@@ -185,13 +240,16 @@ class AsyncCall: public DBus::AsyncCall_
 
         g_object_unref(G_OBJECT(cancellable_));
 
-        if(was_successful_)
+        if(success())
             destroy_result_fn_(return_value_);
     }
 
     template <typename DBusMethodType, typename... Args>
     void invoke(DBusMethodType dbus_method, Args&&... args)
     {
+        log_assert(!is_running());
+
+        call_state_ = AsyncResult::IN_PROGRESS;
         dbus_method(proxy_, args..., cancellable_, async_ready_trampoline, this);
     }
 
@@ -253,8 +311,10 @@ class AsyncCall: public DBus::AsyncCall_
 
     void ready(ProxyType *proxy, GAsyncResult *res)
     {
-        has_completed_ = true;
-        put_result_fn_(was_successful_, promise_, proxy_, res, error_);
+        bool was_successful = false;
+
+        put_result_fn_(was_successful, promise_, proxy_, res, error_);
+        call_state_ = was_successful ? AsyncResult::DONE : AsyncResult::FAILED;
     }
 };
 
