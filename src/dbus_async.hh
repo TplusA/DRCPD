@@ -214,10 +214,11 @@ class AsyncCall: public DBus::AsyncCall_
      *     pointers as parameters; (2) assign the return value of \c _finish()
      *     to the passed \c bool reference; (3) pack the results returned by
      *     the \c _finish() function into the passed \c std::promise, or, in
-     *     case of failure, pack fallback values into the \c std::promise. The
-     *     final step, calling \c set_value() for the \c std::promise, \e must
-     *     be the last statement in the function to ensure correct
-     *     synchronization.
+     *     case of failure, either pack fallback values into the
+     *     \c std::promise \e or throw an exception. The final step, calling
+     *     \c set_value() for the \c std::promise or throwing an exception,
+     *     \e must be the last statement the function executes to ensure
+     *     correct synchronization.
      *
      * \param destroy_result
      *     Called from the #AsyncCall destructor to free the result placed into
@@ -265,7 +266,15 @@ class AsyncCall: public DBus::AsyncCall_
      * Wait for the asynchronous D-Bus call to finish.
      *
      * Call #DBus::AsyncCall::cleanup_if_failed() after this function has
-     * returned. Do not use the result before doing this.
+     * returned (normally or via exception). Do not use the result before doing
+     * this.
+     *
+     * \note
+     *     This function will throw the exception that has been thrown by
+     *     #DBus::AsyncCall::put_result_fn_(), if any. If an exception is
+     *     thrown, then the object must be deleted by the caller, or function
+     *     #DBus::AsyncCall::cleanup_if_failed() must be called (which will
+     *     delete the object then).
      */
     AsyncResult wait_for_result()
     {
@@ -286,7 +295,7 @@ class AsyncCall: public DBus::AsyncCall_
             }
         }
 
-        if(!g_cancellable_is_cancelled(cancellable_))
+        if(call_state_ != AsyncResult::CANCELED)
             return_value_ = future.get();
 
         return call_state_;
@@ -326,10 +335,32 @@ class AsyncCall: public DBus::AsyncCall_
 
     void ready(ProxyType *proxy, GAsyncResult *res)
     {
-        bool was_successful = false;
+        if(g_cancellable_is_cancelled(cancellable_))
+            call_state_ = AsyncResult::CANCELED;
+        else
+        {
+            try
+            {
+                bool was_successful = false;
 
-        put_result_fn_(was_successful, promise_, proxy_, res, error_);
-        call_state_ = was_successful ? AsyncResult::DONE : AsyncResult::FAILED;
+                put_result_fn_(was_successful, promise_, proxy_, res, error_);
+                call_state_ = was_successful ? AsyncResult::DONE : AsyncResult::FAILED;
+            }
+            catch(...)
+            {
+                try
+                {
+                    promise_.set_exception(std::current_exception());
+                }
+                catch(...)
+                {
+                    BUG("Failed returning async result due to double exception");
+                }
+
+                call_state_ = AsyncResult::FAILED;
+            }
+        }
+
     }
 };
 
