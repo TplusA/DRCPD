@@ -313,6 +313,14 @@ class AsyncCall: public DBus::AsyncCall_
         return call_state_;
     }
 
+    void cancel()
+    {
+        log_assert(is_running());
+
+        if(!g_cancellable_is_cancelled(cancellable_))
+            g_cancellable_cancel(cancellable_);
+    }
+
     const PromiseReturnType &get_result(AsyncResult &async_result) const
     {
         log_assert(success());
