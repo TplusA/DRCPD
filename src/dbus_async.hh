@@ -155,6 +155,8 @@ class AsyncCall_
     bool is_zombie() const { return is_zombie_; }
 };
 
+using AsyncResultAvailableFunction = std::function<void(AsyncCall_ &async_call)>;
+
 template <typename ProxyType, typename ReturnType>
 class AsyncCall: public DBus::AsyncCall_
 {
@@ -172,6 +174,7 @@ class AsyncCall: public DBus::AsyncCall_
     ProxyType *const proxy_;
     ToProxyFunction to_proxy_fn_;
     PutResultFunction put_result_fn_;
+    AsyncResultAvailableFunction result_available_fn_;
     DestroyResultFunction destroy_result_fn_;
     std::function<bool(void)> may_continue_fn_;
 
@@ -220,6 +223,13 @@ class AsyncCall: public DBus::AsyncCall_
      *     \e must be the last statement the function executes to ensure
      *     correct synchronization.
      *
+     * \param result_available
+     *     Called when a result from an asynchronous D-Bus method call is
+     *     available. This function is called for valid results, but also for
+     *     failures, exceptions thrown in \p put_result, and after the D-Bus
+     *     method call has been canceled. The function must be written so to
+     *     handle all these cases gracefully.
+     *
      * \param destroy_result
      *     Called from the #AsyncCall destructor to free the result placed into
      *     the \c std::promise in the \p put_result function, if any.
@@ -229,13 +239,15 @@ class AsyncCall: public DBus::AsyncCall_
      *     result of the asynchronous call should still be waited for, \c false
      *     if the operation shall be canceled.
      */
-    explicit AsyncCall(ProxyType *proxy, ToProxyFunction to_proxy,
-                       PutResultFunction put_result,
-                       DestroyResultFunction destroy_result,
-                       std::function<bool(void)> may_continue):
+    explicit AsyncCall(ProxyType *proxy, const ToProxyFunction &to_proxy,
+                       const PutResultFunction &put_result,
+                       const AsyncResultAvailableFunction &result_available,
+                       const DestroyResultFunction &destroy_result,
+                       const std::function<bool(void)> &may_continue):
         proxy_(proxy),
         to_proxy_fn_(to_proxy),
         put_result_fn_(put_result),
+        result_available_fn_(result_available),
         destroy_result_fn_(destroy_result),
         may_continue_fn_(may_continue),
         cancellable_(g_cancellable_new()),
@@ -361,6 +373,15 @@ class AsyncCall: public DBus::AsyncCall_
             }
         }
 
+        result_available_fn_(*this);
+
+        /*
+         * WARNING:
+         *
+         * The above function may have deleted us (which would be legal), so at
+         * this point we must \e not access any members anymore (which would be
+         * undefined behavior due to dangling \c this pointer).
+         */
     }
 };
 

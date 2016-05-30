@@ -156,6 +156,7 @@ static std::string get_selected_uri(ID::List list_id, unsigned int item_id,
              */
             promise.set_value(std::move(std::make_tuple(error_code, uri_list)));
         },
+        [] (DBus::AsyncCall_ &async_call_dummy) {},
         [] (AsyncCallType::PromiseReturnType &values)
         {
             gchar **const strings = std::get<1>(values);
