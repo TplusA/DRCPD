@@ -122,7 +122,7 @@ class DBusList: public ListIface
     void enter_list(ID::List list_id, unsigned int line) throw(List::DBusListException) override;
 
     const Item *get_item(unsigned int line) const throw(List::DBusListException) override;
-    virtual ID::List get_list_id() const override { return window_.list_id_; }
+    ID::List get_list_id() const override { return window_.list_id_; }
 
     tdbuslistsNavigation *get_dbus_proxy() const { return dbus_proxy_; }
 
