@@ -167,6 +167,102 @@ class ListIface
     virtual ID::List get_list_id() const = 0;
 };
 
+/*!
+ * Asynchronous interface to lists of #List::Item elements.
+ *
+ * This interface is intended to be an optional addendum to #List::ListIface.
+ * The operations that trigger filling the list with content are run in the
+ * background.
+ */
+class AsyncListIface
+{
+  public:
+    enum class OpResult
+    {
+        STARTED,
+        SUCCEEDED,
+        FAILED,
+        CANCELED,
+    };
+
+    enum class OpEvent
+    {
+        ENTER_LIST,
+        GET_ITEM,
+    };
+
+  protected:
+    explicit AsyncListIface() {}
+
+  public:
+    AsyncListIface(const AsyncListIface &) = delete;
+    AsyncListIface &operator=(const AsyncListIface &) = delete;
+
+    virtual ~AsyncListIface() {}
+
+    /*!
+     * Enter list asynchronously.
+     *
+     * This function starts the process of entering a list, i.e., checking its
+     * existence and fetching its size, in the background. The caller may wait
+     * for the completion of this process by calling
+     * #List::AsyncListIface::enter_list_async_wait().
+     *
+     * As soon as the result is available (successful or not), the list that
+     * implements this interface updates itself using the retrieved result. A
+     * registered watcher is notified about the change, or failure of change.
+     *
+     * \retval #List::AsyncListIface::OpResult::STARTED
+     *     The result is not available and an asynchronous operation has been
+     *     started to retrieve the result. The registered watcher, if any, is
+     *     notified when the operation finishes.
+     * \retval #List::AsyncListIface::OpResult::SUCCEEDED
+     *     The result is already available and valid.
+     * \retval #List::AsyncListIface::OpResult::FAILED
+     *     The function failed before starting the asynchronous call.
+     */
+    virtual OpResult enter_list_async(ID::List list_id, unsigned int line) = 0;
+
+    /*!
+     * Wait for the process of entering the list to complete.
+     *
+     * \returns
+     *     True if the function has actually waited, false if not (i.e., there
+     *     was not asynchronous operation in progress).
+     */
+    virtual bool enter_list_async_wait() = 0;
+
+    /*!
+     * Get list item asynchronously.
+     *
+     * This function starts the process of retrieving a list entry in the
+     * background. The caller may wait for the completion of this process by
+     * calling #List::AsyncListIface::get_item_async_wait().
+     *
+     * As soon as the result is available (successful or not), a registered
+     * watcher is notified about the change, or failure of change.
+     *
+     * \retval #List::AsyncListIface::OpResult::STARTED
+     *     The result is not available and an asynchronous operation has been
+     *     started to retrieve the result. The registered watcher, if any, is
+     *     notified when the operation finishes.
+     * \retval #List::AsyncListIface::OpResult::SUCCEEDED
+     *     The result is already available and valid.
+     * \retval #List::AsyncListIface::OpResult::FAILED
+     *     The function failed before starting the asynchronous call.
+     */
+    virtual OpResult get_item_async(unsigned int line, const Item *&item) = 0;
+
+    /*!
+     * Wait for the process of fetching a list item to complete.
+     *
+     * \returns
+     *     True if the function has actually waited, false if not (i.e., there
+     *     was not asynchronous operation in progress).
+     */
+    virtual bool get_item_async_wait(const Item *&item) = 0;
+};
+
 };
 
 /*!@}*/
