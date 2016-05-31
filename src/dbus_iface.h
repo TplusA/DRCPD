@@ -20,7 +20,6 @@
 #define DBUS_IFACE_H
 
 #include <stdbool.h>
-#include <glib.h>
 
 /*!
  * \addtogroup dbus DBus handling
@@ -39,9 +38,9 @@ typedef enum
 }
 dbus_listbroker_id_t;
 
-int dbus_setup(GMainLoop *loop, bool connect_to_session_bus,
+int dbus_setup(bool connect_to_session_bus,
                void *dbus_signal_data_for_dbus_handlers);
-void dbus_shutdown(GMainLoop *loop);
+void dbus_shutdown(void);
 
 #ifdef __cplusplus
 }

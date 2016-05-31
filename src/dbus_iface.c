@@ -48,6 +48,22 @@ struct dbus_data
     tdbusAirable *airable_sec_proxy;
 };
 
+struct dbus_process_data
+{
+    GThread *thread;
+    GMainLoop *loop;
+};
+
+static gpointer process_dbus(gpointer user_data)
+{
+    struct dbus_process_data *data = user_data;
+
+    log_assert(data->loop != NULL);
+
+    g_main_loop_run(data->loop);
+    return NULL;
+}
+
 static void bus_acquired(GDBusConnection *connection,
                          const gchar *name, gpointer user_data)
 {
@@ -229,7 +245,9 @@ tdbusAirable *dbus_get_airable_sec_iface(void)
     return dbus_data.airable_sec_proxy;
 }
 
-int dbus_setup(GMainLoop *loop, bool connect_to_session_bus,
+static struct dbus_process_data process_data;
+
+int dbus_setup(bool connect_to_session_bus,
                void *dbus_signal_data_for_dbus_handlers)
 {
 #if !GLIB_CHECK_VERSION(2, 36, 0)
@@ -237,6 +255,14 @@ int dbus_setup(GMainLoop *loop, bool connect_to_session_bus,
 #endif
 
     memset(&dbus_data, 0, sizeof(dbus_data));
+    memset(&process_data, 0, sizeof(process_data));
+
+    process_data.loop = g_main_loop_new(NULL, FALSE);
+    if(process_data.loop == NULL)
+    {
+        msg_error(ENOMEM, LOG_EMERG, "Failed creating GLib main loop");
+        return -1;
+    }
 
     GBusType bus_type =
         connect_to_session_bus ? G_BUS_TYPE_SESSION : G_BUS_TYPE_SYSTEM;
@@ -312,18 +338,27 @@ int dbus_setup(GMainLoop *loop, bool connect_to_session_bus,
                      G_CALLBACK(dbussignal_airable_sec),
                      dbus_signal_data_for_dbus_handlers);
 
-    g_main_loop_ref(loop);
+    process_data.thread = g_thread_new("D-Bus I/O", process_dbus, &process_data);
+    if(process_data.thread == NULL)
+    {
+        msg_error(EAGAIN, LOG_EMERG, "Failed spawning D-Bus I/O thread");
+        return -1;
+    }
 
     return 0;
 }
 
-void dbus_shutdown(GMainLoop *loop)
+void dbus_shutdown(void)
 {
-    if(loop == NULL)
+    if(process_data.loop == NULL)
         return;
 
     g_bus_unown_name(dbus_data.owner_id);
-    g_main_loop_unref(loop);
+
+    g_main_loop_quit(process_data.loop);
+    if(process_data.thread != NULL)
+        (void)g_thread_join(process_data.thread);
+    g_main_loop_unref(process_data.loop);
 
     g_object_unref(dbus_data.dcpd_playback_proxy);
     g_object_unref(dbus_data.dcpd_views_proxy);
@@ -336,4 +371,5 @@ void dbus_shutdown(GMainLoop *loop)
     g_object_unref(dbus_data.splay_playback_proxy);
     g_object_unref(dbus_data.airable_sec_proxy);
 
+    process_data.loop = NULL;
 }

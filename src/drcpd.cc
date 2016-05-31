@@ -546,7 +546,7 @@ int main(int argc, char *argv[])
 
     player_singleton.start();
 
-    if(dbus_setup(loop, parameters.connect_to_session_dbus, &dbus_signal_data) < 0)
+    if(dbus_setup(parameters.connect_to_session_dbus, &dbus_signal_data) < 0)
         return EXIT_FAILURE;
 
     g_unix_signal_add(SIGINT, signal_handler, loop);
@@ -560,7 +560,7 @@ int main(int argc, char *argv[])
 
     fd_sbuf.set_fd(-1);
     shutdown(&files);
-    dbus_shutdown(loop);
+    dbus_shutdown();
 
     player_singleton.shutdown();
 
