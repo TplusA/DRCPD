@@ -52,15 +52,15 @@ test_list_la_SOURCES = test_list.cc
 test_list_la_LIBADD = \
     $(top_builddir)/src/liblist.la \
     $(top_builddir)/src/libcontextmap.la
-test_list_la_CFLAGS = $(AM_CFLAGS)
-test_list_la_CXXFLAGS = $(AM_CXXFLAGS)
+test_list_la_CFLAGS = $(DRCPD_DEPENDENCIES_CFLAGS) $(AM_CFLAGS)
+test_list_la_CXXFLAGS = $(DRCPD_DEPENDENCIES_CFLAGS) $(AM_CXXFLAGS)
 
 test_listnav_la_SOURCES = test_listnav.cc
 test_listnav_la_LIBADD = \
     $(top_builddir)/src/liblist.la \
     $(top_builddir)/src/libcontextmap.la
-test_listnav_la_CFLAGS = $(AM_CFLAGS)
-test_listnav_la_CXXFLAGS = $(AM_CXXFLAGS)
+test_listnav_la_CFLAGS = $(DRCPD_DEPENDENCIES_CFLAGS) $(AM_CFLAGS)
+test_listnav_la_CXXFLAGS = $(DRCPD_DEPENDENCIES_CFLAGS) $(AM_CXXFLAGS)
 
 test_contextmap_la_SOURCES = \
     test_contextmap.cc mock_expectation.hh \
@@ -91,8 +91,8 @@ test_view_manager_la_LIBADD = \
     $(top_builddir)/src/libdcp_transaction.la \
     $(top_builddir)/src/liblist.la \
     $(top_builddir)/src/libcontextmap.la
-test_view_manager_la_CFLAGS = $(AM_CFLAGS)
-test_view_manager_la_CXXFLAGS = $(AM_CXXFLAGS)
+test_view_manager_la_CFLAGS = $(DRCPD_DEPENDENCIES_CFLAGS) $(AM_CFLAGS)
+test_view_manager_la_CXXFLAGS = $(DRCPD_DEPENDENCIES_CFLAGS) $(AM_CXXFLAGS)
 
 test_dcp_transaction_la_SOURCES = test_dcp_transaction.cc
 test_dcp_transaction_la_LIBADD = $(top_builddir)/src/libdcp_transaction.la
@@ -106,8 +106,8 @@ test_playinfo_la_LIBADD = \
     $(top_builddir)/src/libviews.la \
     $(top_builddir)/src/liblist.la \
     $(top_builddir)/src/libcontextmap.la
-test_playinfo_la_CFLAGS = $(AM_CFLAGS)
-test_playinfo_la_CXXFLAGS = $(AM_CXXFLAGS)
+test_playinfo_la_CFLAGS = $(DRCPD_DEPENDENCIES_CFLAGS) $(AM_CFLAGS)
+test_playinfo_la_CXXFLAGS = $(DRCPD_DEPENDENCIES_CFLAGS) $(AM_CXXFLAGS)
 
 test_streaminfo_la_SOURCES = \
     test_streaminfo.cc \

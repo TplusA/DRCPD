@@ -25,7 +25,9 @@
 #include "context_map.hh"
 #include "messages.h"
 #include "dbuslist_exception.hh"
+#include "dbus_async.hh"
 #include "de_tahifi_lists_item_kinds.hh"
+#include "logged_lock.hh"
 
 /*!
  * \addtogroup dbus_list Lists with contents filled directly from D-Bus
@@ -37,16 +39,192 @@ namespace List
 {
 
 /*!
+ * Base class for asynchronous D-Bus query contexts.
+ */
+class QueryContext_
+{
+  protected:
+    AsyncListIface &result_receiver_;
+
+    explicit QueryContext_(AsyncListIface &list):
+        result_receiver_(list)
+    {}
+
+  public:
+    QueryContext_(const QueryContext_ &) = delete;
+    QueryContext_ &operator=(const QueryContext_ &) = delete;
+
+    virtual ~QueryContext_()
+    {
+        cancel_sync();
+    }
+
+    /*!
+     * Start running asynchronous D-Bus operation.
+     *
+     * \returns
+     *     True if the result of the operation is available at the time this
+     *     function returns, false if the asynchronous operation is in
+     *     progress. Note that a return value of true does \e not indicate
+     *     success.
+     */
+    virtual bool run_async(const DBus::AsyncResultAvailableFunction &result_available) = 0;
+
+    /*!
+     * Wait for result, error, or cancelation of asynchronous D-Bus operation.
+     *
+     * \param result
+     *     Result of the asynchronous operation. A useful value is always
+     *     returned in this parameter, regardless of the outcome of the
+     *     function call.
+     *
+     * \returns
+     *     True if the operation finished successfully and a result is
+     *     available, false otherwise. In case of failure, the function cleans
+     *     up the asynchronous operation.
+     *
+     * \note
+     *     This function may throw a #List::DBusListException in case of
+     *     failure.
+     */
+    virtual bool synchronize(DBus::AsyncResult &result) = 0;
+
+    /*!
+     * Cancel asynchronous operation, if any.
+     *
+     * \returns
+     *     True if there is an operation in progress (and it was attempted to
+     *     be canceled), false if there is no operation in progress.
+     */
+    virtual bool cancel() = 0;
+
+  protected:
+    /*!
+     * Cancel asynchronous operation, if any, and wait for it to happen.
+     *
+     * \returns
+     *     True if an ongoing operation has been canceled and the call object
+     *     is safe to be deleted, false if there is no operation in progress or
+     *     the call object cannot be deleted (zombie or already gone).
+     *
+     * \note
+     *     To make any sense, implementations of the #List::QueryContext_
+     *     interface should override this function.
+     *
+     * \note
+     *     Regular code should favor #List::QueryContext_::cancel() over this
+     *     function.
+     */
+    virtual bool cancel_sync() { return false; }
+};
+
+/*!
+ * Context for entering a D-Bus list asynchronously.
+ */
+class QueryContextEnterList: public QueryContext_
+{
+  public:
+    tdbuslistsNavigation *proxy_;
+
+    const struct
+    {
+        ID::List list_id_;
+        unsigned int line_;
+    }
+    parameters_;
+
+    using AsyncListNavCheckRange = DBus::AsyncCall<tdbuslistsNavigation, guint>;
+
+    AsyncListNavCheckRange *async_call_;
+
+    QueryContextEnterList(const QueryContextEnterList &) = delete;
+    QueryContextEnterList &operator=(const QueryContextEnterList &) = delete;
+
+    explicit QueryContextEnterList(AsyncListIface &result_receiver,
+                                   tdbuslistsNavigation *proxy,
+                                   ID::List list_id, unsigned int line):
+        QueryContext_(result_receiver),
+        proxy_(proxy),
+        parameters_({list_id, line}),
+        async_call_(nullptr)
+    {}
+
+    virtual ~QueryContextEnterList()
+    {
+        if(cancel_sync())
+            delete async_call_;
+
+        async_call_ = nullptr;
+    }
+
+    bool run_async(const DBus::AsyncResultAvailableFunction &result_available) final override;
+    bool synchronize(DBus::AsyncResult &result) final override;
+
+    bool cancel() final override
+    {
+        if(async_call_ != nullptr)
+        {
+            async_call_->cancel();
+            return true;
+        }
+        else
+            return false;
+    }
+
+    bool cancel_sync() final override
+    {
+        if(!cancel())
+            return false;
+
+        try
+        {
+            DBus::AsyncResult dummy;
+
+            if(synchronize(dummy))
+                return true;
+        }
+        catch(...)
+        {
+            /* ignore, the #DBus::AsyncCall is already deleted or a zombie */
+        }
+
+        return false;
+    }
+
+  private:
+    static void put_result(bool &was_successful,
+                           AsyncListNavCheckRange::PromiseType &promise,
+                           tdbuslistsNavigation *p, GAsyncResult *async_result,
+                           GError *&error, ID::List list_id)
+        throw(List::DBusListException);
+};
+
+/*!
  * A list filled from D-Bus, with only fractions of the list held in RAM.
  */
-class DBusList: public ListIface
+class DBusList: public ListIface, public AsyncListIface
 {
   public:
     typedef List::Item *(*const NewItemFn)(const char *name, ListItemKind kind,
                                            const char *const *names);
 
+    using AsyncWatcher =
+        std::function<void(OpEvent, OpResult, const std::shared_ptr<QueryContext_> &)>;
+
   private:
     tdbuslistsNavigation *const dbus_proxy_;
+
+    struct AsyncDBusData
+    {
+        LoggedLock::Mutex lock_;
+        LoggedLock::ConditionVariable query_done_;
+
+        AsyncWatcher event_watcher_;
+
+        std::shared_ptr<QueryContextEnterList> enter_list_query_;
+    };
+
+    AsyncDBusData async_dbus_data_;
 
     /*!
      * List contexts known by the list broker we are going to talk to.
@@ -115,21 +293,78 @@ class DBusList: public ListIface
         number_of_items_(0)
     {}
 
+    /*!
+     * Register a callback that is called on certain events.
+     *
+     * The callback is called whenever an asynchronous operation completes in
+     * \e any way, successful or not. It may want to make use of the query
+     * context that led to the event, in which case must downcast the
+     * #List::QueryContext_ to something else (such as
+     * #List::QueryContextEnterList).)
+     *
+     * Note that the callback may be called from different contexts, depending
+     * on the event. The callback function must be sure to provide correct
+     * synchronization.
+     */
+    void register_watcher(const AsyncWatcher &event_handler)
+    {
+        async_dbus_data_.event_watcher_ = event_handler;
+    }
+
     void clone_state(const DBusList &src) throw(List::DBusListException);
 
     unsigned int get_number_of_items() const override;
     bool empty() const override;
     void enter_list(ID::List list_id, unsigned int line) throw(List::DBusListException) override;
+    OpResult enter_list_async(ID::List list_id, unsigned int line) override;
+    bool enter_list_async_wait() override;
 
     const Item *get_item(unsigned int line) const throw(List::DBusListException) override;
+    OpResult get_item_async(unsigned int line, const Item *&item) override;
+    bool get_item_async_wait(const Item *&item) override;
+
     ID::List get_list_id() const override { return window_.list_id_; }
 
     tdbuslistsNavigation *get_dbus_proxy() const { return dbus_proxy_; }
 
   private:
+    bool is_position_unchanged(ID::List list_id, unsigned int line) const;
     bool is_line_cached(unsigned int line) const;
     bool scroll_to_line(unsigned int line) throw(List::DBusListException);
     void fill_cache_from_scratch(unsigned int line) throw(List::DBusListException);
+
+    /*!
+     * Little helper that calls the event watcher.
+     */
+    void notify_watcher(OpEvent event, OpResult result,
+                        const std::shared_ptr<QueryContext_> &ctx)
+    {
+        if(async_dbus_data_.event_watcher_ != nullptr)
+            async_dbus_data_.event_watcher_(event, result, ctx);
+    }
+
+    /*!
+     * Callback that is called when an asynchronous D-Bus operation finishes.
+     *
+     * This function is called for each successfully started async operation
+     * invoked through the #List::AsyncListIface interface. It is called in
+     * case of successful completion, canceled operations, and failure.
+     *
+     * Note that this function may be called from a different context than
+     * functions such as #List::AsyncListIface::enter_list_async(). This
+     * function takes care of proper synchronization by locking
+     * #List::DBusList::AsyncDBusData::lock_ of the embedded
+     * #List::DBusList::async_dbus_data_ structure.
+     */
+    void async_done_notification(DBus::AsyncCall_ &async_call);
+
+    /*!
+     * Internal function called by #async_done_notification().
+     *
+     * Must be called while holding #List::DBusList::AsyncDBusData::lock_ of
+     * the embedded #List::DBusList::async_dbus_data_ structure.
+     */
+    void enter_list_async_handle_done();
 };
 
 };

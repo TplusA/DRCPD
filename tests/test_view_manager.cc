@@ -30,6 +30,11 @@
 #include "view_mock.hh"
 #include "mock_messages.hh"
 
+/*
+ * Prototypes for the dummies used in here.
+ */
+#include "lists_dbus.h"
+
 /*!
  * \addtogroup view_manager_tests Unit tests
  * \ingroup view_manager
@@ -37,6 +42,34 @@
  * View manager unit tests.
  */
 /*!@{*/
+
+/*
+ * Dummy for the linker.
+ */
+void tdbus_lists_navigation_call_check_range(tdbuslistsNavigation *proxy,
+                                             guint arg_list_id,
+                                             guint arg_first_item_id,
+                                             guint arg_count,
+                                             GCancellable *cancellable,
+                                             GAsyncReadyCallback callback,
+                                             gpointer user_data)
+{
+    cut_fail("Unexpected call of %s()", __func__);
+}
+
+/*
+ * Dummy for the linker.
+ */
+gboolean tdbus_lists_navigation_call_check_range_finish(tdbuslistsNavigation *proxy,
+                                                        guchar *out_error_code,
+                                                        guint *out_first_item,
+                                                        guint *out_number_of_items,
+                                                        GAsyncResult *res,
+                                                        GError **error)
+{
+    cut_fail("Unexpected call of %s()", __func__);
+    return FALSE;
+}
 
 static void clear_ostream(std::ostringstream &ss)
 {
