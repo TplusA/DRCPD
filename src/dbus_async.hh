@@ -29,6 +29,7 @@ enum class AsyncResult
 {
     INITIALIZED,
     IN_PROGRESS,
+    READY,
     DONE,
     CANCELED,
     FAILED,
@@ -53,7 +54,25 @@ class AsyncCall_
 
     virtual ~AsyncCall_() {}
 
-    bool is_running() const
+    bool is_active() const
+    {
+        switch(call_state_)
+        {
+          case AsyncResult::IN_PROGRESS:
+          case AsyncResult::READY:
+          case AsyncResult::DONE:
+          case AsyncResult::CANCELED:
+          case AsyncResult::FAILED:
+            return true;
+
+          case AsyncResult::INITIALIZED:
+            break;
+        }
+
+        return false;
+    }
+
+    bool is_waiting() const
     {
         switch(call_state_)
         {
@@ -61,6 +80,7 @@ class AsyncCall_
             return true;
 
           case AsyncResult::INITIALIZED:
+          case AsyncResult::READY:
           case AsyncResult::DONE:
           case AsyncResult::CANCELED:
           case AsyncResult::FAILED:
@@ -74,6 +94,7 @@ class AsyncCall_
     {
         switch(call_state_)
         {
+          case AsyncResult::READY:
           case AsyncResult::DONE:
           case AsyncResult::CANCELED:
           case AsyncResult::FAILED:
@@ -91,6 +112,7 @@ class AsyncCall_
     {
         switch(call_state_)
         {
+          case AsyncResult::READY:
           case AsyncResult::DONE:
             return true;
 
@@ -130,7 +152,7 @@ class AsyncCall_
         if(call->success())
             return false;
 
-        if(!call->is_running() || call->is_complete())
+        if(!call->is_waiting() || call->is_complete())
             delete call;
         else
         {
@@ -268,7 +290,7 @@ class AsyncCall: public DBus::AsyncCall_
     template <typename DBusMethodType, typename... Args>
     void invoke(DBusMethodType dbus_method, Args&&... args)
     {
-        log_assert(!is_running());
+        log_assert(!is_active());
 
         call_state_ = AsyncResult::IN_PROGRESS;
         dbus_method(proxy_, args..., cancellable_, async_ready_trampoline, this);
@@ -290,12 +312,17 @@ class AsyncCall: public DBus::AsyncCall_
      */
     AsyncResult wait_for_result()
     {
-        log_assert(is_running());
+        log_assert(is_active());
+
+        if(call_state_ == AsyncResult::DONE)
+            return call_state_;
 
         auto future(promise_.get_future());
         log_assert(future.valid());
 
-        if(!g_cancellable_is_cancelled(cancellable_))
+        if(call_state_ != AsyncResult::FAILED &&
+           call_state_ != AsyncResult::CANCELED &&
+           !g_cancellable_is_cancelled(cancellable_))
         {
             while(future.wait_for(std::chrono::milliseconds(300)) != std::future_status::ready)
             {
@@ -308,14 +335,19 @@ class AsyncCall: public DBus::AsyncCall_
         }
 
         if(call_state_ != AsyncResult::CANCELED)
+        {
+            if(call_state_ != AsyncResult::FAILED)
+                call_state_ = AsyncResult::DONE;
+
             return_value_ = future.get();
+        }
 
         return call_state_;
     }
 
     void cancel()
     {
-        log_assert(is_running());
+        log_assert(is_active());
 
         if(!g_cancellable_is_cancelled(cancellable_))
             g_cancellable_cancel(cancellable_);
@@ -364,7 +396,7 @@ class AsyncCall: public DBus::AsyncCall_
                 bool was_successful = false;
 
                 put_result_fn_(was_successful, promise_, proxy_, res, error_);
-                call_state_ = was_successful ? AsyncResult::DONE : AsyncResult::FAILED;
+                call_state_ = was_successful ? AsyncResult::READY : AsyncResult::FAILED;
             }
             catch(...)
             {
