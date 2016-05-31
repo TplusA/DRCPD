@@ -283,8 +283,7 @@ class AsyncCall: public DBus::AsyncCall_
 
         g_object_unref(G_OBJECT(cancellable_));
 
-        if(success())
-            destroy_result_fn_(return_value_);
+        destroy_result_fn_(return_value_);
     }
 
     template <typename DBusMethodType, typename... Args>
