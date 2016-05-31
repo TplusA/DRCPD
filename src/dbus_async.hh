@@ -279,9 +279,13 @@ class AsyncCall: public DBus::AsyncCall_
     virtual ~AsyncCall()
     {
         if(error_ != nullptr)
+        {
             g_error_free(error_);
+            error_ = nullptr;
+        }
 
         g_object_unref(G_OBJECT(cancellable_));
+        cancellable_ = nullptr;
 
         destroy_result_fn_(return_value_);
     }
