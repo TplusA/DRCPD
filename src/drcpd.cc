@@ -129,6 +129,10 @@ static gboolean dcp_fifo_in_dispatch(int fd, GIOCondition condition,
         static_cast<struct dcp_fifo_dispatch_data_t *>(user_data);
 
     log_assert(data != nullptr);
+
+    if(data->files->dcp_fifo.in_fd < 0)
+        return G_SOURCE_REMOVE;
+
     log_assert(fd == data->files->dcp_fifo.in_fd);
 
     gboolean return_value = G_SOURCE_CONTINUE;
