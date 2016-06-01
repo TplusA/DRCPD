@@ -48,6 +48,32 @@
 /*
  * Dummy for the linker.
  */
+void tdbus_lists_navigation_call_get_list_id(tdbuslistsNavigation *proxy,
+                                             guint arg_list_id,
+                                             guint arg_item_id,
+                                             GCancellable *cancellable,
+                                             GAsyncReadyCallback callback,
+                                             gpointer user_data)
+{
+    cut_fail("Unexpected call of %s()", __func__);
+}
+
+/*
+ * Dummy for the linker.
+ */
+gboolean tdbus_lists_navigation_call_get_list_id_finish(tdbuslistsNavigation *proxy,
+                                                        guchar *out_error_code,
+                                                        guint *out_child_list_id,
+                                                        GAsyncResult *res,
+                                                        GError **error)
+{
+    cut_fail("Unexpected call of %s()", __func__);
+    return FALSE;
+}
+
+/*
+ * Dummy for the linker.
+ */
 void tdbus_lists_navigation_call_check_range(tdbuslistsNavigation *proxy,
                                              guint arg_list_id,
                                              guint arg_first_item_id,

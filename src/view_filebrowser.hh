@@ -56,6 +56,28 @@ List::Item *construct_file_item(const char *name, ListItemKind kind,
 
 class View: public ViewIface, public ViewSerializeBase
 {
+  public:
+    /*!
+     * Collection of type aliases and pointers to #DBus::AsyncCall instances.
+     *
+     * Note that we cannot use \c std::unique_ptr or other kinds of smart
+     * pointers here. See code and notes in #DBus::AsyncCall_.
+     */
+    struct AsyncCalls
+    {
+        using GetListId = DBus::AsyncCall<tdbuslistsNavigation, std::pair<guchar, guint>>;
+
+        LoggedLock::Mutex lock_;
+
+        GetListId *get_list_id_;
+
+        explicit AsyncCalls():
+            get_list_id_(nullptr)
+        {
+            LoggedLock::set_name(lock_, "FileBrowserAsyncCall");
+        }
+    };
+
   private:
     static constexpr unsigned int assumed_streamplayer_fifo_size = 2;
 
@@ -75,6 +97,7 @@ class View: public ViewIface, public ViewSerializeBase
   private:
     /* list for the automatic directory traversal */
     List::DBusList traversal_list_;
+    bool traversal_reverse_;
 
     const uint8_t drcp_browse_id_;
 
@@ -86,6 +109,8 @@ class View: public ViewIface, public ViewSerializeBase
 
     ViewIface *search_parameters_view_;
     bool waiting_for_search_parameters_;
+
+    AsyncCalls async_calls_;
 
   public:
     View(const View &) = delete;
@@ -110,6 +135,7 @@ class View: public ViewIface, public ViewSerializeBase
         traversal_list_(dbus_get_lists_navigation_iface(listbroker_id_),
                         list_contexts_, assumed_streamplayer_fifo_size + 1,
                         construct_file_item),
+        traversal_reverse_(false),
         drcp_browse_id_(drcp_browse_id),
         player_(player),
         player_is_mine_(false),
@@ -152,7 +178,7 @@ class View: public ViewIface, public ViewSerializeBase
      *     True on success, false on error. In any case the list will have been
      *     modified (empty on error).
      */
-    virtual bool point_to_root_directory();
+    bool point_to_root_directory();
 
     /*!
      * Load whole selected subdirectory into internal list.
@@ -177,6 +203,8 @@ class View: public ViewIface, public ViewSerializeBase
     virtual void log_out_from_context(List::context_id_t context) {}
 
   private:
+    bool is_fetching_directory();
+
     /*!
      * Find best matching item in current list and move selection there.
      */
@@ -206,6 +234,10 @@ class View: public ViewIface, public ViewSerializeBase
     bool apply_search_parameters();
 
     std::chrono::milliseconds keep_lists_alive_timer_callback();
+
+  protected:
+    virtual void handle_enter_list_event(List::AsyncListIface::OpResult result,
+                                         const std::shared_ptr<List::QueryContextEnterList> &ctx);
 };
 
 class FileItem: public List::TextItem

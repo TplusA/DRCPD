@@ -45,13 +45,12 @@ void ViewFileBrowser::AirableView::logged_out_from_service_notification(const ch
     search_forms_.erase(ctx_id);
 }
 
-bool ViewFileBrowser::AirableView::point_to_root_directory()
+void ViewFileBrowser::AirableView::handle_enter_list_event(List::AsyncListIface::OpResult result,
+                                                           const std::shared_ptr<List::QueryContextEnterList> &ctx)
 {
-    const bool ret = View::point_to_root_directory();
+    View::handle_enter_list_event(result, ctx);
 
     root_list_id_ = current_list_id_;
-
-    return ret;
 }
 
 bool ViewFileBrowser::AirableView::point_to_child_directory(const SearchParameters *search_parameters)
