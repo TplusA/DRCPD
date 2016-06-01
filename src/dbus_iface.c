@@ -52,6 +52,7 @@ struct dbus_process_data
 {
     GThread *thread;
     GMainLoop *loop;
+    GMainContext *ctx;
 };
 
 static gpointer process_dbus(gpointer user_data)
@@ -60,7 +61,9 @@ static gpointer process_dbus(gpointer user_data)
 
     log_assert(data->loop != NULL);
 
+    g_main_context_push_thread_default(data->ctx);
     g_main_loop_run(data->loop);
+
     return NULL;
 }
 
@@ -257,12 +260,15 @@ int dbus_setup(bool connect_to_session_bus,
     memset(&dbus_data, 0, sizeof(dbus_data));
     memset(&process_data, 0, sizeof(process_data));
 
-    process_data.loop = g_main_loop_new(NULL, FALSE);
+    process_data.ctx = g_main_context_new();
+    process_data.loop = g_main_loop_new(process_data.ctx, FALSE);
     if(process_data.loop == NULL)
     {
         msg_error(ENOMEM, LOG_EMERG, "Failed creating GLib main loop");
         return -1;
     }
+
+    g_main_context_push_thread_default(process_data.ctx);
 
     GBusType bus_type =
         connect_to_session_bus ? G_BUS_TYPE_SESSION : G_BUS_TYPE_SYSTEM;
@@ -278,12 +284,13 @@ int dbus_setup(bool connect_to_session_bus,
     {
         /* do whatever has to be done behind the scenes until one of the
          * guaranteed callbacks gets called */
-        g_main_context_iteration(NULL, TRUE);
+        g_main_context_iteration(process_data.ctx, TRUE);
     }
 
     if(dbus_data.acquired < 0)
     {
         msg_error(0, LOG_EMERG, "Failed acquiring D-Bus name");
+        g_main_context_pop_thread_default(process_data.ctx);
         return -1;
     }
 
@@ -339,13 +346,13 @@ int dbus_setup(bool connect_to_session_bus,
                      dbus_signal_data_for_dbus_handlers);
 
     process_data.thread = g_thread_new("D-Bus I/O", process_dbus, &process_data);
-    if(process_data.thread == NULL)
-    {
-        msg_error(EAGAIN, LOG_EMERG, "Failed spawning D-Bus I/O thread");
-        return -1;
-    }
 
-    return 0;
+    if(process_data.thread == NULL)
+        msg_error(EAGAIN, LOG_EMERG, "Failed spawning D-Bus I/O thread");
+
+    g_main_context_pop_thread_default(process_data.ctx);
+
+    return (process_data.thread != NULL) ? 0 : -1;
 }
 
 void dbus_shutdown(void)
