@@ -52,6 +52,11 @@ struct files_t
     guint dcp_fifo_in_event_source_id;
 };
 
+struct ui_events_processing_data_t
+{
+    ViewManager::Manager *vm;
+};
+
 struct dcp_fifo_dispatch_data_t
 {
     files_t *files;
@@ -411,6 +416,17 @@ static void call_in_main_context(std::function<void()> *fn_object,
     }
 }
 
+static void defer_ui_event_processing(struct ui_events_processing_data_t *data)
+{
+    log_assert(data != nullptr);
+
+    auto *fn_object =
+        new std::function<void()>(std::bind(&ViewManager::Manager::process_pending_events,
+                                            data->vm));
+
+    call_in_main_context(fn_object, false);
+}
+
 /*!
  * Process DCP transaction queue in the main loop of the main context.
  *
@@ -525,6 +541,8 @@ int main(int argc, char *argv[])
 
     static GMainLoop *loop = NULL;
 
+    static struct ui_events_processing_data_t ui_events_processing_data;
+
     static struct dcp_fifo_dispatch_data_t dcp_dispatch_data =
     {
         .files = &files,
@@ -533,12 +551,15 @@ int main(int argc, char *argv[])
     if(setup(&parameters, &dcp_dispatch_data, &loop) < 0)
         return EXIT_FAILURE;
 
+    static UI::EventQueue ui_event_queue(
+        std::bind(defer_ui_event_processing, &ui_events_processing_data));
     static DCP::Queue dcp_transaction_queue(
         std::bind(timeout_config, std::placeholders::_1, &dcp_dispatch_data),
         std::bind(defer_dcp_transfer, &dcp_transaction_queue));
     static FdStreambuf fd_sbuf(files.dcp_fifo.out_fd);
     static std::ostream fd_out(&fd_sbuf);
-    static ViewManager::Manager view_manager(dcp_transaction_queue);
+    static ViewManager::Manager view_manager(ui_event_queue,
+                                             dcp_transaction_queue);
 
     static Playback::Player player_singleton(ViewPlay::meta_data_reformatters);
     static DBus::SignalData dbus_signal_data(view_manager, player_singleton, player_singleton);
@@ -546,6 +567,7 @@ int main(int argc, char *argv[])
     view_manager.set_output_stream(fd_out);
     view_manager.set_debug_stream(std::cout);
 
+    ui_events_processing_data.vm = &view_manager;
     dcp_dispatch_data.vm = &view_manager;
 
     player_singleton.start();

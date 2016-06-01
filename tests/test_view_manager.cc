@@ -83,6 +83,11 @@ static void check_and_clear_ostream(const char *string, std::ostringstream &ss)
     clear_ostream(ss);
 }
 
+static void ui_event_add()
+{
+    /* nothing */
+}
+
 static void dcp_transaction_setup_timeout(bool start_timeout_timer)
 {
     /* nothing */
@@ -93,6 +98,7 @@ static void dcp_deferred_tx()
     /* nothing */
 }
 
+static const std::function<void()> deferred_ui_event_observer(ui_event_add);
 static const std::function<void(bool)> transaction_observer(dcp_transaction_setup_timeout);
 static const std::function<void()> deferred_dcp_transfer_observer(dcp_deferred_tx);
 
@@ -100,7 +106,8 @@ namespace view_manager_tests_basics
 {
 
 static MockMessages *mock_messages;
-static DCP::Queue *queue;
+static UI::EventQueue *ui_queue;
+static DCP::Queue *dcp_queue;
 static ViewManager::Manager *vm;
 static std::ostringstream *views_output;
 static const char standard_mock_view_name[] = "Mock";
@@ -114,10 +121,13 @@ void cut_setup(void)
     mock_messages->init();
     mock_messages_singleton = mock_messages;
 
-    queue = new DCP::Queue(transaction_observer, deferred_dcp_transfer_observer);
-    cppcut_assert_not_null(queue);
+    ui_queue = new UI::EventQueue(deferred_ui_event_observer);
+    cppcut_assert_not_null(ui_queue);
 
-    vm = new ViewManager::Manager(*queue);
+    dcp_queue = new DCP::Queue(transaction_observer, deferred_dcp_transfer_observer);
+    cppcut_assert_not_null(dcp_queue);
+
+    vm = new ViewManager::Manager(*ui_queue, *dcp_queue);
     cppcut_assert_not_null(vm);
     vm->set_output_stream(*views_output);
 }
@@ -125,18 +135,20 @@ void cut_setup(void)
 void cut_teardown(void)
 {
     cppcut_assert_equal("", views_output->str().c_str());
-    cut_assert_true(queue->is_idle());
+    cut_assert_true(dcp_queue->is_idle());
 
     mock_messages->check();
 
     delete mock_messages;
     delete vm;
-    delete queue;
+    delete ui_queue;
+    delete dcp_queue;
     delete views_output;
 
     mock_messages = nullptr;
     vm =nullptr;
-    queue = nullptr;
+    ui_queue = nullptr;
+    dcp_queue = nullptr;
     views_output = nullptr;
 }
 
@@ -233,7 +245,8 @@ namespace view_manager_tests
 {
 
 static MockMessages *mock_messages;
-static DCP::Queue *queue;
+static UI::EventQueue *ui_queue;
+static DCP::Queue *dcp_queue;
 static ViewManager::Manager *vm;
 static std::ostringstream *views_output;
 static const char standard_mock_view_name[] = "Mock";
@@ -253,10 +266,13 @@ void cut_setup(void)
     cppcut_assert_not_null(mock_view);
     cut_assert_true(mock_view->init());
 
-    queue = new DCP::Queue(dcp_transaction_setup_timeout, dcp_deferred_tx);
-    cppcut_assert_not_null(queue);
+    ui_queue = new UI::EventQueue(deferred_ui_event_observer);
+    cppcut_assert_not_null(ui_queue);
 
-    vm = new ViewManager::Manager(*queue);
+    dcp_queue = new DCP::Queue(dcp_transaction_setup_timeout, dcp_deferred_tx);
+    cppcut_assert_not_null(dcp_queue);
+
+    vm = new ViewManager::Manager(*ui_queue, *dcp_queue);
     cppcut_assert_not_null(vm);
     vm->set_output_stream(*views_output);
     cut_assert_true(vm->add_view(mock_view));
@@ -272,13 +288,14 @@ void cut_setup(void)
 void cut_teardown(void)
 {
     cppcut_assert_equal("", views_output->str().c_str());
-    cut_assert_true(queue->is_idle());
+    cut_assert_true(dcp_queue->is_idle());
 
     mock_messages->check();
     mock_view->check();
 
     delete vm;
-    delete queue;
+    delete ui_queue;
+    delete dcp_queue;
     delete mock_view;
     delete mock_messages;
     delete views_output;
@@ -286,7 +303,8 @@ void cut_teardown(void)
     mock_messages = nullptr;
     mock_view = nullptr;
     vm =nullptr;
-    queue = nullptr;
+    ui_queue = nullptr;
+    dcp_queue = nullptr;
     views_output = nullptr;
 }
 
@@ -509,7 +527,8 @@ static void populate_view_manager(ViewManager::Manager &vm,
 
 static MockMessages *mock_messages;
 static std::array<ViewMock::View *, 4> all_mock_views;
-static DCP::Queue *queue;
+static UI::EventQueue *ui_queue;
+static DCP::Queue *dcp_queue;
 static ViewManager::Manager *vm;
 static std::ostringstream *views_output;
 
@@ -523,10 +542,13 @@ void cut_setup(void)
     mock_messages->init();
     mock_messages_singleton = mock_messages;
 
-    queue = new DCP::Queue(dcp_transaction_setup_timeout, dcp_deferred_tx);
-    cppcut_assert_not_null(queue);
+    ui_queue = new UI::EventQueue(deferred_ui_event_observer);
+    cppcut_assert_not_null(ui_queue);
 
-    vm = new ViewManager::Manager(*queue);
+    dcp_queue = new DCP::Queue(dcp_transaction_setup_timeout, dcp_deferred_tx);
+    cppcut_assert_not_null(dcp_queue);
+
+    vm = new ViewManager::Manager(*ui_queue, *dcp_queue);
     cppcut_assert_not_null(vm);
 
     mock_messages->ignore_all_ = true;
@@ -544,7 +566,7 @@ void cut_setup(void)
 void cut_teardown(void)
 {
     cppcut_assert_equal("", views_output->str().c_str());
-    cut_assert_true(queue->is_idle());
+    cut_assert_true(dcp_queue->is_idle());
 
     mock_messages->check();
 
@@ -553,12 +575,14 @@ void cut_teardown(void)
 
     delete mock_messages;
     delete vm;
-    delete queue;
+    delete ui_queue;
+    delete dcp_queue;
     delete views_output;
 
     mock_messages = nullptr;
     vm = nullptr;
-    queue = nullptr;
+    ui_queue = nullptr;
+    dcp_queue = nullptr;
     views_output = nullptr;
 
     for(auto view: all_mock_views)
@@ -648,10 +672,13 @@ void test_activate_different_view(void)
  */
 void test_input_command_with_no_need_to_refresh(void)
 {
+    vm->input(DrcpCommand::PLAYBACK_START, nullptr);
+
     mock_messages->expect_msg_info("Dispatching DRCP command %d%s");
     all_mock_views[0]->expect_input(ViewIface::InputResult::OK,
                                     DrcpCommand::PLAYBACK_START, false);
-    vm->input(DrcpCommand::PLAYBACK_START, nullptr);
+
+    vm->process_pending_events();
 }
 
 /*!\test
@@ -660,12 +687,15 @@ void test_input_command_with_no_need_to_refresh(void)
  */
 void test_input_command_with_need_to_refresh(void)
 {
+    vm->input(DrcpCommand::PLAYBACK_START, nullptr);
+
     mock_messages->expect_msg_info("Dispatching DRCP command %d%s");
     all_mock_views[0]->expect_input(ViewIface::InputResult::UPDATE_NEEDED,
                                     DrcpCommand::PLAYBACK_START, false);
     all_mock_views[0]->expect_update(*views_output);
     all_mock_views[0]->expect_write_xml_begin(true, false);
-    vm->input(DrcpCommand::PLAYBACK_START, nullptr);
+
+    vm->process_pending_events();
     vm->serialization_result(DCP::Transaction::OK);
 
     check_and_clear_ostream("First update\n", *views_output);
@@ -677,10 +707,13 @@ void test_input_command_with_need_to_refresh(void)
  */
 void test_input_command_with_need_to_hide_view_may_fail(void)
 {
+    vm->input(DrcpCommand::PLAYBACK_START, nullptr);
+
     mock_messages->expect_msg_info("Dispatching DRCP command %d%s");
     all_mock_views[0]->expect_input(ViewIface::InputResult::SHOULD_HIDE,
                                     DrcpCommand::PLAYBACK_START, false);
-    vm->input(DrcpCommand::PLAYBACK_START, nullptr);
+
+    vm->process_pending_events();
 }
 
 /*!\test
@@ -701,6 +734,8 @@ void test_input_command_with_need_to_hide_nonbrowse_view(void)
 
     /* hide request from active view, view manager switches back to previous
      * browse view in turn (view "First") */
+    vm->input(DrcpCommand::PLAYBACK_START, nullptr);
+
     mock_messages->expect_msg_info("Dispatching DRCP command %d%s");
     all_mock_views[2]->expect_input(ViewIface::InputResult::SHOULD_HIDE,
                                     DrcpCommand::PLAYBACK_START, false);
@@ -708,8 +743,10 @@ void test_input_command_with_need_to_hide_nonbrowse_view(void)
     all_mock_views[0]->expect_focus();
     all_mock_views[0]->expect_serialize(*views_output);
     all_mock_views[0]->expect_write_xml_begin(true, true);
-    vm->input(DrcpCommand::PLAYBACK_START, nullptr);
+
+    vm->process_pending_events();
     vm->serialization_result(DCP::Transaction::OK);
+
     check_and_clear_ostream("First serialize\n", *views_output);
 }
 
@@ -730,10 +767,13 @@ void test_input_command_with_need_to_hide_browse_view_never_works(void)
     check_and_clear_ostream("Second serialize\n", *views_output);
 
     /* hide request from active view, but view manager won't switch focus */
+    vm->input(DrcpCommand::PLAYBACK_START, nullptr);
+
     mock_messages->expect_msg_info("Dispatching DRCP command %d%s");
     all_mock_views[1]->expect_input(ViewIface::InputResult::SHOULD_HIDE,
                                     DrcpCommand::PLAYBACK_START, false);
-    vm->input(DrcpCommand::PLAYBACK_START, nullptr);
+
+    vm->process_pending_events();
 }
 
 static bool check_equal_parameters_by_pointer_called;
@@ -749,20 +789,23 @@ static void check_equal_parameters_by_pointer(const UI::Parameters *expected_par
  */
 void test_input_command_with_data(void)
 {
+    auto speed_factor =
+        std::unique_ptr<UI::ParamsFWSpeed>(new UI::ParamsFWSpeed(12.5));
+    auto speed_factor_pointer = speed_factor.get();
+    vm->input(DrcpCommand::FAST_WIND_SET_SPEED, std::move(speed_factor));
+
     ViewMock::View view("Play", false);
     cut_assert_true(view.init());
     cut_assert_true(vm->add_view(&view));
 
-    auto speed_factor =
-        std::unique_ptr<UI::ParamsFWSpeed>(new UI::ParamsFWSpeed(12.5));
     view.expect_input_with_callback(ViewIface::InputResult::OK,
                                     DrcpCommand::FAST_WIND_SET_SPEED,
-                                    speed_factor.get(), check_equal_parameters_by_pointer);
+                                    speed_factor_pointer,
+                                    check_equal_parameters_by_pointer);
 
     mock_messages->expect_msg_info("Dispatching DRCP command %d%s");
-
     check_equal_parameters_by_pointer_called = false;
-    vm->input(DrcpCommand::FAST_WIND_SET_SPEED, std::move(speed_factor));
+    vm->process_pending_events();
     cut_assert_true(check_equal_parameters_by_pointer_called);
 }
 
@@ -781,21 +824,24 @@ class DummyTypeForTesting
  */
 void test_input_command_with_unexpected_data(void)
 {
+    auto completely_unexpected_data =
+        std::unique_ptr<UI::SpecificParameters<DummyTypeForTesting *>>(new UI::SpecificParameters<DummyTypeForTesting *>(nullptr));
+    auto completely_unexpected_data_pointer = completely_unexpected_data.get();
+    vm->input(DrcpCommand::FAST_WIND_SET_SPEED, std::move(completely_unexpected_data));
+
     ViewMock::View view("Play", false);
     cut_assert_true(view.init());
     cut_assert_true(vm->add_view(&view));
 
-    auto completely_unexpected_data =
-        std::unique_ptr<UI::SpecificParameters<DummyTypeForTesting *>>(new UI::SpecificParameters<DummyTypeForTesting *>(nullptr));
     view.expect_input_with_callback(ViewIface::InputResult::OK,
                                     DrcpCommand::FAST_WIND_SET_SPEED,
-                                    completely_unexpected_data.get(),
+                                    completely_unexpected_data_pointer,
                                     check_equal_parameters_by_pointer);
 
     mock_messages->expect_msg_info("Dispatching DRCP command %d%s");
 
     check_equal_parameters_by_pointer_called = false;
-    vm->input(DrcpCommand::FAST_WIND_SET_SPEED, std::move(completely_unexpected_data));
+    vm->process_pending_events();
     cut_assert_true(check_equal_parameters_by_pointer_called);
 }
 
@@ -805,6 +851,8 @@ void test_input_command_with_unexpected_data(void)
  */
 void test_input_command_with_missing_data(void)
 {
+    vm->input(DrcpCommand::FAST_WIND_SET_SPEED);
+
     ViewMock::View view("Play", false);
     cut_assert_true(view.init());
     cut_assert_true(vm->add_view(&view));
@@ -817,7 +865,7 @@ void test_input_command_with_missing_data(void)
     mock_messages->expect_msg_info("Dispatching DRCP command %d%s");
 
     check_equal_parameters_by_pointer_called = false;
-    vm->input(DrcpCommand::FAST_WIND_SET_SPEED);
+    vm->process_pending_events();
     cut_assert_true(check_equal_parameters_by_pointer_called);
 }
 
@@ -963,7 +1011,8 @@ namespace view_manager_tests_serialization
 {
 
 static MockMessages *mock_messages;
-static DCP::Queue *queue;
+static UI::EventQueue *ui_queue;
+static DCP::Queue *dcp_queue;
 static ViewManager::Manager *vm;
 static std::ostringstream *views_output;
 static const char standard_mock_view_name[] = "Mock";
@@ -983,27 +1032,31 @@ void cut_setup(void)
     cppcut_assert_not_null(mock_view);
     cut_assert_true(mock_view->init());
 
-    queue = new DCP::Queue(dcp_transaction_setup_timeout, dcp_deferred_tx);
-    cppcut_assert_not_null(queue);
+    ui_queue = new UI::EventQueue(deferred_ui_event_observer);
+    cppcut_assert_not_null(ui_queue);
 
-    vm = new ViewManager::Manager(*queue);
+    dcp_queue = new DCP::Queue(dcp_transaction_setup_timeout, dcp_deferred_tx);
+    cppcut_assert_not_null(dcp_queue);
+
+    vm = new ViewManager::Manager(*ui_queue, *dcp_queue);
     cppcut_assert_not_null(vm);
     vm->set_output_stream(*views_output);
     cut_assert_true(vm->add_view(mock_view));
 
-    cut_assert_false(queue->is_in_progress());
+    cut_assert_false(dcp_queue->is_in_progress());
 }
 
 void cut_teardown(void)
 {
     cppcut_assert_equal("", views_output->str().c_str());
-    cut_assert_true(queue->is_idle());
+    cut_assert_true(dcp_queue->is_idle());
 
     mock_messages->check();
     mock_view->check();
 
     delete vm;
-    delete queue;
+    delete ui_queue;
+    delete dcp_queue;
     delete mock_view;
     delete mock_messages;
     delete views_output;
@@ -1011,7 +1064,8 @@ void cut_teardown(void)
     mock_messages = nullptr;
     mock_view = nullptr;
     vm =nullptr;
-    queue = nullptr;
+    ui_queue = nullptr;
+    dcp_queue = nullptr;
     views_output = nullptr;
 }
 
@@ -1099,32 +1153,32 @@ void test_hard_io_error(void)
 
 /*!\test
  * Serializing a view that is already in the progress of being serialized
- * causes a new element being inserted into the DCP queue.
+ * causes a new element to be inserted into the DCP queue.
  */
 void test_view_update_does_not_affect_ongoing_transfer()
 {
-    cut_assert_false(queue->is_in_progress());
-    cut_assert_true(queue->is_empty());
-    cut_assert_true(queue->is_idle());
+    cut_assert_false(dcp_queue->is_in_progress());
+    cut_assert_true(dcp_queue->is_empty());
+    cut_assert_true(dcp_queue->is_idle());
 
     activate_view();
 
-    cut_assert_true(queue->is_in_progress());
-    cut_assert_true(queue->is_empty());
-    cut_assert_false(queue->is_idle());
+    cut_assert_true(dcp_queue->is_in_progress());
+    cut_assert_true(dcp_queue->is_empty());
+    cut_assert_false(dcp_queue->is_idle());
 
     mock_view->expect_defocus();
     activate_view();
 
-    cut_assert_true(queue->is_in_progress());
-    cut_assert_false(queue->is_empty());
-    cut_assert_false(queue->is_idle());
+    cut_assert_true(dcp_queue->is_in_progress());
+    cut_assert_false(dcp_queue->is_empty());
+    cut_assert_false(dcp_queue->is_idle());
 
     vm->serialization_result(DCP::Transaction::OK);
 
-    cut_assert_true(queue->is_in_progress());
-    cut_assert_true(queue->is_empty());
-    cut_assert_false(queue->is_idle());
+    cut_assert_true(dcp_queue->is_in_progress());
+    cut_assert_true(dcp_queue->is_empty());
+    cut_assert_false(dcp_queue->is_idle());
 
     vm->serialization_result(DCP::Transaction::OK);
 }

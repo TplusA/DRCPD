@@ -24,6 +24,7 @@
 #include <algorithm>
 
 #include "view.hh"
+#include "ui_event_queue.hh"
 #include "dcp_transaction_queue.hh"
 
 /*!
@@ -145,6 +146,8 @@ class Manager: public VMIface
   private:
     ViewsContainer all_views_;
 
+    UI::EventQueue &ui_events_;
+
     ViewIface *active_view_;
     ViewIface *last_browse_view_;
     DCP::Queue &dcp_transaction_queue_;
@@ -154,7 +157,7 @@ class Manager: public VMIface
     Manager(const Manager &) = delete;
     Manager &operator=(const Manager &) = delete;
 
-    explicit Manager(DCP::Queue &queue);
+    explicit Manager(UI::EventQueue &event_queue, DCP::Queue &dcp_queue);
 
     bool add_view(ViewIface *view) override;
     bool invoke_late_init_functions() override;
@@ -188,6 +191,8 @@ class Manager: public VMIface
     void update_view_if_active(const ViewIface *view, DCP::Queue::Mode mode) const override;
     void hide_view_if_active(const ViewIface *view) override;
 
+    void process_pending_events();
+
     void busy_state_notification(bool is_busy);
 
   private:
@@ -196,6 +201,9 @@ class Manager: public VMIface
 
     bool do_input_bounce(const InputBouncer &bouncer, DrcpCommand command,
                          std::unique_ptr<const UI::Parameters> &parameters);
+
+    void process_input_event(DrcpCommand command,
+                             std::unique_ptr<const UI::Parameters> parameters);
 };
 
 }

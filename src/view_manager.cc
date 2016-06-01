@@ -29,10 +29,11 @@
 
 static ViewNop::View nop_view;
 
-ViewManager::Manager::Manager(DCP::Queue &queue):
+ViewManager::Manager::Manager(UI::EventQueue &event_queue, DCP::Queue &dcp_queue):
+    ui_events_(event_queue),
     active_view_(&nop_view),
     last_browse_view_(nullptr),
-    dcp_transaction_queue_(queue),
+    dcp_transaction_queue_(dcp_queue),
     debug_stream_(nullptr)
 {}
 
@@ -147,6 +148,13 @@ void ViewManager::Manager::handle_input_result(ViewIface::InputResult result,
 
 void ViewManager::Manager::input(DrcpCommand command,
                                  std::unique_ptr<const UI::Parameters> parameters)
+{
+    ui_events_.post(std::unique_ptr<UI::Events::Input>(
+        new UI::Events::Input(command, std::move(parameters))));
+}
+
+void ViewManager::Manager::process_input_event(DrcpCommand command,
+                                               std::unique_ptr<const UI::Parameters> parameters)
 {
     msg_info("Dispatching DRCP command %d%s",
              static_cast<int>(command),
@@ -381,6 +389,25 @@ void ViewManager::Manager::hide_view_if_active(const ViewIface *view)
 {
     if(is_active_view(view))
         handle_input_result(ViewIface::InputResult::SHOULD_HIDE, *active_view_);
+}
+
+void ViewManager::Manager::process_pending_events()
+{
+    while(true)
+    {
+        std::unique_ptr<UI::Events::BaseEvent> event = ui_events_.take();
+
+        if(event == nullptr)
+            return;
+
+        if(auto *ev = dynamic_cast<UI::Events::Input *>(event.get()))
+        {
+            std::unique_ptr<const UI::Parameters> parameters;
+            parameters.swap(ev->parameters_);
+
+            process_input_event(ev->command_, std::move(parameters));
+        }
+    }
 }
 
 void ViewManager::Manager::busy_state_notification(bool is_busy)
