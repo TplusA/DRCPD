@@ -45,9 +45,11 @@ class QueryContext_
 {
   protected:
     AsyncListIface &result_receiver_;
+    const unsigned short caller_id_;
 
-    explicit QueryContext_(AsyncListIface &list):
-        result_receiver_(list)
+    explicit QueryContext_(AsyncListIface &list, unsigned short caller_id):
+        result_receiver_(list),
+        caller_id_(caller_id)
     {}
 
   public:
@@ -124,6 +126,13 @@ class QueryContext_
 class QueryContextEnterList: public QueryContext_
 {
   public:
+    enum class CallerID
+    {
+        SYNC_WRAPPER,
+        ENTER_ROOT,
+        ENTER_CHILD,
+    };
+
     tdbuslistsNavigation *proxy_;
 
     const struct
@@ -141,9 +150,10 @@ class QueryContextEnterList: public QueryContext_
     QueryContextEnterList &operator=(const QueryContextEnterList &) = delete;
 
     explicit QueryContextEnterList(AsyncListIface &result_receiver,
+                                   unsigned short caller_id,
                                    tdbuslistsNavigation *proxy,
                                    ID::List list_id, unsigned int line):
-        QueryContext_(result_receiver),
+        QueryContext_(result_receiver, caller_id),
         proxy_(proxy),
         parameters_({list_id, line}),
         async_call_(nullptr)
@@ -156,6 +166,8 @@ class QueryContextEnterList: public QueryContext_
 
         async_call_ = nullptr;
     }
+
+    CallerID get_caller_id() const { return static_cast<CallerID>(caller_id_); }
 
     bool run_async(const DBus::AsyncResultAvailableFunction &result_available) final override;
     bool synchronize(DBus::AsyncResult &result) final override;
@@ -315,12 +327,16 @@ class DBusList: public ListIface, public AsyncListIface
 
     unsigned int get_number_of_items() const override;
     bool empty() const override;
+
     void enter_list(ID::List list_id, unsigned int line) throw(List::DBusListException) override;
-    OpResult enter_list_async(ID::List list_id, unsigned int line) override;
     bool enter_list_async_wait() override;
+    OpResult enter_list_async(ID::List list_id, unsigned int line,
+                              QueryContextEnterList::CallerID caller)
+    {
+        return enter_list_async(list_id, line, static_cast<unsigned short>(caller));
+    }
 
     const Item *get_item(unsigned int line) const throw(List::DBusListException) override;
-    OpResult get_item_async(unsigned int line, const Item *&item) override;
     bool get_item_async_wait(const Item *&item) override;
 
     ID::List get_list_id() const override { return window_.list_id_; }
@@ -342,6 +358,9 @@ class DBusList: public ListIface, public AsyncListIface
         if(async_dbus_data_.event_watcher_ != nullptr)
             async_dbus_data_.event_watcher_(event, result, ctx);
     }
+
+    OpResult enter_list_async(ID::List list_id, unsigned int line, unsigned short caller_id) override;
+    OpResult get_item_async(unsigned int line, const Item *&item, unsigned short caller_id) override;
 
     /*!
      * Callback that is called when an asynchronous D-Bus operation finishes.

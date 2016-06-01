@@ -50,7 +50,8 @@ bool List::DBusList::empty() const
 void List::DBusList::enter_list(ID::List list_id, unsigned int line)
     throw(List::DBusListException)
 {
-    if(enter_list_async(list_id, line) == OpResult::STARTED)
+    if(enter_list_async(list_id, line,
+                        QueryContextEnterList::CallerID::SYNC_WRAPPER) == OpResult::STARTED)
         enter_list_async_wait();
 }
 
@@ -336,7 +337,8 @@ const List::Item *List::DBusList::get_item(unsigned int line) const
 }
 
 List::AsyncListIface::OpResult
-List::DBusList::enter_list_async(ID::List list_id, unsigned int line)
+List::DBusList::enter_list_async(ID::List list_id, unsigned int line,
+                                 unsigned short caller_id)
 {
     log_assert(list_id.is_valid());
 
@@ -352,7 +354,8 @@ List::DBusList::enter_list_async(ID::List list_id, unsigned int line)
         return OpResult::SUCCEEDED;
 
     async_dbus_data_.enter_list_query_ =
-        std::make_shared<QueryContextEnterList>(*this, dbus_proxy_, list_id, line);
+        std::make_shared<QueryContextEnterList>(*this, caller_id,
+                                                dbus_proxy_, list_id, line);
 
     if(async_dbus_data_.enter_list_query_ == nullptr)
     {
@@ -548,7 +551,8 @@ void List::QueryContextEnterList::put_result(bool &was_successful,
 }
 
 List::AsyncListIface::OpResult
-List::DBusList::get_item_async(unsigned int line, const Item *&item)
+List::DBusList::get_item_async(unsigned int line, const Item *&item,
+                               unsigned short caller_id)
 {
     BUG("%s(): not implemented yet", __PRETTY_FUNCTION__);
     return OpResult::FAILED;

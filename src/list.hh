@@ -221,7 +221,8 @@ class AsyncListIface
      * \retval #List::AsyncListIface::OpResult::FAILED
      *     The function failed before starting the asynchronous call.
      */
-    virtual OpResult enter_list_async(ID::List list_id, unsigned int line) = 0;
+    virtual OpResult enter_list_async(ID::List list_id, unsigned int line,
+                                      unsigned short caller_id) = 0;
 
     /*!
      * Wait for the process of entering the list to complete.
@@ -251,7 +252,8 @@ class AsyncListIface
      * \retval #List::AsyncListIface::OpResult::FAILED
      *     The function failed before starting the asynchronous call.
      */
-    virtual OpResult get_item_async(unsigned int line, const Item *&item) = 0;
+    virtual OpResult get_item_async(unsigned int line, const Item *&item,
+                                    unsigned short caller_id) = 0;
 
     /*!
      * Wait for the process of fetching a list item to complete.
