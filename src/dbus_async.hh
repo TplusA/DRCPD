@@ -357,6 +357,27 @@ class AsyncCall: public DBus::AsyncCall_
             g_cancellable_cancel(cancellable_);
     }
 
+    static void cancel_and_delete(AsyncCall *&call)
+    {
+        log_assert(call != nullptr);
+
+        call->cancel();
+
+        try
+        {
+            call->wait_for_result();
+        }
+        catch(...)
+        {
+            /* ignore exceptions because we will clean up anyway */
+        }
+
+        if(!DBus::AsyncCall_::cleanup_if_failed(call))
+            delete call;
+
+        call = nullptr;
+    }
+
     const PromiseReturnType &get_result(AsyncResult &async_result) const
     {
         log_assert(success());
