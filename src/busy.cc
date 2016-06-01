@@ -16,6 +16,8 @@
  * along with DRCPD.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <array>
+
 #include "busy.hh"
 #include "logged_lock.hh"
 
@@ -25,13 +27,15 @@
  * There are two interfaces for obtaining the current busy flag: by callback
  * and by function call.
  *
- * The class takes care that the callback function is only called if the flag actually changed.
+ * The class takes care of calling the callback function only if the flag
+ * actually changed.
  */
 class GlobalBusyState
 {
   private:
     LoggedLock::Mutex lock_;
     uint32_t busy_flags_;
+    std::array<unsigned short, sizeof(busy_flags_) * 8U> busy_counts_;
     std::function<void(bool)> notify_busy_state_changed_;
 
     bool last_read_busy_state_;
@@ -43,6 +47,7 @@ class GlobalBusyState
 
     explicit GlobalBusyState():
         busy_flags_(0),
+        busy_counts_{0},
         last_read_busy_state_(false),
         last_notified_busy_state_(false)
     {
@@ -55,6 +60,7 @@ class GlobalBusyState
     void reset()
     {
         busy_flags_ = 0;
+        busy_counts_.fill(0);
         last_read_busy_state_ = false;
         last_notified_busy_state_ = false;
     }
@@ -75,6 +81,17 @@ class GlobalBusyState
 
         busy_flags_ |= mask;
 
+        uint32_t bit = 1U;
+
+        for(size_t i = 0; i < busy_counts_.size(); ++i, bit <<= 1)
+        {
+            if((mask & bit) != 0)
+            {
+                if(busy_counts_[i] < std::numeric_limits<unsigned short>::max())
+                    ++busy_counts_[i];
+            }
+        }
+
         notify_if_necessary(lock);
     }
 
@@ -82,7 +99,19 @@ class GlobalBusyState
     {
         LoggedLock::UniqueLock lock(lock_);
 
-        busy_flags_ &= ~mask;
+        uint32_t bit = 1U;
+
+        for(size_t i = 0; i < busy_counts_.size(); ++i, bit <<= 1)
+        {
+            if((mask & bit) != 0)
+            {
+                if(busy_counts_[i] > 0)
+                    --busy_counts_[i];
+
+                if(busy_counts_[i] == 0)
+                    busy_flags_ &= ~bit;
+            }
+        }
 
         notify_if_necessary(lock);
     }

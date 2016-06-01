@@ -124,4 +124,59 @@ void test_set_and_clear_multiple_flag_causes_minimal_number_of_state_changes()
     cut_assert_false(Busy::is_busy());
 }
 
+/*!\test
+ * Setting a flag a number of times requires the same amount of clear
+ * operations to change the busy state back to idle.
+ */
+void test_set_single_flag_multiple_times_requires_clearing_by_same_amount()
+{
+    Busy::set(Busy::Source::ENTERING_DIRECTORY);
+    cppcut_assert_equal(1U, number_of_state_changes);
+    cut_assert_true(current_busy_state);
+    cut_assert_true(Busy::is_busy());
+
+    Busy::set(Busy::Source::ENTERING_DIRECTORY);
+    Busy::set(Busy::Source::ENTERING_DIRECTORY);
+    Busy::set(Busy::Source::ENTERING_DIRECTORY);
+
+    Busy::clear(Busy::Source::ENTERING_DIRECTORY);
+    Busy::clear(Busy::Source::ENTERING_DIRECTORY);
+    Busy::clear(Busy::Source::ENTERING_DIRECTORY);
+
+    cppcut_assert_equal(1U, number_of_state_changes);
+
+    Busy::clear(Busy::Source::ENTERING_DIRECTORY);
+    cppcut_assert_equal(2U, number_of_state_changes);
+    cut_assert_false(current_busy_state);
+    cut_assert_false(Busy::is_busy());
+}
+
+/*!\test
+ * Number of times a busy source got activated is maintained for each busy
+ * source.
+ */
+void test_set_multiple_flags_multiple_times_requires_clearing_by_same_amount()
+{
+    Busy::set(Busy::Source::ENTERING_DIRECTORY);
+    cppcut_assert_equal(1U, number_of_state_changes);
+    cut_assert_true(current_busy_state);
+    cut_assert_true(Busy::is_busy());
+
+    Busy::set(Busy::Source::ENTERING_DIRECTORY);
+
+    Busy::set(Busy::Source::BUFFERING_STREAM);
+    Busy::set(Busy::Source::BUFFERING_STREAM);
+
+    Busy::clear(Busy::Source::ENTERING_DIRECTORY);
+    Busy::clear(Busy::Source::BUFFERING_STREAM);
+    Busy::clear(Busy::Source::ENTERING_DIRECTORY);
+
+    cppcut_assert_equal(1U, number_of_state_changes);
+
+    Busy::clear(Busy::Source::BUFFERING_STREAM);
+    cppcut_assert_equal(2U, number_of_state_changes);
+    cut_assert_false(current_busy_state);
+    cut_assert_false(Busy::is_busy());
+}
+
 }
