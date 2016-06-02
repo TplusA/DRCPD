@@ -54,6 +54,8 @@ class AsyncCall_
 
     virtual ~AsyncCall_() {}
 
+    virtual void cancel() = 0;
+
     bool is_active() const
     {
         switch(call_state_)
@@ -349,7 +351,7 @@ class AsyncCall: public DBus::AsyncCall_
         return call_state_;
     }
 
-    void cancel()
+    void cancel() final override
     {
         log_assert(is_active());
 

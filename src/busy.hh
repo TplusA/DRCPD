@@ -31,6 +31,7 @@ enum class Source
     FILLING_PLAYER_QUEUE,
     BUFFERING_STREAM,
     ENTERING_DIRECTORY,
+    GETTING_ITEM,
 };
 
 void init(const std::function<void(bool)> &state_changed_callback);

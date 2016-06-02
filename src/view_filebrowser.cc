@@ -122,8 +122,28 @@ void ViewFileBrowser::View::handle_enter_list_event(List::AsyncListIface::OpResu
         navigation_.set_cursor_by_line_number(line);
     }
 
-    if(!Busy::clear(Busy::Source::ENTERING_DIRECTORY) &&
-       (result == List::AsyncListIface::OpResult::SUCCEEDED ||
+    Busy::clear(Busy::Source::ENTERING_DIRECTORY);
+
+    if((result == List::AsyncListIface::OpResult::SUCCEEDED ||
+        result == List::AsyncListIface::OpResult::FAILED))
+    {
+        view_manager_->serialize_view_if_active(this, DCP::Queue::Mode::FORCE_ASYNC);
+
+    }
+}
+
+void ViewFileBrowser::View::handle_get_item_event(List::AsyncListIface::OpResult result,
+                                                  const std::shared_ptr<List::QueryContextGetItem> &ctx)
+{
+    if(result == List::AsyncListIface::OpResult::STARTED)
+    {
+        Busy::set(Busy::Source::GETTING_ITEM);
+        return;
+    }
+
+    Busy::clear(Busy::Source::GETTING_ITEM);
+
+    if((result == List::AsyncListIface::OpResult::SUCCEEDED ||
         result == List::AsyncListIface::OpResult::FAILED))
     {
         view_manager_->serialize_view_if_active(this, DCP::Queue::Mode::FORCE_ASYNC);
@@ -145,7 +165,8 @@ bool ViewFileBrowser::View::init()
                 return;
 
               case List::AsyncListIface::OpEvent::GET_ITEM:
-                break;
+                handle_get_item_event(result, std::static_pointer_cast<List::QueryContextGetItem>(ctx));
+                return;
             }
 
             BUG("Asynchronous event %d not handled", event);
@@ -611,7 +632,24 @@ ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command,
 
         try
         {
-            item = dynamic_cast<decltype(item)>(file_list_.get_item(navigation_.get_cursor()));
+            item = nullptr;
+
+            const List::Item *dbus_list_item = nullptr;
+            const auto op_result =
+                file_list_.get_item_async(navigation_.get_cursor(), dbus_list_item,
+                                          List::QueryContextGetItem::CallerID::SELECT_IN_VIEW);
+
+            switch(op_result)
+            {
+              case List::AsyncListIface::OpResult::STARTED:
+              case List::AsyncListIface::OpResult::SUCCEEDED:
+                item = dynamic_cast<decltype(item)>(dbus_list_item);
+                break;
+
+              case List::AsyncListIface::OpResult::FAILED:
+              case List::AsyncListIface::OpResult::CANCELED:
+                break;
+            }
         }
         catch(const List::DBusListException &e)
         {
@@ -728,12 +766,6 @@ ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command,
 bool ViewFileBrowser::View::write_xml(std::ostream &os,
                                       const DCP::Queue::Data &data)
 {
-    if(!data.is_full_serialize_ &&
-       (data.view_update_flags_ & ~UPDATE_FLAGS_BASE_MASK) == 0)
-    {
-        return true;
-    }
-
     os << "<text id=\"cbid\">" << int(drcp_browse_id_) << "</text>";
 
     size_t displayed_line = 0;
@@ -744,7 +776,24 @@ bool ViewFileBrowser::View::write_xml(std::ostream &os,
 
         try
         {
-            item = dynamic_cast<decltype(item)>(file_list_.get_item(it));
+            item = nullptr;
+
+            const List::Item *dbus_list_item = nullptr;
+            const auto op_result =
+                file_list_.get_item_async(it, dbus_list_item,
+                                          List::QueryContextGetItem::CallerID::SERIALIZE);
+
+            switch(op_result)
+            {
+              case List::AsyncListIface::OpResult::STARTED:
+              case List::AsyncListIface::OpResult::SUCCEEDED:
+                item = dynamic_cast<decltype(item)>(dbus_list_item);
+                break;
+
+              case List::AsyncListIface::OpResult::FAILED:
+              case List::AsyncListIface::OpResult::CANCELED:
+                break;
+            }
         }
         catch(const List::DBusListException &e)
         {
@@ -831,7 +880,24 @@ void ViewFileBrowser::View::serialize(DCP::Queue &queue, DCP::Queue::Mode mode,
 
         try
         {
-            item = dynamic_cast<decltype(item)>(file_list_.get_item(it));
+            item = nullptr;
+
+            const List::Item *dbus_list_item = nullptr;
+            const auto op_result =
+                file_list_.get_item_async(it, dbus_list_item,
+                                          List::QueryContextGetItem::CallerID::SERIALIZE_DEBUG);
+
+            switch(op_result)
+            {
+              case List::AsyncListIface::OpResult::STARTED:
+              case List::AsyncListIface::OpResult::SUCCEEDED:
+                item = dynamic_cast<decltype(item)>(dbus_list_item);
+                break;
+
+              case List::AsyncListIface::OpResult::FAILED:
+              case List::AsyncListIface::OpResult::CANCELED:
+                break;
+            }
         }
         catch(const List::DBusListException &e)
         {

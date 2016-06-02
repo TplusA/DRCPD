@@ -19,6 +19,10 @@
 #ifndef DBUSLIST_HH
 #define DBUSLIST_HH
 
+#include <memory>
+#include <functional>
+#include <tuple>
+
 #include "list.hh"
 #include "lists_dbus.h"
 #include "ramlist.hh"
@@ -212,6 +216,153 @@ class QueryContextEnterList: public QueryContext_
 };
 
 /*!
+ * How to modify the window of cached items when scrolling through the list.
+ */
+struct CacheModifications
+{
+    /* for all updates */
+    bool is_filling_from_scratch_;
+    unsigned int new_first_line_;
+
+    /* for partial updates */
+    bool is_shift_down_;
+    unsigned int shift_distance_;
+
+    CacheModifications(const CacheModifications &) = delete;
+    CacheModifications &operator=(const CacheModifications &) = delete;
+
+    explicit CacheModifications():
+        is_filling_from_scratch_(false),
+        new_first_line_(0),
+        is_shift_down_(false),
+        shift_distance_(0)
+    {}
+
+    void set(int new_first_line)
+    {
+        is_filling_from_scratch_ = true;
+        new_first_line_ = new_first_line;
+        is_shift_down_ = false;
+        shift_distance_ = 0;
+    }
+
+    void set(unsigned int new_first_line,
+             bool is_shift_down, unsigned int shift_distance)
+    {
+        is_filling_from_scratch_ = false;
+        new_first_line_ = new_first_line;
+        is_shift_down_ = is_shift_down;
+        shift_distance_ = shift_distance;
+    }
+};
+
+/*!
+ * Context for getting a D-Bus list item asynchronously.
+ */
+class QueryContextGetItem: public QueryContext_
+{
+  public:
+    enum class CallerID
+    {
+        SYNC_WRAPPER,
+        SELECT_IN_VIEW,
+        SERIALIZE,
+        SERIALIZE_DEBUG,
+    };
+
+    tdbuslistsNavigation *proxy_;
+
+    const struct
+    {
+        ID::List list_id_;
+        unsigned int line_;
+        unsigned int count_;
+        bool have_meta_data_;
+        unsigned int cache_list_replace_index_;
+    }
+    parameters_;
+
+    using AsyncListNavGetRange =
+        DBus::AsyncCall<tdbuslistsNavigation, std::tuple<guchar, guint, GVariant *>>;
+
+    AsyncListNavGetRange *async_call_;
+
+    QueryContextGetItem(const QueryContextGetItem &) = delete;
+    QueryContextGetItem &operator=(const QueryContextGetItem &) = delete;
+
+    explicit QueryContextGetItem(AsyncListIface &result_receiver,
+                                 unsigned short caller_id,
+                                 tdbuslistsNavigation *proxy,
+                                 ID::List list_id,
+                                 unsigned int line, unsigned int count,
+                                 bool have_meta_data,
+                                 unsigned int replace_index):
+        QueryContext_(result_receiver, caller_id),
+        proxy_(proxy),
+        parameters_({list_id, line, count, have_meta_data, replace_index}),
+        async_call_(nullptr)
+    {}
+
+    virtual ~QueryContextGetItem()
+    {
+        if(cancel_sync())
+            delete async_call_;
+
+        async_call_ = nullptr;
+    }
+
+    CallerID get_caller_id() const { return static_cast<CallerID>(caller_id_); }
+
+    bool run_async(const DBus::AsyncResultAvailableFunction &result_available) final override;
+    bool synchronize(DBus::AsyncResult &result) final override;
+
+    bool cancel() final override
+    {
+        if(async_call_ != nullptr)
+        {
+            async_call_->cancel();
+            return true;
+        }
+        else
+            return false;
+    }
+
+    bool cancel_sync() final override
+    {
+        if(!cancel())
+            return false;
+
+        try
+        {
+            DBus::AsyncResult dummy;
+
+            if(synchronize(dummy))
+                return true;
+        }
+        catch(...)
+        {
+            /* ignore, the #DBus::AsyncCall is already deleted or a zombie */
+        }
+
+        return false;
+    }
+
+    bool is_loading(unsigned int line) const
+    {
+        return line >= parameters_.line_ &&
+               line < parameters_.line_ + parameters_.count_;
+    }
+
+  private:
+    static void put_result(DBus::AsyncResult &async_ready,
+                           AsyncListNavGetRange::PromiseType &promise,
+                           tdbuslistsNavigation *p, GAsyncResult *async_result,
+                           GError *&error,
+                           ID::List list_id, bool have_meta_data)
+        throw(List::DBusListException);
+};
+
+/*!
  * A list filled from D-Bus, with only fractions of the list held in RAM.
  */
 class DBusList: public ListIface, public AsyncListIface
@@ -234,6 +385,13 @@ class DBusList: public ListIface, public AsyncListIface
         AsyncWatcher event_watcher_;
 
         std::shared_ptr<QueryContextEnterList> enter_list_query_;
+        std::shared_ptr<QueryContextGetItem> get_item_query_;
+
+        AsyncDBusData()
+        {
+            LoggedLock::set_name(lock_, "DBusListAsyncData");
+            LoggedLock::set_name(query_done_, "DBusListAsyncDone");
+        }
     };
 
     AsyncDBusData async_dbus_data_;
@@ -309,8 +467,8 @@ class DBusList: public ListIface, public AsyncListIface
      * Register a callback that is called on certain events.
      *
      * The callback is called whenever an asynchronous operation completes in
-     * \e any way, successful or not. It may want to make use of the query
-     * context that led to the event, in which case must downcast the
+     * \e any way, successful or not. The function may want to make use of the
+     * query context that led to the event, in which case it must downcast the
      * #List::QueryContext_ to something else (such as
      * #List::QueryContextEnterList).)
      *
@@ -337,7 +495,12 @@ class DBusList: public ListIface, public AsyncListIface
     }
 
     const Item *get_item(unsigned int line) const throw(List::DBusListException) override;
-    bool get_item_async_wait(const Item *&item) override;
+    bool get_item_async_wait(unsigned int line, const Item *&item) override;
+    OpResult get_item_async(unsigned int line, const Item *&item,
+                            QueryContextGetItem::CallerID caller)
+    {
+        return get_item_async(line, item, static_cast<unsigned short>(caller));
+    }
 
     ID::List get_list_id() const override { return window_.list_id_; }
 
@@ -346,21 +509,48 @@ class DBusList: public ListIface, public AsyncListIface
   private:
     bool is_position_unchanged(ID::List list_id, unsigned int line) const;
     bool is_line_cached(unsigned int line) const;
-    bool scroll_to_line(unsigned int line) throw(List::DBusListException);
-    void fill_cache_from_scratch(unsigned int line) throw(List::DBusListException);
+    bool can_scroll_to_line(unsigned int line, CacheModifications &cm,
+                            unsigned int &fetch_head, unsigned int &count,
+                            unsigned int &cache_list_replace_index) const;
+    bool is_line_pending(unsigned int line) const;
+    bool is_line_loading(unsigned int line) const;
 
     /*!
      * Little helper that calls the event watcher.
+     *
+     * Function must be called while holding \p lock. The lock will be unlocked
+     * unconditionally before calling the watcher callback.
      */
     void notify_watcher(OpEvent event, OpResult result,
-                        const std::shared_ptr<QueryContext_> &ctx)
+                        const std::shared_ptr<QueryContext_> &ctx,
+                        LoggedLock::UniqueLock<LoggedLock::Mutex> &lock)
     {
+        lock.unlock();
+
         if(async_dbus_data_.event_watcher_ != nullptr)
             async_dbus_data_.event_watcher_(event, result, ctx);
     }
 
     OpResult enter_list_async(ID::List list_id, unsigned int line, unsigned short caller_id) override;
     OpResult get_item_async(unsigned int line, const Item *&item, unsigned short caller_id) override;
+
+    /*!
+     * Stop loading items.
+     *
+     * Must be called while holding  #List::DBusList::AsyncDBusData::lock_ of
+     * the embedded #List::DBusList::async_dbus_data_ structure.
+     */
+    void cancel_get_item_query();
+
+    /*!
+     * Modify visible part of list represented by #List::DBusList::CacheData.
+     *
+     * Must be called after starting a #List::QueryContextGetItem operation and
+     * before notifying the watcher. The effect will be that the visible part
+     * of the list is updated before its contents are available. This allows
+     * providing instantly visible feedback to the user.
+     */
+    void apply_cache_modifications(const CacheModifications &cm);
 
     /*!
      * Callback that is called when an asynchronous D-Bus operation finishes.
@@ -383,7 +573,15 @@ class DBusList: public ListIface, public AsyncListIface
      * Must be called while holding #List::DBusList::AsyncDBusData::lock_ of
      * the embedded #List::DBusList::async_dbus_data_ structure.
      */
-    void enter_list_async_handle_done();
+    void enter_list_async_handle_done(LoggedLock::UniqueLock<LoggedLock::Mutex> &lock);
+
+    /*!
+     * Internal function called by #async_done_notification().
+     *
+     * Must be called while holding #List::DBusList::AsyncDBusData::lock_ of
+     * the embedded #List::DBusList::async_dbus_data_ structure.
+     */
+    void get_item_async_handle_done(LoggedLock::UniqueLock<LoggedLock::Mutex> &lock);
 };
 
 };

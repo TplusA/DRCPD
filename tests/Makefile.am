@@ -48,14 +48,14 @@ check_LTLIBRARIES = \
     test_streaminfo.la \
     test_busystate.la
 
-test_list_la_SOURCES = test_list.cc
+test_list_la_SOURCES = test_list.cc dbus_dummies.cc
 test_list_la_LIBADD = \
     $(top_builddir)/src/liblist.la \
     $(top_builddir)/src/libcontextmap.la
 test_list_la_CFLAGS = $(DRCPD_DEPENDENCIES_CFLAGS) $(AM_CFLAGS)
 test_list_la_CXXFLAGS = $(DRCPD_DEPENDENCIES_CFLAGS) $(AM_CXXFLAGS)
 
-test_listnav_la_SOURCES = test_listnav.cc
+test_listnav_la_SOURCES = test_listnav.cc dbus_dummies.cc
 test_listnav_la_LIBADD = \
     $(top_builddir)/src/liblist.la \
     $(top_builddir)/src/libcontextmap.la
@@ -71,6 +71,7 @@ test_contextmap_la_CXXFLAGS = $(AM_CXXFLAGS)
 
 test_dbus_handlers_la_SOURCES = \
     test_dbus_handlers.cc mock_expectation.hh \
+    dbus_dummies.cc \
     mock_messages.hh mock_messages.cc \
     mock_view_manager.hh mock_view_manager.cc
 test_dbus_handlers_la_LIBADD = \
@@ -84,6 +85,7 @@ test_dbus_handlers_la_CXXFLAGS = $(DRCPD_DEPENDENCIES_CFLAGS) $(AM_CXXFLAGS)
 
 test_view_manager_la_SOURCES = \
     test_view_manager.cc $(top_builddir)/src/view_names.hh \
+    dbus_dummies.cc \
     view_mock.hh view_mock.cc \
     mock_messages.hh mock_messages.cc
 test_view_manager_la_LIBADD = \
@@ -101,6 +103,7 @@ test_dcp_transaction_la_CXXFLAGS = $(AM_CXXFLAGS)
 
 test_playinfo_la_SOURCES = \
     test_playinfo.cc \
+    dbus_dummies.cc \
     mock_messages.hh mock_messages.cc
 test_playinfo_la_LIBADD = \
     $(top_builddir)/src/libviews.la \

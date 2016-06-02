@@ -262,7 +262,7 @@ class AsyncListIface
      *     True if the function has actually waited, false if not (i.e., there
      *     was not asynchronous operation in progress).
      */
-    virtual bool get_item_async_wait(const Item *&item) = 0;
+    virtual bool get_item_async_wait(unsigned int line, const Item *&item) = 0;
 };
 
 };

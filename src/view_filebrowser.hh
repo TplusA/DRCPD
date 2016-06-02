@@ -238,6 +238,8 @@ class View: public ViewIface, public ViewSerializeBase
   protected:
     virtual void handle_enter_list_event(List::AsyncListIface::OpResult result,
                                          const std::shared_ptr<List::QueryContextEnterList> &ctx);
+    virtual void handle_get_item_event(List::AsyncListIface::OpResult result,
+                                       const std::shared_ptr<List::QueryContextGetItem> &ctx);
 };
 
 class FileItem: public List::TextItem
