@@ -134,26 +134,23 @@ static std::string get_selected_uri(ID::List list_id, unsigned int item_id,
     auto *async_call = new AsyncCallType(
         proxy,
         [] (GObject *source_object) { return TDBUS_LISTS_NAVIGATION(source_object); },
-        [] (bool &was_successful, AsyncCallType::PromiseType &promise,
+        [] (DBus::AsyncResult &async_ready, AsyncCallType::PromiseType &promise,
             tdbuslistsNavigation *p, GAsyncResult *async_result, GError *&error)
         {
             guchar error_code = 0;
             gchar **uri_list = NULL;
 
-            was_successful =
+            async_ready =
                 tdbus_lists_navigation_call_get_uris_finish(p, &error_code, &uri_list,
-                                                            async_result, &error);
+                                                            async_result, &error)
+                ? DBus::AsyncResult::READY
+                : DBus::AsyncResult::FAILED;
 
-            if(!was_successful)
+            if(async_ready == DBus::AsyncResult::FAILED)
                 msg_error(0, LOG_NOTICE,
                           "Async D-Bus method call failed: %s",
                           error != nullptr ? error->message : "*NULL*");
 
-            /*
-             * For correct synchronization, this call must be the last
-             * statement in this function; in particular, it must not be done
-             * before the assignment to \p was_successful.
-             */
             promise.set_value(std::move(std::make_tuple(error_code, uri_list)));
         },
         [] (DBus::AsyncCall_ &async_call_dummy) {},

@@ -204,7 +204,7 @@ class QueryContextEnterList: public QueryContext_
     }
 
   private:
-    static void put_result(bool &was_successful,
+    static void put_result(DBus::AsyncResult &async_success,
                            AsyncListNavCheckRange::PromiseType &promise,
                            tdbuslistsNavigation *p, GAsyncResult *async_result,
                            GError *&error, ID::List list_id)

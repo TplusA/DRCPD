@@ -187,7 +187,7 @@ class AsyncCall: public DBus::AsyncCall_
     using PromiseType = std::promise<PromiseReturnType>;
 
     using ToProxyFunction = std::function<ProxyType *(GObject *)>;
-    using PutResultFunction = std::function<void(bool &was_successful,
+    using PutResultFunction = std::function<void(AsyncResult &,
                                                  PromiseType &, ProxyType *,
                                                  GAsyncResult *, GError *&)>;
     using DestroyResultFunction = std::function<void(PromiseReturnType &)>;
@@ -234,16 +234,17 @@ class AsyncCall: public DBus::AsyncCall_
      *     Called when the D-Bus method returns asynchronously. It is a wrapper
      *     around the specific \c _finish() function that must be called to
      *     finish an asynchronous D-Bus method call. Specifically, this
-     *     function must (1) call the D-Bus method's \c _finish() function to
-     *     obtain the results, using the passed \c GAsyncResult and \c GError
-     *     pointers as parameters; (2) assign the return value of \c _finish()
-     *     to the passed \c bool reference; (3) pack the results returned by
-     *     the \c _finish() function into the passed \c std::promise, or, in
-     *     case of failure, either pack fallback values into the
-     *     \c std::promise \e or throw an exception. The final step, calling
-     *     \c set_value() for the \c std::promise or throwing an exception,
-     *     \e must be the last statement the function executes to ensure
-     *     correct synchronization.
+     *     function \e must (1) call the D-Bus method's \c _finish() function
+     *     to obtain the results, using the passed \c GAsyncResult and
+     *     \c GError pointers as parameters; (2) assign either
+     *     #AsyncResult::READY or #AsyncResult::FAILED to the passed
+     *     #AsyncResult reference, depending on the return value of
+     *     \c _finish(); (3) pack the results returned by the \c _finish()
+     *     function into the passed \c std::promise, or, in case of failure,
+     *     either pack fallback values into the \c std::promise \e or throw an
+     *     exception. The final step, calling \c set_value() for the
+     *     \c std::promise or throwing an exception, \e must be the last
+     *     statement the function executes to ensure correct synchronization.
      *
      * \param result_available
      *     Called when a result from an asynchronous D-Bus method call is
@@ -396,13 +397,12 @@ class AsyncCall: public DBus::AsyncCall_
         {
             try
             {
-                bool was_successful = false;
-
-                put_result_fn_(was_successful, promise_, proxy_, res, error_);
-                call_state_ = was_successful ? AsyncResult::READY : AsyncResult::FAILED;
+                put_result_fn_(call_state_, promise_, proxy_, res, error_);
             }
             catch(...)
             {
+                call_state_ = AsyncResult::FAILED;
+
                 try
                 {
                     promise_.set_exception(std::current_exception());
@@ -412,7 +412,6 @@ class AsyncCall: public DBus::AsyncCall_
                     BUG("Failed returning async result due to double exception");
                 }
 
-                call_state_ = AsyncResult::FAILED;
             }
 
             if(error_ != nullptr)

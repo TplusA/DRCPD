@@ -493,7 +493,7 @@ bool List::QueryContextEnterList::synchronize(DBus::AsyncResult &result)
     return false;
 }
 
-void List::QueryContextEnterList::put_result(bool &was_successful,
+void List::QueryContextEnterList::put_result(DBus::AsyncResult &async_ready,
                                              AsyncListNavCheckRange::PromiseType &promise,
                                              tdbuslistsNavigation *p,
                                              GAsyncResult *async_result,
@@ -504,12 +504,14 @@ void List::QueryContextEnterList::put_result(bool &was_successful,
     guint first_item = 0;
     guint size = 0;
 
-    was_successful =
+    async_ready =
         tdbus_lists_navigation_call_check_range_finish(p, &error_code,
                                                        &first_item, &size,
-                                                       async_result, &error);
+                                                       async_result, &error)
+        ? DBus::AsyncResult::READY
+        : DBus::AsyncResult::FAILED;
 
-    if(!was_successful)
+    if(async_ready == DBus::AsyncResult::FAILED)
         throw List::DBusListException(ListError::Code::INTERNAL, true);
 
     const ListError list_error(error_code);
