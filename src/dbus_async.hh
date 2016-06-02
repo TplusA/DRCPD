@@ -414,6 +414,9 @@ class AsyncCall: public DBus::AsyncCall_
 
                 call_state_ = AsyncResult::FAILED;
             }
+
+            if(error_ != nullptr)
+                msg_error(0, LOG_ERR, "Async D-Bus error: %s", error_->message);
         }
 
         result_available_fn_(*this);
