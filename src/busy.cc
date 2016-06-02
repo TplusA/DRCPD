@@ -79,7 +79,7 @@ class GlobalBusyState
         notify_if_necessary(lock);
     }
 
-    void set(uint32_t mask)
+    bool set(uint32_t mask)
     {
         LoggedLock::UniqueLock<LoggedLock::Mutex> lock(lock_);
 
@@ -96,10 +96,10 @@ class GlobalBusyState
             }
         }
 
-        notify_if_necessary(lock);
+        return notify_if_necessary(lock);
     }
 
-    void clear(uint32_t mask)
+    bool clear(uint32_t mask)
     {
         LoggedLock::UniqueLock<LoggedLock::Mutex> lock(lock_);
 
@@ -117,7 +117,7 @@ class GlobalBusyState
             }
         }
 
-        notify_if_necessary(lock);
+        return notify_if_necessary(lock);
     }
 
     bool has_busy_state_changed()
@@ -149,10 +149,10 @@ class GlobalBusyState
      *     (without explicitly checking it), no object data may be accessed
      *     after calling this function.
      */
-    void notify_if_necessary(LoggedLock::UniqueLock<LoggedLock::Mutex> &lock)
+    bool notify_if_necessary(LoggedLock::UniqueLock<LoggedLock::Mutex> &lock)
     {
         if(!has_busy_state_changed(last_notified_busy_state_))
-            return;
+            return false;
 
         last_notified_busy_state_ = !last_notified_busy_state_;
 
@@ -161,6 +161,8 @@ class GlobalBusyState
             lock.unlock();
             notify_busy_state_changed_(last_notified_busy_state_);
         }
+
+        return true;
     }
 
     bool has_busy_state_changed(bool previous) const
@@ -188,14 +190,14 @@ void Busy::init(const std::function<void(bool)> &state_changed_callback)
     global_busy_state.clear(UINT32_MAX);
 }
 
-void Busy::set(Source src)
+bool Busy::set(Source src)
 {
-    global_busy_state.set(make_mask(src));
+    return global_busy_state.set(make_mask(src));
 }
 
-void Busy::clear(Source src)
+bool Busy::clear(Source src)
 {
-    global_busy_state.clear(make_mask(src));
+    return global_busy_state.clear(make_mask(src));
 }
 
 bool Busy::is_busy()

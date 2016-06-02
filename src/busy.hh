@@ -34,8 +34,8 @@ enum class Source
 };
 
 void init(const std::function<void(bool)> &state_changed_callback);
-void set(Source src);
-void clear(Source src);
+bool set(Source src);
+bool clear(Source src);
 bool is_busy();
 
 }
