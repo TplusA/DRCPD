@@ -49,6 +49,16 @@ class GlobalBusyState
         LoggedLock::set_name(lock_, "GlobalBusyState");
     }
 
+    /*
+     * For unit tests.
+     */
+    void reset()
+    {
+        busy_flags_ = 0;
+        last_read_busy_state_ = false;
+        last_notified_busy_state_ = false;
+    }
+
     void set_callback(const std::function<void(bool)> &callback)
     {
         LoggedLock::UniqueLock lock(lock_);
@@ -140,6 +150,7 @@ static uint32_t make_mask(Busy::Source src)
 
 void Busy::init(const std::function<void(bool)> &state_changed_callback)
 {
+    global_busy_state.reset();
     global_busy_state.set_callback(state_changed_callback);
     global_busy_state.clear(UINT32_MAX);
 }

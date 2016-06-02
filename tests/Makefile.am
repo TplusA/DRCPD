@@ -45,7 +45,8 @@ check_LTLIBRARIES = \
     test_view_manager.la \
     test_dcp_transaction.la \
     test_playinfo.la \
-    test_streaminfo.la
+    test_streaminfo.la \
+    test_busystate.la
 
 test_list_la_SOURCES = test_list.cc
 test_list_la_LIBADD = \
@@ -114,6 +115,11 @@ test_streaminfo_la_SOURCES = \
 test_streaminfo_la_LIBADD = $(top_builddir)/src/libstreaminfo.la
 test_streaminfo_la_CFLAGS = $(AM_CFLAGS)
 test_streaminfo_la_CXXFLAGS = $(AM_CXXFLAGS)
+
+test_busystate_la_SOURCES = test_busystate.cc
+test_busystate_la_LIBADD = $(top_builddir)/src/libbusystate.la
+test_busystate_la_CFLAGS = $(AM_CFLAGS)
+test_busystate_la_CXXFLAGS = $(AM_CXXFLAGS)
 
 CLEANFILES = test_report.xml test_report_junit.xml valgrind.xml
 
