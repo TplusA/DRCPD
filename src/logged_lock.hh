@@ -109,6 +109,127 @@ class Mutex
     const char *get_name() const { return name_; }
 };
 
+class RecMutex
+{
+  private:
+    std::recursive_mutex lock_;
+    size_t lock_count_;
+    const char *name_;
+    pthread_t owner_;
+
+  public:
+    RecMutex(const RecMutex &) = delete;
+    RecMutex &operator=(const RecMutex &) = delete;
+
+    explicit RecMutex():
+        lock_count_(0),
+        name_("(unnamed)"),
+        owner_(0)
+    {}
+
+    void about_to_lock() const
+    {
+        if(owner_ == pthread_self())
+            msg_info("<%08lx> RecMutex %s: re-lock, lock count %zu",
+                     pthread_self(), name_, lock_count_);
+    }
+
+    void lock()
+    {
+        msg_info("<%08lx> RecMutex %s: lock", pthread_self(), name_);
+
+        about_to_lock();
+        lock_.lock();
+        ref_owner();
+        msg_info("<%08lx> RecMutex %s: locked", pthread_self(), name_);
+    }
+
+    bool try_lock()
+    {
+        msg_info("<%08lx> RecMutex %s: try lock", pthread_self(), name_);
+
+        const bool is_locked = lock_.try_lock();
+
+        if(is_locked)
+        {
+            if(lock_count_ > 0 && owner_ != pthread_self())
+                BUG("RecMutex %s: lock attempt by <%08lx> succeeded, but shouldn't have",
+                    name_, pthread_self());
+
+            ref_owner();
+            msg_info("<%08lx> RecMutex %s: locked", pthread_self(), name_);
+        }
+        else
+        {
+            msg_info("<%08lx> RecMutex %s: locking failed", pthread_self(), name_);
+
+            if(lock_count_ == 0 || owner_ == pthread_self())
+                BUG("RecMutex %s: lock attempt by <%08lx> should have succeeded "
+                    "(owner <%08lx>, lock count %zu)",
+                    name_, pthread_self(), owner_, lock_count_);
+        }
+
+        return is_locked;
+    }
+
+    void unlock()
+    {
+        msg_info("<%08lx> RecMutex %s: unlock, lock count %zu",
+                 pthread_self(), name_, lock_count_);
+        unref_owner();
+        lock_.unlock();
+    }
+
+    std::recursive_mutex &get_raw_recursive_mutex()
+    {
+        msg_info("<%08lx> RecMutex %s: get raw mutex", pthread_self(), name_);
+        return lock_;
+    }
+
+    void ref_owner()
+    {
+        ++lock_count_;
+
+        if(owner_ == pthread_self())
+        {
+            if(lock_count_ <= 1)
+                BUG("RecMutex %s: <%08lx> sets owner for lock count %zu",
+                    name_, pthread_self(), lock_count_);
+
+            return;
+        }
+
+        if(owner_ != 0)
+            BUG("RecMutex %s: replace owner <%08lx> by <%08lx>, lock count %zu",
+                name_, owner_, pthread_self(), lock_count_);
+
+        owner_ = pthread_self();
+    }
+
+    void unref_owner()
+    {
+        if(owner_ == 0)
+            BUG("RecMutex %s: <%08lx> clearing unowned, lock count %zu",
+                name_, pthread_self(), lock_count_);
+        else if(owner_ != pthread_self())
+            BUG("RecMutex %s: <%08lx> stealing from owner <%08lx>, lock count %zu",
+                name_, pthread_self(), owner_, lock_count_);
+        else if(lock_count_ == 0)
+            BUG("RecMutex %s: <%08lx> unref with lock count 0, owner <%08lx>",
+                name_, pthread_self(), owner_);
+
+        --lock_count_;
+
+        if(lock_count_ == 0)
+            owner_ = 0;
+    }
+
+    pthread_t get_owner() const { return owner_; }
+
+    void set_name(const char *name) { name_ = name; }
+    const char *get_name() const { return name_; }
+};
+
 template <typename MutexType> struct MutexTraits;
 
 template <>
@@ -255,6 +376,7 @@ static inline void set_name(T &object, const char *name)
 #else /* /!LOGGED_LOCKS_ENABLED */
 
 using Mutex = std::mutex;
+using RecMutex = std::recursive_mutex;
 template <typename MutexType> using UniqueLock = std::unique_lock<MutexType>;
 using ConditionVariable = std::condition_variable;
 
