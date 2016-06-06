@@ -71,7 +71,7 @@ class GlobalBusyState
 
     void set_callback(const std::function<void(bool)> &callback)
     {
-        LoggedLock::UniqueLock lock(lock_);
+        LoggedLock::UniqueLock<LoggedLock::Mutex> lock(lock_);
 
         notify_busy_state_changed_ = callback;
 
@@ -81,7 +81,7 @@ class GlobalBusyState
 
     void set(uint32_t mask)
     {
-        LoggedLock::UniqueLock lock(lock_);
+        LoggedLock::UniqueLock<LoggedLock::Mutex> lock(lock_);
 
         busy_flags_ |= mask;
 
@@ -101,7 +101,7 @@ class GlobalBusyState
 
     void clear(uint32_t mask)
     {
-        LoggedLock::UniqueLock lock(lock_);
+        LoggedLock::UniqueLock<LoggedLock::Mutex> lock(lock_);
 
         uint32_t bit = 1U;
 
@@ -149,7 +149,7 @@ class GlobalBusyState
      *     (without explicitly checking it), no object data may be accessed
      *     after calling this function.
      */
-    void notify_if_necessary(LoggedLock::UniqueLock &lock)
+    void notify_if_necessary(LoggedLock::UniqueLock<LoggedLock::Mutex> &lock)
     {
         if(!has_busy_state_changed(last_notified_busy_state_))
             return;

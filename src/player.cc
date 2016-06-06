@@ -53,7 +53,7 @@ bool Playback::Player::try_take(State &playback_state,
                                 IsBufferingCallback buffering_callback)
 {
     auto current_state_ref(controller_.update_and_ref(&playback_state));
-    LoggedLock::UniqueLock lock_csd(current_stream_data_.lock_);
+    LoggedLock::UniqueLock<LoggedLock::Mutex> lock_csd(current_stream_data_.lock_);
 
     current_stream_data_.stream_info_.clear();
 
@@ -339,11 +339,11 @@ bool Playback::Player::track_times_notification(const std::chrono::milliseconds 
     return true;
 }
 
-std::pair<const PlayInfo::MetaData *, LoggedLock::UniqueLock>
+std::pair<const PlayInfo::MetaData *, LoggedLock::UniqueLock<LoggedLock::Mutex>>
 Playback::Player::get_track_meta_data__locked() const
 {
     return std::make_pair(&current_stream_data_.track_info_.meta_data_,
-                          std::move(LoggedLock::UniqueLock(const_cast<Player *>(this)->current_stream_data_.lock_)));
+                          std::move(LoggedLock::UniqueLock<LoggedLock::Mutex>(const_cast<Player *>(this)->current_stream_data_.lock_)));
 }
 
 PlayInfo::Data::StreamState Playback::Player::get_assumed_stream_state__locked() const
@@ -371,12 +371,12 @@ Playback::Player::get_times__unlocked() const
                current_stream_data_.track_info_.stream_duration_);
 }
 
-std::pair<const StreamInfoItem *, LoggedLock::UniqueLock>
+std::pair<const StreamInfoItem *, LoggedLock::UniqueLock<LoggedLock::Mutex>>
 Playback::Player::get_stream_info__locked(ID::Stream id) const
 {
     auto ret =
         std::make_pair(static_cast<const StreamInfoItem *>(nullptr),
-                       std::move(LoggedLock::UniqueLock(const_cast<Player *>(this)->current_stream_data_.lock_)));
+                       std::move(LoggedLock::UniqueLock<LoggedLock::Mutex>(const_cast<Player *>(this)->current_stream_data_.lock_)));
 
     ret.first = current_stream_data_.stream_info_.lookup(id);
 

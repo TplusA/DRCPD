@@ -73,7 +73,7 @@ class Mutex
     void unlock()
     {
         msg_info("<%08lx> Mutex %s: unlock", pthread_self(), name_);
-        clear_owner(true);
+        clear_owner();
         lock_.unlock();
     }
 
@@ -92,16 +92,13 @@ class Mutex
         owner_ = pthread_self();
     }
 
-    void clear_owner(bool must_be_owner)
+    void clear_owner()
     {
-        if(must_be_owner)
-        {
-            if(owner_ == 0)
-                BUG("Mutex %s: <%08lx> clearing unowned", name_, pthread_self());
-            else if(owner_ != pthread_self())
-                BUG("Mutex %s: <%08lx> stealing from owner <%08lx>",
-                    name_, pthread_self(), owner_);
-        }
+        if(owner_ == 0)
+            BUG("Mutex %s: <%08lx> clearing unowned", name_, pthread_self());
+        else if(owner_ != pthread_self())
+            BUG("Mutex %s: <%08lx> stealing from owner <%08lx>",
+                name_, pthread_self(), owner_);
 
         owner_ = 0;
     }
@@ -112,11 +109,27 @@ class Mutex
     const char *get_name() const { return name_; }
 };
 
+template <typename MutexType> struct MutexTraits;
+
+template <>
+struct MutexTraits<::LoggedLock::Mutex>
+{
+    using StdMutexType = std::mutex;
+
+    static void set_owner(Mutex &m) { m.set_owner(); }
+    static void clear_owner(Mutex &m) { m.clear_owner(); }
+    static pthread_t get_owner(const Mutex &m) { return m.get_owner(); }
+    static void destroy_owned(Mutex &m) { m.clear_owner(); }
+};
+
+template <typename MutexType>
 class UniqueLock
 {
   private:
-    Mutex &logged_mutex_;
-    std::unique_lock<std::mutex> lock_;
+    using MTraits = MutexTraits<MutexType>;
+
+    MutexType &logged_mutex_;
+    std::unique_lock<typename MTraits::StdMutexType> lock_;
     const char *lock_name_;
 
   public:
@@ -124,7 +137,7 @@ class UniqueLock
     UniqueLock &operator=(const UniqueLock &) = delete;
     UniqueLock(UniqueLock &&) = default;
 
-    explicit UniqueLock(Mutex &mutex):
+    explicit UniqueLock(MutexType &mutex):
         logged_mutex_(mutex),
         lock_(logged_mutex_.get_raw_mutex(), std::defer_lock),
         lock_name_(logged_mutex_.get_name())
@@ -136,7 +149,7 @@ class UniqueLock
                  pthread_self(), this, lock_name_);
     }
 
-    explicit UniqueLock(Mutex &mutex, std::defer_lock_t t):
+    explicit UniqueLock(MutexType &mutex, std::defer_lock_t t):
         logged_mutex_(mutex),
         lock_(logged_mutex_.get_raw_mutex(), t),
         lock_name_(logged_mutex_.get_name())
@@ -151,7 +164,7 @@ class UniqueLock
                  pthread_self(), this, lock_name_, get_mutex_owner());
 
         if(lock_.owns_lock())
-            logged_mutex_.clear_owner(true);
+            MTraits::destroy_owned(logged_mutex_);
     }
 
     void lock()
@@ -160,7 +173,7 @@ class UniqueLock
                  pthread_self(), this, lock_name_);
         logged_mutex_.about_to_lock(false);
         lock_.lock();
-        logged_mutex_.set_owner();
+        MTraits::set_owner(logged_mutex_);
         msg_info("<%08lx> UniqueLock %p: locked mutex %s",
                  pthread_self(), this, lock_name_);
     }
@@ -169,7 +182,7 @@ class UniqueLock
     {
         msg_info("<%08lx> UniqueLock %p: unlock mutex %s",
                  pthread_self(), this, lock_name_);
-        logged_mutex_.clear_owner(true);
+        MTraits::clear_owner(logged_mutex_);
         lock_.unlock();
     }
 
@@ -182,9 +195,9 @@ class UniqueLock
 
     const char *get_mutex_name() const { return lock_name_; }
 
-    void set_mutex_owner() { logged_mutex_.set_owner(); }
-    void clear_mutex_owner() { logged_mutex_.clear_owner(true); }
-    pthread_t get_mutex_owner() const { return logged_mutex_.get_owner(); }
+    void set_mutex_owner() { MTraits::set_owner(logged_mutex_); }
+    void clear_mutex_owner() { MTraits::clear_owner(logged_mutex_); }
+    pthread_t get_mutex_owner() const { return MTraits::get_owner(logged_mutex_); }
 };
 
 class ConditionVariable
@@ -202,7 +215,7 @@ class ConditionVariable
     {}
 
     template <class Predicate>
-    void wait(UniqueLock &lock, Predicate pred)
+    void wait(UniqueLock<Mutex> &lock, Predicate pred)
     {
         if(lock.get_mutex_owner() != pthread_self())
             BUG("Cond %s: <%08lx> waiting with foreign mutex owned by <%08lx>",
@@ -242,7 +255,7 @@ static inline void set_name(T &object, const char *name)
 #else /* /!LOGGED_LOCKS_ENABLED */
 
 using Mutex = std::mutex;
-using UniqueLock = std::unique_lock<std::mutex>;
+template <typename MutexType> using UniqueLock = std::unique_lock<MutexType>;
 using ConditionVariable = std::condition_variable;
 
 template <typename T>
