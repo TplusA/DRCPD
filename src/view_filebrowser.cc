@@ -23,7 +23,6 @@
 #include <cstring>
 
 #include "view_filebrowser.hh"
-#include "view_filebrowser_utils.hh"
 #include "view_search.hh"
 #include "view_manager.hh"
 #include "view_names.hh"
@@ -93,6 +92,7 @@ void ViewFileBrowser::View::handle_enter_list_event(List::AsyncListIface::OpResu
       case List::QueryContextEnterList::CallerID::ENTER_ROOT:
       case List::QueryContextEnterList::CallerID::ENTER_CHILD:
       case List::QueryContextEnterList::CallerID::ENTER_PARENT:
+      case List::QueryContextEnterList::CallerID::RELOAD_LIST:
         current_list_id_ = finish_async_enter_dir_op(result, ctx, async_calls_,
                                                      current_list_id_);
         break;
@@ -1269,18 +1269,8 @@ void ViewFileBrowser::View::reload_list()
     int line = navigation_.get_line_number_by_cursor();
 
     if(line >= 0)
-    {
-        try
-        {
-            Utils::enter_list_at(file_list_, item_flags_, navigation_,
-                                 current_list_id_, line);
-            return;
-        }
-        catch(const List::DBusListException &e)
-        {
-            /* handled below */
-        }
-    }
-
-    point_to_root_directory();
+        file_list_.enter_list_async(current_list_id_, line,
+                                    List::QueryContextEnterList::CallerID::RELOAD_LIST);
+    else
+        point_to_root_directory();
 }

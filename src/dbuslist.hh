@@ -136,6 +136,7 @@ class QueryContextEnterList: public QueryContext_
         ENTER_ROOT,
         ENTER_CHILD,
         ENTER_PARENT,
+        RELOAD_LIST,
     };
 
     tdbuslistsNavigation *proxy_;
