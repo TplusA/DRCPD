@@ -31,14 +31,16 @@ std::function<void()> DCP::Queue::schedule_async_processing_callback;
 void DCP::Queue::add(ViewSerializeBase *view,
                      bool is_full_serialize, uint32_t view_update_flags)
 {
-    const auto &it(std::find_if(data_.begin(), data_.end(),
+    std::lock_guard<LoggedLock::Mutex> lock(q_.lock_);
+
+    const auto &it(std::find_if(q_.data_.begin(), q_.data_.end(),
                                 [view] (const std::unique_ptr<Data> &d) -> bool
                                 {
                                     return d->view_ == view;
                                 }));
 
-    if(it == data_.end())
-        data_.emplace_back(new Data(view, is_full_serialize, view_update_flags));
+    if(it == q_.data_.end())
+        q_.data_.emplace_back(new Data(view, is_full_serialize, view_update_flags));
     else
     {
         auto &d = *it;
@@ -52,27 +54,31 @@ void DCP::Queue::add(ViewSerializeBase *view,
 
 bool DCP::Queue::start_transaction(Mode mode)
 {
-    if(data_.empty())
+    if(is_empty())
         return false;
 
-    if(dcpd_.is_started_async())
     {
-        /* there is already an asynchronous transaction sitting there to be
-         * processed in a safe context, so we cannot do anything here at the
-         * moment */
-        return true;
-    }
+        std::lock_guard<LoggedLock::Mutex> txlock(active_.lock_);
 
-    switch(mode)
-    {
-      case Mode::SYNC_IF_POSSIBLE:
-        break;
+        if(active_.dcpd_.is_started_async())
+        {
+            /* there is already an asynchronous transaction sitting there to be
+             * processed in a safe context, so we cannot do anything here at
+             * the moment */
+            return true;
+        }
 
-      case Mode::FORCE_ASYNC:
-        if(dcpd_.start(true))
-            BUG("Unexpected result for starting asynchronous DCP transaction");
+        switch(mode)
+        {
+          case Mode::SYNC_IF_POSSIBLE:
+            break;
 
-        return dcpd_.is_started_async();
+          case Mode::FORCE_ASYNC:
+            if(active_.dcpd_.start(true))
+                BUG("Unexpected result for starting asynchronous DCP transaction");
+
+            return active_.dcpd_.is_started_async();
+        }
     }
 
     return process_pending_transactions();
@@ -91,27 +97,36 @@ bool DCP::Queue::process_pending_transactions()
 
 bool DCP::Queue::process()
 {
-    while(!data_.empty())
+    std::lock_guard<LoggedLock::Mutex> txlock(active_.lock_);
+
+    while(!is_empty())
     {
-        if(!dcpd_.start())
+        if(!active_.dcpd_.start())
         {
-            log_assert(current_data_ != nullptr);
+            log_assert(active_.data_ != nullptr);
             break;
         }
 
-        log_assert(current_data_ == nullptr);
+        log_assert(active_.data_ == nullptr);
 
-        current_data_ = std::move(data_.front());
-        data_.pop_front();
+        {
+            std::lock_guard<LoggedLock::Mutex> qlock(q_.lock_);
 
-        log_assert(dcpd_.stream() != nullptr);
-        log_assert(current_data_ != nullptr);
+            active_.data_ = std::move(q_.data_.front());
+            q_.data_.pop_front();
+        }
 
-        if(current_data_->view_->write_whole_xml(*dcpd_.stream(),
-                                                 *current_data_))
-            return dcpd_.commit();
+        log_assert(active_.dcpd_.stream() != nullptr);
+        log_assert(active_.data_ != nullptr);
+
+        if(active_.data_->view_->write_whole_xml(*active_.dcpd_.stream(),
+                                                 *active_.data_))
+            return active_.dcpd_.commit();
         else
-            (void)dcpd_.abort();
+        {
+            (void)active_.dcpd_.abort();
+            active_.data_.reset();
+        }
     }
 
     return false;
@@ -119,24 +134,26 @@ bool DCP::Queue::process()
 
 bool DCP::Queue::finish_transaction(DCP::Transaction::Result result)
 {
-    if(!dcpd_.is_in_progress())
+    std::lock_guard<LoggedLock::Mutex> txlock(active_.lock_);
+
+    if(!is_in_progress())
     {
         BUG("Received result from DCPD for idle transaction");
         return true;
     }
 
-    log_assert(current_data_ != nullptr);
-    current_data_.reset(nullptr);
+    log_assert(active_.data_ != nullptr);
+    active_.data_.reset();
 
     if(result == DCP::Transaction::OK)
     {
-        if(dcpd_.done())
+        if(active_.dcpd_.done())
             return true;
 
         BUG("Failed closing successful transaction, trying to abort");
     }
 
-    if(!dcpd_.abort())
+    if(!active_.dcpd_.abort())
     {
         BUG("Failed aborting DCPD transaction, aborting program.");
         os_abort();

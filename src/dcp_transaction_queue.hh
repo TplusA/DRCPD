@@ -25,15 +25,13 @@
 
 #include "dcp_transaction.hh"
 #include "messages.h"
+#include "logged_lock.hh"
 
 class ViewSerializeBase;
 
 namespace DCP
 {
 
-/*!
- * TODO: Make this thing thread-safe.
- */
 class Queue
 {
   public:
@@ -62,10 +60,32 @@ class Queue
     };
 
   private:
-    std::deque<std::unique_ptr<Data>> data_;
+    struct QueueWithLock
+    {
+        LoggedLock::Mutex lock_;
+        std::deque<std::unique_ptr<Data>> data_;
 
-    std::unique_ptr<Data> current_data_;
-    Transaction dcpd_;
+        QueueWithLock()
+        {
+            LoggedLock::set_name(lock_, "DCPQueue");
+        }
+    };
+
+    struct Active
+    {
+        LoggedLock::Mutex lock_;
+        std::unique_ptr<Data> data_;
+        Transaction dcpd_;
+
+        Active():
+            dcpd_(transaction_observer)
+        {
+            LoggedLock::set_name(lock_, "DCPQueueActiveTX");
+        }
+    };
+
+    QueueWithLock q_;
+    Active active_;
 
     static std::function<void(bool)> configure_timeout_callback;
     static std::function<void()> schedule_async_processing_callback;
@@ -76,24 +96,46 @@ class Queue
     Queue &operator=(const Queue &) = delete;
 
     explicit Queue(const std::function<void(bool)> &configure_timeout_fn,
-                   const std::function<void()> &schedule_async_processing_fn):
-        dcpd_(transaction_observer)
+                   const std::function<void()> &schedule_async_processing_fn)
     {
         configure_timeout_callback = configure_timeout_fn;
         schedule_async_processing_callback = schedule_async_processing_fn;
     }
 
-    void set_output_stream(std::ostream *os) { dcpd_.set_output_stream(os); }
+    void set_output_stream(std::ostream *os) { active_.dcpd_.set_output_stream(os); }
 
     void add(ViewSerializeBase *view,
              bool is_full_serialize, uint32_t view_update_flags);
     bool start_transaction(Mode mode);
+
     bool process_pending_transactions();
     bool finish_transaction(DCP::Transaction::Result result);
 
-    bool is_empty() const { return data_.empty(); }
-    bool is_in_progress() const { return dcpd_.is_in_progress(); }
-    bool is_idle() const { return is_empty() && !is_in_progress(); }
+    /*!\internal
+     *
+     * Check whether or not the queue is empty.
+     *
+     * This function should be private. It is public ONLY because of unit
+     * tests.
+     */
+    bool is_empty()
+    {
+        std::lock_guard<LoggedLock::Mutex> lock(q_.lock_);
+        return q_.data_.empty();
+    }
+
+    /*!\internal
+     * Check whether or not there is an active DCP transaction in progress.
+     */
+    bool is_in_progress() const
+    {
+        return active_.dcpd_.is_in_progress();
+    }
+
+    /*!\internal
+     * Check if idle, i.e., queue is empty and no transaction in progress.
+     */
+    bool is_idle() { return is_empty() && !is_in_progress(); }
 
   private:
     bool process();
