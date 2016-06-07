@@ -55,10 +55,10 @@ static ID::List finish_async_enter_dir_op(List::AsyncListIface::OpResult result,
     std::lock_guard<LoggedLock::Mutex> lock(calls.lock_);
 
     log_assert(result != List::AsyncListIface::OpResult::STARTED);
-    log_assert(calls.get_list_id_ != nullptr);
+    log_assert((calls.get_list_id_ != nullptr && calls.get_parent_id_ == nullptr) ||
+               (calls.get_list_id_ == nullptr && calls.get_parent_id_ != nullptr));
 
-    delete calls.get_list_id_;
-    calls.get_list_id_ = nullptr;
+    calls.delete_all();
 
     switch(result)
     {
@@ -92,6 +92,7 @@ void ViewFileBrowser::View::handle_enter_list_event(List::AsyncListIface::OpResu
 
       case List::QueryContextEnterList::CallerID::ENTER_ROOT:
       case List::QueryContextEnterList::CallerID::ENTER_CHILD:
+      case List::QueryContextEnterList::CallerID::ENTER_PARENT:
         current_list_id_ = finish_async_enter_dir_op(result, ctx, async_calls_,
                                                      current_list_id_);
         break;
@@ -1015,8 +1016,7 @@ static void point_to_root_directory__got_list_id(DBus::AsyncCall_ &async_call,
     return;
 
 error_exit:
-    delete calls.get_list_id_;
-    calls.get_list_id_ = nullptr;
+    calls.delete_one(calls.get_list_id_);
 }
 
 static ViewFileBrowser::View::AsyncCalls::GetListId *
@@ -1130,8 +1130,7 @@ static void point_to_child_directory__got_list_id(DBus::AsyncCall_ &async_call,
     return;
 
 error_exit:
-    delete calls.get_list_id_;
-    calls.get_list_id_ = nullptr;
+    calls.delete_one(calls.get_list_id_);
 }
 
 bool ViewFileBrowser::View::point_to_child_directory(const SearchParameters *search_parameters)
@@ -1168,53 +1167,101 @@ bool ViewFileBrowser::View::point_to_child_directory(const SearchParameters *sea
     return true;
 }
 
-bool ViewFileBrowser::View::point_to_parent_link()
+/*!
+ * Chained from #ViewFileBrowser::View::point_to_parent_link().
+ */
+static void point_to_parent_link__got_parent_link(DBus::AsyncCall_ &async_call,
+                                                  ViewFileBrowser::View::AsyncCalls &calls,
+                                                  List::DBusList &file_list,
+                                                  ID::List child_list_id)
 {
+    std::lock_guard<LoggedLock::Mutex> lock(calls.lock_);
+
+    log_assert(&async_call == calls.get_parent_id_);
+
+    DBus::AsyncResult async_result;
+
     try
     {
-        unsigned int item_id;
-        ID::List list_id =
-            Utils::get_parent_link_id(file_list_, current_list_id_, item_id);
-
-        if(list_id.is_valid())
-        {
-            Utils::enter_list_at(file_list_, item_flags_, navigation_,
-                                 list_id, item_id);
-            current_list_id_ = list_id;
-
-            return true;
-        }
+        async_result = calls.get_parent_id_->wait_for_result();
     }
     catch(const List::DBusListException &e)
     {
-        if(e.is_dbus_error())
-        {
-            /* probably just a temporary problem */
-            return false;
-        }
-
-        switch(e.get())
-        {
-          case ListError::Code::INTERRUPTED:
-          case ListError::Code::PHYSICAL_MEDIA_IO:
-          case ListError::Code::NET_IO:
-          case ListError::Code::PROTOCOL:
-            /* problem: stay right there where you are */
-            return false;
-
-          case ListError::Code::OK:
-          case ListError::Code::INTERNAL:
-          case ListError::Code::INVALID_ID:
-          case ListError::Code::AUTHENTICATION:
-          case ListError::Code::INCONSISTENT:
-          case ListError::Code::PERMISSION_DENIED:
-          case ListError::Code::NOT_SUPPORTED:
-            /* funny problem: better return to root directory */
-            break;
-        }
+        async_result = DBus::AsyncResult::FAILED;
+        msg_error(0, LOG_ERR, "Failed obtaining parent for list %u: %s",
+                  child_list_id.get_raw_id(), e.what());
     }
 
-    return point_to_root_directory();
+    if(DBus::AsyncCall_::cleanup_if_failed(calls.get_parent_id_) ||
+       async_result != DBus::AsyncResult::DONE)
+    {
+        calls.get_parent_id_ = nullptr;
+        return;
+    }
+
+    const auto &result(calls.get_parent_id_->get_result(async_result));
+
+    const ID::List list_id(result.first);
+    const unsigned int line(result.second);
+
+    if(list_id.is_valid())
+        file_list.enter_list_async(list_id, line,
+                                   List::QueryContextEnterList::CallerID::ENTER_PARENT);
+    else
+    {
+        BUG("Got invalid list ID for parent list");
+        calls.delete_one(calls.get_parent_id_);
+    }
+}
+
+bool ViewFileBrowser::View::point_to_parent_link()
+{
+    std::lock_guard<LoggedLock::Mutex> lock(async_calls_.lock_);
+
+    async_calls_.cancel_and_delete_all();
+
+    async_calls_.get_parent_id_ = new AsyncCalls::GetParentId(
+        file_list_.get_dbus_proxy(),
+        [] (GObject *source_object) { return TDBUS_LISTS_NAVIGATION(source_object); },
+        [] (DBus::AsyncResult &async_ready,
+            ViewFileBrowser::View::AsyncCalls::GetParentId::PromiseType &promise,
+            tdbuslistsNavigation *p, GAsyncResult *async_result,
+            GError *&error)
+        {
+            guint parent_list_id;
+            guint parent_item_id;
+
+            async_ready =
+                tdbus_lists_navigation_call_get_parent_link_finish(p,
+                                                                   &parent_list_id,
+                                                                   &parent_item_id,
+                                                                   async_result,
+                                                                   &error)
+                ? DBus::AsyncResult::READY
+                : DBus::AsyncResult::FAILED;
+
+            if(async_ready == DBus::AsyncResult::FAILED)
+                throw List::DBusListException(ListError::Code::INTERNAL, true);
+
+            promise.set_value(std::make_pair(parent_list_id, parent_item_id));
+        },
+        std::bind(point_to_parent_link__got_parent_link,
+                  std::placeholders::_1,
+                  std::ref(async_calls_), std::ref(file_list_),
+                  current_list_id_),
+        [] (ViewFileBrowser::View::AsyncCalls::GetParentId::PromiseReturnType &values) {},
+        [] () { return true; });
+
+    if(async_calls_.get_parent_id_ == nullptr)
+    {
+        msg_out_of_memory("async go to parent");
+        return false;
+    }
+
+    async_calls_.get_parent_id_->invoke(tdbus_lists_navigation_call_get_parent_link,
+                                        current_list_id_.get_raw_id());
+
+    return true;
 }
 
 void ViewFileBrowser::View::reload_list()
