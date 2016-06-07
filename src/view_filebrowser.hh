@@ -65,10 +65,12 @@ class View: public ViewIface, public ViewSerializeBase
      */
     struct AsyncCalls
     {
+      private:
+        LoggedLock::Mutex lock_;
+
+      public:
         using GetListId = DBus::AsyncCall<tdbuslistsNavigation, std::pair<guchar, guint>>;
         using GetParentId = DBus::AsyncCall<tdbuslistsNavigation, std::pair<guint, guint>>;
-
-        LoggedLock::Mutex lock_;
 
         GetListId *get_list_id_;
         GetParentId *get_parent_id_;
@@ -78,6 +80,11 @@ class View: public ViewIface, public ViewSerializeBase
             get_parent_id_(nullptr)
         {
             LoggedLock::set_name(lock_, "FileBrowserAsyncCall");
+        }
+
+        std::unique_lock<LoggedLock::Mutex> acquire_lock()
+        {
+            return std::unique_lock<LoggedLock::Mutex>(lock_);
         }
 
         void cancel_and_delete_all()
@@ -207,6 +214,11 @@ class View: public ViewIface, public ViewSerializeBase
     virtual void cancel_and_delete_all_async_calls()
     {
         async_calls_.cancel_and_delete_all();
+    }
+
+    std::unique_lock<LoggedLock::Mutex> lock_async_calls()
+    {
+        return async_calls_.acquire_lock();
     }
 
     /*!

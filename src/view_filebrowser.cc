@@ -51,7 +51,7 @@ static ID::List finish_async_enter_dir_op(List::AsyncListIface::OpResult result,
                                           ViewFileBrowser::View::AsyncCalls &calls,
                                           ID::List current_list_id)
 {
-    std::lock_guard<LoggedLock::Mutex> lock(calls.lock_);
+    auto lock(calls.acquire_lock());
 
     log_assert(result != List::AsyncListIface::OpResult::STARTED);
     log_assert((calls.get_list_id_ != nullptr && calls.get_parent_id_ == nullptr) ||
@@ -333,7 +333,7 @@ static bool request_search_parameters_from_user(ViewManager::VMIface &vm,
 
 bool ViewFileBrowser::View::is_fetching_directory()
 {
-    std::lock_guard<LoggedLock::Mutex> lock(async_calls_.lock_);
+    auto lock(lock_async_calls());
 
     return async_calls_.get_list_id_ != nullptr;
 }
@@ -970,7 +970,7 @@ static void point_to_root_directory__got_list_id(DBus::AsyncCall_ &async_call,
                                                  ViewFileBrowser::View::AsyncCalls &calls,
                                                  List::DBusList &file_list)
 {
-    std::lock_guard<LoggedLock::Mutex> lock(calls.lock_);
+    auto lock(calls.acquire_lock());
 
     log_assert(&async_call == calls.get_list_id_);
 
@@ -1054,7 +1054,7 @@ mk_get_list_id(tdbuslistsNavigation *proxy,
 
 bool ViewFileBrowser::View::point_to_root_directory()
 {
-    std::lock_guard<LoggedLock::Mutex> lock(async_calls_.lock_);
+    auto lock(lock_async_calls());
 
     cancel_and_delete_all_async_calls();
 
@@ -1083,7 +1083,7 @@ static void point_to_child_directory__got_list_id(DBus::AsyncCall_ &async_call,
                                                   List::DBusList &file_list,
                                                   ID::List list_id, unsigned int line)
 {
-    std::lock_guard<LoggedLock::Mutex> lock(calls.lock_);
+    auto lock(calls.acquire_lock());
 
     log_assert(&async_call == calls.get_list_id_);
 
@@ -1135,7 +1135,7 @@ error_exit:
 
 bool ViewFileBrowser::View::point_to_child_directory(const SearchParameters *search_parameters)
 {
-    std::lock_guard<LoggedLock::Mutex> lock(async_calls_.lock_);
+    auto lock(lock_async_calls());
 
     if(search_parameters == nullptr)
     {
@@ -1175,7 +1175,7 @@ static void point_to_parent_link__got_parent_link(DBus::AsyncCall_ &async_call,
                                                   List::DBusList &file_list,
                                                   ID::List child_list_id)
 {
-    std::lock_guard<LoggedLock::Mutex> lock(calls.lock_);
+    auto lock(calls.acquire_lock());
 
     log_assert(&async_call == calls.get_parent_id_);
 
@@ -1216,7 +1216,7 @@ static void point_to_parent_link__got_parent_link(DBus::AsyncCall_ &async_call,
 
 bool ViewFileBrowser::View::point_to_parent_link()
 {
-    std::lock_guard<LoggedLock::Mutex> lock(async_calls_.lock_);
+    auto lock(lock_async_calls());
 
     cancel_and_delete_all_async_calls();
 
