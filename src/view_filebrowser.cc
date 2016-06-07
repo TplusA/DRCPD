@@ -1050,8 +1050,7 @@ bool ViewFileBrowser::View::point_to_root_directory()
 {
     std::lock_guard<LoggedLock::Mutex> lock(async_calls_.lock_);
 
-    if(async_calls_.get_list_id_ != nullptr)
-        async_calls_.get_list_id_->cancel_and_delete(async_calls_.get_list_id_);
+    async_calls_.cancel_and_delete_all();
 
     async_calls_.get_list_id_ =
         mk_get_list_id(file_list_.get_dbus_proxy(),
@@ -1135,8 +1134,7 @@ bool ViewFileBrowser::View::point_to_child_directory(const SearchParameters *sea
 
     if(search_parameters == nullptr)
     {
-        if(async_calls_.get_list_id_ != nullptr)
-            async_calls_.get_list_id_->cancel_and_delete(async_calls_.get_list_id_);
+        async_calls_.cancel_and_delete_all();
 
         async_calls_.get_list_id_ =
             mk_get_list_id(file_list_.get_dbus_proxy(),

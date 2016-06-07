@@ -76,6 +76,22 @@ class View: public ViewIface, public ViewSerializeBase
         {
             LoggedLock::set_name(lock_, "FileBrowserAsyncCall");
         }
+
+        void cancel_and_delete_all()
+        {
+            cancel_and_delete_one(get_list_id_);
+        }
+
+      private:
+        template <typename CallType>
+        static void cancel_and_delete_one(CallType *&call_op)
+        {
+            if(call_op != nullptr)
+            {
+                call_op->cancel_and_delete(call_op);
+                call_op = nullptr;
+            }
+        }
     };
 
   private:
