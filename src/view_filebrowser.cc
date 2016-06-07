@@ -122,6 +122,12 @@ void ViewFileBrowser::View::handle_enter_list_event(List::AsyncListIface::OpResu
         navigation_.set_cursor_by_line_number(line);
     }
 
+    if(!current_list_id_.is_valid() &&
+       ctx->get_caller_id() != List::QueryContextEnterList::CallerID::ENTER_ROOT)
+    {
+        point_to_root_directory();
+    }
+
     Busy::clear(Busy::Source::ENTERING_DIRECTORY);
 
     if((result == List::AsyncListIface::OpResult::SUCCEEDED ||
