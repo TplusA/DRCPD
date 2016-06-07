@@ -204,6 +204,11 @@ class View: public ViewIface, public ViewSerializeBase
     bool list_invalidate(ID::List list_id, ID::List replacement_id);
 
   protected:
+    virtual void cancel_and_delete_all_async_calls()
+    {
+        async_calls_.cancel_and_delete_all();
+    }
+
     /*!
      * Load whole root directory into internal list.
      *
