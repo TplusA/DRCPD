@@ -51,24 +51,139 @@ bool List::DBusList::empty() const
     return number_of_items_ == 0;
 }
 
+static unsigned int query_list_size_sync(tdbuslistsNavigation *proxy,
+                                         ID::List list_id)
+    throw(List::DBusListException)
+{
+    guchar error_code;
+    guint first_item;
+    guint size;
+
+    if(!tdbus_lists_navigation_call_check_range_sync(proxy,
+                                                     list_id.get_raw_id(), 0, 0,
+                                                     &error_code, &first_item,
+                                                     &size, NULL, NULL))
+    {
+        msg_error(0, LOG_NOTICE,
+                  "Failed obtaining size of list %u", list_id.get_raw_id());
+
+        throw List::DBusListException(ListError::Code::INTERNAL, true);
+    }
+
+    const ListError error(error_code);
+
+    switch(error.get())
+    {
+      case ListError::Code::OK:
+        log_assert(first_item == 0);
+        return size;
+
+      case ListError::Code::INTERNAL:
+        break;
+
+      case ListError::Code::INVALID_ID:
+        msg_error(EINVAL, LOG_NOTICE,
+                  "Invalid list ID %u", list_id.get_raw_id());
+        break;
+
+      case ListError::Code::INTERRUPTED:
+      case ListError::Code::PHYSICAL_MEDIA_IO:
+      case ListError::Code::NET_IO:
+      case ListError::Code::PROTOCOL:
+      case ListError::Code::AUTHENTICATION:
+      case ListError::Code::INCONSISTENT:
+      case ListError::Code::PERMISSION_DENIED:
+      case ListError::Code::NOT_SUPPORTED:
+        msg_error(0, LOG_NOTICE,
+                  "Error while obtaining size of list ID %u: %s",
+                  list_id.get_raw_id(), error.to_string());
+        break;
+    }
+
+    if(error.get() == ListError::Code::INTERNAL)
+        BUG("Unknown error code %u while obtaining size of list ID %u",
+            error_code, list_id.get_raw_id());
+
+    throw List::DBusListException(error);
+}
+
 void List::DBusList::enter_list(ID::List list_id, unsigned int line)
     throw(List::DBusListException)
 {
-    if(enter_list_async(list_id, line,
-                        QueryContextEnterList::CallerID::SYNC_WRAPPER) == OpResult::STARTED)
-        enter_list_async_wait();
+    log_assert(list_id.is_valid());
+
+    if(list_id != window_.list_id_)
+    {
+        std::lock_guard<LoggedLock::Mutex> lock((const_cast<List::DBusList *>(this)->async_dbus_data_).lock_);
+        const_cast<List::DBusList *>(this)->cancel_enter_list_query();
+    }
+
+    if(list_id != window_.list_id_)
+        number_of_items_ = query_list_size_sync(dbus_proxy_, list_id);
+    else if(line == window_.first_item_line_)
+        return;
+
+    window_.list_id_ = list_id;
+    window_.first_item_line_ = line;
+    window_.items_.clear();
 }
 
-const List::Item *List::DBusList::get_item(unsigned int line) const
+static bool fetch_window_sync(tdbuslistsNavigation *proxy,
+                              const List::ContextMap &list_contexts,
+                              ID::List list_id, unsigned int line,
+                              unsigned int count, GVariant **out_list)
     throw(List::DBusListException)
 {
-    const List::Item *item = nullptr;
+    msg_info("Fetch %u lines of list %u, starting at %u (sync)",
+             count, list_id.get_raw_id(), line);
 
-    if(const_cast<DBusList *>(this)->get_item_async(line, item,
-                      QueryContextGetItem::CallerID::SYNC_WRAPPER) == OpResult::STARTED)
-        const_cast<DBusList *>(this)->get_item_async_wait(line, item);
+    guchar error_code;
+    guint first_item;
+    gboolean success;
+    bool have_meta_data;
 
-    return item;
+    const uint32_t list_flags(list_contexts[DBUS_LISTS_CONTEXT_GET(list_id.get_raw_id())].get_flags());
+
+    if((list_flags & List::ContextInfo::HAS_EXTERNAL_META_DATA) != 0)
+    {
+        success =
+            tdbus_lists_navigation_call_get_range_with_meta_data_sync(
+                proxy, list_id.get_raw_id(), line, count,
+                &error_code, &first_item, out_list, NULL, NULL);
+        have_meta_data = true;
+    }
+    else
+    {
+        success =
+            tdbus_lists_navigation_call_get_range_sync(
+                proxy, list_id.get_raw_id(), line, count,
+                &error_code, &first_item, out_list, NULL, NULL);
+        have_meta_data = false;
+    }
+
+    if(!success)
+    {
+        msg_error(0, LOG_NOTICE,
+                  "Failed obtaining contents of list %u", list_id.get_raw_id());
+
+        throw List::DBusListException(ListError::Code::INTERNAL, true);
+    }
+
+    const ListError error(error_code);
+
+    if(error_code != ListError::Code::OK)
+    {
+        /* method error, stop trying */
+        msg_error(0, LOG_INFO, "Error reading list %u: %s",
+                  list_id.get_raw_id(), error.to_string());
+        g_variant_unref(*out_list);
+
+        throw List::DBusListException(error);
+    }
+
+    log_assert(g_variant_type_is_array(g_variant_get_type(*out_list)));
+
+    return have_meta_data;
 }
 
 bool List::DBusList::is_position_unchanged(ID::List list_id, unsigned int line) const
@@ -451,6 +566,12 @@ void List::QueryContextEnterList::put_result(DBus::AsyncResult &async_ready,
     throw List::DBusListException(list_error);
 }
 
+void List::DBusList::cancel_enter_list_query()
+{
+    if(async_dbus_data_.enter_list_query_ != nullptr)
+        async_dbus_data_.enter_list_query_->cancel_sync();
+}
+
 void List::DBusList::cancel_get_item_query()
 {
     if(async_dbus_data_.get_item_query_ != nullptr)
@@ -463,6 +584,60 @@ bool List::DBusList::is_line_loading(unsigned int line) const
         return async_dbus_data_.get_item_query_->is_loading(line);
     else
         return false;
+}
+
+const List::Item *List::DBusList::get_item(unsigned int line) const
+    throw(List::DBusListException)
+{
+    log_assert(window_.list_id_.is_valid());
+
+    if(line >= number_of_items_)
+        return nullptr;
+
+    if(is_line_cached(line))
+        return window_[line];
+
+    {
+        std::lock_guard<LoggedLock::Mutex> lock((const_cast<List::DBusList *>(this)->async_dbus_data_).lock_);
+        const_cast<List::DBusList *>(this)->cancel_get_item_query();
+    }
+
+    CacheModifications cache_modifications;
+    unsigned int fetch_head;
+    unsigned int fetch_count;
+    unsigned int cache_list_replace_index;
+
+    if(!can_scroll_to_line(line, cache_modifications,
+                           fetch_head, fetch_count, cache_list_replace_index))
+    {
+        fetch_head = line;
+        fetch_count = number_of_prefetched_items_;
+        cache_list_replace_index = 0;
+        cache_modifications.set(line);
+    }
+
+    GVariant *out_list;
+
+    const bool have_meta_data =
+        fetch_window_sync(dbus_proxy_, list_contexts_, window_.list_id_,
+                          fetch_head, fetch_count, &out_list);
+
+    log_assert(g_variant_n_children(out_list) == fetch_count);
+
+    const_cast<List::DBusList *>(this)->apply_cache_modifications(cache_modifications);
+
+    if(have_meta_data)
+        fill_cache_list_with_meta_data((const_cast<List::DBusList *>(this)->window_).items_,
+                                       new_item_fn_, cache_list_replace_index,
+                                       !window_.items_.empty(), out_list);
+    else
+        fill_cache_list_generic((const_cast<List::DBusList *>(this)->window_).items_,
+                                new_item_fn_, cache_list_replace_index,
+                                !window_.items_.empty(), out_list);
+
+    g_variant_unref(out_list);
+
+    return window_[line];
 }
 
 List::AsyncListIface::OpResult

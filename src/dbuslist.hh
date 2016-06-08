@@ -266,7 +266,6 @@ class QueryContextGetItem: public QueryContext_
   public:
     enum class CallerID
     {
-        SYNC_WRAPPER,
         SELECT_IN_VIEW,
         SERIALIZE,
         SERIALIZE_DEBUG,
@@ -535,6 +534,14 @@ class DBusList: public ListIface, public AsyncListIface
 
     OpResult enter_list_async(ID::List list_id, unsigned int line, unsigned short caller_id) override;
     OpResult get_item_async(unsigned int line, const Item *&item, unsigned short caller_id) override;
+
+    /*!
+     * Stop entering list.
+     *
+     * Must be called while holding  #List::DBusList::AsyncDBusData::lock_ of
+     * the embedded #List::DBusList::async_dbus_data_ structure.
+     */
+    void cancel_enter_list_query();
 
     /*!
      * Stop loading items.
