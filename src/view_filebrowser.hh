@@ -69,8 +69,12 @@ class View: public ViewIface, public ViewSerializeBase
         LoggedLock::Mutex lock_;
 
       public:
-        using GetListId = DBus::AsyncCall<tdbuslistsNavigation, std::pair<guchar, guint>>;
-        using GetParentId = DBus::AsyncCall<tdbuslistsNavigation, std::pair<guint, guint>>;
+        using GetListId =
+            DBus::AsyncCall<tdbuslistsNavigation, std::pair<guchar, guint>,
+                            Busy::Source::GETTING_LIST_ID>;
+        using GetParentId =
+            DBus::AsyncCall<tdbuslistsNavigation, std::pair<guint, guint>,
+                            Busy::Source::GETTING_PARENT_LINK>;
 
         GetListId *get_list_id_;
         GetParentId *get_parent_id_;

@@ -79,10 +79,7 @@ void ViewFileBrowser::View::handle_enter_list_event(List::AsyncListIface::OpResu
                                                     const std::shared_ptr<List::QueryContextEnterList> &ctx)
 {
     if(result == List::AsyncListIface::OpResult::STARTED)
-    {
-        Busy::set(Busy::Source::ENTERING_DIRECTORY);
         return;
-    }
 
     switch(ctx->get_caller_id())
     {
@@ -129,8 +126,6 @@ void ViewFileBrowser::View::handle_enter_list_event(List::AsyncListIface::OpResu
         point_to_root_directory();
     }
 
-    Busy::clear(Busy::Source::ENTERING_DIRECTORY);
-
     if((result == List::AsyncListIface::OpResult::SUCCEEDED ||
         result == List::AsyncListIface::OpResult::FAILED))
     {
@@ -143,12 +138,7 @@ void ViewFileBrowser::View::handle_get_item_event(List::AsyncListIface::OpResult
                                                   const std::shared_ptr<List::QueryContextGetItem> &ctx)
 {
     if(result == List::AsyncListIface::OpResult::STARTED)
-    {
-        Busy::set(Busy::Source::GETTING_ITEM);
         return;
-    }
-
-    Busy::clear(Busy::Source::GETTING_ITEM);
 
     if((result == List::AsyncListIface::OpResult::SUCCEEDED ||
         result == List::AsyncListIface::OpResult::FAILED))

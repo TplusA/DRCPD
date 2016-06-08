@@ -148,7 +148,8 @@ class QueryContextEnterList: public QueryContext_
     }
     parameters_;
 
-    using AsyncListNavCheckRange = DBus::AsyncCall<tdbuslistsNavigation, guint>;
+    using AsyncListNavCheckRange =
+        DBus::AsyncCall<tdbuslistsNavigation, guint, Busy::Source::CHECKING_LIST_RANGE>;
 
     AsyncListNavCheckRange *async_call_;
 
@@ -284,7 +285,8 @@ class QueryContextGetItem: public QueryContext_
     parameters_;
 
     using AsyncListNavGetRange =
-        DBus::AsyncCall<tdbuslistsNavigation, std::tuple<guchar, guint, GVariant *>>;
+        DBus::AsyncCall<tdbuslistsNavigation, std::tuple<guchar, guint, GVariant *>,
+                        Busy::Source::GETTING_LIST_RANGE>;
 
     AsyncListNavGetRange *async_call_;
 

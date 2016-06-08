@@ -129,7 +129,8 @@ static std::string get_selected_uri(ID::List list_id, unsigned int item_id,
                                     Playback::AbortEnqueueIface &abort_enqueue,
                                     SendStatus &send_status)
 {
-    using AsyncCallType = DBus::AsyncCall<tdbuslistsNavigation, std::tuple<guchar, gchar **>>;
+    using AsyncCallType = DBus::AsyncCall<tdbuslistsNavigation, std::tuple<guchar, gchar **>,
+                                          Busy::Source::GETTING_ITEM_URI>;
 
     auto *async_call = new AsyncCallType(
         proxy,

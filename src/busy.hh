@@ -27,11 +27,17 @@ namespace Busy
 
 enum class Source
 {
+    /* stream player */
     WAITING_FOR_PLAYER,
     FILLING_PLAYER_QUEUE,
     BUFFERING_STREAM,
-    ENTERING_DIRECTORY,
-    GETTING_ITEM,
+
+    /* list operations */
+    GETTING_LIST_ID,
+    GETTING_PARENT_LINK,
+    GETTING_ITEM_URI,
+    GETTING_LIST_RANGE,
+    CHECKING_LIST_RANGE,
 };
 
 void init(const std::function<void(bool)> &state_changed_callback);

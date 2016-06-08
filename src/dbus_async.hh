@@ -22,6 +22,8 @@
 #include <future>
 #include <functional>
 
+#include "busy.hh"
+
 namespace DBus
 {
 
@@ -187,7 +189,7 @@ class AsyncCall_
 
 using AsyncResultAvailableFunction = std::function<void(AsyncCall_ &async_call)>;
 
-template <typename ProxyType, typename ReturnType>
+template <typename ProxyType, typename ReturnType, Busy::Source BusySourceID>
 class AsyncCall: public DBus::AsyncCall_
 {
   public:
@@ -212,6 +214,7 @@ class AsyncCall: public DBus::AsyncCall_
 
     std::promise<PromiseReturnType> promise_;
     PromiseReturnType return_value_;
+    bool delivered_result_;
 
   public:
     AsyncCall(const AsyncCall &) = delete;
@@ -280,7 +283,8 @@ class AsyncCall: public DBus::AsyncCall_
         result_available_fn_(result_available),
         destroy_result_fn_(destroy_result),
         may_continue_fn_(may_continue),
-        error_(nullptr)
+        error_(nullptr),
+        delivered_result_(false)
     {}
 
     virtual ~AsyncCall()
@@ -299,6 +303,7 @@ class AsyncCall: public DBus::AsyncCall_
     {
         log_assert(!is_active());
 
+        Busy::set(BusySourceID);
         call_state_ = AsyncResult::IN_PROGRESS;
         dbus_method(proxy_, args..., cancellable_, async_ready_trampoline, this);
     }
@@ -396,6 +401,9 @@ class AsyncCall: public DBus::AsyncCall_
 
         if(async->is_zombie())
         {
+            if(!async->delivered_result_)
+                Busy::clear(BusySourceID);
+
             /*
              * Retarded GLib does not cancel asynchronous I/O operations
              * immediately, but insists on cancelling them asynchronously
@@ -436,13 +444,13 @@ class AsyncCall: public DBus::AsyncCall_
                 {
                     BUG("Failed returning async result due to double exception");
                 }
-
             }
 
             if(error_ != nullptr)
                 msg_error(0, LOG_ERR, "Async D-Bus error: %s", error_->message);
         }
 
+        delivered_result_ = true;
         result_available_fn_(*this);
 
         /*
@@ -452,6 +460,19 @@ class AsyncCall: public DBus::AsyncCall_
          * this point we must \e not access any members anymore (which would be
          * undefined behavior due to dangling \c this pointer).
          */
+
+        /*
+         * Busy state is cleared after calling the result-available callback to
+         * avoid busy state glitches. The callback function may start another
+         * asynchronous operation or set another busy flag by other means, so
+         * clearing before calling the callback may introduce unwanted
+         * transients.
+         *
+         * Despite the warning given above, it is safe to call #Busy::clear()
+         * here because it is a free external function and \p BusySourceID is a
+         * template parameter, not a member.
+         */
+        Busy::clear(BusySourceID);
     }
 };
 

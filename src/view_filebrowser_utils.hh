@@ -138,7 +138,7 @@ class Utils
                                        unsigned int &item_id)
         throw(List::DBusListException)
     {
-        Busy::set(Busy::Source::ENTERING_DIRECTORY);
+        Busy::set(Busy::Source::GETTING_PARENT_LINK);
 
         guint list_id;
 
@@ -147,14 +147,14 @@ class Utils
                                                              &list_id, &item_id,
                                                              NULL, NULL))
         {
-            Busy::clear(Busy::Source::ENTERING_DIRECTORY);
+            Busy::clear(Busy::Source::GETTING_PARENT_LINK);
 
             msg_info("Failed obtaining parent for list %u", current_list_id.get_raw_id());
 
             throw List::DBusListException(ListError::Code::INTERNAL, true);
         }
 
-        Busy::clear(Busy::Source::ENTERING_DIRECTORY);
+        Busy::clear(Busy::Source::GETTING_PARENT_LINK);
 
         if(list_id != 0)
             return ID::List(list_id);

@@ -72,7 +72,7 @@ void test_set_multiple_flag_causes_single_state_change()
     cut_assert_true(Busy::is_busy());
 
     cut_assert_false(Busy::set(Busy::Source::FILLING_PLAYER_QUEUE));
-    cut_assert_false(Busy::set(Busy::Source::ENTERING_DIRECTORY));
+    cut_assert_false(Busy::set(Busy::Source::GETTING_LIST_ID));
 
     cppcut_assert_equal(1U, number_of_state_changes);
     cut_assert_true(Busy::is_busy());
@@ -106,7 +106,7 @@ void test_set_and_clear_multiple_flag_causes_minimal_number_of_state_changes()
     cut_assert_true(current_busy_state);
     cut_assert_true(Busy::is_busy());
 
-    cut_assert_false(Busy::set(Busy::Source::ENTERING_DIRECTORY));
+    cut_assert_false(Busy::set(Busy::Source::GETTING_LIST_ID));
     cppcut_assert_equal(1U, number_of_state_changes);
 
     cut_assert_false(Busy::clear(Busy::Source::BUFFERING_STREAM));
@@ -118,7 +118,7 @@ void test_set_and_clear_multiple_flag_causes_minimal_number_of_state_changes()
     cut_assert_false(Busy::clear(Busy::Source::WAITING_FOR_PLAYER));
     cppcut_assert_equal(1U, number_of_state_changes);
 
-    cut_assert_true(Busy::clear(Busy::Source::ENTERING_DIRECTORY));
+    cut_assert_true(Busy::clear(Busy::Source::GETTING_LIST_ID));
     cppcut_assert_equal(2U, number_of_state_changes);
     cut_assert_false(current_busy_state);
     cut_assert_false(Busy::is_busy());
@@ -130,22 +130,22 @@ void test_set_and_clear_multiple_flag_causes_minimal_number_of_state_changes()
  */
 void test_set_single_flag_multiple_times_requires_clearing_by_same_amount()
 {
-    cut_assert_true(Busy::set(Busy::Source::ENTERING_DIRECTORY));
+    cut_assert_true(Busy::set(Busy::Source::GETTING_LIST_ID));
     cppcut_assert_equal(1U, number_of_state_changes);
     cut_assert_true(current_busy_state);
     cut_assert_true(Busy::is_busy());
 
-    cut_assert_false(Busy::set(Busy::Source::ENTERING_DIRECTORY));
-    cut_assert_false(Busy::set(Busy::Source::ENTERING_DIRECTORY));
-    cut_assert_false(Busy::set(Busy::Source::ENTERING_DIRECTORY));
+    cut_assert_false(Busy::set(Busy::Source::GETTING_LIST_ID));
+    cut_assert_false(Busy::set(Busy::Source::GETTING_LIST_ID));
+    cut_assert_false(Busy::set(Busy::Source::GETTING_LIST_ID));
 
-    cut_assert_false(Busy::clear(Busy::Source::ENTERING_DIRECTORY));
-    cut_assert_false(Busy::clear(Busy::Source::ENTERING_DIRECTORY));
-    cut_assert_false(Busy::clear(Busy::Source::ENTERING_DIRECTORY));
+    cut_assert_false(Busy::clear(Busy::Source::GETTING_LIST_ID));
+    cut_assert_false(Busy::clear(Busy::Source::GETTING_LIST_ID));
+    cut_assert_false(Busy::clear(Busy::Source::GETTING_LIST_ID));
 
     cppcut_assert_equal(1U, number_of_state_changes);
 
-    cut_assert_true(Busy::clear(Busy::Source::ENTERING_DIRECTORY));
+    cut_assert_true(Busy::clear(Busy::Source::GETTING_LIST_ID));
     cppcut_assert_equal(2U, number_of_state_changes);
     cut_assert_false(current_busy_state);
     cut_assert_false(Busy::is_busy());
@@ -157,19 +157,19 @@ void test_set_single_flag_multiple_times_requires_clearing_by_same_amount()
  */
 void test_set_multiple_flags_multiple_times_requires_clearing_by_same_amount()
 {
-    cut_assert_true(Busy::set(Busy::Source::ENTERING_DIRECTORY));
+    cut_assert_true(Busy::set(Busy::Source::GETTING_LIST_ID));
     cppcut_assert_equal(1U, number_of_state_changes);
     cut_assert_true(current_busy_state);
     cut_assert_true(Busy::is_busy());
 
-    cut_assert_false(Busy::set(Busy::Source::ENTERING_DIRECTORY));
+    cut_assert_false(Busy::set(Busy::Source::GETTING_LIST_ID));
 
     cut_assert_false(Busy::set(Busy::Source::BUFFERING_STREAM));
     cut_assert_false(Busy::set(Busy::Source::BUFFERING_STREAM));
 
-    cut_assert_false(Busy::clear(Busy::Source::ENTERING_DIRECTORY));
+    cut_assert_false(Busy::clear(Busy::Source::GETTING_LIST_ID));
     cut_assert_false(Busy::clear(Busy::Source::BUFFERING_STREAM));
-    cut_assert_false(Busy::clear(Busy::Source::ENTERING_DIRECTORY));
+    cut_assert_false(Busy::clear(Busy::Source::GETTING_LIST_ID));
 
     cppcut_assert_equal(1U, number_of_state_changes);
 
