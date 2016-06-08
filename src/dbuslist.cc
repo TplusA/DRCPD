@@ -176,7 +176,9 @@ static bool fetch_window_sync(tdbuslistsNavigation *proxy,
         /* method error, stop trying */
         msg_error(0, LOG_INFO, "Error reading list %u: %s",
                   list_id.get_raw_id(), error.to_string());
-        g_variant_unref(*out_list);
+
+        if(*out_list != nullptr)
+            g_variant_unref(*out_list);
 
         throw List::DBusListException(error);
     }
@@ -791,7 +793,8 @@ bool List::QueryContextGetItem::run_async(const DBus::AsyncResultAvailableFuncti
         result_available,
         [] (AsyncListNavGetRange::PromiseReturnType &values)
         {
-            g_variant_unref(std::get<2>(values));
+            if(std::get<2>(values) != nullptr)
+                g_variant_unref(std::get<2>(values));
         },
         [] () { return true; });
 
@@ -871,7 +874,9 @@ void List::QueryContextGetItem::put_result(DBus::AsyncResult &async_ready,
         /* method error, stop trying */
         msg_error(0, LOG_INFO, "Error reading list %u: %s",
                   list_id.get_raw_id(), list_error.to_string());
-        g_variant_unref(out_list);
+
+        if(out_list != nullptr)
+            g_variant_unref(out_list);
 
         throw List::DBusListException(list_error);
     }
