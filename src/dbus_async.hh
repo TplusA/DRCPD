@@ -42,17 +42,23 @@ class AsyncCall_
 
   protected:
     AsyncResult call_state_;
+    GCancellable *cancellable_;
 
     explicit AsyncCall_():
         is_zombie_(false),
-        call_state_(AsyncResult::INITIALIZED)
+        call_state_(AsyncResult::INITIALIZED),
+        cancellable_(g_cancellable_new())
     {}
 
   public:
     AsyncCall_(const AsyncCall_ &) = delete;
     AsyncCall_ &operator=(const AsyncCall_ &) = delete;
 
-    virtual ~AsyncCall_() {}
+    virtual ~AsyncCall_()
+    {
+        g_object_unref(G_OBJECT(cancellable_));
+        cancellable_ = nullptr;
+    }
 
     virtual void cancel() = 0;
 
@@ -89,7 +95,7 @@ class AsyncCall_
             break;
         }
 
-        return false;
+        return g_cancellable_is_cancelled(cancellable_);
     }
 
     bool is_complete() const
@@ -202,7 +208,6 @@ class AsyncCall: public DBus::AsyncCall_
     DestroyResultFunction destroy_result_fn_;
     std::function<bool(void)> may_continue_fn_;
 
-    GCancellable *cancellable_;
     GError *error_;
 
     std::promise<PromiseReturnType> promise_;
@@ -275,7 +280,6 @@ class AsyncCall: public DBus::AsyncCall_
         result_available_fn_(result_available),
         destroy_result_fn_(destroy_result),
         may_continue_fn_(may_continue),
-        cancellable_(g_cancellable_new()),
         error_(nullptr)
     {}
 
@@ -286,9 +290,6 @@ class AsyncCall: public DBus::AsyncCall_
             g_error_free(error_);
             error_ = nullptr;
         }
-
-        g_object_unref(G_OBJECT(cancellable_));
-        cancellable_ = nullptr;
 
         destroy_result_fn_(return_value_);
     }
@@ -340,7 +341,8 @@ class AsyncCall: public DBus::AsyncCall_
             }
         }
 
-        if(call_state_ != AsyncResult::CANCELED)
+        if(call_state_ != AsyncResult::CANCELED &&
+           !g_cancellable_is_cancelled(cancellable_))
         {
             if(call_state_ != AsyncResult::FAILED)
                 call_state_ = AsyncResult::DONE;
