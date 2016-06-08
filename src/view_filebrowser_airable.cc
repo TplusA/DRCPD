@@ -45,35 +45,41 @@ void ViewFileBrowser::AirableView::logged_out_from_service_notification(const ch
     search_forms_.erase(ctx_id);
 }
 
-void ViewFileBrowser::AirableView::handle_enter_list_event(List::AsyncListIface::OpResult result,
-                                                           const std::shared_ptr<List::QueryContextEnterList> &ctx)
+bool ViewFileBrowser::AirableView::list_invalidate(ID::List list_id, ID::List replacement_id)
 {
-    View::handle_enter_list_event(result, ctx);
+    if(replacement_id == root_list_id_)
+    {
+        root_list_id_ = list_id;
+        search_forms_.clear();
+    }
 
-    root_list_id_ = current_list_id_;
+    return View::list_invalidate(list_id, replacement_id);
 }
 
-bool ViewFileBrowser::AirableView::point_to_child_directory(const SearchParameters *search_parameters)
+void ViewFileBrowser::AirableView::finish_async_point_to_child_directory()
 {
-    if(current_list_id_ != root_list_id_ || search_parameters != nullptr)
-        return View::point_to_child_directory(search_parameters);
-
-    const unsigned int selected_line_from_root = navigation_.get_cursor();
-
-    if(!View::point_to_child_directory())
-        return false;
-
     log_assert(current_list_id_.is_valid());
 
+    const unsigned int selected_line_from_root =
+        async_calls_deco_.point_to_child_directory_.selected_line_from_root_;
+
+    async_calls_deco_.point_to_child_directory_.selected_line_from_root_ = UINT_MAX;
+
+    if(selected_line_from_root == UINT_MAX)
+        return;
+
+    /*
+     * Find the search form link in the current list.
+     */
     if(current_list_id_ == root_list_id_)
-        return true;
+        return;
 
     const List::context_id_t ctx_id(DBUS_LISTS_CONTEXT_GET(current_list_id_.get_raw_id()));
 
     if(search_forms_.find(ctx_id) != search_forms_.end())
     {
         /* already know the search form */
-        return true;
+        return;
     }
 
     const auto &ctx(list_contexts_[ctx_id]);
@@ -81,7 +87,7 @@ bool ViewFileBrowser::AirableView::point_to_child_directory(const SearchParamete
     if(!ctx.is_valid())
     {
         BUG("Attempted to find search form in invalid context %u", ctx_id);
-        return true;
+        return;
     }
 
     if(!ctx.check_flags(List::ContextInfo::HAS_PROPER_SEARCH_FORM) ||
@@ -89,12 +95,15 @@ bool ViewFileBrowser::AirableView::point_to_child_directory(const SearchParamete
     {
         BUG("Attempted to find nonexistent search form link in context %s",
             ctx.string_id_.c_str());
-        return true;
+        return;
     }
 
     const unsigned int num = file_list_.get_number_of_items();
+    unsigned int i;
 
-    for(unsigned int i = 0; i < num; ++i)
+    file_list_.push_cache_state();
+
+    for(i = 0; i < num; ++i)
     {
         const FileItem *item;
 
@@ -110,7 +119,7 @@ bool ViewFileBrowser::AirableView::point_to_child_directory(const SearchParamete
                       ctx.string_id_.c_str(),
                       e.is_dbus_error() ? "D-Bus" : "list retrieval", e.what());
 
-            return true;
+            break;
         }
 
         if(item == nullptr)
@@ -119,7 +128,7 @@ bool ViewFileBrowser::AirableView::point_to_child_directory(const SearchParamete
                       "Empty entry while searching for search form in context %s",
                       ctx.string_id_.c_str());
 
-            return true;
+            break;
         }
 
         if(item->get_kind().get() == ListItemKind::SEARCH_FORM)
@@ -130,14 +139,58 @@ bool ViewFileBrowser::AirableView::point_to_child_directory(const SearchParamete
 
             search_forms_.emplace(ctx_id, std::make_pair(selected_line_from_root, i));
 
-            return true;
+            break;
         }
     }
 
-    BUG("Expected to find search form link for context %s in list %u",
-        ctx.string_id_.c_str(), current_list_id_.get_raw_id());
+    if(i >= num)
+        BUG("Expected to find search form link for context %s in list %u",
+            ctx.string_id_.c_str(), current_list_id_.get_raw_id());
 
-    return true;
+    file_list_.pop_cache_state();
+}
+
+void ViewFileBrowser::AirableView::handle_enter_list_event(List::AsyncListIface::OpResult result,
+                                                           const std::shared_ptr<List::QueryContextEnterList> &ctx)
+{
+    View::handle_enter_list_event(result, ctx);
+
+    if(result == List::AsyncListIface::OpResult::STARTED)
+        return;
+
+    switch(ctx->get_caller_id())
+    {
+      case List::QueryContextEnterList::CallerID::SYNC_WRAPPER:
+      case List::QueryContextEnterList::CallerID::ENTER_PARENT:
+      case List::QueryContextEnterList::CallerID::RELOAD_LIST:
+        break;
+
+      case List::QueryContextEnterList::CallerID::ENTER_CHILD:
+        finish_async_point_to_child_directory();
+        break;
+
+      case List::QueryContextEnterList::CallerID::ENTER_ROOT:
+        root_list_id_ = current_list_id_;
+        break;
+    }
+}
+
+bool ViewFileBrowser::AirableView::point_to_child_directory(const SearchParameters *search_parameters)
+{
+    if(current_list_id_ != root_list_id_ || search_parameters != nullptr)
+    {
+        async_calls_deco_.point_to_child_directory_.selected_line_from_root_ = UINT_MAX;
+        return View::point_to_child_directory(search_parameters);
+    }
+
+    async_calls_deco_.point_to_child_directory_.selected_line_from_root_ = navigation_.get_cursor();
+
+    if(View::point_to_child_directory())
+        return true;
+
+    async_calls_deco_.point_to_child_directory_.selected_line_from_root_ = UINT_MAX;
+
+    return false;
 }
 
 ViewFileBrowser::View::GoToSearchForm
@@ -152,6 +205,11 @@ ViewFileBrowser::AirableView::point_to_search_form(List::context_id_t ctx_id)
 
     if(form == search_forms_.end())
         return GoToSearchForm::NOT_AVAILABLE;
+
+    {
+        auto lock(lock_async_calls());
+        cancel_and_delete_all_async_calls();
+    }
 
     const auto &path(form->second);
 
@@ -205,4 +263,9 @@ void ViewFileBrowser::AirableView::log_out_from_context(List::context_id_t conte
                                                     ctx.string_id_.c_str(), "",
                                                     true, ACTOR_ID_LOCAL_UI,
                                                     NULL, NULL);
+}
+
+void ViewFileBrowser::AirableView::cancel_and_delete_all_async_calls()
+{
+    View::cancel_and_delete_all_async_calls();
 }

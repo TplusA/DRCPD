@@ -208,7 +208,7 @@ class View: public ViewIface, public ViewSerializeBase
                 std::ostream *debug_os) final override;
 
     bool owns_dbus_proxy(const void *dbus_proxy) const;
-    bool list_invalidate(ID::List list_id, ID::List replacement_id);
+    virtual bool list_invalidate(ID::List list_id, ID::List replacement_id);
 
   protected:
     virtual void cancel_and_delete_all_async_calls()

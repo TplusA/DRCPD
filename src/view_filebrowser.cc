@@ -1021,24 +1021,29 @@ error_exit:
 
 static ViewFileBrowser::View::AsyncCalls::GetListId *
 mk_get_list_id(tdbuslistsNavigation *proxy,
-               const DBus::AsyncResultAvailableFunction &result_available_fn)
+               const DBus::AsyncResultAvailableFunction &result_available_fn,
+               const SearchParameters *search_parameters = nullptr)
 {
+    const bool is_simple_get_list = (search_parameters == nullptr);
+
     return new ViewFileBrowser::View::AsyncCalls::GetListId(
         proxy,
         [] (GObject *source_object) { return TDBUS_LISTS_NAVIGATION(source_object); },
-        [] (DBus::AsyncResult &async_ready,
-            ViewFileBrowser::View::AsyncCalls::GetListId::PromiseType &promise,
-            tdbuslistsNavigation *p, GAsyncResult *async_result,
-            GError *&error)
+        [is_simple_get_list]
+            (DBus::AsyncResult &async_ready,
+             ViewFileBrowser::View::AsyncCalls::GetListId::PromiseType &promise,
+             tdbuslistsNavigation *p, GAsyncResult *async_result,
+             GError *&error)
         {
             guchar error_code;
             guint child_list_id;
 
             async_ready =
-                tdbus_lists_navigation_call_get_list_id_finish(p, &error_code,
-                                                               &child_list_id,
-                                                               async_result,
-                                                               &error)
+                (is_simple_get_list
+                 ? tdbus_lists_navigation_call_get_list_id_finish(
+                        p, &error_code, &child_list_id, async_result, &error)
+                 : tdbus_lists_navigation_call_get_parameterized_list_id_finish(
+                        p, &error_code, &child_list_id, async_result, &error))
                 ? DBus::AsyncResult::READY
                 : DBus::AsyncResult::FAILED;
 
@@ -1137,32 +1142,31 @@ bool ViewFileBrowser::View::point_to_child_directory(const SearchParameters *sea
 {
     auto lock(lock_async_calls());
 
-    if(search_parameters == nullptr)
+    cancel_and_delete_all_async_calls();
+
+    async_calls_.get_list_id_ =
+        mk_get_list_id(file_list_.get_dbus_proxy(),
+                       std::bind(point_to_child_directory__got_list_id,
+                                 std::placeholders::_1,
+                                 std::ref(async_calls_), std::ref(file_list_),
+                                 current_list_id_, navigation_.get_cursor()),
+                       search_parameters);
+
+    if(async_calls_.get_list_id_ == nullptr)
     {
-        cancel_and_delete_all_async_calls();
+        msg_out_of_memory("async go to child");
+        return false;
+    }
 
-        async_calls_.get_list_id_ =
-            mk_get_list_id(file_list_.get_dbus_proxy(),
-                           std::bind(point_to_child_directory__got_list_id,
-                                     std::placeholders::_1,
-                                     std::ref(async_calls_), std::ref(file_list_),
-                                     current_list_id_, navigation_.get_cursor()));
-
-        if(async_calls_.get_list_id_ == nullptr)
-        {
-            msg_out_of_memory("async go to child");
-            return false;
-        }
-
+    if(search_parameters == nullptr)
         async_calls_.get_list_id_->invoke(tdbus_lists_navigation_call_get_list_id,
                                           current_list_id_.get_raw_id(),
                                           navigation_.get_cursor());
-    }
     else
-    {
-        BUG("Passing search parameters not implemented yet");
-        return false;
-    }
+        async_calls_.get_list_id_->invoke(tdbus_lists_navigation_call_get_parameterized_list_id,
+                                          current_list_id_.get_raw_id(),
+                                          navigation_.get_cursor(),
+                                          search_parameters->get_query().c_str());
 
     return true;
 }

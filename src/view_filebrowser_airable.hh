@@ -30,6 +30,22 @@ namespace ViewFileBrowser
 
 class AirableView: public View
 {
+  public:
+    struct AsyncCallsDecorations
+    {
+        struct
+        {
+            unsigned int selected_line_from_root_;
+        }
+        point_to_child_directory_;
+
+        AsyncCallsDecorations():
+            point_to_child_directory_{0}
+        {}
+    };
+
+    AsyncCallsDecorations async_calls_deco_;
+
   private:
     ID::List root_list_id_;
 
@@ -52,15 +68,21 @@ class AirableView: public View
 
     ~AirableView() {}
 
+    bool list_invalidate(ID::List list_id, ID::List replacement_id) final override;
+
     void logged_out_from_service_notification(const char *service_id,
                                               enum ActorID actor_id);
 
   protected:
+    void cancel_and_delete_all_async_calls() final override;
     void handle_enter_list_event(List::AsyncListIface::OpResult result,
                                  const std::shared_ptr<List::QueryContextEnterList> &ctx) final override;
     bool point_to_child_directory(const SearchParameters *search_parameters = nullptr) final override;
     GoToSearchForm point_to_search_form(List::context_id_t ctx_id) final override;
     void log_out_from_context(List::context_id_t context) final override;
+
+  private:
+    void finish_async_point_to_child_directory();
 };
 
 }

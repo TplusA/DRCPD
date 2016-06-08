@@ -446,9 +446,26 @@ class DBusList: public ListIface, public AsyncListIface
 
             return items_.get_item(line - first_item_line_);
         }
+
+        void clone(const CacheData &src)
+        {
+            list_id_ = src.list_id_;
+            first_item_line_ = src.first_item_line_;
+            items_.clone(src.items_);
+        }
+
+        void move_from(CacheData &other)
+        {
+            list_id_ = other.list_id_;
+            first_item_line_ = other.first_item_line_;
+            items_.move_from(other.items_);
+        }
     };
 
     CacheData window_;
+
+    CacheData window_stash_;
+    bool window_stash_is_in_use_;
 
   public:
     DBusList(const DBusList &) = delete;
@@ -461,7 +478,8 @@ class DBusList: public ListIface, public AsyncListIface
         list_contexts_(list_contexts),
         number_of_prefetched_items_(prefetch),
         new_item_fn_(new_item_fn),
-        number_of_items_(0)
+        number_of_items_(0),
+        window_stash_is_in_use_(false)
     {}
 
     /*!
@@ -483,6 +501,20 @@ class DBusList: public ListIface, public AsyncListIface
     }
 
     void clone_state(const DBusList &src) throw(List::DBusListException);
+
+    void push_cache_state()
+    {
+        log_assert(!window_stash_is_in_use_);
+        window_stash_is_in_use_ = true;
+        window_stash_.clone(window_);
+    }
+
+    void pop_cache_state()
+    {
+        log_assert(window_stash_is_in_use_);
+        window_.move_from(window_stash_);
+        window_stash_is_in_use_ = false;
+    }
 
     unsigned int get_number_of_items() const override;
     bool empty() const override;

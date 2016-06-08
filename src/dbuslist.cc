@@ -581,6 +581,7 @@ const List::Item *List::DBusList::get_item(unsigned int line) const
     if(is_line_cached(line))
         return window_[line];
 
+    if(!window_stash_is_in_use_)
     {
         std::lock_guard<LoggedLock::Mutex> lock((const_cast<List::DBusList *>(this)->async_dbus_data_).lock_);
         const_cast<List::DBusList *>(this)->cancel_get_item_query();
