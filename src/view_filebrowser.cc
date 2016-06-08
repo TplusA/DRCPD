@@ -898,6 +898,8 @@ void ViewFileBrowser::View::serialize(DCP::Queue &queue, DCP::Queue::Mode mode,
         }
         catch(const List::DBusListException &e)
         {
+            msg_error(0, LOG_NOTICE,
+                      "Got list exception while dumping to log: %s", e.what());
             item = nullptr;
         }
 
