@@ -392,22 +392,6 @@ List::DBusList::enter_list_async(ID::List list_id, unsigned int line,
     return OpResult::STARTED;
 }
 
-bool List::DBusList::enter_list_async_wait()
-{
-    LoggedLock::UniqueLock<LoggedLock::Mutex> lock(async_dbus_data_.lock_);
-
-    if(async_dbus_data_.enter_list_query_ == nullptr)
-        return false;
-
-    async_dbus_data_.query_done_.wait(lock,
-        [this] () -> bool
-        {
-            return async_dbus_data_.enter_list_query_ == nullptr;
-        });
-
-    return true;
-}
-
 void List::DBusList::enter_list_async_handle_done(LoggedLock::UniqueLock<LoggedLock::Mutex> &lock)
 {
     auto q = async_dbus_data_.enter_list_query_;
@@ -724,22 +708,6 @@ List::DBusList::get_item_async(unsigned int line, const Item *&item,
                    async_dbus_data_.get_item_query_, lock);
 
     return OpResult::STARTED;;
-}
-
-bool List::DBusList::get_item_async_wait(unsigned int line, const Item *&item)
-{
-    LoggedLock::UniqueLock<LoggedLock::Mutex> lock(async_dbus_data_.lock_);
-
-    if(!is_line_loading(line))
-        return false;
-
-    async_dbus_data_.query_done_.wait(lock,
-        [this, line] () -> bool
-        {
-            return !is_line_loading(line);
-        });
-
-    return true;
 }
 
 void List::DBusList::get_item_async_handle_done(LoggedLock::UniqueLock<LoggedLock::Mutex> &lock)

@@ -488,7 +488,6 @@ class DBusList: public ListIface, public AsyncListIface
     bool empty() const override;
 
     void enter_list(ID::List list_id, unsigned int line) throw(List::DBusListException) override;
-    bool enter_list_async_wait() override;
     OpResult enter_list_async(ID::List list_id, unsigned int line,
                               QueryContextEnterList::CallerID caller)
     {
@@ -496,7 +495,6 @@ class DBusList: public ListIface, public AsyncListIface
     }
 
     const Item *get_item(unsigned int line) const throw(List::DBusListException) override;
-    bool get_item_async_wait(unsigned int line, const Item *&item) override;
     OpResult get_item_async(unsigned int line, const Item *&item,
                             QueryContextGetItem::CallerID caller)
     {

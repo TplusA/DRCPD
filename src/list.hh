@@ -204,9 +204,7 @@ class AsyncListIface
      * Enter list asynchronously.
      *
      * This function starts the process of entering a list, i.e., checking its
-     * existence and fetching its size, in the background. The caller may wait
-     * for the completion of this process by calling
-     * #List::AsyncListIface::enter_list_async_wait().
+     * existence and fetching its size, in the background.
      *
      * As soon as the result is available (successful or not), the list that
      * implements this interface updates itself using the retrieved result. A
@@ -225,20 +223,10 @@ class AsyncListIface
                                       unsigned short caller_id) = 0;
 
     /*!
-     * Wait for the process of entering the list to complete.
-     *
-     * \returns
-     *     True if the function has actually waited, false if not (i.e., there
-     *     was not asynchronous operation in progress).
-     */
-    virtual bool enter_list_async_wait() = 0;
-
-    /*!
      * Get list item asynchronously.
      *
      * This function starts the process of retrieving a list entry in the
-     * background. The caller may wait for the completion of this process by
-     * calling #List::AsyncListIface::get_item_async_wait().
+     * background.
      *
      * As soon as the result is available (successful or not), a registered
      * watcher is notified about the change, or failure of change.
@@ -254,15 +242,6 @@ class AsyncListIface
      */
     virtual OpResult get_item_async(unsigned int line, const Item *&item,
                                     unsigned short caller_id) = 0;
-
-    /*!
-     * Wait for the process of fetching a list item to complete.
-     *
-     * \returns
-     *     True if the function has actually waited, false if not (i.e., there
-     *     was not asynchronous operation in progress).
-     */
-    virtual bool get_item_async_wait(unsigned int line, const Item *&item) = 0;
 };
 
 };
