@@ -437,6 +437,8 @@ static void defer_ui_event_processing(struct ui_events_processing_data_t *data)
  */
 static void defer_dcp_transfer(DCP::Queue *queue)
 {
+    msg_info("Defer DCP transfer");
+
     log_assert(queue != nullptr);
 
     auto *fn_object =
@@ -508,7 +510,7 @@ static void connect_everything(ViewManager::Manager &views,
     Busy::init(std::bind(&ViewManager::Manager::busy_state_notification,
                          &views, std::placeholders::_1));
 
-    views.activate_view_by_name(ViewNames::BROWSER_UPNP);
+    views.sync_activate_view_by_name(ViewNames::BROWSER_UPNP);
 }
 
 static gboolean signal_handler(gpointer user_data)

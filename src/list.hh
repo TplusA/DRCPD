@@ -241,6 +241,7 @@ class AsyncListIface
      *     The function failed before starting the asynchronous call.
      */
     virtual OpResult get_item_async(unsigned int line, const Item *&item,
+                                    unsigned int prefetch_hint,
                                     unsigned short caller_id) = 0;
 };
 

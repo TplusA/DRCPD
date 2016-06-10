@@ -22,8 +22,7 @@
 #include <functional>
 #include <deque>
 
-#include "drcp_commands.hh"
-#include "ui_parameters.hh"
+#include "ui_events.hh"
 #include "logged_lock.hh"
 #include "messages.h"
 
@@ -45,20 +44,63 @@ class BaseEvent
     virtual ~BaseEvent() {}
 };
 
-class Input: public BaseEvent
+class ViewInput: public BaseEvent
 {
   public:
-    DrcpCommand command_;
+    const ViewEventID event_id_;
     std::unique_ptr<const UI::Parameters> parameters_;
 
-    Input(const Input &) = delete;
-    Input &operator=(const Input &) = delete;
+    ViewInput(const ViewInput &) = delete;
+    ViewInput &operator=(const ViewInput &) = delete;
 
-    explicit Input(DrcpCommand command, std::unique_ptr<const UI::Parameters> parameters):
-        command_(command),
+    explicit ViewInput(EventID event_id,
+                       std::unique_ptr<const UI::Parameters> parameters):
+        event_id_(to_event_type<ViewEventID>(event_id)),
         parameters_(std::move(parameters))
     {}
 };
+
+class ViewMan: public BaseEvent
+{
+  public:
+    const VManEventID event_id_;
+    std::unique_ptr<const UI::Parameters> parameters_;
+
+    ViewMan(const ViewMan &) = delete;
+    ViewMan &operator=(const ViewMan &) = delete;
+
+    explicit ViewMan(EventID event_id,
+                     std::unique_ptr<const UI::Parameters> parameters):
+        event_id_(to_event_type<VManEventID>(event_id)),
+        parameters_(std::move(parameters))
+    {}
+};
+
+/*
+ActivateView
+
+ToggleViews
+
+PutSearchParameters
+
+MoveCursorByLine
+
+MoveCursorByPage
+
+InvalidateList
+
+PutMetaData
+
+StreamStarted
+
+StreamStopped
+
+StreamPaused
+
+PutStreamPosition
+
+PutServiceLoginStatus
+*/
 
 }
 
@@ -111,6 +153,8 @@ class EventQueue
 
         return ret;
     }
+
+    bool is_empty() const { return queue_.empty(); }
 };
 
 }

@@ -168,6 +168,9 @@ void test_add_views_with_same_name_fails(void)
  */
 void test_add_view_and_activate(void)
 {
+    auto params = UI::Events::mk_params<UI::EventID::VIEW_OPEN>(standard_mock_view_name);
+    vm->store_event(UI::EventID::VIEW_OPEN, std::move(params));
+
     ViewMock::View view(standard_mock_view_name, false);
 
     cut_assert_true(view.init());
@@ -178,8 +181,10 @@ void test_add_view_and_activate(void)
     view.expect_focus();
     view.expect_serialize(*views_output);
     view.expect_write_xml_begin(true, true);
-    vm->activate_view_by_name(standard_mock_view_name);
+
+    vm->process_pending_events();
     vm->serialization_result(DCP::Transaction::OK);
+
     view.check();
 
     check_and_clear_ostream("Mock serialize\n", *views_output);
@@ -246,7 +251,7 @@ void cut_setup(void)
 
     mock_messages->ignore_all_ = true;
     mock_view->ignore_all_ = true;
-    vm->activate_view_by_name(standard_mock_view_name);
+    vm->sync_activate_view_by_name(standard_mock_view_name);
     vm->serialization_result(DCP::Transaction::OK);
     mock_view->ignore_all_ = false;
     mock_messages->ignore_all_ = false;
@@ -275,49 +280,59 @@ void cut_teardown(void)
     views_output = nullptr;
 }
 
-/*!\test
- * Requests to move the cursor by zero lines have no effect.
- */
-void test_move_cursor_by_zero_lines(void)
+static bool check_equal_lines_or_pages_parameter_called;
+
+template <UI::ViewEventID ID>
+static void
+check_equal_lines_or_pages_parameter(std::unique_ptr<const UI::Parameters> expected_parameters,
+                                     std::unique_ptr<const UI::Parameters> actual_parameters)
 {
-    vm->input_move_cursor_by_line(0);
-}
+    check_equal_lines_or_pages_parameter_called = true;
 
-static bool check_equal_lines_parameter_called;
-static void check_equal_lines_parameter(const UI::Parameters *expected_parameters,
-                                        const std::unique_ptr<const UI::Parameters> &actual_parameters)
-{
-    check_equal_lines_parameter_called = true;
+    const auto expected = UI::Events::downcast<ID>(expected_parameters);
+    const auto actual = UI::Events::downcast<ID>(actual_parameters);
 
-    const auto *expected = dynamic_cast<const UI::ParamsUpDownSteps *>(expected_parameters);
-    const auto *actual = dynamic_cast<const UI::ParamsUpDownSteps *>(actual_parameters.get());
-
-    cppcut_assert_not_null(expected);
-    cppcut_assert_not_null(actual);
+    cppcut_assert_not_null(expected.get());
+    cppcut_assert_not_null(actual.get());
 
     cppcut_assert_equal(expected->get_specific(), actual->get_specific());
 }
 
+static void check_equal_lines_parameter(std::unique_ptr<const UI::Parameters> expected,
+                                        std::unique_ptr<const UI::Parameters> actual)
+{
+    check_equal_lines_or_pages_parameter<UI::ViewEventID::NAV_SCROLL_LINES>(std::move(expected),
+                                                                            std::move(actual));
+}
+
+static void check_equal_pages_parameter(std::unique_ptr<const UI::Parameters> expected,
+                                        std::unique_ptr<const UI::Parameters> actual)
+{
+    check_equal_lines_or_pages_parameter<UI::ViewEventID::NAV_SCROLL_PAGES>(std::move(expected),
+                                                                            std::move(actual));
+}
+
 /*!\test
- * Requests to move the cursor by multiple lines up are transformed into
- * multiple virtual key presses for the current view.
+ * Requests to move the cursor by multiple lines up are passed to active view.
  *
- * There is only a single update call in the end.
+ * There is only a single DRCP call in the end.
  */
 void test_move_cursor_up_by_multiple_lines(void)
 {
-    auto lines =
-        std::unique_ptr<UI::ParamsUpDownSteps>(new UI::ParamsUpDownSteps(2));
+    auto lines = UI::Events::mk_params<UI::EventID::NAV_SCROLL_LINES>(-2);
+    vm->store_event(UI::EventID::NAV_SCROLL_LINES, std::move(lines));
 
-    mock_view->expect_input_with_callback(ViewIface::InputResult::UPDATE_NEEDED,
-                                          DrcpCommand::SCROLL_UP_MANY,
-                                          lines.get(), check_equal_lines_parameter);
+    lines = UI::Events::mk_params<UI::EventID::NAV_SCROLL_LINES>(-2);
+    mock_view->expect_process_event_with_callback(ViewIface::InputResult::UPDATE_NEEDED,
+                                                  UI::ViewEventID::NAV_SCROLL_LINES,
+                                                  std::move(lines),
+                                                  check_equal_lines_parameter);
     mock_view->expect_update(*views_output);
     mock_view->expect_write_xml_begin(true, false);
 
-    check_equal_lines_parameter_called = false;
-    vm->input_move_cursor_by_line(-2);
-    cut_assert_true(check_equal_lines_parameter_called);
+    check_equal_lines_or_pages_parameter_called = false;
+    vm->process_pending_events();
+    cut_assert_true(check_equal_lines_or_pages_parameter_called);
 
     vm->serialization_result(DCP::Transaction::OK);
 
@@ -325,25 +340,27 @@ void test_move_cursor_up_by_multiple_lines(void)
 }
 
 /*!\test
- * Requests to move the cursor by multiple lines down are transformed into
- * multiple virtual key presses for the current view.
+ * Requests to move the cursor by multiple lines down are passed to active
+ * view.
  *
- * There is only a single update call in the end.
+ * There is only a single DRCP call in the end.
  */
 void test_move_cursor_down_by_multiple_lines(void)
 {
-    auto lines =
-        std::unique_ptr<UI::ParamsUpDownSteps>(new UI::ParamsUpDownSteps(3));
+    auto lines = UI::Events::mk_params<UI::EventID::NAV_SCROLL_LINES>(3);
+    vm->store_event(UI::EventID::NAV_SCROLL_LINES, std::move(lines));
 
-    mock_view->expect_input_with_callback(ViewIface::InputResult::UPDATE_NEEDED,
-                                          DrcpCommand::SCROLL_DOWN_MANY,
-                                          lines.get(), check_equal_lines_parameter);
+    lines = UI::Events::mk_params<UI::EventID::NAV_SCROLL_LINES>(3);
+    mock_view->expect_process_event_with_callback(ViewIface::InputResult::UPDATE_NEEDED,
+                                                  UI::ViewEventID::NAV_SCROLL_LINES,
+                                                  std::move(lines),
+                                                  check_equal_lines_parameter);
     mock_view->expect_update(*views_output);
     mock_view->expect_write_xml_begin(true, false);
 
-    check_equal_lines_parameter_called = false;
-    vm->input_move_cursor_by_line(3);
-    cut_assert_true(check_equal_lines_parameter_called);
+    check_equal_lines_or_pages_parameter_called = false;
+    vm->process_pending_events();
+    cut_assert_true(check_equal_lines_or_pages_parameter_called);
 
     vm->serialization_result(DCP::Transaction::OK);
 
@@ -351,81 +368,26 @@ void test_move_cursor_down_by_multiple_lines(void)
 }
 
 /*!\test
- * If the view indicates that after an input nothing has changed, then upwards
- * cursor movement is stopped.
- */
-void test_move_cursor_by_multiple_lines_up_stops_at_beginning_of_list(void)
-{
-    auto lines =
-        std::unique_ptr<UI::ParamsUpDownSteps>(new UI::ParamsUpDownSteps(5));
-
-    mock_view->expect_input_with_callback(ViewIface::InputResult::UPDATE_NEEDED,
-                                          DrcpCommand::SCROLL_UP_MANY,
-                                          lines.get(), check_equal_lines_parameter);
-    mock_view->expect_update(*views_output);
-    mock_view->expect_write_xml_begin(true, false);
-
-    check_equal_lines_parameter_called = false;
-    vm->input_move_cursor_by_line(-5);
-    cut_assert_true(check_equal_lines_parameter_called);
-
-    vm->serialization_result(DCP::Transaction::OK);
-
-    check_and_clear_ostream("Mock update\n", *views_output);
-}
-
-/*!\test
- * If the view indicates that after an input nothing has changed, then
- * downwards cursor movement is stopped.
- */
-void test_move_cursor_by_multiple_lines_down_stops_at_end_of_list(void)
-{
-    auto lines =
-        std::unique_ptr<UI::ParamsUpDownSteps>(new UI::ParamsUpDownSteps(5));
-
-    mock_view->expect_input_with_callback(ViewIface::InputResult::UPDATE_NEEDED,
-                                          DrcpCommand::SCROLL_DOWN_MANY,
-                                          lines.get(), check_equal_lines_parameter);
-    mock_view->expect_update(*views_output);
-    mock_view->expect_write_xml_begin(true, false);
-
-    check_equal_lines_parameter_called = false;
-    vm->input_move_cursor_by_line(5);
-    cut_assert_true(check_equal_lines_parameter_called);
-
-    vm->serialization_result(DCP::Transaction::OK);
-
-    check_and_clear_ostream("Mock update\n", *views_output);
-}
-
-/*!\test
- * Requests to move the cursor by zero pages have no effect.
- */
-void test_move_cursor_by_zero_pages(void)
-{
-    vm->input_move_cursor_by_page(0);
-}
-
-/*!\test
- * Requests to move the cursor by multiple pages up are transformed into
- * multiple virtual key presses for the current view.
+ * Requests to move the cursor by multiple pages up are passed to active view.
  *
- * There is only a single update call in the end.
+ * There is only a single DRCP call in the end.
  */
 void test_move_cursor_up_by_multiple_pages(void)
 {
-    auto lines =
-        std::unique_ptr<UI::ParamsUpDownSteps>(new UI::ParamsUpDownSteps(4 * ViewManager::VMIface::NUMBER_OF_LINES_ON_DISPLAY));
+    auto pages = UI::Events::mk_params<UI::EventID::NAV_SCROLL_PAGES>(-4);
+    vm->store_event(UI::EventID::NAV_SCROLL_PAGES, std::move(pages));
 
-    mock_view->expect_input_with_callback(ViewIface::InputResult::UPDATE_NEEDED,
-                                          DrcpCommand::SCROLL_UP_MANY,
-                                          lines.get(), check_equal_lines_parameter);
+    pages = UI::Events::mk_params<UI::EventID::NAV_SCROLL_PAGES>(-4);
+    mock_view->expect_process_event_with_callback(ViewIface::InputResult::UPDATE_NEEDED,
+                                                  UI::ViewEventID::NAV_SCROLL_PAGES,
+                                                  std::move(pages),
+                                                  check_equal_pages_parameter);
     mock_view->expect_update(*views_output);
     mock_view->expect_write_xml_begin(true, false);
 
-    check_equal_lines_parameter_called = false;
-    vm->input_move_cursor_by_page(-4);
-    cut_assert_true(check_equal_lines_parameter_called);
+    check_equal_lines_or_pages_parameter_called = false;
+    vm->process_pending_events();
+    cut_assert_true(check_equal_lines_or_pages_parameter_called);
 
     vm->serialization_result(DCP::Transaction::OK);
 
@@ -433,25 +395,27 @@ void test_move_cursor_up_by_multiple_pages(void)
 }
 
 /*!\test
- * Requests to move the cursor by multiple pages down are transformed into
- * multiple virtual key presses for the current view.
+ * Requests to move the cursor by multiple pages down are passed to active
+ * view.
  *
- * There is only a single update call in the end.
+ * There is only a single DRCP call in the end.
  */
 void test_move_cursor_down_by_multiple_pages(void)
 {
-    auto lines =
-        std::unique_ptr<UI::ParamsUpDownSteps>(new UI::ParamsUpDownSteps(2 * ViewManager::VMIface::NUMBER_OF_LINES_ON_DISPLAY));
+    auto pages = UI::Events::mk_params<UI::EventID::NAV_SCROLL_PAGES>(2);
+    vm->store_event(UI::EventID::NAV_SCROLL_PAGES, std::move(pages));
 
-    mock_view->expect_input_with_callback(ViewIface::InputResult::UPDATE_NEEDED,
-                                          DrcpCommand::SCROLL_DOWN_MANY,
-                                          lines.get(), check_equal_lines_parameter);
+    pages = UI::Events::mk_params<UI::EventID::NAV_SCROLL_PAGES>(2);
+    mock_view->expect_process_event_with_callback(ViewIface::InputResult::UPDATE_NEEDED,
+                                                  UI::ViewEventID::NAV_SCROLL_PAGES,
+                                                  std::move(pages),
+                                                  check_equal_pages_parameter);
     mock_view->expect_update(*views_output);
     mock_view->expect_write_xml_begin(true, false);
 
-    check_equal_lines_parameter_called = false;
-    vm->input_move_cursor_by_page(2);
-    cut_assert_true(check_equal_lines_parameter_called);
+    check_equal_lines_or_pages_parameter_called = false;
+    vm->process_pending_events();
+    cut_assert_true(check_equal_lines_or_pages_parameter_called);
 
     vm->serialization_result(DCP::Transaction::OK);
 
@@ -522,7 +486,7 @@ void cut_setup(void)
     all_mock_views.fill(nullptr);
     populate_view_manager(*vm,  all_mock_views);
     all_mock_views[0]->ignore_all_ = true;
-    vm->activate_view_by_name("First");
+    vm->sync_activate_view_by_name("First");
     vm->serialization_result(DCP::Transaction::OK);
     all_mock_views[0]->ignore_all_ = false;
     mock_messages->ignore_all_ = false;
@@ -582,6 +546,9 @@ void test_get_existent_view_by_name_returns_view_interface(void)
  */
 void test_reactivate_active_view_serializes_the_view_again(void)
 {
+    auto params = UI::Events::mk_params<UI::EventID::VIEW_OPEN>("First");
+    vm->store_event(UI::EventID::VIEW_OPEN, std::move(params));
+
     mock_messages->expect_msg_info_formatted("Requested to activate view \"First\"");
 
     all_mock_views[0]->expect_defocus();
@@ -590,7 +557,7 @@ void test_reactivate_active_view_serializes_the_view_again(void)
     all_mock_views[0]->expect_serialize(*views_output);
     all_mock_views[0]->expect_write_xml_begin(true, true);
 
-    vm->activate_view_by_name("First");
+    vm->process_pending_events();
     vm->serialization_result(DCP::Transaction::OK);
 
     check_and_clear_ostream("First serialize\n", *views_output);
@@ -601,8 +568,12 @@ void test_reactivate_active_view_serializes_the_view_again(void)
  */
 void test_activate_nonexistent_view_does_nothing(void)
 {
+    auto params = UI::Events::mk_params<UI::EventID::VIEW_OPEN>("DoesNotExist");
+    vm->store_event(UI::EventID::VIEW_OPEN, std::move(params));
+
     mock_messages->expect_msg_info_formatted("Requested to activate view \"DoesNotExist\"");
-    vm->activate_view_by_name("DoesNotExist");
+
+    vm->process_pending_events();
 }
 
 /*!\test
@@ -610,8 +581,12 @@ void test_activate_nonexistent_view_does_nothing(void)
  */
 void test_activate_nop_view_does_nothing(void)
 {
+    auto params = UI::Events::mk_params<UI::EventID::VIEW_OPEN>(ViewNames::NOP);
+    vm->store_event(UI::EventID::VIEW_OPEN, std::move(params));
+
     mock_messages->expect_msg_info_formatted("Requested to activate view \"#NOP\"");
-    vm->activate_view_by_name(ViewNames::NOP);
+
+    vm->process_pending_events();
 }
 
 /*!\test
@@ -619,6 +594,9 @@ void test_activate_nop_view_does_nothing(void)
  */
 void test_activate_different_view(void)
 {
+    auto params = UI::Events::mk_params<UI::EventID::VIEW_OPEN>("Second");
+    vm->store_event(UI::EventID::VIEW_OPEN, std::move(params));
+
     mock_messages->expect_msg_info_formatted("Requested to activate view \"Second\"");
 
     all_mock_views[0]->expect_defocus();
@@ -627,7 +605,7 @@ void test_activate_different_view(void)
     all_mock_views[1]->expect_serialize(*views_output);
     all_mock_views[1]->expect_write_xml_begin(true, true);
 
-    vm->activate_view_by_name("Second");
+    vm->process_pending_events();
     vm->serialization_result(DCP::Transaction::OK);
 
     check_and_clear_ostream("Second serialize\n", *views_output);
@@ -639,11 +617,10 @@ void test_activate_different_view(void)
  */
 void test_input_command_with_no_need_to_refresh(void)
 {
-    vm->input(DrcpCommand::PLAYBACK_START, nullptr);
+    vm->store_event(UI::EventID::PLAYBACK_START);
 
-    mock_messages->expect_msg_info("Dispatching DRCP command %d%s");
-    all_mock_views[0]->expect_input(ViewIface::InputResult::OK,
-                                    DrcpCommand::PLAYBACK_START, false);
+    all_mock_views[0]->expect_process_event(ViewIface::InputResult::OK,
+                                            UI::ViewEventID::PLAYBACK_START, false);
 
     vm->process_pending_events();
 }
@@ -654,11 +631,10 @@ void test_input_command_with_no_need_to_refresh(void)
  */
 void test_input_command_with_need_to_refresh(void)
 {
-    vm->input(DrcpCommand::PLAYBACK_START, nullptr);
+    vm->store_event(UI::EventID::PLAYBACK_START);
 
-    mock_messages->expect_msg_info("Dispatching DRCP command %d%s");
-    all_mock_views[0]->expect_input(ViewIface::InputResult::UPDATE_NEEDED,
-                                    DrcpCommand::PLAYBACK_START, false);
+    all_mock_views[0]->expect_process_event(ViewIface::InputResult::UPDATE_NEEDED,
+                                            UI::ViewEventID::PLAYBACK_START, false);
     all_mock_views[0]->expect_update(*views_output);
     all_mock_views[0]->expect_write_xml_begin(true, false);
 
@@ -674,11 +650,10 @@ void test_input_command_with_need_to_refresh(void)
  */
 void test_input_command_with_need_to_hide_view_may_fail(void)
 {
-    vm->input(DrcpCommand::PLAYBACK_START, nullptr);
+    vm->store_event(UI::EventID::PLAYBACK_START);
 
-    mock_messages->expect_msg_info("Dispatching DRCP command %d%s");
-    all_mock_views[0]->expect_input(ViewIface::InputResult::SHOULD_HIDE,
-                                    DrcpCommand::PLAYBACK_START, false);
+    all_mock_views[0]->expect_process_event(ViewIface::InputResult::SHOULD_HIDE,
+                                            UI::ViewEventID::PLAYBACK_START, false);
 
     vm->process_pending_events();
 }
@@ -690,22 +665,26 @@ void test_input_command_with_need_to_hide_view_may_fail(void)
 void test_input_command_with_need_to_hide_nonbrowse_view(void)
 {
     /* switch over from first to a non-browser view */
+    auto params = UI::Events::mk_params<UI::EventID::VIEW_OPEN>("Third");
+    vm->store_event(UI::EventID::VIEW_OPEN, std::move(params));
+
     mock_messages->expect_msg_info_formatted("Requested to activate view \"Third\"");
     all_mock_views[0]->expect_defocus();
     all_mock_views[2]->expect_focus();
     all_mock_views[2]->expect_serialize(*views_output);
     all_mock_views[2]->expect_write_xml_begin(true, true);
-    vm->activate_view_by_name("Third");
+
+    vm->process_pending_events();
     vm->serialization_result(DCP::Transaction::OK);
+
     check_and_clear_ostream("Third serialize\n", *views_output);
 
     /* hide request from active view, view manager switches back to previous
      * browse view in turn (view "First") */
-    vm->input(DrcpCommand::PLAYBACK_START, nullptr);
+    vm->store_event(UI::EventID::PLAYBACK_START);
 
-    mock_messages->expect_msg_info("Dispatching DRCP command %d%s");
-    all_mock_views[2]->expect_input(ViewIface::InputResult::SHOULD_HIDE,
-                                    DrcpCommand::PLAYBACK_START, false);
+    all_mock_views[2]->expect_process_event(ViewIface::InputResult::SHOULD_HIDE,
+                                            UI::ViewEventID::PLAYBACK_START, false);
     all_mock_views[2]->expect_defocus();
     all_mock_views[0]->expect_focus();
     all_mock_views[0]->expect_serialize(*views_output);
@@ -724,31 +703,38 @@ void test_input_command_with_need_to_hide_nonbrowse_view(void)
 void test_input_command_with_need_to_hide_browse_view_never_works(void)
 {
     /* switch over from first to a non-browser view */
+    auto params = UI::Events::mk_params<UI::EventID::VIEW_OPEN>("Second");
+    vm->store_event(UI::EventID::VIEW_OPEN, std::move(params));
+
     mock_messages->expect_msg_info_formatted("Requested to activate view \"Second\"");
     all_mock_views[0]->expect_defocus();
     all_mock_views[1]->expect_focus();
     all_mock_views[1]->expect_serialize(*views_output);
     all_mock_views[1]->expect_write_xml_begin(true, true);
-    vm->activate_view_by_name("Second");
+
+    vm->process_pending_events();
     vm->serialization_result(DCP::Transaction::OK);
+
     check_and_clear_ostream("Second serialize\n", *views_output);
 
     /* hide request from active view, but view manager won't switch focus */
-    vm->input(DrcpCommand::PLAYBACK_START, nullptr);
+    vm->store_event(UI::EventID::PLAYBACK_START);
 
-    mock_messages->expect_msg_info("Dispatching DRCP command %d%s");
-    all_mock_views[1]->expect_input(ViewIface::InputResult::SHOULD_HIDE,
-                                    DrcpCommand::PLAYBACK_START, false);
+    all_mock_views[1]->expect_process_event(ViewIface::InputResult::SHOULD_HIDE,
+                                            UI::ViewEventID::PLAYBACK_START, false);
 
     vm->process_pending_events();
 }
 
 static bool check_equal_parameters_by_pointer_called;
-static void check_equal_parameters_by_pointer(const UI::Parameters *expected_parameters,
-                                              const std::unique_ptr<const UI::Parameters> &actual_parameters)
+static const UI::Parameters *check_equal_parameters_by_pointer_value;
+static void
+check_equal_parameters_by_pointer(std::unique_ptr<const UI::Parameters> expected_parameters,
+                                  std::unique_ptr<const UI::Parameters> actual_parameters)
 {
     check_equal_parameters_by_pointer_called = true;
-    cppcut_assert_equal(expected_parameters, actual_parameters.get());
+    cppcut_assert_null(expected_parameters.get());
+    cppcut_assert_equal(check_equal_parameters_by_pointer_value, actual_parameters.get());
 }
 
 /*!\test
@@ -756,56 +742,19 @@ static void check_equal_parameters_by_pointer(const UI::Parameters *expected_par
  */
 void test_input_command_with_data(void)
 {
-    auto speed_factor =
-        std::unique_ptr<UI::ParamsFWSpeed>(new UI::ParamsFWSpeed(12.5));
-    auto speed_factor_pointer = speed_factor.get();
-    vm->input(DrcpCommand::FAST_WIND_SET_SPEED, std::move(speed_factor));
+    auto speed_factor = UI::Events::mk_params<UI::EventID::PLAYBACK_FAST_WIND_SET_SPEED>(12.5);
+    check_equal_parameters_by_pointer_value = speed_factor.get();
+    vm->store_event(UI::EventID::PLAYBACK_FAST_WIND_SET_SPEED, std::move(speed_factor));
 
     ViewMock::View view("Play", false);
     cut_assert_true(view.init());
     cut_assert_true(vm->add_view(&view));
 
-    view.expect_input_with_callback(ViewIface::InputResult::OK,
-                                    DrcpCommand::FAST_WIND_SET_SPEED,
-                                    speed_factor_pointer,
-                                    check_equal_parameters_by_pointer);
-
-    mock_messages->expect_msg_info("Dispatching DRCP command %d%s");
-    check_equal_parameters_by_pointer_called = false;
-    vm->process_pending_events();
-    cut_assert_true(check_equal_parameters_by_pointer_called);
-}
-
-class DummyTypeForTesting
-{
-  public:
-    DummyTypeForTesting(const DummyTypeForTesting &) = delete;
-    DummyTypeForTesting &operator=(const DummyTypeForTesting &) = delete;
-
-    explicit DummyTypeForTesting() {}
-};
-
-/*!\test
- * In case we are messing up and pass the wrong kind of data to an input
- * command, the command handler is responsible for handling the situation.
- */
-void test_input_command_with_unexpected_data(void)
-{
-    auto completely_unexpected_data =
-        std::unique_ptr<UI::SpecificParameters<DummyTypeForTesting *>>(new UI::SpecificParameters<DummyTypeForTesting *>(nullptr));
-    auto completely_unexpected_data_pointer = completely_unexpected_data.get();
-    vm->input(DrcpCommand::FAST_WIND_SET_SPEED, std::move(completely_unexpected_data));
-
-    ViewMock::View view("Play", false);
-    cut_assert_true(view.init());
-    cut_assert_true(vm->add_view(&view));
-
-    view.expect_input_with_callback(ViewIface::InputResult::OK,
-                                    DrcpCommand::FAST_WIND_SET_SPEED,
-                                    completely_unexpected_data_pointer,
-                                    check_equal_parameters_by_pointer);
-
-    mock_messages->expect_msg_info("Dispatching DRCP command %d%s");
+    speed_factor = UI::Events::mk_params<UI::EventID::PLAYBACK_FAST_WIND_SET_SPEED>(12.5);
+    view.expect_process_event_with_callback(ViewIface::InputResult::OK,
+                                            UI::ViewEventID::PLAYBACK_FAST_WIND_SET_SPEED,
+                                            nullptr,
+                                            check_equal_parameters_by_pointer);
 
     check_equal_parameters_by_pointer_called = false;
     vm->process_pending_events();
@@ -818,20 +767,19 @@ void test_input_command_with_unexpected_data(void)
  */
 void test_input_command_with_missing_data(void)
 {
-    vm->input(DrcpCommand::FAST_WIND_SET_SPEED);
+    vm->store_event(UI::EventID::PLAYBACK_FAST_WIND_SET_SPEED);
 
     ViewMock::View view("Play", false);
     cut_assert_true(view.init());
     cut_assert_true(vm->add_view(&view));
 
-    const UI::SpecificParameters<DummyTypeForTesting *> completely_unexpected_data(nullptr);
-    view.expect_input_with_callback(ViewIface::InputResult::OK,
-                                    DrcpCommand::FAST_WIND_SET_SPEED,
-                                    nullptr, check_equal_parameters_by_pointer);
-
-    mock_messages->expect_msg_info("Dispatching DRCP command %d%s");
+    view.expect_process_event_with_callback(ViewIface::InputResult::OK,
+                                            UI::ViewEventID::PLAYBACK_FAST_WIND_SET_SPEED,
+                                            nullptr,
+                                            check_equal_parameters_by_pointer);
 
     check_equal_parameters_by_pointer_called = false;
+    check_equal_parameters_by_pointer_value = nullptr;
     vm->process_pending_events();
     cut_assert_true(check_equal_parameters_by_pointer_called);
 }
@@ -841,32 +789,48 @@ void test_input_command_with_missing_data(void)
  */
 void test_toggle_two_views(void)
 {
+    auto params = UI::Events::mk_params<UI::EventID::VIEW_TOGGLE>("Second", "Third");
+    vm->store_event(UI::EventID::VIEW_TOGGLE, std::move(params));
+
     mock_messages->expect_msg_info_formatted("Requested to toggle between views \"Second\" and \"Third\"");
     all_mock_views[0]->expect_defocus();
     all_mock_views[1]->expect_focus();
     all_mock_views[1]->expect_serialize(*views_output);
     all_mock_views[1]->expect_write_xml_begin(true, true);
-    vm->toggle_views_by_name("Second", "Third");
+
+    vm->process_pending_events();
     vm->serialization_result(DCP::Transaction::OK);
+
     check_and_clear_ostream("Second serialize\n", *views_output);
+
+    /* again */
+    params = UI::Events::mk_params<UI::EventID::VIEW_TOGGLE>("Second", "Third");
+    vm->store_event(UI::EventID::VIEW_TOGGLE, std::move(params));
 
     mock_messages->expect_msg_info_formatted("Requested to toggle between views \"Second\" and \"Third\"");
     all_mock_views[1]->expect_defocus();
     all_mock_views[2]->expect_focus();
     all_mock_views[2]->expect_serialize(*views_output);
     all_mock_views[2]->expect_write_xml_begin(true, true);
-    vm->toggle_views_by_name("Second", "Third");
+
+    vm->process_pending_events();
     vm->serialization_result(DCP::Transaction::OK);
+
     check_and_clear_ostream("Third serialize\n", *views_output);
 
+    /* and again */
+    params = UI::Events::mk_params<UI::EventID::VIEW_TOGGLE>("Second", "Third");
+    vm->store_event(UI::EventID::VIEW_TOGGLE, std::move(params));
 
     mock_messages->expect_msg_info_formatted("Requested to toggle between views \"Second\" and \"Third\"");
     all_mock_views[2]->expect_defocus();
     all_mock_views[1]->expect_focus();
     all_mock_views[1]->expect_serialize(*views_output);
     all_mock_views[1]->expect_write_xml_begin(true, true);
-    vm->toggle_views_by_name("Second", "Third");
+
+    vm->process_pending_events();
     vm->serialization_result(DCP::Transaction::OK);
+
     check_and_clear_ostream("Second serialize\n", *views_output);
 }
 
@@ -876,22 +840,33 @@ void test_toggle_two_views(void)
  */
 void test_toggle_views_with_same_names_switches_each_time(void)
 {
+    auto params = UI::Events::mk_params<UI::EventID::VIEW_TOGGLE>("Fourth", "Fourth");
+    vm->store_event(UI::EventID::VIEW_TOGGLE, std::move(params));
+
     mock_messages->expect_msg_info_formatted("Requested to toggle between views \"Fourth\" and \"Fourth\"");
     all_mock_views[0]->expect_defocus();
     all_mock_views[3]->expect_focus();
     all_mock_views[3]->expect_serialize(*views_output);
     all_mock_views[3]->expect_write_xml_begin(true, true);
-    vm->toggle_views_by_name("Fourth", "Fourth");
+
+    vm->process_pending_events();
     vm->serialization_result(DCP::Transaction::OK);
+
     check_and_clear_ostream("Fourth serialize\n", *views_output);
+
+    /* again */
+    params = UI::Events::mk_params<UI::EventID::VIEW_TOGGLE>("Fourth", "Fourth");
+    vm->store_event(UI::EventID::VIEW_TOGGLE, std::move(params));
 
     mock_messages->expect_msg_info_formatted("Requested to toggle between views \"Fourth\" and \"Fourth\"");
     all_mock_views[3]->expect_defocus();
     all_mock_views[3]->expect_focus();
     all_mock_views[3]->expect_serialize(*views_output);
     all_mock_views[3]->expect_write_xml_begin(true, true);
-    vm->toggle_views_by_name("Fourth", "Fourth");
+
+    vm->process_pending_events();
     vm->serialization_result(DCP::Transaction::OK);
+
     check_and_clear_ostream("Fourth serialize\n", *views_output);
 }
 
@@ -901,31 +876,48 @@ void test_toggle_views_with_same_names_switches_each_time(void)
  */
 void test_toggle_views_with_first_unknown_name_switches_to_the_known_name(void)
 {
+    auto params = UI::Events::mk_params<UI::EventID::VIEW_TOGGLE>("Foo", "Third");
+    vm->store_event(UI::EventID::VIEW_TOGGLE, std::move(params));
+
     mock_messages->expect_msg_info_formatted("Requested to toggle between views \"Foo\" and \"Third\"");
     all_mock_views[0]->expect_defocus();
     all_mock_views[2]->expect_focus();
     all_mock_views[2]->expect_serialize(*views_output);
     all_mock_views[2]->expect_write_xml_begin(true, true);
-    vm->toggle_views_by_name("Foo", "Third");
+
+    vm->process_pending_events();
     vm->serialization_result(DCP::Transaction::OK);
+
     check_and_clear_ostream("Third serialize\n", *views_output);
+
+    /* again */
+    params = UI::Events::mk_params<UI::EventID::VIEW_TOGGLE>("Foo", "Third");
+    vm->store_event(UI::EventID::VIEW_TOGGLE, std::move(params));
 
     mock_messages->expect_msg_info_formatted("Requested to toggle between views \"Foo\" and \"Third\"");
     all_mock_views[2]->expect_defocus();
     all_mock_views[2]->expect_focus();
     all_mock_views[2]->expect_serialize(*views_output);
     all_mock_views[2]->expect_write_xml_begin(true, true);
-    vm->toggle_views_by_name("Foo", "Third");
+
+    vm->process_pending_events();
     vm->serialization_result(DCP::Transaction::OK);
+
     check_and_clear_ostream("Third serialize\n", *views_output);
+
+    /* and again */
+    params = UI::Events::mk_params<UI::EventID::VIEW_TOGGLE>("Foo", "Third");
+    vm->store_event(UI::EventID::VIEW_TOGGLE, std::move(params));
 
     mock_messages->expect_msg_info_formatted("Requested to toggle between views \"Foo\" and \"Third\"");
     all_mock_views[2]->expect_defocus();
     all_mock_views[2]->expect_focus();
     all_mock_views[2]->expect_serialize(*views_output);
     all_mock_views[2]->expect_write_xml_begin(true, true);
-    vm->toggle_views_by_name("Foo", "Third");
+
+    vm->process_pending_events();
     vm->serialization_result(DCP::Transaction::OK);
+
     check_and_clear_ostream("Third serialize\n", *views_output);
 }
 
@@ -935,20 +927,33 @@ void test_toggle_views_with_first_unknown_name_switches_to_the_known_name(void)
  */
 void test_toggle_views_with_second_unknown_name_switches_to_the_known_name(void)
 {
+    auto params = UI::Events::mk_params<UI::EventID::VIEW_TOGGLE>("Third", "Foo");
+    vm->store_event(UI::EventID::VIEW_TOGGLE, std::move(params));
+
     mock_messages->expect_msg_info_formatted("Requested to toggle between views \"Third\" and \"Foo\"");
     all_mock_views[0]->expect_defocus();
     all_mock_views[2]->expect_focus();
     all_mock_views[2]->expect_serialize(*views_output);
     all_mock_views[2]->expect_write_xml_begin(true, true);
-    vm->toggle_views_by_name("Third", "Foo");
+
+    vm->process_pending_events();
+
     vm->serialization_result(DCP::Transaction::OK);
     check_and_clear_ostream("Third serialize\n", *views_output);
 
-    mock_messages->expect_msg_info_formatted("Requested to toggle between views \"Third\" and \"Foo\"");
-    vm->toggle_views_by_name("Third", "Foo");
+    params = UI::Events::mk_params<UI::EventID::VIEW_TOGGLE>("Third", "Foo");
+    vm->store_event(UI::EventID::VIEW_TOGGLE, std::move(params));
 
     mock_messages->expect_msg_info_formatted("Requested to toggle between views \"Third\" and \"Foo\"");
-    vm->toggle_views_by_name("Third", "Foo");
+
+    vm->process_pending_events();
+
+    params = UI::Events::mk_params<UI::EventID::VIEW_TOGGLE>("Third", "Foo");
+    vm->store_event(UI::EventID::VIEW_TOGGLE, std::move(params));
+
+    mock_messages->expect_msg_info_formatted("Requested to toggle between views \"Third\" and \"Foo\"");
+
+    vm->process_pending_events();
 }
 
 /*!\test
@@ -956,11 +961,17 @@ void test_toggle_views_with_second_unknown_name_switches_to_the_known_name(void)
  */
 void test_toggle_views_with_two_unknown_names_does_nothing(void)
 {
-    mock_messages->expect_msg_info_formatted("Requested to toggle between views \"Foo\" and \"Bar\"");
-    vm->toggle_views_by_name("Foo", "Bar");
+    auto params = UI::Events::mk_params<UI::EventID::VIEW_TOGGLE>("Foo", "Bar");
+    vm->store_event(UI::EventID::VIEW_TOGGLE, std::move(params));
 
     mock_messages->expect_msg_info_formatted("Requested to toggle between views \"Foo\" and \"Bar\"");
-    vm->toggle_views_by_name("Foo", "Bar");
+    vm->process_pending_events();
+
+    params = UI::Events::mk_params<UI::EventID::VIEW_TOGGLE>("Foo", "Bar");
+    vm->store_event(UI::EventID::VIEW_TOGGLE, std::move(params));
+
+    mock_messages->expect_msg_info_formatted("Requested to toggle between views \"Foo\" and \"Bar\"");
+    vm->process_pending_events();
 }
 
 };
@@ -1058,14 +1069,26 @@ void test_serialization_result_for_idle_transaction_is_logged(void)
     vm->serialization_result(DCP::Transaction::IO_ERROR);
 }
 
-static void activate_view()
+static void activate_view(bool expect_immediate_serialization = true)
 {
+    auto params = UI::Events::mk_params<UI::EventID::VIEW_OPEN>(standard_mock_view_name);
+    vm->store_event(UI::EventID::VIEW_OPEN, std::move(params));
+
     mock_messages->expect_msg_info_formatted("Requested to activate view \"Mock\"");
+
     mock_view->expect_focus();
     mock_view->expect_serialize(*views_output);
-    mock_view->expect_write_xml_begin(true, true);
-    vm->activate_view_by_name(standard_mock_view_name);
-    check_and_clear_ostream("Mock serialize\n", *views_output);
+
+    if(expect_immediate_serialization)
+        mock_view->expect_write_xml_begin(true, true);
+
+    vm->process_pending_events();
+
+    if(expect_immediate_serialization)
+        check_and_clear_ostream("Mock serialize\n", *views_output);
+
+    mock_messages->check();
+    mock_view->check();
 }
 
 /*!\test
@@ -1135,13 +1158,20 @@ void test_view_update_does_not_affect_ongoing_transfer()
     cut_assert_false(dcp_queue->is_idle());
 
     mock_view->expect_defocus();
-    activate_view();
+    activate_view(false);
 
     cut_assert_true(dcp_queue->is_in_progress());
     cut_assert_false(dcp_queue->is_empty());
     cut_assert_false(dcp_queue->is_idle());
 
+    /* expecting serialization of queued DCP transfer upon completion of the
+     * first one */
+    mock_view->expect_write_xml_begin(true, true);
     vm->serialization_result(DCP::Transaction::OK);
+    check_and_clear_ostream("Mock serialize\n", *views_output);
+
+    mock_messages->check();
+    mock_view->check();
 
     cut_assert_true(dcp_queue->is_in_progress());
     cut_assert_true(dcp_queue->is_empty());

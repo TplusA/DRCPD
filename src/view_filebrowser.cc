@@ -561,7 +561,7 @@ static ViewIface::InputResult move_down_multi(List::Nav &navigation,
 {
     log_assert(lines > 0);
 
-    const bool moved = ((navigation.distance_to_bottom() == 0)
+    const bool moved = ((lines == 1 || navigation.distance_to_bottom() == 0)
                         ? navigation.down(lines)
                         : navigation.down(navigation.distance_to_bottom()));
 
@@ -573,15 +573,16 @@ static ViewIface::InputResult move_up_multi(List::Nav &navigation,
 {
     log_assert(lines > 0);
 
-    const bool moved = ((navigation.distance_to_top() == 0)
+    const bool moved = ((lines == 1 || navigation.distance_to_top() == 0)
                         ? navigation.up(lines)
                         : navigation.up(navigation.distance_to_top()));
 
     return moved ? ViewIface::InputResult::UPDATE_NEEDED : ViewIface::InputResult::OK;
 }
 
-ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command,
-                                                    std::unique_ptr<const UI::Parameters> parameters)
+ViewIface::InputResult
+ViewFileBrowser::View::process_event(UI::ViewEventID event_id,
+                                     std::unique_ptr<const UI::Parameters> parameters)
 {
     WaitForParametersHelper wait_helper(
         waiting_for_search_parameters_,
@@ -591,9 +592,9 @@ ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command,
             stop_waiting_for_search_parameters(*search_parameters_view_);
         });
 
-    switch(command)
+    switch(event_id)
     {
-      case DrcpCommand::SEARCH:
+      case UI::ViewEventID::SEARCH_COMMENCE:
         if((!wait_helper.was_waiting() ||
             !have_search_parameters(search_parameters_view_)))
         {
@@ -608,7 +609,7 @@ ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command,
 
         break;
 
-      case DrcpCommand::X_TA_SEARCH_PARAMETERS:
+      case UI::ViewEventID::SEARCH_STORE_PARAMETERS:
         if(!wait_helper.was_waiting())
         {
             wait_helper.keep_parameters();
@@ -620,12 +621,13 @@ ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command,
 
         break;
 
-      case DrcpCommand::SELECT_ITEM:
-      case DrcpCommand::KEY_OK_ENTER:
+      case UI::ViewEventID::NAV_SELECT_ITEM:
         if(file_list_.empty())
             return InputResult::OK;
 
         const FileItem *item;
+
+        msg_info("Enter item at line %d", navigation_.get_cursor());
 
         try
         {
@@ -677,7 +679,7 @@ ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command,
               case ListItemKind::REGULAR_FILE:
               case ListItemKind::PLAYLIST_FILE:
               case ListItemKind::OPAQUE:
-                command = DrcpCommand::PLAYBACK_START;
+                event_id = UI::ViewEventID::PLAYBACK_START;
                 break;
 
               case ListItemKind::SEARCH_FORM:
@@ -692,14 +694,14 @@ ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command,
             }
         }
 
-        if(command != DrcpCommand::PLAYBACK_START)
+        if(event_id != UI::ViewEventID::PLAYBACK_START)
             return InputResult::OK;
 
-        /* fall-through: command was changed to #DrcpCommand::PLAYBACK_START
+        /* fall-through: event was changed to #UI::ViewEventID::PLAYBACK_START
          *               because the item below the cursor was not a
          *               directory */
 
-      case DrcpCommand::PLAYBACK_START:
+      case UI::ViewEventID::PLAYBACK_START:
         if(file_list_.empty())
             return InputResult::OK;
 
@@ -710,7 +712,7 @@ ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command,
                      [this] (bool is_buffering)
                      {
                          player_is_mine_ = is_buffering;
-                         view_manager_->activate_view_by_name(is_buffering
+                         view_manager_->sync_activate_view_by_name(is_buffering
                              ? ViewNames::PLAYER
                              : name_);
                      },
@@ -718,37 +720,38 @@ ViewIface::InputResult ViewFileBrowser::View::input(DrcpCommand command,
 
         return InputResult::OK;
 
-      case DrcpCommand::GO_BACK_ONE_LEVEL:
+      case UI::ViewEventID::NAV_GO_BACK_ONE_LEVEL:
         return point_to_parent_link() ? InputResult::UPDATE_NEEDED : InputResult::OK;
 
-      case DrcpCommand::SCROLL_DOWN_ONE:
-        return navigation_.down() ? InputResult::UPDATE_NEEDED : InputResult::OK;
-
-      case DrcpCommand::SCROLL_UP_ONE:
-        return navigation_.up() ? InputResult::UPDATE_NEEDED : InputResult::OK;
-
-      case DrcpCommand::SCROLL_PAGE_DOWN:
-        return move_down_multi(navigation_, navigation_.maximum_number_of_displayed_lines_);
-
-      case DrcpCommand::SCROLL_PAGE_UP:
-        return move_up_multi(navigation_, navigation_.maximum_number_of_displayed_lines_);
-
-      case DrcpCommand::SCROLL_DOWN_MANY:
-      case DrcpCommand::SCROLL_UP_MANY:
+      case UI::ViewEventID::NAV_SCROLL_PAGES:
         {
-            const auto lines =
-                UI::Parameters::downcast<const UI::ParamsUpDownSteps>(parameters);
+            const auto pages_params =
+                UI::Events::downcast<UI::ViewEventID::NAV_SCROLL_PAGES>(parameters);
+            log_assert(pages_params != nullptr);
 
-            if(lines == nullptr)
-            {
-                BUG("Number of lines missing");
-                break;
-            }
+            const int lines =
+                pages_params->get_specific() * navigation_.maximum_number_of_displayed_lines_;
 
-            if(command == DrcpCommand::SCROLL_DOWN_MANY)
-                return move_down_multi(navigation_, lines->get_specific());
-            else
-                return move_up_multi(navigation_, lines->get_specific());
+            if(lines > 0)
+                return move_down_multi(navigation_, lines);
+            else if(lines < 0)
+                return move_up_multi(navigation_, -lines);
+        }
+
+        break;
+
+      case UI::ViewEventID::NAV_SCROLL_LINES:
+        {
+            const auto lines_params =
+                UI::Events::downcast<UI::ViewEventID::NAV_SCROLL_LINES>(parameters);
+            log_assert(lines_params != nullptr);
+
+            const auto lines = lines_params->get_specific();
+
+            if(lines > 0)
+                return move_down_multi(navigation_, lines);
+            else if(lines < 0)
+                return move_up_multi(navigation_, -lines);
         }
 
         break;
@@ -766,6 +769,9 @@ bool ViewFileBrowser::View::write_xml(std::ostream &os,
     os << "<text id=\"cbid\">" << int(drcp_browse_id_) << "</text>";
 
     size_t displayed_line = 0;
+    unsigned int prefetch_hint =
+        std::min(navigation_.get_total_number_of_visible_items(),
+                 navigation_.maximum_number_of_displayed_lines_);
 
     for(auto it : navigation_)
     {
@@ -778,7 +784,8 @@ bool ViewFileBrowser::View::write_xml(std::ostream &os,
             const List::Item *dbus_list_item = nullptr;
             const auto op_result =
                 file_list_.get_item_async(it, dbus_list_item,
-                                          List::QueryContextGetItem::CallerID::SERIALIZE);
+                                          List::QueryContextGetItem::CallerID::SERIALIZE,
+                                          prefetch_hint);
 
             switch(op_result)
             {
@@ -803,6 +810,8 @@ bool ViewFileBrowser::View::write_xml(std::ostream &os,
              * otherwise the user would see no update at all */
             return true;
         }
+
+        --prefetch_hint;
 
         std::string flags;
 

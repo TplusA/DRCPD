@@ -67,6 +67,7 @@ class SpecificParameters: public Parameters
     explicit SpecificParameters(T &&value): value_(std::move(value)) {}
 
     const T &get_specific() const { return value_; }
+    T &get_specific_non_const() { return value_; }
 
     /*
      * Ugly-fied, non-const pointer variant of

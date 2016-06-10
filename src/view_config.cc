@@ -24,6 +24,7 @@
 #include <iomanip>
 
 #include "view_config.hh"
+#include "ui_parameters_predefined.hh"
 #include "i18n.h"
 
 std::ostream &operator<<(std::ostream &os, const ViewConfig::MACAddr &addr)
@@ -205,13 +206,13 @@ void ViewConfig::View::defocus()
 {
 }
 
-ViewIface::InputResult ViewConfig::View::input(DrcpCommand command,
-                                               std::unique_ptr<const UI::Parameters> parameters)
+ViewIface::InputResult
+ViewConfig::View::process_event(UI::ViewEventID event_id,
+                                std::unique_ptr<const UI::Parameters> parameters)
 {
-    switch(command)
+    switch(event_id)
     {
-      case DrcpCommand::SELECT_ITEM:
-      case DrcpCommand::KEY_OK_ENTER:
+      case UI::ViewEventID::NAV_SELECT_ITEM:
         if(auto item = dynamic_cast<const CallbackItem *>(editable_menu_items_.get_item(navigation_.get_cursor())))
         {
             item->activate(this);
@@ -220,27 +221,35 @@ ViewIface::InputResult ViewConfig::View::input(DrcpCommand command,
 
         return InputResult::OK;
 
-      case DrcpCommand::SCROLL_DOWN_ONE:
-        return navigation_.down() ? InputResult::UPDATE_NEEDED : InputResult::OK;
-
-      case DrcpCommand::SCROLL_UP_ONE:
-        return navigation_.up() ? InputResult::UPDATE_NEEDED : InputResult::OK;
-
-      case DrcpCommand::SCROLL_PAGE_DOWN:
+      case UI::ViewEventID::NAV_SCROLL_LINES:
       {
-        bool moved =
-            ((navigation_.distance_to_bottom() == 0)
-             ? navigation_.down(navigation_.maximum_number_of_displayed_lines_)
-             : navigation_.down(navigation_.distance_to_bottom()));
-        return moved ? InputResult::UPDATE_NEEDED : InputResult::OK;
+        const auto lines =
+            UI::Events::downcast<UI::ViewEventID::NAV_SCROLL_LINES>(parameters);
+        log_assert(lines != nullptr);
+
+        if(lines->get_specific() < 0)
+            return navigation_.down() ? InputResult::UPDATE_NEEDED : InputResult::OK;
+        else
+            return navigation_.up() ? InputResult::UPDATE_NEEDED : InputResult::OK;
       }
 
-      case DrcpCommand::SCROLL_PAGE_UP:
+      case UI::ViewEventID::NAV_SCROLL_PAGES:
       {
-        bool moved =
-            ((navigation_.distance_to_top() == 0)
-             ? navigation_.up(navigation_.maximum_number_of_displayed_lines_)
-             : navigation_.up(navigation_.distance_to_top()));
+        const auto pages =
+            UI::Events::downcast<UI::ViewEventID::NAV_SCROLL_PAGES>(parameters);
+        log_assert(pages != nullptr);
+
+        bool moved;
+
+        if(pages->get_specific() < 0)
+            moved = ((navigation_.distance_to_bottom() == 0)
+                     ? navigation_.down(navigation_.maximum_number_of_displayed_lines_)
+                     : navigation_.down(navigation_.distance_to_bottom()));
+        else
+            moved = ((navigation_.distance_to_top() == 0)
+                     ? navigation_.up(navigation_.maximum_number_of_displayed_lines_)
+                     : navigation_.up(navigation_.distance_to_top()));
+
         return moved ? InputResult::UPDATE_NEEDED : InputResult::OK;
       }
 

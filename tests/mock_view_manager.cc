@@ -24,23 +24,25 @@
 
 #include <vector>
 #include <string>
+#include <typeinfo>
+#include <functional>
+#include <array>
 
 #include "mock_view_manager.hh"
+#include "ui_parameters_predefined.hh"
 
 enum class MemberFn
 {
+    store_event,
     serialization_result,
-    input,
     input_bounce,
-    input_move_cursor_by_line,
-    input_move_cursor_by_page,
     get_view_by_name,
     get_view_by_dbus_proxy,
     get_playback_initiator_view,
     activate_view_by_name,
     toggle_views_by_name,
 
-    first_valid_member_fn_id = serialization_result,
+    first_valid_member_fn_id = store_event,
     last_valid_member_fn_id = toggle_views_by_name,
 };
 
@@ -55,24 +57,16 @@ static std::ostream &operator<<(std::ostream &os, const MemberFn id)
 
     switch(id)
     {
+      case MemberFn::store_event:
+        os << "store_event";
+        break;
+
       case MemberFn::serialization_result:
         os << "serialization_result";
         break;
 
-      case MemberFn::input:
-        os << "input";
-        break;
-
       case MemberFn::input_bounce:
         os << "input_bounce";
-        break;
-
-      case MemberFn::input_move_cursor_by_line:
-        os << "input_move_cursor_by_line";
-        break;
-
-      case MemberFn::input_move_cursor_by_page:
-        os << "input_move_cursor_by_page";
         break;
 
       case MemberFn::activate_view_by_name:
@@ -109,30 +103,32 @@ class MockViewManager::Expectation
         const MemberFn function_id_;
 
         ViewIface::InputResult ret_result_;
-        DrcpCommand arg_command_;
-        DrcpCommand bounce_xform_command_;
-        bool expect_parameters_;
+        UI::EventID arg_event_id_;
+        UI::ViewEventID arg_view_event_id_;
+        UI::ViewEventID bounce_xform_event_id_;
         CheckParametersFn check_parameters_fn_;
-        const UI::Parameters *expected_parameters_;
-        int arg_lines_or_pages_;
+        std::unique_ptr<const UI::Parameters> expected_parameters_;
         std::string arg_view_name_;
         std::string arg_view_name_b_;
         DCP::Transaction::Result arg_dcp_result_;
 
+        Data(const Data &) = delete;
+        Data(Data &&) = default;
+        Data &operator=(const Data &) = delete;
+
         explicit Data(MemberFn fn):
             function_id_(fn),
             ret_result_(ViewIface::InputResult::OK),
-            arg_command_(DrcpCommand::UNDEFINED_COMMAND),
-            bounce_xform_command_(DrcpCommand::UNDEFINED_COMMAND),
-            expect_parameters_(false),
+            arg_event_id_(UI::EventID::NOP),
+            arg_view_event_id_(UI::ViewEventID::NOP),
+            bounce_xform_event_id_(UI::ViewEventID::NOP),
             check_parameters_fn_(nullptr),
             expected_parameters_(nullptr),
-            arg_lines_or_pages_(-9999),
             arg_dcp_result_(DCP::Transaction::Result::OK)
         {}
     };
 
-    const Data d;
+    Data d;
 
   private:
     /* writable reference for simple ctor code */
@@ -140,6 +136,7 @@ class MockViewManager::Expectation
 
   public:
     Expectation(const Expectation &) = delete;
+    Expectation(Expectation &&) = default;
     Expectation &operator=(const Expectation &) = delete;
 
     explicit Expectation(MemberFn id, DCP::Transaction::Result result):
@@ -148,28 +145,14 @@ class MockViewManager::Expectation
         data_.arg_dcp_result_ = result;
     }
 
-    explicit Expectation(MemberFn id, DrcpCommand command, bool expect_parameters):
-        d(id)
-    {
-        data_.arg_command_ = command;
-        data_.expect_parameters_ = expect_parameters;
-    }
-
-    explicit Expectation(MemberFn id, DrcpCommand command,
-                         const UI::Parameters *expected_parameters,
+    explicit Expectation(MemberFn id, UI::EventID event_id,
+                         std::unique_ptr<const UI::Parameters> expected_parameters,
                          CheckParametersFn check_params_callback):
         d(id)
     {
-        data_.arg_command_ = command;
-        data_.expect_parameters_ = (expected_parameters != nullptr);
+        data_.arg_event_id_ = event_id;
         data_.check_parameters_fn_ = check_params_callback;
-        data_.expected_parameters_ = expected_parameters;
-    }
-
-    explicit Expectation(MemberFn id, int lines_or_pages):
-        d(id)
-    {
-        data_.arg_lines_or_pages_ = lines_or_pages;
+        data_.expected_parameters_ = std::move(expected_parameters);
     }
 
     explicit Expectation(MemberFn id, const char *view_name):
@@ -187,14 +170,17 @@ class MockViewManager::Expectation
     }
 
     explicit Expectation(MemberFn id, ViewIface::InputResult retval,
-                         DrcpCommand command, bool expect_parameters,
-                         DrcpCommand xform_command, const char *view_name):
+                         UI::ViewEventID event_id,
+                         std::unique_ptr<const UI::Parameters> expected_parameters,
+                         CheckParametersFn check_params_callback,
+                         UI::ViewEventID xform_event_id, const char *view_name):
         d(id)
     {
         data_.ret_result_ = retval;
-        data_.arg_command_ = command;
-        data_.bounce_xform_command_ = xform_command;
-        data_.expect_parameters_ = expect_parameters;
+        data_.arg_view_event_id_ = event_id;
+        data_.bounce_xform_event_id_ = xform_event_id;
+        data_.check_parameters_fn_ = check_params_callback;
+        data_.expected_parameters_ = std::move(expected_parameters);
 
         if(view_name != nullptr)
             data_.arg_view_name_ = view_name;
@@ -203,8 +189,6 @@ class MockViewManager::Expectation
     explicit Expectation(MemberFn id):
         d(id)
     {}
-
-    Expectation(Expectation &&) = default;
 };
 
 
@@ -230,36 +214,129 @@ void MockViewManager::check() const
     expectations_->check();
 }
 
+template <UI::EventID E, typename Traits = ::UI::Events::ParamTraits<E>>
+struct ParamCompareTraits
+{
+    static void expect_equal(const typename Traits::PType *expected,
+                             const typename Traits::PType *actual)
+    {
+        cut_assert_true(expected->get_specific() == actual->get_specific());
+    }
+};
+
+template <>
+struct ParamCompareTraits<UI::EventID::PLAYBACK_FAST_WIND_SET_SPEED>
+{
+    using Traits = ::UI::Events::ParamTraits<UI::EventID::PLAYBACK_FAST_WIND_SET_SPEED>;
+
+    static void expect_equal(const typename Traits::PType *expected,
+                             const typename Traits::PType *actual)
+    {
+        cut_assert_false(expected->get_specific() < actual->get_specific() ||
+                         expected->get_specific() > actual->get_specific());
+    }
+};
+
+template <>
+struct ParamCompareTraits<UI::EventID::VIEW_SEARCH_STORE_PARAMETERS>
+{
+    using Traits = ::UI::Events::ParamTraits<UI::EventID::VIEW_SEARCH_STORE_PARAMETERS>;
+
+    static void expect_equal(const typename Traits::PType *expected,
+                             const typename Traits::PType *actual)
+    {
+        cut_fail("Not implemented");
+    }
+};
+
+template <UI::EventID E, typename Traits = ::UI::Events::ParamTraits<E>>
+static bool check_equality(const std::unique_ptr<const UI::Parameters> &expected,
+                           const std::unique_ptr<const UI::Parameters> &actual)
+{
+    const auto *expected_ptr = dynamic_cast<const typename Traits::PType *>(expected.get());
+    const auto *actual_ptr   = dynamic_cast<const typename Traits::PType *>(actual.get());
+
+    if(expected_ptr == nullptr)
+    {
+        cppcut_assert_null(actual_ptr);
+        return false;
+    }
+
+    cppcut_assert_not_null(actual_ptr);
+
+    ParamCompareTraits<E>::expect_equal(expected_ptr, actual_ptr);
+
+    return true;
+}
+
+static void check_ui_parameters_equality(std::unique_ptr<const UI::Parameters> expected,
+                                         std::unique_ptr<const UI::Parameters> actual)
+{
+    if(expected == nullptr)
+    {
+        cppcut_assert_null(actual.get());
+        return;
+    }
+    else
+        cppcut_assert_not_null(actual.get());
+
+    const std::type_info &type_expected(typeid(*expected.get()));
+    const std::type_info &type_actual(typeid(*actual.get()));
+
+    cppcut_assert_equal(type_expected.hash_code(), type_actual.hash_code());
+    cppcut_assert_equal(type_expected.name(), type_actual.name());
+
+    using Checker = std::function<bool(const std::unique_ptr<const UI::Parameters> &,
+                                       const std::unique_ptr<const UI::Parameters> &)>;
+
+    static const std::array<const Checker, 14> checkers
+    {
+        check_equality<UI::EventID::PLAYBACK_FAST_WIND_SET_SPEED>,
+        check_equality<UI::EventID::NAV_SCROLL_LINES>,
+        check_equality<UI::EventID::NAV_SCROLL_PAGES>,
+        check_equality<UI::EventID::VIEW_OPEN>,
+        check_equality<UI::EventID::VIEW_TOGGLE>,
+        check_equality<UI::EventID::VIEW_INVALIDATE_LIST_ID>,
+        check_equality<UI::EventID::VIEW_PLAYER_NOW_PLAYING>,
+        check_equality<UI::EventID::VIEW_PLAYER_STORE_PRELOADED_META_DATA>,
+        check_equality<UI::EventID::VIEW_PLAYER_META_DATA_UPDATE>,
+        check_equality<UI::EventID::VIEW_PLAYER_STOPPED>,
+        check_equality<UI::EventID::VIEW_PLAYER_PAUSED>,
+        check_equality<UI::EventID::VIEW_PLAYER_POSITION_UPDATE>,
+        check_equality<UI::EventID::VIEW_SEARCH_STORE_PARAMETERS>,
+        check_equality<UI::EventID::VIEW_AIRABLE_SERVICE_LOGIN_STATUS_UPDATE>,
+    };
+
+    for(const auto &checker : checkers)
+    {
+        if(checker(expected, actual))
+            return;
+    }
+
+    cut_fail("No equality checker for %s", type_expected.name());
+}
+
+void MockViewManager::expect_store_event(UI::EventID event_id,
+                                         std::unique_ptr<const UI::Parameters> parameters)
+{
+    expectations_->add(Expectation(MemberFn::store_event, event_id, std::move(parameters), check_ui_parameters_equality));
+}
+
+void MockViewManager::expect_store_event_with_callback(UI::EventID event_id,
+                                                       std::unique_ptr<const UI::Parameters> parameters,
+                                                       CheckParametersFn check_params_callback)
+{
+    expectations_->add(Expectation(MemberFn::store_event, event_id, std::move(parameters), check_params_callback));
+}
+
 void MockViewManager::expect_serialization_result(DCP::Transaction::Result result)
 {
     expectations_->add(Expectation(MemberFn::serialization_result, result));
 }
 
-void MockViewManager::expect_input(DrcpCommand command, bool expect_parameters)
+void MockViewManager::expect_input_bounce(ViewIface::InputResult retval, UI::ViewEventID event_id, std::unique_ptr<const UI::Parameters> parameters, UI::ViewEventID xform_event_id, const char *view_name)
 {
-    expectations_->add(Expectation(MemberFn::input, command, expect_parameters));
-}
-
-void MockViewManager::expect_input_with_callback(DrcpCommand command,
-                                                 const UI::Parameters *expected_parameters,
-                                                 CheckParametersFn check_params_callback)
-{
-    expectations_->add(Expectation(MemberFn::input, command, expected_parameters, check_params_callback));
-}
-
-void MockViewManager::expect_input_bounce(ViewIface::InputResult retval, DrcpCommand command, bool expect_parameters, DrcpCommand xform_command, const char *view_name)
-{
-    expectations_->add(Expectation(MemberFn::input_bounce, retval, command, expect_parameters, xform_command, view_name));
-}
-
-void MockViewManager::expect_input_move_cursor_by_line(int lines)
-{
-    expectations_->add(Expectation(MemberFn::input_move_cursor_by_line, lines));
-}
-
-void MockViewManager::expect_input_move_cursor_by_page(int pages)
-{
-    expectations_->add(Expectation(MemberFn::input_move_cursor_by_page, pages));
+    expectations_->add(Expectation(MemberFn::input_bounce, retval, event_id, std::move(parameters), check_ui_parameters_equality, xform_event_id, view_name));
 }
 
 void MockViewManager::expect_get_view_by_name(const char *view_name)
@@ -277,13 +354,13 @@ void MockViewManager::expect_get_playback_initiator_view()
     expectations_->add(Expectation(MemberFn::get_playback_initiator_view));
 }
 
-void MockViewManager::expect_activate_view_by_name(const char *view_name)
+void MockViewManager::expect_sync_activate_view_by_name(const char *view_name)
 {
     expectations_->add(Expectation(MemberFn::activate_view_by_name, view_name));
 }
 
-void MockViewManager::expect_toggle_views_by_name(const char *view_name_a,
-                                                  const char *view_name_b)
+void MockViewManager::expect_sync_toggle_views_by_name(const char *view_name_a,
+                                                       const char *view_name_b)
 {
     expectations_->add(Expectation(MemberFn::toggle_views_by_name,
                                    view_name_a, view_name_b));
@@ -312,6 +389,22 @@ void MockViewManager::set_debug_stream(std::ostream &os)
     cut_fail("Not implemented");
 }
 
+void MockViewManager::store_event(UI::EventID event_id, std::unique_ptr<const UI::Parameters> parameters)
+{
+    const auto &expect(expectations_->get_next_expectation(__func__));
+
+    cppcut_assert_equal(expect.d.function_id_, MemberFn::store_event);
+    cppcut_assert_equal(int(expect.d.arg_event_id_), int(event_id));
+
+    if(expect.d.check_parameters_fn_ != nullptr)
+        expect.d.check_parameters_fn_(std::move(const_cast<Expectation &>(expect).d.expected_parameters_),
+                                      std::move(parameters));
+    else if(expect.d.expected_parameters_ != nullptr)
+        cppcut_assert_not_null(parameters.get());
+    else
+        cppcut_assert_null(parameters.get());
+}
+
 void MockViewManager::serialization_result(DCP::Transaction::Result result)
 {
     const auto &expect(expectations_->get_next_expectation(__func__));
@@ -320,44 +413,32 @@ void MockViewManager::serialization_result(DCP::Transaction::Result result)
     cppcut_assert_equal(int(expect.d.arg_dcp_result_), int(result));
 }
 
-void MockViewManager::input(DrcpCommand command, std::unique_ptr<const UI::Parameters> parameters)
-{
-    const auto &expect(expectations_->get_next_expectation(__func__));
-
-    cppcut_assert_equal(expect.d.function_id_, MemberFn::input);
-    cppcut_assert_equal(int(expect.d.arg_command_), int(command));
-
-    if(expect.d.check_parameters_fn_ != nullptr)
-        expect.d.check_parameters_fn_(expect.d.expected_parameters_, parameters);
-    if(expect.d.expect_parameters_)
-        cppcut_assert_not_null(parameters.get());
-    else
-        cppcut_assert_null(parameters.get());
-}
-
-ViewIface::InputResult MockViewManager::input_bounce(const ViewManager::InputBouncer &bouncer, DrcpCommand command, std::unique_ptr<const UI::Parameters> parameters)
+ViewIface::InputResult MockViewManager::input_bounce(const ViewManager::InputBouncer &bouncer, UI::ViewEventID event_id, std::unique_ptr<const UI::Parameters> parameters)
 {
     const auto &expect(expectations_->get_next_expectation(__func__));
 
     cppcut_assert_equal(expect.d.function_id_, MemberFn::input_bounce);
-    cppcut_assert_equal(int(expect.d.arg_command_), int(command));
+    cppcut_assert_equal(int(expect.d.arg_view_event_id_), int(event_id));
 
-    if(expect.d.expect_parameters_)
+    if(expect.d.check_parameters_fn_ != nullptr)
+        expect.d.check_parameters_fn_(std::move(const_cast<Expectation &>(expect).d.expected_parameters_),
+                                      std::move(parameters));
+    else if(expect.d.expected_parameters_ != nullptr)
         cppcut_assert_not_null(parameters.get());
     else
         cppcut_assert_null(parameters.get());
 
-    const auto *item = bouncer.find(command);
+    const auto *item = bouncer.find(event_id);
 
     if(item == nullptr)
     {
         cppcut_assert_equal(int(ViewIface::InputResult::OK), int(expect.d.ret_result_));
-        cppcut_assert_equal(int(DrcpCommand::UNDEFINED_COMMAND), int(expect.d.bounce_xform_command_));
+        cppcut_assert_equal(int(UI::ViewEventID::NOP), int(expect.d.bounce_xform_event_id_));
         cut_assert_true(expect.d.arg_view_name_.empty());
     }
     else
     {
-        cppcut_assert_equal(int(expect.d.bounce_xform_command_), int(item->xform_command_));
+        cppcut_assert_equal(int(expect.d.bounce_xform_event_id_), int(item->xform_event_id_));
         cppcut_assert_equal(expect.d.arg_view_name_.c_str(), item->view_name_);
         cut_assert_false(expect.d.arg_view_name_.empty());
     }
@@ -365,35 +446,11 @@ ViewIface::InputResult MockViewManager::input_bounce(const ViewManager::InputBou
     return expect.d.ret_result_;
 }
 
-void MockViewManager::input_move_cursor_by_line(int lines)
-{
-    const auto &expect(expectations_->get_next_expectation(__func__));
-
-    cppcut_assert_equal(expect.d.function_id_, MemberFn::input_move_cursor_by_line);
-    cppcut_assert_equal(expect.d.arg_lines_or_pages_, lines);
-}
-
-void MockViewManager::input_move_cursor_by_page(int pages)
-{
-    const auto &expect(expectations_->get_next_expectation(__func__));
-
-    cppcut_assert_equal(expect.d.function_id_, MemberFn::input_move_cursor_by_page);
-    cppcut_assert_equal(expect.d.arg_lines_or_pages_, pages);
-}
-
 ViewIface *MockViewManager::get_view_by_name(const char *view_name)
 {
     const auto &expect(expectations_->get_next_expectation(__func__));
 
     cppcut_assert_equal(expect.d.function_id_, MemberFn::get_view_by_name);
-    return nullptr;
-}
-
-ViewIface *MockViewManager::get_view_by_dbus_proxy(const void *dbus_proxy)
-{
-    const auto &expect(expectations_->get_next_expectation(__func__));
-
-    cppcut_assert_equal(expect.d.function_id_, MemberFn::get_view_by_dbus_proxy);
     return nullptr;
 }
 
@@ -405,7 +462,7 @@ ViewIface *MockViewManager::get_playback_initiator_view() const
     return nullptr;
 }
 
-void MockViewManager::activate_view_by_name(const char *view_name)
+void MockViewManager::sync_activate_view_by_name(const char *view_name)
 {
     const auto &expect(expectations_->get_next_expectation(__func__));
 
@@ -413,8 +470,8 @@ void MockViewManager::activate_view_by_name(const char *view_name)
     cppcut_assert_equal(expect.d.arg_view_name_, std::string(view_name));
 }
 
-void MockViewManager::toggle_views_by_name(const char *view_name_a,
-                                           const char *view_name_b)
+void MockViewManager::sync_toggle_views_by_name(const char *view_name_a,
+                                                const char *view_name_b)
 {
     const auto &expect(expectations_->get_next_expectation(__func__));
 

@@ -48,10 +48,11 @@ static bool sanitize_search_parameters(const SearchParameters &params)
     return true;
 }
 
-ViewIface::InputResult ViewSearch::View::input(DrcpCommand command,
-                                               std::unique_ptr<const UI::Parameters> parameters)
+ViewIface::InputResult
+ViewSearch::View::process_event(UI::ViewEventID event_id,
+                                std::unique_ptr<const UI::Parameters> parameters)
 {
-    if(command == DrcpCommand::X_TA_SEARCH_PARAMETERS)
+    if(event_id == UI::ViewEventID::SEARCH_STORE_PARAMETERS)
     {
         /* Happy path: take search parameters, check them, tell browse view
          * that we got something by forwarding the command. The browse view is
@@ -73,12 +74,12 @@ ViewIface::InputResult ViewSearch::View::input(DrcpCommand command,
 
                 const ViewManager::InputBouncer::Item bounce_table_data[] =
                 {
-                    ViewManager::InputBouncer::Item(DrcpCommand::X_TA_SEARCH_PARAMETERS,
+                    ViewManager::InputBouncer::Item(UI::ViewEventID::SEARCH_STORE_PARAMETERS,
                                                     request_view_->name_),
                 };
                 const ViewManager::InputBouncer bounce_table(bounce_table_data);
 
-                return view_manager_->input_bounce(bounce_table, command);
+                return view_manager_->input_bounce(bounce_table, event_id);
             }
         }
 

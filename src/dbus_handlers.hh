@@ -21,9 +21,9 @@
 
 class ViewIface;
 
-namespace ViewManager
+namespace UI
 {
-    class VMIface;
+    class EventStoreIface;
 }
 
 namespace Playback
@@ -51,15 +51,15 @@ class SignalData
     SignalData &operator=(const SignalData &) = delete;
     SignalData(SignalData &&) = default;
 
-    ViewManager::VMIface &mgr_;
+    UI::EventStoreIface &event_sink_;
     ViewIface *play_view_;
     Playback::PlayerIface &player_;
     Playback::MetaDataStoreIface &mdstore_;
 
-    explicit SignalData(ViewManager::VMIface &mgr,
+    explicit SignalData(UI::EventStoreIface &event_sink,
                         Playback::PlayerIface &player,
                         Playback::MetaDataStoreIface &mdstore):
-        mgr_(mgr),
+        event_sink_(event_sink),
         play_view_(nullptr),
         player_(player),
         mdstore_(mdstore)

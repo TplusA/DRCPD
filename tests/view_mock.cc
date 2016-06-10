@@ -28,7 +28,7 @@ enum class MemberFn
 {
     focus,
     defocus,
-    input,
+    process_event,
     write_xml_begin,
     serialize,
     update,
@@ -56,8 +56,8 @@ static std::ostream &operator<<(std::ostream &os, const MemberFn id)
         os << "defocus";
         break;
 
-      case MemberFn::input:
-        os << "input";
+      case MemberFn::process_event:
+        os << "process_event";
         break;
 
       case MemberFn::write_xml_begin:
@@ -80,69 +80,69 @@ static std::ostream &operator<<(std::ostream &os, const MemberFn id)
 
 class ViewMock::View::Expectation
 {
-  private:
-    Expectation(const Expectation &);
-    Expectation &operator=(const Expectation &);
-
   public:
+    Expectation(const Expectation &) = delete;
+    Expectation(Expectation &&) = default;
+    Expectation &operator=(const Expectation &) = delete;
+
     const MemberFn function_id_;
 
     const InputResult retval_input_;
     const bool retval_bool_;
-    const DrcpCommand arg_command_;
+    const UI::EventID arg_event_id_;
+    const UI::ViewEventID arg_view_event_id_;
     const bool arg_is_full_view_;
     const bool expect_parameters_;
     const CheckParametersFn check_parameters_fn_;
-    const UI::Parameters *const expected_parameters_;
+    std::unique_ptr<const UI::Parameters> expected_parameters_;
 
     explicit Expectation(MemberFn id):
         function_id_(id),
         retval_input_(InputResult::OK),
         retval_bool_(false),
-        arg_command_(DrcpCommand::UNDEFINED_COMMAND),
+        arg_event_id_(UI::EventID::NOP),
+        arg_view_event_id_(UI::ViewEventID::NOP),
         arg_is_full_view_(false),
         expect_parameters_(false),
-        check_parameters_fn_(nullptr),
-        expected_parameters_(nullptr)
+        check_parameters_fn_(nullptr)
     {}
 
     explicit Expectation(MemberFn id, bool retval, bool is_full_view):
         function_id_(id),
         retval_input_(InputResult::OK),
         retval_bool_(retval),
-        arg_command_(DrcpCommand::UNDEFINED_COMMAND),
+        arg_event_id_(UI::EventID::NOP),
+        arg_view_event_id_(UI::ViewEventID::NOP),
         arg_is_full_view_(is_full_view),
         expect_parameters_(false),
-        check_parameters_fn_(nullptr),
-        expected_parameters_(nullptr)
+        check_parameters_fn_(nullptr)
     {}
 
-    explicit Expectation(MemberFn id, InputResult retval, DrcpCommand command,
+    explicit Expectation(MemberFn id, InputResult retval, UI::ViewEventID event_id,
                          bool expect_parameters):
         function_id_(id),
         retval_input_(retval),
         retval_bool_(false),
-        arg_command_(command),
+        arg_event_id_(UI::EventID::NOP),
+        arg_view_event_id_(event_id),
         arg_is_full_view_(false),
         expect_parameters_(expect_parameters),
-        check_parameters_fn_(nullptr),
-        expected_parameters_(nullptr)
+        check_parameters_fn_(nullptr)
     {}
 
-    explicit Expectation(MemberFn id, InputResult retval, DrcpCommand command,
-                         const UI::Parameters *expected_parameters,
+    explicit Expectation(MemberFn id, InputResult retval, UI::ViewEventID event_id,
+                         std::unique_ptr<const UI::Parameters> expected_parameters,
                          CheckParametersFn check_params_callback):
         function_id_(id),
         retval_input_(retval),
         retval_bool_(false),
-        arg_command_(command),
+        arg_event_id_(UI::EventID::NOP),
+        arg_view_event_id_(event_id),
         arg_is_full_view_(false),
         expect_parameters_(expected_parameters != nullptr),
         check_parameters_fn_(check_params_callback),
-        expected_parameters_(expected_parameters)
+        expected_parameters_(std::move(expected_parameters))
     {}
-
-    Expectation(Expectation &&) = default;
 };
 
 ViewMock::View::View(const char *name, bool is_browse_view):
@@ -181,19 +181,19 @@ void ViewMock::View::expect_defocus()
     expectations_->add(Expectation(MemberFn::defocus));
 }
 
-void ViewMock::View::expect_input(InputResult retval, DrcpCommand command,
-                                  bool expect_parameters)
+void ViewMock::View::expect_process_event(InputResult retval, UI::ViewEventID event_id,
+                                          bool expect_parameters)
 {
-    expectations_->add(Expectation(MemberFn::input, retval, command,
+    expectations_->add(Expectation(MemberFn::process_event, retval, event_id,
                                    expect_parameters));
 }
 
-void ViewMock::View::expect_input_with_callback(InputResult retval, DrcpCommand command,
-                                                const UI::Parameters *expected_parameters,
-                                                CheckParametersFn check_params_callback)
+void ViewMock::View::expect_process_event_with_callback(InputResult retval, UI::ViewEventID event_id,
+                                                        std::unique_ptr<const UI::Parameters> expected_parameters,
+                                                        CheckParametersFn check_params_callback)
 {
-    expectations_->add(Expectation(MemberFn::input, retval, command,
-                                   expected_parameters,
+    expectations_->add(Expectation(MemberFn::process_event, retval, event_id,
+                                   std::move(expected_parameters),
                                    check_params_callback));
 }
 
@@ -234,19 +234,20 @@ void ViewMock::View::defocus()
     cppcut_assert_equal(expect.function_id_, MemberFn::defocus);
 }
 
-ViewIface::InputResult ViewMock::View::input(DrcpCommand command,
-                                             std::unique_ptr<const UI::Parameters> parameters)
+ViewIface::InputResult ViewMock::View::process_event(UI::ViewEventID event_id,
+                                                     std::unique_ptr<const UI::Parameters> parameters)
 {
     if(ignore_all_)
         return ViewIface::InputResult::OK;
 
     const auto &expect(expectations_->get_next_expectation(__func__));
 
-    cppcut_assert_equal(expect.function_id_, MemberFn::input);
-    cppcut_assert_equal(int(expect.arg_command_), int(command));
+    cppcut_assert_equal(expect.function_id_, MemberFn::process_event);
+    cppcut_assert_equal(int(expect.arg_view_event_id_), int(event_id));
 
     if(expect.check_parameters_fn_ != nullptr)
-        expect.check_parameters_fn_(expect.expected_parameters_, parameters);
+        expect.check_parameters_fn_(std::move(const_cast<Expectation &>(expect).expected_parameters_),
+                                    std::move(parameters));
     else if(expect.expect_parameters_)
         cppcut_assert_not_null(parameters.get());
     else

@@ -43,16 +43,16 @@ class View: public ViewIface, public ViewSerializeBase
 
     void check() const;
 
-    using CheckParametersFn = void (*)(const UI::Parameters *expected_parameters,
-                                       const std::unique_ptr<const UI::Parameters> &actual_parameters);
+    using CheckParametersFn = void (*)(std::unique_ptr<const UI::Parameters> expected_parameters,
+                                       std::unique_ptr<const UI::Parameters> actual_parameters);
 
     void expect_focus();
     void expect_defocus();
-    void expect_input(InputResult retval, DrcpCommand command,
-                      bool expect_parameters);
-    void expect_input_with_callback(InputResult retval, DrcpCommand command,
-                                    const UI::Parameters *expected_parameters,
-                                    CheckParametersFn check_params_callback);
+    void expect_process_event(InputResult retval, UI::ViewEventID event_id,
+                              bool expect_parameters);
+    void expect_process_event_with_callback(InputResult retval, UI::ViewEventID event_id,
+                                            std::unique_ptr<const UI::Parameters> expected_parameters,
+                                            CheckParametersFn check_params_callback);
     void expect_serialize(std::ostream &os);
     void expect_update(std::ostream &os);
     void expect_write_xml_begin(bool retval, bool is_full_view);
@@ -60,13 +60,15 @@ class View: public ViewIface, public ViewSerializeBase
     bool init() override;
     void focus() override;
     void defocus() override;
-    InputResult input(DrcpCommand command,
-                      std::unique_ptr<const UI::Parameters> parameters) override;
+    InputResult process_event(UI::ViewEventID event_id,
+                              std::unique_ptr<const UI::Parameters> parameters) override;
+    void serialize(DCP::Queue &queue, DCP::Queue::Mode mode, std::ostream *debug_os) override;
+    void update(DCP::Queue &queue, DCP::Queue::Mode mode, std::ostream *debug_os) override;
+
+  protected:
     bool write_xml_begin(std::ostream &os, const DCP::Queue::Data &data_full_view) override;
     bool write_xml(std::ostream &os, const DCP::Queue::Data &data_full_view) override;
     bool write_xml_end(std::ostream &os, const DCP::Queue::Data &data_full_view) override;
-    void serialize(DCP::Queue &queue, DCP::Queue::Mode mode, std::ostream *debug_os) override;
-    void update(DCP::Queue &queue, DCP::Queue::Mode mode, std::ostream *debug_os) override;
 };
 
 };

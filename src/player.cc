@@ -312,8 +312,6 @@ void Playback::Player::stop_notification()
     current_stream_data_.stream_info_.clear();
     current_stream_data_.track_info_.set_stopped();
 
-    incoming_meta_data_.clear(false);
-
     if(current_state != nullptr)
         current_state->revert();
 }
@@ -539,41 +537,28 @@ void Playback::Player::do_skip_to_next(LockWithStopRequest &lockstop) const
     do_skip_to_next__unlocked();
 }
 
-void Playback::Player::meta_data_add_begin()
-{
-    incoming_meta_data_.clear(true);
-}
-
-void Playback::Player::meta_data_add(const char *key, const char *value)
-{
-    incoming_meta_data_.add(key, value, meta_data_reformatters_);
-}
-
-bool Playback::Player::meta_data_add_end__locked(PlayInfo::MetaData::CopyMode mode)
+bool Playback::Player::meta_data_put__locked(const PlayInfo::MetaData &md,
+                                             PlayInfo::MetaData::CopyMode mode)
 {
     std::lock_guard<LoggedLock::Mutex> lock_csd(current_stream_data_.lock_);
-    return do_meta_data_add_end(mode);
+    return do_meta_data_put(md, mode);
 }
 
-bool Playback::Player::meta_data_add_end__unlocked(PlayInfo::MetaData::CopyMode mode)
+bool Playback::Player::meta_data_put__unlocked(const PlayInfo::MetaData &md,
+                                               PlayInfo::MetaData::CopyMode mode)
 {
-    return do_meta_data_add_end(mode);
+    return do_meta_data_put(md, mode);
 }
 
-bool Playback::Player::do_meta_data_add_end(PlayInfo::MetaData::CopyMode mode)
+bool Playback::Player::do_meta_data_put(const PlayInfo::MetaData &md,
+                                            PlayInfo::MetaData::CopyMode mode)
 {
-    if(incoming_meta_data_ == current_stream_data_.track_info_.meta_data_)
-    {
-        incoming_meta_data_.clear(true);
+    if(md == current_stream_data_.track_info_.meta_data_)
         return false;
-    }
-    else
-    {
-        current_stream_data_.track_info_.meta_data_.copy_from(incoming_meta_data_,
-                                                              mode);
-        incoming_meta_data_.clear(true);
-        return true;
-    }
+
+    current_stream_data_.track_info_.meta_data_.copy_from(md, mode);
+
+    return true;
 }
 
 void Playback::Player::set_external_stream_meta_data(ID::Stream stream_id,

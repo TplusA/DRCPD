@@ -73,8 +73,8 @@ class View: public ViewIface, public ViewSerializeBase
     void focus() override;
     void defocus() override;
 
-    InputResult input(DrcpCommand command,
-                      std::unique_ptr<const UI::Parameters> parameters) override;
+    InputResult process_event(UI::ViewEventID event_id,
+                              std::unique_ptr<const UI::Parameters> parameters) final override;
 
     void notify_stream_start() override;
     void notify_stream_stop() override;

@@ -45,12 +45,13 @@ void ViewPlay::View::defocus()
     is_visible_ = false;
 }
 
-ViewIface::InputResult ViewPlay::View::input(DrcpCommand command,
-                                             std::unique_ptr<const UI::Parameters> parameters)
+ViewIface::InputResult
+ViewPlay::View::process_event(UI::ViewEventID event_id,
+                              std::unique_ptr<const UI::Parameters> parameters)
 {
-    switch(command)
+    switch(event_id)
     {
-      case DrcpCommand::PLAYBACK_START:
+      case UI::ViewEventID::PLAYBACK_START:
         switch(player_.get_assumed_stream_state__locked())
         {
           case PlayInfo::Data::STREAM_BUFFERING:
@@ -72,29 +73,27 @@ ViewIface::InputResult ViewPlay::View::input(DrcpCommand command,
 
         break;
 
-      case DrcpCommand::PLAYBACK_STOP:
+      case UI::ViewEventID::PLAYBACK_STOP:
         player_.release(true);
         break;
 
-      case DrcpCommand::PLAYBACK_PREVIOUS:
+      case UI::ViewEventID::PLAYBACK_PREVIOUS:
         player_.skip_to_previous(std::chrono::milliseconds(2000));
         break;
 
-      case DrcpCommand::PLAYBACK_NEXT:
+      case UI::ViewEventID::PLAYBACK_NEXT:
         player_.skip_to_next();
         break;
 
-      case DrcpCommand::GO_BACK_ONE_LEVEL:
-      case DrcpCommand::SCROLL_UP_ONE:
-      case DrcpCommand::SCROLL_DOWN_ONE:
-      case DrcpCommand::SCROLL_PAGE_UP:
-      case DrcpCommand::SCROLL_PAGE_DOWN:
+      case UI::ViewEventID::NAV_GO_BACK_ONE_LEVEL:
+      case UI::ViewEventID::NAV_SCROLL_LINES:
+      case UI::ViewEventID::NAV_SCROLL_PAGES:
         return InputResult::SHOULD_HIDE;
 
-      case DrcpCommand::FAST_WIND_SET_SPEED:
+      case UI::ViewEventID::PLAYBACK_FAST_WIND_SET_SPEED:
         {
             const auto speed =
-                UI::Parameters::downcast<const UI::ParamsFWSpeed>(parameters);
+                UI::Events::downcast<UI::ViewEventID::PLAYBACK_FAST_WIND_SET_SPEED>(parameters);
 
             if(speed != nullptr)
                 BUG("Not implemented: FastWindSetFactor %f", speed->get_specific());
@@ -102,18 +101,16 @@ ViewIface::InputResult ViewPlay::View::input(DrcpCommand command,
 
         break;
 
-      case DrcpCommand::X_TA_SET_STREAM_INFO:
+      case UI::ViewEventID::STORE_PRELOADED_META_DATA:
         {
             const auto external_stream_info =
-                UI::Parameters::downcast<const UI::ParamsStreamInfo>(parameters);
+                UI::Events::downcast<UI::ViewEventID::STORE_PRELOADED_META_DATA>(parameters);
+            log_assert(external_stream_info != nullptr);
 
-            if(external_stream_info != nullptr)
-            {
-                const auto &info(external_stream_info->get_specific());
-                player_.set_external_stream_meta_data(std::get<0>(info), std::get<1>(info),
-                                                      std::get<2>(info), std::get<3>(info),
-                                                      std::get<4>(info), std::get<5>(info));
-            }
+            const auto &info(external_stream_info->get_specific());
+            player_.set_external_stream_meta_data(std::get<0>(info), std::get<1>(info),
+                                                  std::get<2>(info), std::get<3>(info),
+                                                  std::get<4>(info), std::get<5>(info));
         }
 
         break;

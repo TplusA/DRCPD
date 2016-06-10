@@ -530,9 +530,9 @@ class DBusList: public ListIface, public AsyncListIface
 
     const Item *get_item(unsigned int line) const throw(List::DBusListException) override;
     OpResult get_item_async(unsigned int line, const Item *&item,
-                            QueryContextGetItem::CallerID caller)
+                            QueryContextGetItem::CallerID caller, int prefetch_hint = 0)
     {
-        return get_item_async(line, item, static_cast<unsigned short>(caller));
+        return get_item_async(line, item, prefetch_hint, static_cast<unsigned short>(caller));
     }
 
     ID::List get_list_id() const override { return window_.list_id_; }
@@ -542,7 +542,8 @@ class DBusList: public ListIface, public AsyncListIface
   private:
     bool is_position_unchanged(ID::List list_id, unsigned int line) const;
     bool is_line_cached(unsigned int line) const;
-    bool can_scroll_to_line(unsigned int line, CacheModifications &cm,
+    bool can_scroll_to_line(unsigned int line, unsigned int prefetch_hint,
+                            CacheModifications &cm,
                             unsigned int &fetch_head, unsigned int &count,
                             unsigned int &cache_list_replace_index) const;
     bool is_line_pending(unsigned int line) const;
@@ -565,7 +566,8 @@ class DBusList: public ListIface, public AsyncListIface
     }
 
     OpResult enter_list_async(ID::List list_id, unsigned int line, unsigned short caller_id) override;
-    OpResult get_item_async(unsigned int line, const Item *&item, unsigned short caller_id) override;
+    OpResult get_item_async(unsigned int line, const Item *&item,
+                            unsigned int prefetch_hint, unsigned short caller_id) override;
 
     /*!
      * Stop entering list.

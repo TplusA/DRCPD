@@ -23,6 +23,8 @@
 #include "view_manager.hh"
 #include "view_filebrowser.hh"
 #include "view_nop.hh"
+#include "view_play.hh"
+#include "player.hh"
 #include "ui_parameters_predefined.hh"
 #include "messages.h"
 #include "os.h"
@@ -146,40 +148,234 @@ void ViewManager::Manager::handle_input_result(ViewIface::InputResult result,
     }
 }
 
-void ViewManager::Manager::input(DrcpCommand command,
-                                 std::unique_ptr<const UI::Parameters> parameters)
+void ViewManager::Manager::store_event(UI::EventID event_id,
+                                       std::unique_ptr<const UI::Parameters> parameters)
 {
-    ui_events_.post(std::unique_ptr<UI::Events::Input>(
-        new UI::Events::Input(command, std::move(parameters))));
+    std::unique_ptr<UI::Events::BaseEvent> ev;
+
+    switch(UI::get_event_type_id(event_id))
+    {
+      case UI::EventTypeID::INPUT_EVENT:
+        ev.reset(new UI::Events::ViewInput(event_id, std::move(parameters)));
+        break;
+
+      case UI::EventTypeID::VIEW_MANAGER_EVENT:
+        ev.reset(new UI::Events::ViewMan(event_id, std::move(parameters)));
+        break;
+    }
+
+    ui_events_.post(std::move(ev));
 }
 
-void ViewManager::Manager::process_input_event(DrcpCommand command,
-                                               std::unique_ptr<const UI::Parameters> parameters)
+void ViewManager::Manager::dispatch_event(UI::ViewEventID event_id,
+                                          std::unique_ptr<const UI::Parameters> parameters)
 {
-    msg_info("Dispatching DRCP command %d%s",
-             static_cast<int>(command),
-             (parameters != nullptr) ? " with parameters" : "");
-
     static constexpr const InputBouncer::Item global_bounce_table_data[] =
     {
-        InputBouncer::Item(DrcpCommand::PLAYBACK_STOP, ViewNames::PLAYER),
-        InputBouncer::Item(DrcpCommand::FAST_WIND_SET_SPEED, ViewNames::PLAYER),
-        InputBouncer::Item(DrcpCommand::X_TA_SEARCH_PARAMETERS, ViewNames::SEARCH_OPTIONS),
-        InputBouncer::Item(DrcpCommand::X_TA_SET_STREAM_INFO, ViewNames::PLAYER),
+        InputBouncer::Item(UI::ViewEventID::PLAYBACK_STOP, ViewNames::PLAYER),
+        InputBouncer::Item(UI::ViewEventID::PLAYBACK_FAST_WIND_SET_SPEED, ViewNames::PLAYER),
+        InputBouncer::Item(UI::ViewEventID::SEARCH_STORE_PARAMETERS, ViewNames::SEARCH_OPTIONS),
+        InputBouncer::Item(UI::ViewEventID::STORE_PRELOADED_META_DATA, ViewNames::PLAYER),
     };
 
     static constexpr const ViewManager::InputBouncer global_bounce_table(global_bounce_table_data);
 
-    if(!do_input_bounce(global_bounce_table, command, parameters))
-        handle_input_result(active_view_->input(command, std::move(parameters)),
+    if(!do_input_bounce(global_bounce_table, event_id, parameters))
+        handle_input_result(active_view_->process_event(event_id,
+                                                        std::move(parameters)),
                             *active_view_);
 }
 
+static void enhance_meta_data(PlayInfo::MetaData &md,
+                              const std::string *fallback_title = NULL,
+                              const std::string &url = NULL)
+{
+    if(fallback_title == NULL)
+    {
+        BUG("No fallback title available for stream");
+        md.add("x-drcpd-title", NULL, ViewPlay::meta_data_reformatters);
+    }
+    else
+        md.add("x-drcpd-title", fallback_title->c_str(), ViewPlay::meta_data_reformatters);
+
+    if(url.empty())
+    {
+        BUG("No URL available for stream");
+        md.add("x-drcpd-url", NULL, ViewPlay::meta_data_reformatters);
+    }
+    else
+        md.add("x-drcpd-url", url.c_str(), ViewPlay::meta_data_reformatters);
+}
+
+void ViewManager::Manager::dispatch_event(UI::VManEventID event_id,
+                                          std::unique_ptr<const UI::Parameters> parameters)
+{
+    switch(event_id)
+    {
+      case UI::VManEventID::NOP:
+        break;
+
+      case UI::VManEventID::OPEN_VIEW:
+        {
+            const auto params = UI::Events::downcast<UI::EventID::VIEW_OPEN>(parameters);
+
+            if(params == nullptr)
+                break;
+
+            sync_activate_view_by_name(params->get_specific().c_str());
+        }
+
+        break;
+
+      case UI::VManEventID::TOGGLE_VIEWS:
+        {
+            const auto params = UI::Events::downcast<UI::EventID::VIEW_TOGGLE>(parameters);
+
+            if(params == nullptr)
+                break;
+
+            const auto &names(params->get_specific());
+            sync_toggle_views_by_name(std::get<0>(names).c_str(),
+                                      std::get<1>(names).c_str());
+        }
+
+        break;
+
+      case UI::VManEventID::INVALIDATE_LIST_ID:
+        {
+            const auto params =
+                UI::Events::downcast<UI::EventID::VIEW_INVALIDATE_LIST_ID>(parameters);
+
+            if(params == nullptr)
+                break;
+
+            const auto &plist = params->get_specific();
+            auto *const proxy = static_cast<GDBusProxy *>(std::get<0>(plist));
+            auto *const view =
+                dynamic_cast<ViewFileBrowser::View *>(get_view_by_dbus_proxy(proxy));
+
+            if(view == nullptr)
+                BUG("Could not find view for D-Bus proxy");
+            else if(view->list_invalidate(std::get<1>(plist), std::get<2>(plist)))
+                update_view_if_active(view, DCP::Queue::Mode::FORCE_ASYNC);
+        }
+
+        break;
+
+      case UI::VManEventID::NOW_PLAYING:
+        {
+            const auto params =
+                UI::Events::downcast<UI::EventID::VIEW_PLAYER_NOW_PLAYING>(parameters);
+
+            if(params == nullptr)
+                break;
+
+            const auto &plist = params->get_specific();
+            const ID::Stream stream_id(std::get<0>(plist));
+
+            if(!stream_id.is_valid())
+            {
+                /* we are not sending such IDs */
+                BUG("Invalid stream ID %u received from Streamplayer",
+                    stream_id.get_raw_id());
+                break;
+            }
+
+            const bool queue_is_full(std::get<1>(plist));
+            auto &meta_data(const_cast<PlayInfo::MetaData &>(std::get<2>(plist)));
+            const std::string &url_string(std::get<3>(plist));
+            DBus::SignalData &data(*std::get<4>(plist));
+
+            const bool have_preloaded_meta_data =
+                data.player_.start_notification(stream_id, !queue_is_full);
+
+            {
+                const auto info = data.player_.get_stream_info__locked(stream_id);
+                const StreamInfoItem *const &info_item = info.first;
+
+                if(info_item == nullptr)
+                {
+                    msg_error(EINVAL, LOG_ERR,
+                              "No fallback title found for stream ID %u",
+                              stream_id.get_raw_id());
+                    enhance_meta_data(meta_data, nullptr, url_string);
+                }
+
+                const PlayInfo::MetaData::CopyMode copy_mode =
+                    (have_preloaded_meta_data || info_item != nullptr)
+                    ? PlayInfo::MetaData::CopyMode::NON_EMPTY
+                    : PlayInfo::MetaData::CopyMode::ALL;
+
+                data.mdstore_.meta_data_put__unlocked(meta_data, copy_mode);
+            }
+
+            if(have_preloaded_meta_data)
+                data.play_view_->notify_stream_meta_data_changed();
+
+            data.play_view_->notify_stream_start();
+            sync_activate_view_by_name(ViewNames::PLAYER);
+
+            auto *view = get_playback_initiator_view();
+            if(view != nullptr && view != data.play_view_)
+                view->notify_stream_start();
+        }
+
+        break;
+
+      case UI::VManEventID::PLAYER_STOPPED:
+        {
+            const auto params =
+                UI::Events::downcast<UI::EventID::VIEW_PLAYER_STOPPED>(parameters);
+            const auto &plist = params->get_specific();
+
+            DBus::SignalData &data(*std::get<1>(plist));
+
+            data.player_.stop_notification();
+            data.play_view_->notify_stream_stop();
+
+            auto *view = get_playback_initiator_view();
+            if(view != nullptr && view != data.play_view_)
+                view->notify_stream_stop();
+        }
+
+        break;
+
+      case UI::VManEventID::PLAYER_PAUSED:
+        {
+            const auto params =
+                UI::Events::downcast<UI::EventID::VIEW_PLAYER_PAUSED>(parameters);
+            const auto &plist = params->get_specific();
+
+            DBus::SignalData &data(*std::get<1>(plist));
+
+            data.player_.pause_notification();
+            data.play_view_->notify_stream_pause();
+        }
+
+        break;
+
+      case UI::VManEventID::PLAYER_POSITION_UPDATE:
+        {
+            const auto params =
+                UI::Events::downcast<UI::EventID::VIEW_PLAYER_POSITION_UPDATE>(parameters);
+            const auto &plist = params->get_specific();
+
+            DBus::SignalData &data(*std::get<3>(plist));
+
+            if(data.player_.track_times_notification(std::get<1>(plist),
+                                                     std::get<2>(plist)))
+                data.play_view_->notify_stream_position_changed();
+        }
+
+        break;
+    }
+}
+
 bool ViewManager::Manager::do_input_bounce(const ViewManager::InputBouncer &bouncer,
-                                           DrcpCommand command,
+                                           UI::ViewEventID event_id,
                                            std::unique_ptr<const UI::Parameters> &parameters)
 {
-    const auto *item = bouncer.find(command);
+    const auto *item = bouncer.find(event_id);
 
     if(item == nullptr)
         return false;
@@ -188,83 +384,16 @@ bool ViewManager::Manager::do_input_bounce(const ViewManager::InputBouncer &boun
 
     if(view != nullptr)
     {
-        handle_input_result(view->input(item->xform_command_, std::move(parameters)),
+        handle_input_result(view->process_event(item->xform_event_id_,
+                                                std::move(parameters)),
                             *view);
         return true;
     }
 
     BUG("Failed bouncing command %d, view \"%s\" unknown",
-        static_cast<int>(command), item->view_name_);
+        static_cast<int>(event_id), item->view_name_);
 
     return false;
-}
-
-static ViewIface::InputResult move_cursor_multi(DrcpCommand command, int units,
-                                                ViewIface &view)
-{
-    log_assert(command == DrcpCommand::SCROLL_DOWN_MANY ||
-               command == DrcpCommand::SCROLL_UP_MANY);
-    log_assert(units != 0);
-
-    if(units < 0)
-        units = -units;
-
-    auto packaged_units =
-        std::unique_ptr<UI::ParamsUpDownSteps>(new UI::ParamsUpDownSteps(units));
-
-    return view.input(command, std::move(packaged_units));
-}
-
-static const DrcpCommand count_to_command(int count, DrcpCommand one_down_cmd,
-                                          DrcpCommand one_up_cmd)
-{
-    return (count == 0
-            ? DrcpCommand::UNDEFINED_COMMAND
-            : (count > 0
-               ? (count == 1
-                  ? one_down_cmd
-                  : DrcpCommand::SCROLL_DOWN_MANY
-                 )
-               : (count == -1
-                  ? one_up_cmd
-                  : DrcpCommand::SCROLL_UP_MANY)));
-}
-
-static ViewIface::InputResult move_cursor_generic(ViewIface &view,
-                                                  int count, int multiplier,
-                                                  DrcpCommand one_down_command,
-                                                  DrcpCommand one_up_command)
-{
-    if(count == 0 || multiplier == 0)
-        return ViewIface::InputResult::OK;
-
-    const DrcpCommand command =
-        count_to_command(count, one_down_command, one_up_command);
-
-    if(count == -1 || count == 1)
-        return view.input(command, nullptr);
-
-    return move_cursor_multi(command, count * multiplier, view);
-}
-
-void ViewManager::Manager::input_move_cursor_by_line(int lines)
-{
-    const ViewIface::InputResult result =
-        move_cursor_generic(*active_view_, lines, 1,
-                            DrcpCommand::SCROLL_DOWN_ONE,
-                            DrcpCommand::SCROLL_UP_ONE);
-
-    handle_input_result(result, *active_view_);
-}
-
-void ViewManager::Manager::input_move_cursor_by_page(int pages)
-{
-    const ViewIface::InputResult result =
-        move_cursor_generic(*active_view_, pages, NUMBER_OF_LINES_ON_DISPLAY,
-                            DrcpCommand::SCROLL_PAGE_DOWN,
-                            DrcpCommand::SCROLL_PAGE_UP);
-
-    handle_input_result(result, *active_view_);
 }
 
 static ViewIface *lookup_view_by_name(ViewManager::Manager::ViewsContainer &container,
@@ -328,14 +457,14 @@ ViewIface *ViewManager::Manager::get_playback_initiator_view() const
     return last_browse_view_;
 }
 
-void ViewManager::Manager::activate_view_by_name(const char *view_name)
+void ViewManager::Manager::sync_activate_view_by_name(const char *view_name)
 {
     msg_info("Requested to activate view \"%s\"", view_name);
     activate_view(lookup_view_by_name(all_views_, view_name));
 }
 
-void ViewManager::Manager::toggle_views_by_name(const char *view_name_a,
-                                                const char *view_name_b)
+void ViewManager::Manager::sync_toggle_views_by_name(const char *view_name_a,
+                                                     const char *view_name_b)
 {
     msg_info("Requested to toggle between views \"%s\" and \"%s\"",
              view_name_a, view_name_b );
@@ -400,12 +529,23 @@ void ViewManager::Manager::process_pending_events()
         if(event == nullptr)
             return;
 
-        if(auto *ev = dynamic_cast<UI::Events::Input *>(event.get()))
+        if(auto *ev_vi = dynamic_cast<UI::Events::ViewInput *>(event.get()))
         {
             std::unique_ptr<const UI::Parameters> parameters;
-            parameters.swap(ev->parameters_);
+            parameters.swap(ev_vi->parameters_);
 
-            process_input_event(ev->command_, std::move(parameters));
+            dispatch_event(ev_vi->event_id_, std::move(parameters));
+        }
+        else if(auto *ev_vm = dynamic_cast<UI::Events::ViewMan *>(event.get()))
+        {
+            std::unique_ptr<const UI::Parameters> parameters;
+            parameters.swap(ev_vm->parameters_);
+
+            dispatch_event(ev_vm->event_id_, std::move(parameters));
+        }
+        else
+        {
+            BUG("Unhandled event");
         }
     }
 }

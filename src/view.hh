@@ -22,8 +22,7 @@
 #include <memory>
 #include <chrono>
 
-#include "drcp_commands.hh"
-#include "ui_parameters.hh"
+#include "ui_events.hh"
 
 namespace ViewManager { class VMIface; }
 
@@ -143,14 +142,14 @@ class ViewIface
     virtual void defocus() = 0;
 
     /*!
-     * Process given DRC command.
+     * Process the given event/command.
      *
-     * The view tries to handle the given command code and mutates its internal
+     * The view handles the given event synchronously and mutates its internal
      * state accordingly. As far as the caller is concerned, any errors go
      * unnoticed. Errors are supposed to be handled by the views themselves.
      */
-    virtual InputResult input(DrcpCommand command,
-                              std::unique_ptr<const UI::Parameters> parameters) = 0;
+    virtual InputResult process_event(UI::ViewEventID event_id,
+                                      std::unique_ptr<const UI::Parameters> parameters) = 0;
 
     /*!
      * Called when a stream has started playing.

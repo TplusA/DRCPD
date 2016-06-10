@@ -47,7 +47,7 @@ class Utils
                               List::NavItemNoFilter &item_flags,
                               List::Nav &navigation,
                               ID::List list_id, unsigned int line,
-                          bool reverse = false)
+                              bool reverse = false)
         throw(List::DBusListException)
     {
         file_list.enter_list(list_id, line);

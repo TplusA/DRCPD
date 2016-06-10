@@ -77,8 +77,10 @@ class MetaData
         NON_EMPTY,
     };
 
-    MetaData(const MetaData &) = delete;
+    /* FIXME: The default copy ctor should not be required */
+    MetaData(const MetaData &) = default;
     MetaData &operator=(const MetaData &) = delete;
+    MetaData(MetaData &&) = default;
 
     explicit MetaData() {}
 

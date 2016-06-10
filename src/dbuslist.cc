@@ -285,6 +285,11 @@ static void fill_cache_list_with_meta_data(List::RamList &items,
  * \param line
  *     Which line to scroll to.
  *
+ * \param prefetch_hint
+ *    Number of visible lines that follow the current line. This parameter is
+ *    required for hinting the internal list range query how many lines it
+ *    should try to fetch from the list broker.
+ *
  * \param[out] cm
  *     How to modify the window to achieve the impression of scrolling.
  *
@@ -301,6 +306,7 @@ static void fill_cache_list_with_meta_data(List::RamList &items,
  *     be ignored by the caller.
  */
 bool List::DBusList::can_scroll_to_line(unsigned int line,
+                                        unsigned int prefetch_hint,
                                         CacheModifications &cm,
                                         unsigned int &fetch_head,
                                         unsigned int &fetch_count,
@@ -308,6 +314,9 @@ bool List::DBusList::can_scroll_to_line(unsigned int line,
 {
     if(window_.items_.get_number_of_items() == 0)
         return false;
+
+    if(prefetch_hint > 1)
+        line += prefetch_hint - 1;
 
     unsigned int new_first_line;
 
@@ -594,7 +603,7 @@ const List::Item *List::DBusList::get_item(unsigned int line) const
     unsigned int fetch_count;
     unsigned int cache_list_replace_index;
 
-    if(!can_scroll_to_line(line, cache_modifications,
+    if(!can_scroll_to_line(line, 1, cache_modifications,
                            fetch_head, fetch_count, cache_list_replace_index))
     {
         fetch_head = line;
@@ -629,7 +638,7 @@ const List::Item *List::DBusList::get_item(unsigned int line) const
 
 List::AsyncListIface::OpResult
 List::DBusList::get_item_async(unsigned int line, const Item *&item,
-                               unsigned short caller_id)
+                               unsigned int prefetch_hint, unsigned short caller_id)
 {
     /*
      * TODO: This object must be moved to ViewFileBrowser and must be
@@ -672,7 +681,7 @@ List::DBusList::get_item_async(unsigned int line, const Item *&item,
     unsigned int fetch_count;
     unsigned int cache_list_replace_index;
 
-    if(!can_scroll_to_line(line, cache_modifications,
+    if(!can_scroll_to_line(line, prefetch_hint, cache_modifications,
                            fetch_head, fetch_count, cache_list_replace_index))
     {
         fetch_head = line;
@@ -698,7 +707,7 @@ List::DBusList::get_item_async(unsigned int line, const Item *&item,
 
     if(!async_dbus_data_.get_item_query_->run_async(
             std::bind(&List::DBusList::async_done_notification,
-                    this, std::placeholders::_1)))
+                      this, std::placeholders::_1)))
     {
         async_dbus_data_.get_item_query_.reset();
         return OpResult::FAILED;
