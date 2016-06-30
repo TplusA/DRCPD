@@ -60,7 +60,7 @@ bool DCP::Queue::start_transaction(Mode mode)
     {
         std::lock_guard<LoggedLock::Mutex> txlock(active_.lock_);
 
-        if(active_.dcpd_.is_started_async())
+        if(active_.dcpd_.is_in_progress())
         {
             /* there is already an asynchronous transaction sitting there to be
              * processed in a safe context, so we cannot do anything here at

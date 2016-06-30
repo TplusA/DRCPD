@@ -292,11 +292,10 @@ void ViewMock::View::serialize(DCP::Queue &queue, DCP::Queue::Mode mode,
         cppcut_assert_equal(expect.function_id_, MemberFn::serialize);
     }
 
-    const bool was_idle = queue.is_idle();
     const bool succeeded =
         InternalDoSerialize::do_serialize(*this, queue, true);
 
-    cppcut_assert_equal(was_idle, succeeded);
+    cut_assert_true(succeeded);
 }
 
 void ViewMock::View::update(DCP::Queue &queue, DCP::Queue::Mode mode,
