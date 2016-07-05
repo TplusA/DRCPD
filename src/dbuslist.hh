@@ -395,6 +395,21 @@ class DBusList: public ListIface, public AsyncListIface
             LoggedLock::set_name(lock_, "DBusListAsyncData");
             LoggedLock::set_name(query_done_, "DBusListAsyncDone");
         }
+
+        void cancel_all()
+        {
+            if(enter_list_query_ != nullptr)
+            {
+                enter_list_query_->cancel_sync();
+                enter_list_query_.reset();
+            }
+
+            if(get_item_query_ != nullptr)
+            {
+                get_item_query_->cancel_sync();
+                get_item_query_.reset();
+            }
+        }
     };
 
     AsyncDBusData async_dbus_data_;

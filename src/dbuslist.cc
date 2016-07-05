@@ -34,11 +34,11 @@ constexpr const char *ListError::names_[];
 void List::DBusList::clone_state(const List::DBusList &src)
     throw(List::DBusListException)
 {
-    number_of_items_ = src.number_of_items_;
-    window_.list_id_ = src.window_.list_id_;
+    async_dbus_data_.cancel_all();
 
-    BUG("%s(): not implemented yet", __PRETTY_FUNCTION__);
-    log_assert(false);
+    number_of_items_ = src.number_of_items_;
+    window_stash_is_in_use_ = false;
+    window_.clone(src.window_);
 }
 
 unsigned int List::DBusList::get_number_of_items() const
