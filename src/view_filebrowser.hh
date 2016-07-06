@@ -76,12 +76,10 @@ class View: public ViewIface, public ViewSerializeBase
             DBus::AsyncCall<tdbuslistsNavigation, std::pair<guint, guint>,
                             Busy::Source::GETTING_PARENT_LINK>;
 
-        GetListId *get_list_id_;
-        GetParentId *get_parent_id_;
+        std::shared_ptr<GetListId> get_list_id_;
+        std::shared_ptr<GetParentId> get_parent_id_;
 
-        explicit AsyncCalls():
-            get_list_id_(nullptr),
-            get_parent_id_(nullptr)
+        explicit AsyncCalls()
         {
             LoggedLock::set_name(lock_, "FileBrowserAsyncCall");
         }
@@ -93,32 +91,14 @@ class View: public ViewIface, public ViewSerializeBase
 
         void cancel_and_delete_all()
         {
-            cancel_and_delete_one(get_list_id_);
-            cancel_and_delete_one(get_parent_id_);
+            GetListId::cancel_and_delete(get_list_id_);
+            GetParentId::cancel_and_delete(get_parent_id_);
         }
 
         void delete_all()
         {
-            delete_one(get_list_id_);
-            delete_one(get_parent_id_);
-        }
-
-        template <typename CallType>
-        static void delete_one(CallType *&call_op)
-        {
-            delete call_op;
-            call_op = nullptr;
-        }
-
-      private:
-        template <typename CallType>
-        static void cancel_and_delete_one(CallType *&call_op)
-        {
-            if(call_op != nullptr)
-            {
-                call_op->cancel_and_delete(call_op);
-                call_op = nullptr;
-            }
+            get_list_id_.reset();
+            get_parent_id_.reset();
         }
     };
 

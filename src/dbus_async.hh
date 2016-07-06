@@ -37,17 +37,16 @@ enum class AsyncResult
     FAILED,
 };
 
-class AsyncCall_
+class AsyncCall_: public std::enable_shared_from_this<AsyncCall_>
 {
   private:
-    bool is_zombie_;
+    std::shared_ptr<AsyncCall_> pointer_to_self_;
 
   protected:
     AsyncResult call_state_;
     GCancellable *cancellable_;
 
     explicit AsyncCall_():
-        is_zombie_(false),
         call_state_(AsyncResult::INITIALIZED),
         cancellable_(g_cancellable_new())
     {}
@@ -60,6 +59,8 @@ class AsyncCall_
     {
         g_object_unref(G_OBJECT(cancellable_));
         cancellable_ = nullptr;
+
+        log_assert(pointer_to_self_ == nullptr);
     }
 
     virtual void cancel() = 0;
@@ -136,55 +137,14 @@ class AsyncCall_
         return false;
     }
 
-    /*!
-     * If the asynchronous call failed, clean up already.
-     *
-     * \param call
-     *     An asynchronous call context that shall be freed. Do \e not delete
-     *     or use the passed object if this function returns \c true. Delete
-     *     the passed \p call after use if and only if this function returns
-     *     \c false.
-     *
-     * \retval True
-     *     The asynchronous D-Bus call has failed and the passed object has
-     *     either been deleted, or turned into a zombie and will be deleted at
-     *     some later point. In neither case the passed pointer shall be
-     *     dereferenced or used otherwise by the caller anymore.
-     * \retval False
-     *     The asynchronous D-Bus call was successful and the result is usable.
-     *     The caller must delete the object when it is done with it. Note that
-     *     the result returned by #DBus::AsyncCall::get_result() returns a
-     *     \e reference to an object owned by the #DBus::AsyncCall object.
-     *     Deleting the #DBus::AsyncCall object also destroys the result.
-     */
-    static bool cleanup_if_failed(AsyncCall_ *call)
-    {
-        if(call->success())
-            return false;
-
-        if(!call->is_waiting() || call->is_complete())
-            delete call;
-        else
-        {
-            /*
-             * We must leak the async object as a zombie here and
-             * rely on the final head shot being applied in the
-             * \c GAsyncReadyCallback callback. Check out the comments
-             * in #DBus::AsyncCall::async_ready_trampoline() for
-             * more details.
-             *
-             * Note that this is also the reason why the caller cannot make use
-             * of \c std::unique_ptr, at least not in a usefully narrowed down
-             * scope.
-             */
-            call->is_zombie_ = true;
-        }
-
-        return true;
-    }
-
   protected:
-    bool is_zombie() const { return is_zombie_; }
+    void async_op_started() { pointer_to_self_ = shared_from_this(); }
+
+    void async_op_done()
+    {
+        auto maybe_last_reference = pointer_to_self_;
+        pointer_to_self_.reset();
+    }
 };
 
 using AsyncResultAvailableFunction = std::function<void(AsyncCall_ &async_call)>;
@@ -214,7 +174,6 @@ class AsyncCall: public DBus::AsyncCall_
 
     std::promise<PromiseReturnType> promise_;
     PromiseReturnType return_value_;
-    bool delivered_result_;
 
   public:
     AsyncCall(const AsyncCall &) = delete;
@@ -283,8 +242,7 @@ class AsyncCall: public DBus::AsyncCall_
         result_available_fn_(result_available),
         destroy_result_fn_(destroy_result),
         may_continue_fn_(may_continue),
-        error_(nullptr),
-        delivered_result_(false)
+        error_(nullptr)
     {}
 
     virtual ~AsyncCall()
@@ -305,22 +263,16 @@ class AsyncCall: public DBus::AsyncCall_
 
         Busy::set(BusySourceID);
         call_state_ = AsyncResult::IN_PROGRESS;
+        async_op_started();
         dbus_method(proxy_, args..., cancellable_, async_ready_trampoline, this);
     }
 
     /*!
      * Wait for the asynchronous D-Bus call to finish.
      *
-     * Call #DBus::AsyncCall::cleanup_if_failed() after this function has
-     * returned (normally or via exception). Do not use the result before doing
-     * this.
-     *
      * \note
      *     This function will throw the exception that has been thrown by
-     *     #DBus::AsyncCall::put_result_fn_(), if any. If an exception is
-     *     thrown, then the object must be deleted by the caller, or function
-     *     #DBus::AsyncCall::cleanup_if_failed() must be called (which will
-     *     delete the object then).
+     *     #DBus::AsyncCall::put_result_fn_(), if any.
      */
     AsyncResult wait_for_result()
     {
@@ -366,9 +318,10 @@ class AsyncCall: public DBus::AsyncCall_
             g_cancellable_cancel(cancellable_);
     }
 
-    static void cancel_and_delete(AsyncCall *&call)
+    static void cancel_and_delete(std::shared_ptr<AsyncCall> &call)
     {
-        log_assert(call != nullptr);
+        if(call == nullptr)
+            return;
 
         call->cancel();
 
@@ -381,10 +334,7 @@ class AsyncCall: public DBus::AsyncCall_
             /* ignore exceptions because we will clean up anyway */
         }
 
-        if(!DBus::AsyncCall_::cleanup_if_failed(call))
-            delete call;
-
-        call = nullptr;
+        call.reset();
     }
 
     const PromiseReturnType &get_result(AsyncResult &async_result) const
@@ -398,28 +348,7 @@ class AsyncCall: public DBus::AsyncCall_
                                        GAsyncResult *res, gpointer user_data)
     {
         auto async(static_cast<AsyncCall *>(user_data));
-
-        if(async->is_zombie())
-        {
-            if(!async->delivered_result_)
-                Busy::clear(BusySourceID);
-
-            /*
-             * Retarded GLib does not cancel asynchronous I/O operations
-             * immediately, but insists on cancelling them asynchronously
-             * ("cancelling an asynchronous operation causes it to complete
-             * asynchronously"). We must return to the main loop to make this
-             * happen, and we therefore had to leak the async object at hand at
-             * the time we cancelled it. Because we must use the async object
-             * in this callback, we marked it as dead when we knew it should be
-             * dead. Should GLib ever get this wrong, we'll leak memory.
-             *
-             * Please, GLib, stop wasting our time already.
-             */
-            delete async;
-        }
-        else
-            async->ready(async->to_proxy_fn_(source_object), res);
+        async->ready(async->to_proxy_fn_(source_object), res);
     }
 
     void ready(ProxyType *proxy, GAsyncResult *res)
@@ -450,8 +379,9 @@ class AsyncCall: public DBus::AsyncCall_
                 msg_error(0, LOG_ERR, "Async D-Bus error: %s", error_->message);
         }
 
-        delivered_result_ = true;
         result_available_fn_(*this);
+
+        async_op_done();
 
         /*
          * WARNING:

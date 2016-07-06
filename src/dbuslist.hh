@@ -108,11 +108,6 @@ class QueryContext_
     /*!
      * Cancel asynchronous operation, if any, and wait for it to happen.
      *
-     * \returns
-     *     True if an ongoing operation has been canceled and the call object
-     *     is safe to be deleted, false if there is no operation in progress or
-     *     the call object cannot be deleted (zombie or already gone).
-     *
      * \note
      *     To make any sense, implementations of the #List::QueryContext_
      *     interface should override this function.
@@ -121,7 +116,7 @@ class QueryContext_
      *     Regular code should favor #List::QueryContext_::cancel() over this
      *     function.
      */
-    virtual bool cancel_sync() { return false; }
+    virtual void cancel_sync() {}
 };
 
 /*!
@@ -151,7 +146,7 @@ class QueryContextEnterList: public QueryContext_
     using AsyncListNavCheckRange =
         DBus::AsyncCall<tdbuslistsNavigation, guint, Busy::Source::CHECKING_LIST_RANGE>;
 
-    AsyncListNavCheckRange *async_call_;
+    std::shared_ptr<AsyncListNavCheckRange> async_call_;
 
     QueryContextEnterList(const QueryContextEnterList &) = delete;
     QueryContextEnterList &operator=(const QueryContextEnterList &) = delete;
@@ -162,16 +157,12 @@ class QueryContextEnterList: public QueryContext_
                                    ID::List list_id, unsigned int line):
         QueryContext_(result_receiver, caller_id),
         proxy_(proxy),
-        parameters_({list_id, line}),
-        async_call_(nullptr)
+        parameters_({list_id, line})
     {}
 
     virtual ~QueryContextEnterList()
     {
-        if(cancel_sync())
-            delete async_call_;
-
-        async_call_ = nullptr;
+        cancel_sync();
     }
 
     CallerID get_caller_id() const { return static_cast<CallerID>(caller_id_); }
@@ -190,24 +181,21 @@ class QueryContextEnterList: public QueryContext_
             return false;
     }
 
-    bool cancel_sync() final override
+    void cancel_sync() final override
     {
         if(!cancel())
-            return false;
+            return;
 
         try
         {
             DBus::AsyncResult dummy;
 
-            if(synchronize(dummy))
-                return true;
+            synchronize(dummy);
         }
         catch(...)
         {
             /* ignore, the #DBus::AsyncCall is already deleted or a zombie */
         }
-
-        return false;
     }
 
   private:
@@ -288,7 +276,7 @@ class QueryContextGetItem: public QueryContext_
         DBus::AsyncCall<tdbuslistsNavigation, std::tuple<guchar, guint, GVariant *>,
                         Busy::Source::GETTING_LIST_RANGE>;
 
-    AsyncListNavGetRange *async_call_;
+    std::shared_ptr<AsyncListNavGetRange> async_call_;
 
     QueryContextGetItem(const QueryContextGetItem &) = delete;
     QueryContextGetItem &operator=(const QueryContextGetItem &) = delete;
@@ -302,16 +290,12 @@ class QueryContextGetItem: public QueryContext_
                                  unsigned int replace_index):
         QueryContext_(result_receiver, caller_id),
         proxy_(proxy),
-        parameters_({list_id, line, count, have_meta_data, replace_index}),
-        async_call_(nullptr)
+        parameters_({list_id, line, count, have_meta_data, replace_index})
     {}
 
     virtual ~QueryContextGetItem()
     {
-        if(cancel_sync())
-            delete async_call_;
-
-        async_call_ = nullptr;
+        cancel_sync();
     }
 
     CallerID get_caller_id() const { return static_cast<CallerID>(caller_id_); }
@@ -330,24 +314,21 @@ class QueryContextGetItem: public QueryContext_
             return false;
     }
 
-    bool cancel_sync() final override
+    void cancel_sync() final override
     {
         if(!cancel())
-            return false;
+            return;
 
         try
         {
             DBus::AsyncResult dummy;
 
-            if(synchronize(dummy))
-                return true;
+            synchronize(dummy);
         }
         catch(...)
         {
             /* ignore, the #DBus::AsyncCall is already deleted or a zombie */
         }
-
-        return false;
     }
 
     bool is_loading(unsigned int line) const

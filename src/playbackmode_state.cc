@@ -132,7 +132,7 @@ static std::string get_selected_uri(ID::List list_id, unsigned int item_id,
     using AsyncCallType = DBus::AsyncCall<tdbuslistsNavigation, std::tuple<guchar, gchar **>,
                                           Busy::Source::GETTING_ITEM_URI>;
 
-    auto *async_call = new AsyncCallType(
+    auto async_call = std::make_shared<AsyncCallType>(
         proxy,
         [] (GObject *source_object) { return TDBUS_LISTS_NAVIGATION(source_object); },
         [] (DBus::AsyncResult &async_ready, AsyncCallType::PromiseType &promise,
@@ -179,7 +179,7 @@ static std::string get_selected_uri(ID::List list_id, unsigned int item_id,
                        list_id.get_raw_id(), item_id);
     async_call->wait_for_result();
 
-    if(AsyncCallType::cleanup_if_failed(async_call))
+    if(!async_call->success())
     {
         msg_info("Failed obtaining URI for item %u in list %u", item_id, list_id.get_raw_id());
         send_status = SendStatus::BROKER_FAILURE;
@@ -195,8 +195,6 @@ static std::string get_selected_uri(ID::List list_id, unsigned int item_id,
 
     const std::string selected_uri =
         copy_selected_uri(uri_list, error, list_id, item_id, send_status);
-
-    delete async_call;
 
     return selected_uri;
 }

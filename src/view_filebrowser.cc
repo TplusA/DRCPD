@@ -974,7 +974,8 @@ static void point_to_root_directory__got_list_id(DBus::AsyncCall_ &async_call,
 {
     auto lock(calls.acquire_lock());
 
-    log_assert(&async_call == calls.get_list_id_);
+    if(&async_call != calls.get_list_id_.get())
+        return;
 
     DBus::AsyncResult async_result;
 
@@ -988,10 +989,10 @@ static void point_to_root_directory__got_list_id(DBus::AsyncCall_ &async_call,
         msg_error(0, LOG_ERR, "Failed obtaining ID for root list: %s", e.what());
     }
 
-    if(DBus::AsyncCall_::cleanup_if_failed(calls.get_list_id_) ||
+    if(!calls.get_list_id_->success() ||
        async_result != DBus::AsyncResult::DONE)
     {
-        calls.get_list_id_ = nullptr;
+        calls.get_list_id_.reset();
         return;
     }
 
@@ -1018,17 +1019,17 @@ static void point_to_root_directory__got_list_id(DBus::AsyncCall_ &async_call,
     return;
 
 error_exit:
-    calls.delete_one(calls.get_list_id_);
+    calls.get_list_id_.reset();
 }
 
-static ViewFileBrowser::View::AsyncCalls::GetListId *
+static std::shared_ptr<ViewFileBrowser::View::AsyncCalls::GetListId>
 mk_get_list_id(tdbuslistsNavigation *proxy,
                const DBus::AsyncResultAvailableFunction &result_available_fn,
                const SearchParameters *search_parameters = nullptr)
 {
     const bool is_simple_get_list = (search_parameters == nullptr);
 
-    return new ViewFileBrowser::View::AsyncCalls::GetListId(
+    return std::make_shared<ViewFileBrowser::View::AsyncCalls::GetListId>(
         proxy,
         [] (GObject *source_object) { return TDBUS_LISTS_NAVIGATION(source_object); },
         [is_simple_get_list]
@@ -1092,7 +1093,8 @@ static void point_to_child_directory__got_list_id(DBus::AsyncCall_ &async_call,
 {
     auto lock(calls.acquire_lock());
 
-    log_assert(&async_call == calls.get_list_id_);
+    if(&async_call != calls.get_list_id_.get())
+        return;
 
     DBus::AsyncResult async_result;
 
@@ -1107,10 +1109,10 @@ static void point_to_child_directory__got_list_id(DBus::AsyncCall_ &async_call,
                   line, list_id.get_raw_id(), e.what());
     }
 
-    if(DBus::AsyncCall_::cleanup_if_failed(calls.get_list_id_) ||
+    if(!calls.get_list_id_->success() ||
        async_result != DBus::AsyncResult::DONE)
     {
-        calls.get_list_id_ = nullptr;
+        calls.get_list_id_.reset();
         return;
     }
 
@@ -1137,7 +1139,7 @@ static void point_to_child_directory__got_list_id(DBus::AsyncCall_ &async_call,
     return;
 
 error_exit:
-    calls.delete_one(calls.get_list_id_);
+    calls.get_list_id_.reset();
 }
 
 bool ViewFileBrowser::View::point_to_child_directory(const SearchParameters *search_parameters)
@@ -1183,7 +1185,8 @@ static void point_to_parent_link__got_parent_link(DBus::AsyncCall_ &async_call,
 {
     auto lock(calls.acquire_lock());
 
-    log_assert(&async_call == calls.get_parent_id_);
+    if(&async_call != calls.get_parent_id_.get())
+        return;
 
     DBus::AsyncResult async_result;
 
@@ -1198,10 +1201,10 @@ static void point_to_parent_link__got_parent_link(DBus::AsyncCall_ &async_call,
                   child_list_id.get_raw_id(), e.what());
     }
 
-    if(DBus::AsyncCall_::cleanup_if_failed(calls.get_parent_id_) ||
+    if(!calls.get_parent_id_->success() ||
        async_result != DBus::AsyncResult::DONE)
     {
-        calls.get_parent_id_ = nullptr;
+        calls.get_parent_id_.reset();
         return;
     }
 
@@ -1216,7 +1219,7 @@ static void point_to_parent_link__got_parent_link(DBus::AsyncCall_ &async_call,
     else
     {
         BUG("Got invalid list ID for parent list");
-        calls.delete_one(calls.get_parent_id_);
+        calls.get_parent_id_.reset();
     }
 }
 
@@ -1226,7 +1229,7 @@ bool ViewFileBrowser::View::point_to_parent_link()
 
     cancel_and_delete_all_async_calls();
 
-    async_calls_.get_parent_id_ = new AsyncCalls::GetParentId(
+    async_calls_.get_parent_id_ = std::make_shared<AsyncCalls::GetParentId>(
         file_list_.get_dbus_proxy(),
         [] (GObject *source_object) { return TDBUS_LISTS_NAVIGATION(source_object); },
         [] (DBus::AsyncResult &async_ready,

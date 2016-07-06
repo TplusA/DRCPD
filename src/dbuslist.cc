@@ -452,7 +452,7 @@ bool List::QueryContextEnterList::run_async(const DBus::AsyncResultAvailableFunc
 {
     log_assert(async_call_ == nullptr);
 
-    async_call_ = new AsyncListNavCheckRange(
+    async_call_ = std::make_shared<AsyncListNavCheckRange>(
         proxy_,
         [] (GObject *source_object) { return TDBUS_LISTS_NAVIGATION(source_object); },
         std::bind(put_result,
@@ -485,16 +485,15 @@ bool List::QueryContextEnterList::synchronize(DBus::AsyncResult &result)
         {
             result = async_call_->wait_for_result();
 
-            if(!DBus::AsyncCall_::cleanup_if_failed(async_call_))
+            if(async_call_->success())
                 return true;
 
-            async_call_ = nullptr;
+            async_call_.reset();
         }
         catch(const List::DBusListException &e)
         {
             result = DBus::AsyncResult::FAILED;
-            delete async_call_;
-            async_call_ = nullptr;
+            async_call_.reset();
             throw;
         }
     }
@@ -719,7 +718,7 @@ List::DBusList::get_item_async(unsigned int line, const Item *&item,
     notify_watcher(OpEvent::GET_ITEM, OpResult::STARTED,
                    async_dbus_data_.get_item_query_, lock);
 
-    return OpResult::STARTED;;
+    return OpResult::STARTED;
 }
 
 void List::DBusList::get_item_async_handle_done(LoggedLock::UniqueLock<LoggedLock::Mutex> &lock)
@@ -791,7 +790,7 @@ bool List::QueryContextGetItem::run_async(const DBus::AsyncResultAvailableFuncti
 {
     log_assert(async_call_ == nullptr);
 
-    async_call_ = new AsyncListNavGetRange(
+    async_call_ = std::make_shared<AsyncListNavGetRange>(
         proxy_,
         [] (GObject *source_object) { return TDBUS_LISTS_NAVIGATION(source_object); },
         std::bind(put_result,
@@ -836,16 +835,15 @@ bool List::QueryContextGetItem::synchronize(DBus::AsyncResult &result)
         {
             result = async_call_->wait_for_result();
 
-            if(!DBus::AsyncCall_::cleanup_if_failed(async_call_))
+            if(async_call_->success())
                 return true;
 
-            async_call_ = nullptr;
+            async_call_.reset();
         }
         catch(const List::DBusListException &e)
         {
             result = DBus::AsyncResult::FAILED;
-            delete async_call_;
-            async_call_ = nullptr;
+            async_call_.reset();
             throw;
         }
     }
@@ -901,13 +899,13 @@ void List::DBusList::async_done_notification(DBus::AsyncCall_ &async_call)
 
     if(async_dbus_data_.enter_list_query_ != nullptr)
     {
-        log_assert(&async_call == async_dbus_data_.enter_list_query_->async_call_);
-        enter_list_async_handle_done(lock);
+        if(&async_call == async_dbus_data_.enter_list_query_->async_call_.get())
+            enter_list_async_handle_done(lock);
     }
     else if(async_dbus_data_.get_item_query_ != nullptr)
     {
-        log_assert(&async_call == async_dbus_data_.get_item_query_->async_call_);
-        get_item_async_handle_done(lock);
+        if(&async_call == async_dbus_data_.get_item_query_->async_call_.get())
+            get_item_async_handle_done(lock);
     }
     else
         BUG("Unexpected async done notification");
