@@ -101,6 +101,8 @@ void ViewFileBrowser::AirableView::finish_async_point_to_child_directory()
     const unsigned int num = file_list_.get_number_of_items();
     unsigned int i;
 
+    /* use synchronous API to successively load all items in the list and find
+     * the search form---list should be empty anyway */
     file_list_.push_cache_state();
 
     for(i = 0; i < num; ++i)
@@ -153,9 +155,7 @@ void ViewFileBrowser::AirableView::finish_async_point_to_child_directory()
 void ViewFileBrowser::AirableView::handle_enter_list_event(List::AsyncListIface::OpResult result,
                                                            const std::shared_ptr<List::QueryContextEnterList> &ctx)
 {
-    View::handle_enter_list_event(result, ctx);
-
-    if(result == List::AsyncListIface::OpResult::STARTED)
+    if(!View::handle_enter_list_event_finish(result, ctx))
         return;
 
     switch(ctx->get_caller_id())
@@ -173,6 +173,8 @@ void ViewFileBrowser::AirableView::handle_enter_list_event(List::AsyncListIface:
         root_list_id_ = current_list_id_;
         break;
     }
+
+    View::handle_enter_list_event_update_after_finish(result, ctx);
 }
 
 bool ViewFileBrowser::AirableView::point_to_child_directory(const SearchParameters *search_parameters)

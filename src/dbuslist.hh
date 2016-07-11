@@ -219,8 +219,8 @@ struct CacheModifications
     bool is_shift_down_;
     unsigned int shift_distance_;
 
-    CacheModifications(const CacheModifications &) = delete;
-    CacheModifications &operator=(const CacheModifications &) = delete;
+    CacheModifications(const CacheModifications &) = default;
+    CacheModifications &operator=(const CacheModifications &) = default;
 
     explicit CacheModifications():
         is_filling_from_scratch_(false),
@@ -247,6 +247,162 @@ struct CacheModifications
     }
 };
 
+class CacheSegment
+{
+  public:
+    unsigned int line_;
+    unsigned int count_;
+
+    CacheSegment(const CacheSegment &) = delete;
+    CacheSegment(CacheSegment &&) = default;
+    CacheSegment &operator=(const CacheSegment &) = default;
+
+    explicit CacheSegment(unsigned int line, unsigned int count):
+        line_(line),
+        count_(count)
+    {}
+
+    enum Intersection
+    {
+        DISJOINT,
+        EQUAL,
+        TOP_REMAINS,
+        BOTTOM_REMAINS,
+        CENTER_REMAINS,
+        INCLUDED_IN_OTHER,
+    };
+
+    Intersection intersection(const CacheSegment &other, unsigned int &size) const
+    {
+        /* special cases for empty intervals */
+        if(count_ == 0)
+        {
+            size = 0;
+
+            if(other.count_ == 0)
+                return (line_ == other.line_) ? EQUAL : DISJOINT;
+            else
+                return other.contains_line(line_) ? INCLUDED_IN_OTHER : DISJOINT;
+        }
+        else if(other.count_ == 0)
+        {
+            size = 0;
+            return contains_line(other.line_) ? CENTER_REMAINS : DISJOINT;
+        }
+
+        /* neither interval is empty, i.e., both counts are positive */
+        if(line_ == other.line_)
+        {
+            /* equal start lines */
+            if(count_ < other.count_)
+            {
+                size = count_;
+                return INCLUDED_IN_OTHER;
+            }
+            else if(count_ > other.count_)
+            {
+                size = other.count_;
+                return TOP_REMAINS;
+            }
+            else
+            {
+                size = count_;
+                return EQUAL;
+            }
+        }
+
+        /* have two non-empty intervals with different start lines */
+        const unsigned int beyond_this_end = line_ + count_;
+        const unsigned int beyond_other_end = other.line_ + other.count_;
+
+        if(line_ < other.line_)
+        {
+            /* this interval starts before the other interval */
+            if(beyond_this_end <= other.line_)
+            {
+                size = 0;
+                return DISJOINT;
+            }
+            else if(beyond_this_end <= beyond_other_end)
+            {
+                size = beyond_this_end - other.line_;
+                return BOTTOM_REMAINS;
+            }
+            else
+            {
+                size = other.count_;
+                return CENTER_REMAINS;
+            }
+        }
+        else
+        {
+            /* this interval starts after the other interval */
+            if(beyond_other_end <= line_)
+            {
+                size = 0;
+                return DISJOINT;
+            }
+            else if(beyond_other_end < beyond_this_end)
+            {
+                size = beyond_other_end - line_;
+                return TOP_REMAINS;
+            }
+            else
+            {
+                size = count_;
+                return INCLUDED_IN_OTHER;
+            }
+        }
+    }
+
+    bool contains_line(unsigned int line) const
+    {
+        return line >= line_ && line < line_ + count_;
+    }
+};
+
+enum class CacheSegmentState
+{
+    /*! Nothing in cache yet, nothing loading. */
+    EMPTY,
+
+    /*! The whole segment is being loaded, nothing cached yet. */
+    LOADING,
+
+    /*! Top segment is loading, bottom half is empty. */
+    LOADING_TOP_EMPTY_BOTTOM,
+
+    /*! Bottom segment is loading, top half is empty. */
+    LOADING_BOTTOM_EMPTY_TOP,
+
+    /*! Loading in center, mix of other states at top and bottom. */
+    LOADING_CENTER,
+
+    /*! Segment is completely in cache. */
+    CACHED,
+
+    /*! Only top of segment is cached, bottom half is already loading. */
+    CACHED_TOP_LOADING_BOTTOM,
+
+    /*! Only bottom of segment is cached, top half is already loading. */
+    CACHED_BOTTOM_LOADING_TOP,
+
+    /*! Top segment is cached, bottom half is empty. */
+    CACHED_TOP_EMPTY_BOTTOM,
+
+    /*! Bottom segment is cached, top half is empty. */
+    CACHED_BOTTOM_EMPTY_TOP,
+
+    /*! Top segment is cached, center is loading, bottom half is empty. */
+    CACHED_TOP_LOADING_CENTER_EMPTY_BOTTOM,
+
+    /*! Bottom segment is cached, center is loading, top half is empty. */
+    CACHED_BOTTOM_LOADING_CENTER_EMPTY_TOP,
+
+    /*! Cached in center, mix of other states at top and bottom. */
+    CACHED_CENTER,
+};
+
 /*!
  * Context for getting a D-Bus list item asynchronously.
  */
@@ -255,9 +411,9 @@ class QueryContextGetItem: public QueryContext_
   public:
     enum class CallerID
     {
-        SELECT_IN_VIEW,
         SERIALIZE,
         SERIALIZE_DEBUG,
+        DBUSLIST_GET_ITEM,
     };
 
     tdbuslistsNavigation *proxy_;
@@ -265,8 +421,7 @@ class QueryContextGetItem: public QueryContext_
     const struct
     {
         ID::List list_id_;
-        unsigned int line_;
-        unsigned int count_;
+        CacheSegment loading_segment_;
         bool have_meta_data_;
         unsigned int cache_list_replace_index_;
     }
@@ -290,7 +445,7 @@ class QueryContextGetItem: public QueryContext_
                                  unsigned int replace_index):
         QueryContext_(result_receiver, caller_id),
         proxy_(proxy),
-        parameters_({list_id, line, count, have_meta_data, replace_index})
+        parameters_({list_id, CacheSegment(line, count), have_meta_data, replace_index})
     {}
 
     virtual ~QueryContextGetItem()
@@ -331,10 +486,38 @@ class QueryContextGetItem: public QueryContext_
         }
     }
 
-    bool is_loading(unsigned int line) const
+    CacheSegmentState get_cache_segment_state(const CacheSegment &segment,
+                                              unsigned int &size_of_loading_segment) const
     {
-        return line >= parameters_.line_ &&
-               line < parameters_.line_ + parameters_.count_;
+        CacheSegmentState retval = CacheSegmentState::EMPTY;
+
+        switch(segment.intersection(parameters_.loading_segment_, size_of_loading_segment))
+        {
+          case CacheSegment::DISJOINT:
+            break;
+
+          case CacheSegment::EQUAL:
+          case CacheSegment::INCLUDED_IN_OTHER:
+            retval = CacheSegmentState::LOADING;
+            break;
+
+          case CacheSegment::TOP_REMAINS:
+            retval = CacheSegmentState::LOADING_TOP_EMPTY_BOTTOM;
+            break;
+
+          case CacheSegment::BOTTOM_REMAINS:
+            retval = CacheSegmentState::LOADING_BOTTOM_EMPTY_TOP;
+            break;
+
+          case CacheSegment::CENTER_REMAINS:
+            retval = CacheSegmentState::LOADING_CENTER;
+            break;
+        }
+
+        if(size_of_loading_segment > 0)
+            return retval;
+
+        return CacheSegmentState::EMPTY;
     }
 
   private:
@@ -429,12 +612,14 @@ class DBusList: public ListIface, public AsyncListIface
         ID::List list_id_;
         unsigned int first_item_line_;
         RamList items_;
+        CacheSegment valid_segment_;
 
         CacheData(const CacheData &) = delete;
         CacheData &operator=(const CacheData &) = delete;
 
         explicit CacheData():
-            first_item_line_(0)
+            first_item_line_(0),
+            valid_segment_(0, 0)
         {}
 
         const List::Item *operator[](unsigned int line) const
@@ -449,7 +634,9 @@ class DBusList: public ListIface, public AsyncListIface
         {
             list_id_ = src.list_id_;
             first_item_line_ = src.first_item_line_;
-            items_.clone(src.items_);
+            items_.clear();
+            valid_segment_.line_ = src.valid_segment_.line_;
+            valid_segment_.count_ = 0;
         }
 
         void move_from(CacheData &other)
@@ -457,6 +644,17 @@ class DBusList: public ListIface, public AsyncListIface
             list_id_ = other.list_id_;
             first_item_line_ = other.first_item_line_;
             items_.move_from(other.items_);
+            valid_segment_ = other.valid_segment_;
+            other.valid_segment_.count_ = 0;
+        }
+
+        void clear_for_line(ID::List list_id, unsigned int line)
+        {
+            list_id_ = list_id;
+            first_item_line_ = line;
+            items_.clear();
+            valid_segment_.line_ = line;
+            valid_segment_.count_ = 0;
         }
     };
 
@@ -525,25 +723,49 @@ class DBusList: public ListIface, public AsyncListIface
     }
 
     const Item *get_item(unsigned int line) const throw(List::DBusListException) override;
-    OpResult get_item_async(unsigned int line, const Item *&item,
-                            QueryContextGetItem::CallerID caller, int prefetch_hint = 0)
+
+    OpResult get_item_async_set_hint(unsigned int line, int count,
+                                     QueryContextGetItem::CallerID caller)
     {
-        return get_item_async(line, item, prefetch_hint, static_cast<unsigned short>(caller));
+        return get_item_async_set_hint(line, count, static_cast<unsigned short>(caller));
     }
+
+    OpResult get_item_async(unsigned int line, const Item *&item) override;
 
     ID::List get_list_id() const override { return window_.list_id_; }
 
     tdbuslistsNavigation *get_dbus_proxy() const { return dbus_proxy_; }
 
   private:
+    CacheSegmentState get_cache_segment_state(const CacheSegment &segment,
+                                              unsigned int &size_of_cached_overlap,
+                                              unsigned int &size_of_loading_segment) const;
+
+    bool is_line_cached(unsigned int line) const
+    {
+        return window_.valid_segment_.contains_line(line);
+    }
+
+    bool is_line_loading(unsigned int line) const
+    {
+        if(async_dbus_data_.get_item_query_ != nullptr)
+            return async_dbus_data_.get_item_query_->parameters_.loading_segment_.contains_line(line);
+        else
+            return false;
+    }
+
     bool is_position_unchanged(ID::List list_id, unsigned int line) const;
-    bool is_line_cached(unsigned int line) const;
+
     bool can_scroll_to_line(unsigned int line, unsigned int prefetch_hint,
                             CacheModifications &cm,
                             unsigned int &fetch_head, unsigned int &count,
                             unsigned int &cache_list_replace_index) const;
-    bool is_line_pending(unsigned int line) const;
-    bool is_line_loading(unsigned int line) const;
+
+    OpResult load_segment_in_background(const CacheSegment &prefetch_segment,
+                                        int keep_cache_entries,
+                                        unsigned int current_number_of_loading_items,
+                                        unsigned short caller_id,
+                                        LoggedLock::UniqueLock<LoggedLock::Mutex> &lock);
 
     /*!
      * Little helper that calls the event watcher.
@@ -562,8 +784,9 @@ class DBusList: public ListIface, public AsyncListIface
     }
 
     OpResult enter_list_async(ID::List list_id, unsigned int line, unsigned short caller_id) override;
-    OpResult get_item_async(unsigned int line, const Item *&item,
-                            unsigned int prefetch_hint, unsigned short caller_id) override;
+    OpResult get_item_async_set_hint(unsigned int line, unsigned int count,
+                                     unsigned short caller_id) override;
+
 
     /*!
      * Stop entering list.

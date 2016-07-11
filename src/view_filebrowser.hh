@@ -271,7 +271,16 @@ class View: public ViewIface, public ViewSerializeBase
 
   protected:
     virtual void handle_enter_list_event(List::AsyncListIface::OpResult result,
-                                         const std::shared_ptr<List::QueryContextEnterList> &ctx);
+                                         const std::shared_ptr<List::QueryContextEnterList> &ctx)
+    {
+        if(handle_enter_list_event_finish(result, ctx))
+            handle_enter_list_event_update_after_finish(result, ctx);
+    }
+
+    bool handle_enter_list_event_finish(List::AsyncListIface::OpResult result,
+                                        const std::shared_ptr<List::QueryContextEnterList> &ctx);
+    void handle_enter_list_event_update_after_finish(List::AsyncListIface::OpResult result,
+                                                     const std::shared_ptr<List::QueryContextEnterList> &ctx);
     virtual void handle_get_item_event(List::AsyncListIface::OpResult result,
                                        const std::shared_ptr<List::QueryContextGetItem> &ctx);
 };

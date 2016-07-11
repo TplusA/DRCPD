@@ -75,11 +75,12 @@ static ID::List finish_async_enter_dir_op(List::AsyncListIface::OpResult result,
     return current_list_id;
 }
 
-void ViewFileBrowser::View::handle_enter_list_event(List::AsyncListIface::OpResult result,
-                                                    const std::shared_ptr<List::QueryContextEnterList> &ctx)
+bool ViewFileBrowser::View::handle_enter_list_event_finish(
+        List::AsyncListIface::OpResult result,
+        const std::shared_ptr<List::QueryContextEnterList> &ctx)
 {
     if(result == List::AsyncListIface::OpResult::STARTED)
-        return;
+        return false;
 
     switch(ctx->get_caller_id())
     {
@@ -95,6 +96,13 @@ void ViewFileBrowser::View::handle_enter_list_event(List::AsyncListIface::OpResu
         break;
     }
 
+    return true;
+}
+
+void ViewFileBrowser::View::handle_enter_list_event_update_after_finish(
+        List::AsyncListIface::OpResult result,
+        const std::shared_ptr<List::QueryContextEnterList> &ctx)
+{
     if(result == List::AsyncListIface::OpResult::SUCCEEDED)
     {
         item_flags_.list_content_changed();
@@ -130,7 +138,6 @@ void ViewFileBrowser::View::handle_enter_list_event(List::AsyncListIface::OpResu
         result == List::AsyncListIface::OpResult::FAILED))
     {
         view_manager_->serialize_view_if_active(this, DCP::Queue::Mode::FORCE_ASYNC);
-
     }
 }
 
@@ -635,8 +642,7 @@ ViewFileBrowser::View::process_event(UI::ViewEventID event_id,
 
             const List::Item *dbus_list_item = nullptr;
             const auto op_result =
-                file_list_.get_item_async(navigation_.get_cursor(), dbus_list_item,
-                                          List::QueryContextGetItem::CallerID::SELECT_IN_VIEW);
+                file_list_.get_item_async(navigation_.get_cursor(), dbus_list_item);
 
             switch(op_result)
             {
@@ -768,10 +774,22 @@ bool ViewFileBrowser::View::write_xml(std::ostream &os,
 {
     os << "<text id=\"cbid\">" << int(drcp_browse_id_) << "</text>";
 
+    switch(file_list_.get_item_async_set_hint(*(navigation_.begin()),
+                                              std::min(navigation_.get_total_number_of_visible_items(),
+                                                       navigation_.maximum_number_of_displayed_lines_),
+                                              List::QueryContextGetItem::CallerID::SERIALIZE))
+    {
+      case List::AsyncListIface::OpResult::STARTED:
+      case List::AsyncListIface::OpResult::SUCCEEDED:
+      case List::AsyncListIface::OpResult::CANCELED:
+        break;
+
+      case List::AsyncListIface::OpResult::FAILED:
+        BUG("Failed hinting asynchronous list operation");
+        break;
+    }
+
     size_t displayed_line = 0;
-    unsigned int prefetch_hint =
-        std::min(navigation_.get_total_number_of_visible_items(),
-                 navigation_.maximum_number_of_displayed_lines_);
 
     for(auto it : navigation_)
     {
@@ -782,10 +800,7 @@ bool ViewFileBrowser::View::write_xml(std::ostream &os,
             item = nullptr;
 
             const List::Item *dbus_list_item = nullptr;
-            const auto op_result =
-                file_list_.get_item_async(it, dbus_list_item,
-                                          List::QueryContextGetItem::CallerID::SERIALIZE,
-                                          prefetch_hint);
+            const auto op_result = file_list_.get_item_async(it, dbus_list_item);
 
             switch(op_result)
             {
@@ -810,8 +825,6 @@ bool ViewFileBrowser::View::write_xml(std::ostream &os,
              * otherwise the user would see no update at all */
             return true;
         }
-
-        --prefetch_hint;
 
         std::string flags;
 
@@ -880,6 +893,21 @@ void ViewFileBrowser::View::serialize(DCP::Queue &queue, DCP::Queue::Mode mode,
     if(!debug_os)
         return;
 
+    switch(file_list_.get_item_async_set_hint(*(navigation_.begin()),
+                                              std::min(navigation_.get_total_number_of_visible_items(),
+                                                       navigation_.maximum_number_of_displayed_lines_),
+                                              List::QueryContextGetItem::CallerID::SERIALIZE_DEBUG))
+    {
+      case List::AsyncListIface::OpResult::STARTED:
+      case List::AsyncListIface::OpResult::SUCCEEDED:
+      case List::AsyncListIface::OpResult::CANCELED:
+        break;
+
+      case List::AsyncListIface::OpResult::FAILED:
+        BUG("Failed hinting asynchronous list operation for debug output");
+        break;
+    }
+
     for(auto it : navigation_)
     {
         const FileItem *item;
@@ -889,9 +917,7 @@ void ViewFileBrowser::View::serialize(DCP::Queue &queue, DCP::Queue::Mode mode,
             item = nullptr;
 
             const List::Item *dbus_list_item = nullptr;
-            const auto op_result =
-                file_list_.get_item_async(it, dbus_list_item,
-                                          List::QueryContextGetItem::CallerID::SERIALIZE_DEBUG);
+            const auto op_result = file_list_.get_item_async(it, dbus_list_item);
 
             switch(op_result)
             {

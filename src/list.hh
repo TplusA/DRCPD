@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -223,13 +223,22 @@ class AsyncListIface
                                       unsigned short caller_id) = 0;
 
     /*!
-     * Get list item asynchronously.
+     * Hint at which items are needed.
      *
      * This function starts the process of retrieving a list entry in the
      * background.
      *
      * As soon as the result is available (successful or not), a registered
      * watcher is notified about the change, or failure of change.
+     */
+    virtual OpResult get_item_async_set_hint(unsigned int line, unsigned int count,
+                                             unsigned short caller_id) = 0;
+
+    /*!
+     * Get list item asynchronously.
+     *
+     * This function returns either the real item or a stub item that indicates
+     * that the real item is in progress of being loaded.
      *
      * \retval #List::AsyncListIface::OpResult::STARTED
      *     The result is not available and an asynchronous operation has been
@@ -240,9 +249,7 @@ class AsyncListIface
      * \retval #List::AsyncListIface::OpResult::FAILED
      *     The function failed before starting the asynchronous call.
      */
-    virtual OpResult get_item_async(unsigned int line, const Item *&item,
-                                    unsigned int prefetch_hint,
-                                    unsigned short caller_id) = 0;
+    virtual OpResult get_item_async(unsigned int line, const Item *&item) = 0;
 };
 
 };

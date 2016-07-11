@@ -123,9 +123,7 @@ void List::DBusList::enter_list(ID::List list_id, unsigned int line)
     else if(line == window_.first_item_line_)
         return;
 
-    window_.list_id_ = list_id;
-    window_.first_item_line_ = line;
-    window_.items_.clear();
+    window_.clear_for_line(list_id, line);
 }
 
 static bool fetch_window_sync(tdbuslistsNavigation *proxy,
@@ -134,7 +132,7 @@ static bool fetch_window_sync(tdbuslistsNavigation *proxy,
                               unsigned int count, GVariant **out_list)
     throw(List::DBusListException)
 {
-    msg_info("Fetch %u lines of list %u, starting at %u (sync)",
+    msg_info("Fetch %u lines of list %u: starting at %u (sync)",
              count, list_id.get_raw_id(), line);
 
     guchar error_code;
@@ -191,12 +189,6 @@ static bool fetch_window_sync(tdbuslistsNavigation *proxy,
 bool List::DBusList::is_position_unchanged(ID::List list_id, unsigned int line) const
 {
     return list_id == window_.list_id_ && line == window_.first_item_line_;
-}
-
-bool List::DBusList::is_line_cached(unsigned int line) const
-{
-    return (line >= window_.first_item_line_ &&
-            line - window_.first_item_line_ < window_.items_.get_number_of_items());
 }
 
 static void fill_cache_list_generic(List::RamList &items,
@@ -368,12 +360,7 @@ List::DBusList::enter_list_async(ID::List list_id, unsigned int line,
 
     LoggedLock::UniqueLock<LoggedLock::Mutex> lock(async_dbus_data_.lock_);
 
-    if(async_dbus_data_.enter_list_query_ != nullptr)
-    {
-        async_dbus_data_.enter_list_query_->cancel_sync();
-        async_dbus_data_.enter_list_query_.reset();
-    }
-
+    cancel_enter_list_query();
     cancel_get_item_query();
 
     if(is_position_unchanged(list_id, line))
@@ -428,9 +415,7 @@ void List::DBusList::enter_list_async_handle_done(LoggedLock::UniqueLock<LoggedL
         const auto &size(q->async_call_->get_result(async_result));
 
         number_of_items_ = size;
-        window_.list_id_ = q->parameters_.list_id_;
-        window_.first_item_line_ = q->parameters_.line_;
-        window_.items_.clear();
+        window_.clear_for_line(q->parameters_.list_id_, q->parameters_.line_);
     }
     else
     {
@@ -563,21 +548,123 @@ void List::QueryContextEnterList::put_result(DBus::AsyncResult &async_ready,
 void List::DBusList::cancel_enter_list_query()
 {
     if(async_dbus_data_.enter_list_query_ != nullptr)
+    {
         async_dbus_data_.enter_list_query_->cancel_sync();
+        async_dbus_data_.enter_list_query_.reset();
+    }
 }
 
 void List::DBusList::cancel_get_item_query()
 {
     if(async_dbus_data_.get_item_query_ != nullptr)
+    {
         async_dbus_data_.get_item_query_->cancel_sync();
+        async_dbus_data_.get_item_query_.reset();
+    }
 }
 
-bool List::DBusList::is_line_loading(unsigned int line) const
+List::CacheSegmentState
+List::DBusList::get_cache_segment_state(const CacheSegment &segment,
+                                        unsigned int &size_of_cached_segment,
+                                        unsigned int &size_of_loading_segment) const
 {
-    if(async_dbus_data_.get_item_query_ != nullptr)
-        return async_dbus_data_.get_item_query_->is_loading(line);
-    else
-        return false;
+    CacheSegmentState cached_state = CacheSegmentState::EMPTY;
+
+    switch(segment.intersection(window_.valid_segment_, size_of_cached_segment))
+    {
+      case CacheSegment::DISJOINT:
+        break;
+
+      case CacheSegment::EQUAL:
+      case CacheSegment::INCLUDED_IN_OTHER:
+        cached_state = CacheSegmentState::CACHED;
+        break;
+
+      case CacheSegment::TOP_REMAINS:
+        cached_state = CacheSegmentState::CACHED_TOP_EMPTY_BOTTOM;
+        break;
+
+      case CacheSegment::BOTTOM_REMAINS:
+        cached_state = CacheSegmentState::CACHED_BOTTOM_EMPTY_TOP;
+        break;
+
+      case CacheSegment::CENTER_REMAINS:
+        cached_state = CacheSegmentState::CACHED_CENTER;
+        break;
+    }
+
+    if(size_of_cached_segment == 0)
+        cached_state = CacheSegmentState::EMPTY;
+
+    if(async_dbus_data_.get_item_query_ == nullptr)
+    {
+        size_of_loading_segment = 0;
+        return cached_state;
+    }
+
+    auto loading_state =
+        async_dbus_data_.get_item_query_->get_cache_segment_state(segment, size_of_loading_segment);
+
+    switch(loading_state)
+    {
+      case CacheSegmentState::EMPTY:
+        /* loading something entirely different */
+        break;
+
+      case CacheSegmentState::LOADING:
+        log_assert(cached_state == CacheSegmentState::EMPTY);
+        cached_state = loading_state;
+        break;
+
+      case CacheSegmentState::LOADING_TOP_EMPTY_BOTTOM:
+        log_assert(cached_state == CacheSegmentState::EMPTY ||
+                   cached_state == CacheSegmentState::CACHED_BOTTOM_EMPTY_TOP ||
+                   cached_state == CacheSegmentState::CACHED_CENTER);
+
+        if(cached_state == CacheSegmentState::EMPTY)
+            cached_state = loading_state;
+        else if(cached_state == CacheSegmentState::CACHED_BOTTOM_EMPTY_TOP)
+            cached_state = CacheSegmentState::CACHED_BOTTOM_LOADING_TOP;
+
+        break;
+
+      case CacheSegmentState::LOADING_BOTTOM_EMPTY_TOP:
+        log_assert(cached_state == CacheSegmentState::EMPTY ||
+                   cached_state == CacheSegmentState::CACHED_TOP_EMPTY_BOTTOM ||
+                   cached_state == CacheSegmentState::CACHED_CENTER);
+
+        if(cached_state == CacheSegmentState::EMPTY)
+            cached_state = loading_state;
+        else if(cached_state == CacheSegmentState::CACHED_TOP_EMPTY_BOTTOM)
+            cached_state = CacheSegmentState::CACHED_TOP_LOADING_BOTTOM;
+
+        break;
+
+      case CacheSegmentState::LOADING_CENTER:
+        if(cached_state == CacheSegmentState::EMPTY)
+            cached_state = loading_state;
+        else if(cached_state == CacheSegmentState::CACHED_TOP_EMPTY_BOTTOM)
+            cached_state = CacheSegmentState::CACHED_TOP_LOADING_CENTER_EMPTY_BOTTOM;
+        else if(cached_state == CacheSegmentState::CACHED_BOTTOM_EMPTY_TOP)
+            cached_state = CacheSegmentState::CACHED_BOTTOM_LOADING_CENTER_EMPTY_TOP;
+        else if(cached_state != CacheSegmentState::CACHED_CENTER)
+            BUG("Unexpected cached state %u", cached_state);
+
+        break;
+
+      case CacheSegmentState::CACHED:
+      case CacheSegmentState::CACHED_TOP_LOADING_BOTTOM:
+      case CacheSegmentState::CACHED_BOTTOM_LOADING_TOP:
+      case CacheSegmentState::CACHED_TOP_EMPTY_BOTTOM:
+      case CacheSegmentState::CACHED_BOTTOM_EMPTY_TOP:
+      case CacheSegmentState::CACHED_TOP_LOADING_CENTER_EMPTY_BOTTOM:
+      case CacheSegmentState::CACHED_BOTTOM_LOADING_CENTER_EMPTY_TOP:
+      case CacheSegmentState::CACHED_CENTER:
+        BUG("Unexpected loading state %u", loading_state);
+        break;
+    }
+
+    return cached_state;
 }
 
 const List::Item *List::DBusList::get_item(unsigned int line) const
@@ -591,22 +678,18 @@ const List::Item *List::DBusList::get_item(unsigned int line) const
     if(is_line_cached(line))
         return window_[line];
 
-    if(!window_stash_is_in_use_)
-    {
-        std::lock_guard<LoggedLock::Mutex> lock((const_cast<List::DBusList *>(this)->async_dbus_data_).lock_);
-        const_cast<List::DBusList *>(this)->cancel_get_item_query();
-    }
-
     CacheModifications cache_modifications;
     unsigned int fetch_head;
     unsigned int fetch_count;
     unsigned int cache_list_replace_index;
 
-    if(!can_scroll_to_line(line, 1, cache_modifications,
+    if(!can_scroll_to_line(line, number_of_prefetched_items_, cache_modifications,
                            fetch_head, fetch_count, cache_list_replace_index))
     {
         fetch_head = line;
-        fetch_count = number_of_prefetched_items_;
+        fetch_count = (line + number_of_prefetched_items_ <= get_number_of_items()
+                       ? number_of_prefetched_items_
+                       : get_number_of_items() - line);
         cache_list_replace_index = 0;
         cache_modifications.set(line);
     }
@@ -619,25 +702,178 @@ const List::Item *List::DBusList::get_item(unsigned int line) const
 
     log_assert(g_variant_n_children(out_list) == fetch_count);
 
-    const_cast<List::DBusList *>(this)->apply_cache_modifications(cache_modifications);
+    /* Shall I burn in hell for this? */
+    auto *nonconst_this = const_cast<List::DBusList *>(this);
+
+    nonconst_this->apply_cache_modifications(cache_modifications);
 
     if(have_meta_data)
-        fill_cache_list_with_meta_data((const_cast<List::DBusList *>(this)->window_).items_,
+        fill_cache_list_with_meta_data(nonconst_this->window_.items_,
                                        new_item_fn_, cache_list_replace_index,
                                        !window_.items_.empty(), out_list);
     else
-        fill_cache_list_generic((const_cast<List::DBusList *>(this)->window_).items_,
+        fill_cache_list_generic(nonconst_this->window_.items_,
                                 new_item_fn_, cache_list_replace_index,
                                 !window_.items_.empty(), out_list);
 
     g_variant_unref(out_list);
 
+    nonconst_this->window_.valid_segment_.line_ = window_.first_item_line_;
+    nonconst_this->window_.valid_segment_.count_ = window_.items_.get_number_of_items();
+
     return window_[line];
 }
 
 List::AsyncListIface::OpResult
-List::DBusList::get_item_async(unsigned int line, const Item *&item,
-                               unsigned int prefetch_hint, unsigned short caller_id)
+List::DBusList::load_segment_in_background(const CacheSegment &prefetch_segment,
+                                           int keep_cache_entries,
+                                           unsigned int current_number_of_loading_items,
+                                           unsigned short caller_id,
+                                           LoggedLock::UniqueLock<LoggedLock::Mutex> &lock)
+{
+    cancel_get_item_query();
+
+    CacheModifications cm;
+    unsigned int fetch_head;
+    unsigned int fetch_count;
+    unsigned int cache_list_replace_index;
+
+    if(keep_cache_entries > 0)
+    {
+        /* keep cached bottom elements and move them to top, load bottom */
+        fetch_head = prefetch_segment.line_ + keep_cache_entries;
+        fetch_count = prefetch_segment.count_ - keep_cache_entries;
+        cache_list_replace_index = window_.items_.get_number_of_items() - fetch_count;
+        cm.set(prefetch_segment.line_, false,
+               fetch_count - current_number_of_loading_items);
+    }
+    else if(keep_cache_entries < 0)
+    {
+        /* keep cached top elements and move them to bottom, load top */
+        keep_cache_entries = -keep_cache_entries;
+        fetch_head = prefetch_segment.line_;
+        fetch_count = prefetch_segment.count_ - keep_cache_entries;
+        cache_list_replace_index = 0;
+        cm.set(prefetch_segment.line_, true,
+               fetch_count - current_number_of_loading_items);
+    }
+    else
+    {
+        fetch_head = prefetch_segment.line_;
+        fetch_count = prefetch_segment.count_;
+        cache_list_replace_index = 0;
+        cm.set(prefetch_segment.line_);
+    }
+
+    const uint32_t list_flags(list_contexts_[DBUS_LISTS_CONTEXT_GET(window_.list_id_.get_raw_id())].get_flags());
+
+    async_dbus_data_.get_item_query_ =
+        std::make_shared<QueryContextGetItem>(*this, caller_id,
+                                              dbus_proxy_, window_.list_id_,
+                                              fetch_head, fetch_count,
+                                              (list_flags & List::ContextInfo::HAS_EXTERNAL_META_DATA) != 0,
+                                              cache_list_replace_index);
+
+    if(async_dbus_data_.get_item_query_ == nullptr)
+    {
+        msg_out_of_memory("asynchronous context (get item)");
+        return OpResult::FAILED;
+    }
+
+    if(!async_dbus_data_.get_item_query_->run_async(
+            std::bind(&List::DBusList::async_done_notification,
+                      this, std::placeholders::_1)))
+    {
+        async_dbus_data_.get_item_query_.reset();
+        return OpResult::FAILED;
+    }
+
+    apply_cache_modifications(cm);
+
+    notify_watcher(OpEvent::GET_ITEM, OpResult::STARTED,
+                   async_dbus_data_.get_item_query_, lock);
+
+    return OpResult::STARTED;
+}
+
+List::AsyncListIface::OpResult
+List::DBusList::get_item_async_set_hint(unsigned int line, unsigned int count,
+                                        unsigned short caller_id)
+{
+    if(!window_.list_id_.is_valid())
+    {
+        BUG("Cannot hint async operation for invalid list");
+        return OpResult::FAILED;
+    }
+
+    LoggedLock::UniqueLock<LoggedLock::Mutex> lock(async_dbus_data_.lock_);
+
+    /* already entering a list, cannot get items in this situation */
+    if(async_dbus_data_.enter_list_query_ != nullptr)
+        return OpResult::CANCELED;
+
+    if(line >= number_of_items_)
+        return OpResult::FAILED;
+
+    if(count == 0 || count > number_of_prefetched_items_)
+        return OpResult::FAILED;
+
+    unsigned int size_of_cached_overlap;
+    unsigned int size_of_loading_segment;
+    const CacheSegment prefetch_segment(line, count);
+    const CacheSegmentState segment_state =
+        get_cache_segment_state(prefetch_segment, size_of_cached_overlap,
+                                size_of_loading_segment);
+
+    OpResult retval = OpResult::FAILED;
+
+    switch(segment_state)
+    {
+      case CacheSegmentState::EMPTY:
+      case CacheSegmentState::CACHED_CENTER:
+      case CacheSegmentState::LOADING_CENTER:
+      case CacheSegmentState::LOADING_TOP_EMPTY_BOTTOM:
+      case CacheSegmentState::LOADING_BOTTOM_EMPTY_TOP:
+        /* need to wipe out everything and restart loading everything */
+        retval = load_segment_in_background(prefetch_segment, 0, 0,
+                                            caller_id, lock);
+        break;
+
+      case CacheSegmentState::CACHED:
+        retval = OpResult::SUCCEEDED;
+        break;
+
+      case CacheSegmentState::LOADING:
+      case CacheSegmentState::CACHED_TOP_LOADING_BOTTOM:
+      case CacheSegmentState::CACHED_BOTTOM_LOADING_TOP:
+        /* everything is done that could be done */
+        retval = OpResult::STARTED;
+        break;
+
+      case CacheSegmentState::CACHED_TOP_EMPTY_BOTTOM:
+      case CacheSegmentState::CACHED_TOP_LOADING_CENTER_EMPTY_BOTTOM:
+        /* need to start loading bottom half, any other load operation can be
+         * canceled and ignored */
+        retval = load_segment_in_background(prefetch_segment, size_of_cached_overlap,
+                                            size_of_loading_segment,
+                                            caller_id, lock);
+        break;
+
+      case CacheSegmentState::CACHED_BOTTOM_EMPTY_TOP:
+      case CacheSegmentState::CACHED_BOTTOM_LOADING_CENTER_EMPTY_TOP:
+        /* need to start loading top half, any other load operation can be
+         * canceled and ignored */
+        retval = load_segment_in_background(prefetch_segment, -size_of_cached_overlap,
+                                            size_of_loading_segment,
+                                            caller_id, lock);
+        break;
+    }
+
+    return retval;
+}
+
+List::AsyncListIface::OpResult
+List::DBusList::get_item_async(unsigned int line, const Item *&item)
 {
     /*
      * TODO: This object must be moved to ViewFileBrowser and must be
@@ -673,52 +909,7 @@ List::DBusList::get_item_async(unsigned int line, const Item *&item,
         return OpResult::STARTED;
     }
 
-    cancel_get_item_query();
-
-    CacheModifications cache_modifications;
-    unsigned int fetch_head;
-    unsigned int fetch_count;
-    unsigned int cache_list_replace_index;
-
-    if(!can_scroll_to_line(line, prefetch_hint, cache_modifications,
-                           fetch_head, fetch_count, cache_list_replace_index))
-    {
-        fetch_head = line;
-        fetch_count = number_of_prefetched_items_;
-        cache_list_replace_index = 0;
-        cache_modifications.set(line);
-    }
-
-    const uint32_t list_flags(list_contexts_[DBUS_LISTS_CONTEXT_GET(window_.list_id_.get_raw_id())].get_flags());
-
-    async_dbus_data_.get_item_query_ =
-        std::make_shared<QueryContextGetItem>(*this, caller_id,
-                                            dbus_proxy_, window_.list_id_,
-                                            fetch_head, fetch_count,
-                                            (list_flags & List::ContextInfo::HAS_EXTERNAL_META_DATA) != 0,
-                                            cache_list_replace_index);
-
-    if(async_dbus_data_.get_item_query_ == nullptr)
-    {
-        msg_out_of_memory("asynchronous context (get item)");
-        return OpResult::FAILED;
-    }
-
-    if(!async_dbus_data_.get_item_query_->run_async(
-            std::bind(&List::DBusList::async_done_notification,
-                      this, std::placeholders::_1)))
-    {
-        async_dbus_data_.get_item_query_.reset();
-        return OpResult::FAILED;
-    }
-
-    apply_cache_modifications(cache_modifications);
-
-    item = &loading;
-    notify_watcher(OpEvent::GET_ITEM, OpResult::STARTED,
-                   async_dbus_data_.get_item_query_, lock);
-
-    return OpResult::STARTED;
+    return OpResult::FAILED;
 }
 
 void List::DBusList::get_item_async_handle_done(LoggedLock::UniqueLock<LoggedLock::Mutex> &lock)
@@ -754,6 +945,9 @@ void List::DBusList::get_item_async_handle_done(LoggedLock::UniqueLock<LoggedLoc
                                     q->parameters_.cache_list_replace_index_,
                                     !window_.items_.empty(),
                                     std::get<2>(result));
+
+        window_.valid_segment_.line_ = window_.first_item_line_;
+        window_.valid_segment_.count_ = window_.items_.get_number_of_items();
     }
     else
     {
@@ -762,7 +956,8 @@ void List::DBusList::get_item_async_handle_done(LoggedLock::UniqueLock<LoggedLoc
                      : OpResult::FAILED);
 
         msg_error(0, LOG_NOTICE, "Failed obtaining line %u of list %u",
-                  q->parameters_.line_, q->parameters_.list_id_.get_raw_id());
+                  q->parameters_.loading_segment_.line_,
+                  q->parameters_.list_id_.get_raw_id());
     }
 
     async_dbus_data_.get_item_query_.reset();
@@ -774,13 +969,63 @@ void List::DBusList::get_item_async_handle_done(LoggedLock::UniqueLock<LoggedLoc
 void List::DBusList::apply_cache_modifications(const CacheModifications &cm)
 {
     if(cm.is_filling_from_scratch_)
+    {
         window_.items_.clear();
+        window_.valid_segment_.line_ = 0;
+        window_.valid_segment_.count_ = 0;
+    }
     else if(cm.shift_distance_ > 0)
     {
         if(cm.is_shift_down_)
+        {
+            if(window_.valid_segment_.count_ > 0)
+            {
+                const unsigned int distance_vstop_to_winbottom =
+                    window_.first_item_line_ + number_of_prefetched_items_ -
+                    window_.valid_segment_.line_;
+
+                if(cm.shift_distance_ >= distance_vstop_to_winbottom)
+                    window_.valid_segment_.count_ = 0;
+                else
+                {
+                    const unsigned int distance_vsbottom_to_winbottom =
+                        distance_vstop_to_winbottom - window_.valid_segment_.count_;
+
+                    if(cm.shift_distance_ > distance_vsbottom_to_winbottom)
+                        window_.valid_segment_.count_ -=
+                            cm.shift_distance_ - distance_vsbottom_to_winbottom;
+                }
+            }
+
             window_.items_.shift_down(cm.shift_distance_);
+        }
         else
+        {
+            if(window_.valid_segment_.count_ > 0)
+            {
+                const unsigned int distance_vsbottom_to_wintop =
+                    window_.valid_segment_.line_ + window_.valid_segment_.count_ -
+                    window_.first_item_line_;
+
+                if(cm.shift_distance_ >= distance_vsbottom_to_wintop)
+                    window_.valid_segment_.count_ = 0;
+                else
+                {
+                    const unsigned int distance_vstop_to_wintop =
+                        distance_vsbottom_to_wintop - window_.valid_segment_.count_;
+
+                    if(cm.shift_distance_ > distance_vstop_to_wintop)
+                    {
+                        window_.valid_segment_.line_ +=
+                            cm.shift_distance_ - distance_vstop_to_wintop;
+                        window_.valid_segment_.count_ -=
+                            cm.shift_distance_ - distance_vstop_to_wintop;
+                    }
+                }
+            }
+
             window_.items_.shift_up(cm.shift_distance_);
+        }
     }
 
     window_.first_item_line_ = cm.new_first_line_;
@@ -812,15 +1057,12 @@ bool List::QueryContextGetItem::run_async(const DBus::AsyncResultAvailableFuncti
         return false;
     }
 
-    msg_info("Fetch %u lines of list %u, starting at %u",
-             parameters_.count_, parameters_.list_id_.get_raw_id(),
-             parameters_.line_);
-
     async_call_->invoke(parameters_.have_meta_data_
                         ? tdbus_lists_navigation_call_get_range_with_meta_data
                         : tdbus_lists_navigation_call_get_range,
                         parameters_.list_id_.get_raw_id(),
-                        parameters_.line_, parameters_.count_);
+                        parameters_.loading_segment_.line_,
+                        parameters_.loading_segment_.count_);
 
     return true;
 }
