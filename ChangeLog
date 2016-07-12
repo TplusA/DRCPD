@@ -1,3 +1,26 @@
+2016-07-12  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 2.0 released.
+
+	* Groundwork: Many D-Bus methods are invoked asynchronously now,
+	  leading to vast improvement on perceived system response. Due to
+	  project time constraints, not all parts have been reworked yet and
+	  remain synchronous, but the foundation for moving more code from
+	  synchronous to asynchronous messaging has been set.
+
+	  A lot of code had to be touched to get this done, so this version
+	  may actually be less stable than previous versions.
+
+	* D-Bus: Method and signal handlers are decoupled from the D-Bus
+	  context by an event queue. The intended effects of the D-Bus
+	  handlers, especially those parts that can block or are
+	  time-consuming, are processed in a different context so that D-Bus
+	  communication is never blocked for long or unpredictable times.
+
+	* Misc: Better tracking of busy state.
+
+	* Misc: Avoid some memory leaks.
+
 2016-05-19  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 1.21 released.
