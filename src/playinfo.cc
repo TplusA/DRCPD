@@ -57,7 +57,7 @@ void PlayInfo::MetaData::clear(bool keep_internals)
     const size_t last = keep_internals ? METADATA_ID_LAST_REGULAR : METADATA_ID_LAST;
 
     for(size_t i = 0; i <= last; ++i)
-        values_[i].clear();
+        this->values_[i].clear();
 }
 
 void PlayInfo::MetaData::add(const char *key, const char *value,
@@ -77,9 +77,9 @@ void PlayInfo::MetaData::add(const char *key, const char *value,
                     break;
 
                 if(value != NULL)
-                    values_[entry.id] = reformat.bitrate(value);
+                    this->values_[entry.id] = reformat.bitrate(value);
                 else
-                    values_[entry.id].clear();
+                    this->values_[entry.id].clear();
 
                 return;
 
@@ -93,9 +93,9 @@ void PlayInfo::MetaData::add(const char *key, const char *value,
             }
 
             if(value != NULL)
-                values_[entry.id] = value;
+                this->values_[entry.id] = value;
             else
-                values_[entry.id].clear();
+                this->values_[entry.id].clear();
 
             return;
         }
@@ -107,12 +107,13 @@ void PlayInfo::MetaData::copy_from(const MetaData &src, CopyMode mode)
     switch(mode)
     {
       case CopyMode::ALL:
-        std::copy(src.values_.begin(), src.values_.end(), values_.begin());
+        std::copy(src.values_.begin(), src.values_.end(),
+                  this->values_.begin());
         break;
 
       case CopyMode::NON_EMPTY:
         {
-            auto dest(values_.begin());
+            auto dest(this->values_.begin());
 
             for(auto &it : src.values_)
             {
@@ -141,5 +142,5 @@ void PlayInfo::MetaData::dump(const char *what) const
     msg_info("Meta data \"%s\"", what);
 
     for(const auto &entry : key_to_id)
-        msg_info("%18s: \"%s\"", entry.key, values_[entry.id].c_str());
+        msg_info("%18s: \"%s\"", entry.key, this->values_[entry.id].c_str());
 }
