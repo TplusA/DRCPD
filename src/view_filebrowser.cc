@@ -54,8 +54,6 @@ static ID::List finish_async_enter_dir_op(List::AsyncListIface::OpResult result,
     auto lock(calls.acquire_lock());
 
     log_assert(result != List::AsyncListIface::OpResult::STARTED);
-    log_assert((calls.get_list_id_ != nullptr && calls.get_parent_id_ == nullptr) ||
-               (calls.get_list_id_ == nullptr && calls.get_parent_id_ != nullptr));
 
     calls.delete_all();
 
