@@ -21,7 +21,6 @@
 #endif /* HAVE_CONFIG_H */
 
 #include "dcp_transaction.hh"
-// #include "messages.h"
 
 static void clear_stream(std::ostringstream &ss)
 {
@@ -59,8 +58,6 @@ bool DCP::Transaction::start(bool force_async)
 
 bool DCP::Transaction::commit()
 {
-    // msg_info("%s(): COMMIT \"%s\" in state %d", __func__, sstr_.str().c_str(), state_);
-
     switch(state_)
     {
       case WAIT_FOR_COMMIT:
