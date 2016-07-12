@@ -3,10 +3,11 @@ COMMON_FLAGS="-pipe -g -O2 -mcpu=arm1176jzf-s -mfpu=vfp -mfloat-abi=hard -fstric
 CFLAGS="-std=c11 $COMMON_FLAGS $CFLAGS"
 CXXFLAGS="-std=c++11 $COMMON_FLAGS $CXXFLAGS"
 
-COMMON_WARNINGS="-Wall -Waggregate-return -Wcast-qual -Wclobbered -Wsign-compare -Wuninitialized -Wunused-but-set-parameter -Wunused-function -Wundef -Wshadow -Winline -Wpointer-arith -Wfloat-equal -Wwrite-strings -Wstrict-aliasing -Wdouble-promotion"
+COMMON_WARNINGS="-Wall -Wclobbered -Wsign-compare -Wuninitialized -Wunused-but-set-parameter -Wunused-function -Wundef -Wshadow -Wpointer-arith -Wfloat-equal -Wwrite-strings -Wstrict-aliasing -Wdouble-promotion"
 CWARNINGS="$COMMON_WARNINGS -Wbad-function-cast -Wnested-externs -Wmissing-prototypes -Wstrict-prototypes"
-CXXWARNINGS="$COMMON_WARNINGS -Wnon-virtual-dtor -Wstrict-null-sentinel -Wold-style-cast -Woverloaded-virtual"
-CRELAXEDWARNINGS="$CWARNINGS -Wno-cast-qual -Wno-write-strings -Wno-unused-local-typedefs"
+CXXWARNINGS="$COMMON_WARNINGS -Wnon-virtual-dtor -Wstrict-null-sentinel -Woverloaded-virtual"
+CRELAXEDWARNINGS="$CWARNINGS -Wno-cast-qual -Wno-write-strings -Wno-unused-local-typedefs -Wno-bad-function-cast"
+CXXRELAXEDWARNINGS="$CXXWARNINGS -Wno-cast-qual"
 LDFLAGS="-L${TOOLCHAIN_DIR}/arm-linux-gnueabihf/libc/usr/lib/arm-linux-gnueabihf -L${SYSROOT_DIR}/usr/lib/arm-linux-gnueabihf"
 LIBS="-lpcre -lz -lselinux -lffi"
 
