@@ -71,12 +71,6 @@ class RamList: public ListIface
     void shift_up(unsigned int count);
     void shift_down(unsigned int count);
 
-    void clone(const RamList &src)
-    {
-        items_.clear();
-        std::copy(items_.begin(), items_.end(), items_.begin());
-    }
-
     void move_from(RamList &other)
     {
         items_.swap(other.items_);
