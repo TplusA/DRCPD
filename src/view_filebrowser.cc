@@ -173,7 +173,7 @@ bool ViewFileBrowser::View::init()
                 return;
             }
 
-            BUG("Asynchronous event %d not handled", event);
+            BUG("Asynchronous event %u not handled", static_cast<unsigned int>(event));
         });
 
     (void)point_to_root_directory();

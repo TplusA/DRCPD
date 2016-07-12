@@ -648,7 +648,7 @@ List::DBusList::get_cache_segment_state(const CacheSegment &segment,
         else if(cached_state == CacheSegmentState::CACHED_BOTTOM_EMPTY_TOP)
             cached_state = CacheSegmentState::CACHED_BOTTOM_LOADING_CENTER_EMPTY_TOP;
         else if(cached_state != CacheSegmentState::CACHED_CENTER)
-            BUG("Unexpected cached state %u", cached_state);
+            BUG("Unexpected cached state %u", static_cast<unsigned int>(cached_state));
 
         break;
 
@@ -660,7 +660,7 @@ List::DBusList::get_cache_segment_state(const CacheSegment &segment,
       case CacheSegmentState::CACHED_TOP_LOADING_CENTER_EMPTY_BOTTOM:
       case CacheSegmentState::CACHED_BOTTOM_LOADING_CENTER_EMPTY_TOP:
       case CacheSegmentState::CACHED_CENTER:
-        BUG("Unexpected loading state %u", loading_state);
+        BUG("Unexpected loading state %u", static_cast<unsigned int>(loading_state));
         break;
     }
 

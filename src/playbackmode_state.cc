@@ -172,6 +172,7 @@ static std::string get_selected_uri(ID::List list_id, unsigned int item_id,
     if(async_call == nullptr)
     {
         msg_out_of_memory("asynchronous D-Bus call");
+        send_status = SendStatus::NO_URI;
         return empty_string;
     }
 
