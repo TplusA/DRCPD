@@ -363,7 +363,7 @@ void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
         auto params =
             UI::Events::mk_params<UI::EventID::VIEW_PLAYER_META_DATA_UPDATE>(
                 ID::Stream::make_from_raw_id(raw_stream_id),
-                PlayInfo::MetaData());
+                PlayInfo::MetaData(), data);
 
         if(parse_meta_data(std::get<1>(params->get_specific_non_const()), meta_data_iter))
             data->event_sink_.store_event(UI::EventID::VIEW_PLAYER_META_DATA_UPDATE,

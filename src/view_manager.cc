@@ -322,6 +322,35 @@ void ViewManager::Manager::dispatch_event(UI::VManEventID event_id,
 
         break;
 
+      case UI::VManEventID::META_DATA_UPDATE:
+        {
+            const auto params =
+                UI::Events::downcast<UI::EventID::VIEW_PLAYER_META_DATA_UPDATE>(parameters);
+
+            if(params == nullptr)
+                break;
+
+            const auto &plist = params->get_specific();
+            const ID::Stream stream_id(std::get<0>(plist));
+
+            if(!stream_id.is_valid())
+            {
+                /* we are not sending such IDs */
+                BUG("Invalid stream ID %u received from Streamplayer",
+                    stream_id.get_raw_id());
+                break;
+            }
+
+            auto &meta_data(const_cast<PlayInfo::MetaData &>(std::get<1>(plist)));
+            DBus::SignalData &data(*std::get<2>(plist));
+
+            data.mdstore_.meta_data_put__locked(meta_data,
+                                                PlayInfo::MetaData::CopyMode::NON_EMPTY);
+            data.play_view_->notify_stream_meta_data_changed();
+        }
+
+        break;
+
       case UI::VManEventID::PLAYER_STOPPED:
         {
             const auto params =

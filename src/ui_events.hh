@@ -65,7 +65,6 @@ enum class ViewEventID
     SEARCH_COMMENCE,
     SEARCH_STORE_PARAMETERS,
     STORE_PRELOADED_META_DATA,
-    META_DATA_UPDATE,
     AIRABLE_SERVICE_LOGIN_STATUS_UPDATE,
 };
 
@@ -79,6 +78,7 @@ enum class VManEventID
     TOGGLE_VIEWS,
     INVALIDATE_LIST_ID,
     NOW_PLAYING,
+    META_DATA_UPDATE,
     PLAYER_STOPPED,
     PLAYER_PAUSED,
     PLAYER_POSITION_UPDATE,
@@ -153,7 +153,7 @@ enum class EventID
     /* passive notifications */
     VIEW_INVALIDATE_LIST_ID      = mk_event_id(VManEventID::INVALIDATE_LIST_ID),
     VIEW_PLAYER_NOW_PLAYING      = mk_event_id(VManEventID::NOW_PLAYING),
-    VIEW_PLAYER_META_DATA_UPDATE = mk_event_id(ViewEventID::META_DATA_UPDATE),
+    VIEW_PLAYER_META_DATA_UPDATE = mk_event_id(VManEventID::META_DATA_UPDATE),
     VIEW_PLAYER_STOPPED          = mk_event_id(VManEventID::PLAYER_STOPPED),
     VIEW_PLAYER_PAUSED           = mk_event_id(VManEventID::PLAYER_PAUSED),
     VIEW_PLAYER_POSITION_UPDATE  = mk_event_id(VManEventID::PLAYER_POSITION_UPDATE),
