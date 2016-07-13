@@ -52,8 +52,6 @@ void dbussignal_dcpd_playback(GDBusProxy *proxy, const gchar *sender_name,
 {
     static const char iface_name[] = "de.tahifi.Dcpd.Playback";
 
-    msg_info("%s signal from '%s': %s", iface_name, sender_name, signal_name);
-
     auto *data = static_cast<DBus::SignalData *>(user_data);
     log_assert(data != nullptr);
 
@@ -119,8 +117,6 @@ void dbussignal_dcpd_views(GDBusProxy *proxy, const gchar *sender_name,
                            gpointer user_data)
 {
     static const char iface_name[] = "de.tahifi.Dcpd.Views";
-
-    msg_info("%s signal from '%s': %s", iface_name, sender_name, signal_name);
 
     auto *data = static_cast<DBus::SignalData *>(user_data);
     log_assert(data != nullptr);
@@ -200,8 +196,6 @@ void dbussignal_dcpd_listnav(GDBusProxy *proxy, const gchar *sender_name,
 {
     static const char iface_name[] = "de.tahifi.Dcpd.ListNavigation";
 
-    msg_info("%s signal from '%s': %s", iface_name, sender_name, signal_name);
-
     auto *data = static_cast<DBus::SignalData *>(user_data);
     log_assert(data != nullptr);
 
@@ -239,8 +233,6 @@ void dbussignal_dcpd_listitem(GDBusProxy *proxy, const gchar *sender_name,
 {
     static const char iface_name[] = "de.tahifi.Dcpd.ListItem";
 
-    msg_info("%s signal from '%s': %s", iface_name, sender_name, signal_name);
-
     unknown_signal(iface_name, signal_name, sender_name);
 }
 
@@ -249,8 +241,6 @@ void dbussignal_lists_navigation(GDBusProxy *proxy, const gchar *sender_name,
                                  gpointer user_data)
 {
     static const char iface_name[] = "de.tahifi.Lists.Navigation";
-
-    msg_info("%s signal from '%s': %s", iface_name, sender_name, signal_name);
 
     auto *data = static_cast<DBus::SignalData *>(user_data);
     log_assert(data != nullptr);
@@ -283,8 +273,6 @@ void dbussignal_splay_urlfifo(GDBusProxy *proxy, const gchar *sender_name,
                               gpointer user_data)
 {
     static const char iface_name[] = "de.tahifi.Streamplayer.URLFIFO";
-
-    msg_info("%s signal from '%s': %s", iface_name, sender_name, signal_name);
 
     unknown_signal(iface_name, signal_name, sender_name);
 }
@@ -322,8 +310,6 @@ void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
                                gpointer user_data)
 {
     static const char iface_name[] = "de.tahifi.Streamplayer.Playback";
-
-    msg_info("%s signal from '%s': %s", iface_name, sender_name, signal_name);
 
     auto *data = static_cast<DBus::SignalData *>(user_data);
     log_assert(data != nullptr);
@@ -428,8 +414,6 @@ void dbussignal_airable_sec(GDBusProxy *proxy, const gchar *sender_name,
                             gpointer user_data)
 {
     static const char iface_name[] = "de.tahifi.Airable";
-
-    msg_info("%s signal from '%s': %s", iface_name, sender_name, signal_name);
 
     auto *data = static_cast<DBus::SignalData *>(user_data);
     log_assert(data != nullptr);
