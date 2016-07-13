@@ -152,18 +152,12 @@ void ViewPlay::View::notify_stream_pause()
 
 void ViewPlay::View::notify_stream_position_changed()
 {
-    msg_info("Play view: stream position changed, %s",
-             is_visible_ ? "send screen update" : "but view is invisible");
-
     add_update_flags(UPDATE_FLAGS_STREAM_POSITION);
     view_manager_->update_view_if_active(this, DCP::Queue::Mode::FORCE_ASYNC);
 }
 
 void ViewPlay::View::notify_stream_meta_data_changed()
 {
-    msg_info("Play view: stream meta data changed, %s",
-             is_visible_ ? "send screen update" : "but view is invisible");
-
     add_update_flags(UPDATE_FLAGS_META_DATA);
     view_manager_->update_view_if_active(this, DCP::Queue::Mode::FORCE_ASYNC);
 }

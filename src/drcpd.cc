@@ -437,8 +437,6 @@ static void defer_ui_event_processing(struct ui_events_processing_data_t *data)
  */
 static void defer_dcp_transfer(DCP::Queue *queue)
 {
-    msg_info("Defer DCP transfer");
-
     log_assert(queue != nullptr);
 
     auto *fn_object =
