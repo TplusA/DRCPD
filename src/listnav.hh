@@ -233,6 +233,13 @@ class Nav
     }
 
   private:
+    /*!
+     * Fix up number of lines attempted to skip down according to wrap mode.
+     *
+     * \returns
+     *     True if wrapped around to top, false if either simply skipped or
+     *     stopped at list boundary.
+     */
     bool fixup_down_count_by_wrap_mode(unsigned int &count)
     {
         if(count == 0)
@@ -278,6 +285,13 @@ class Nav
         return false;
     }
 
+    /*!
+     * Fix up number of lines attempted to skip up according to wrap mode.
+     *
+     * \returns
+     *     True if wrapped around to bottom, false if either simply skipped or
+     *     stopped at list boundary.
+     */
     bool fixup_up_count_by_wrap_mode(unsigned int &count)
     {
         if(count == 0)
