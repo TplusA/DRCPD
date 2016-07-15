@@ -259,9 +259,9 @@ void dbussignal_lists_navigation(GDBusProxy *proxy, const gchar *sender_name,
             return;
 
         auto params =
-            UI::Events::mk_params<UI::EventID::VIEW_INVALIDATE_LIST_ID>(
+            UI::Events::mk_params<UI::EventID::VIEWMAN_INVALIDATE_LIST_ID>(
                 static_cast<void *>(proxy), list_id, new_list_id);
-        data->event_sink_.store_event(UI::EventID::VIEW_INVALIDATE_LIST_ID,
+        data->event_sink_.store_event(UI::EventID::VIEWMAN_INVALIDATE_LIST_ID,
                                       std::move(params));
     }
     else
@@ -329,11 +329,14 @@ void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
         auto params =
             UI::Events::mk_params<UI::EventID::VIEW_PLAYER_NOW_PLAYING>(
                 ID::Stream::make_from_raw_id(raw_stream_id),
-                queue_is_full, PlayInfo::MetaData(), url_string, data);
+                queue_is_full, PlayInfo::MetaData(), url_string);
 
         if(parse_meta_data(std::get<2>(params->get_specific_non_const()), meta_data_iter))
+        {
             data->event_sink_.store_event(UI::EventID::VIEW_PLAYER_NOW_PLAYING,
                                           std::move(params));
+            data->event_sink_.store_event(UI::EventID::VIEWMAN_STREAM_NOW_PLAYING);
+        }
 
         g_variant_iter_free(meta_data_iter);
     }
@@ -347,12 +350,12 @@ void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
         g_variant_get(parameters, "(qa(ss))", &raw_stream_id, &meta_data_iter);
 
         auto params =
-            UI::Events::mk_params<UI::EventID::VIEW_PLAYER_META_DATA_UPDATE>(
+            UI::Events::mk_params<UI::EventID::VIEW_PLAYER_STORE_STREAM_META_DATA>(
                 ID::Stream::make_from_raw_id(raw_stream_id),
-                PlayInfo::MetaData(), data);
+                PlayInfo::MetaData());
 
         if(parse_meta_data(std::get<1>(params->get_specific_non_const()), meta_data_iter))
-            data->event_sink_.store_event(UI::EventID::VIEW_PLAYER_META_DATA_UPDATE,
+            data->event_sink_.store_event(UI::EventID::VIEW_PLAYER_STORE_STREAM_META_DATA,
                                           std::move(params));
 
         g_variant_iter_free(meta_data_iter);
@@ -365,9 +368,9 @@ void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
         g_variant_get(parameters, "(q)", &raw_stream_id);
 
         auto params =
-            UI::Events::mk_params<UI::EventID::VIEW_PLAYER_STOPPED>(
-                ID::Stream::make_from_raw_id(raw_stream_id), data);
-        data->event_sink_.store_event(UI::EventID::VIEW_PLAYER_STOPPED,
+            UI::Events::mk_params<UI::EventID::VIEW_PLAYER_STREAM_STOPPED>(
+                ID::Stream::make_from_raw_id(raw_stream_id));
+        data->event_sink_.store_event(UI::EventID::VIEW_PLAYER_STREAM_STOPPED,
                                       std::move(params));
     }
     else if(strcmp(signal_name, "Paused") == 0)
@@ -378,9 +381,9 @@ void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
         g_variant_get(parameters, "(q)", &raw_stream_id);
 
         auto params =
-            UI::Events::mk_params<UI::EventID::VIEW_PLAYER_PAUSED>(
-                ID::Stream::make_from_raw_id(raw_stream_id), data);
-        data->event_sink_.store_event(UI::EventID::VIEW_PLAYER_PAUSED,
+            UI::Events::mk_params<UI::EventID::VIEW_PLAYER_STREAM_PAUSED>(
+                ID::Stream::make_from_raw_id(raw_stream_id));
+        data->event_sink_.store_event(UI::EventID::VIEW_PLAYER_STREAM_PAUSED,
                                       std::move(params));
     }
     else if(strcmp(signal_name, "PositionChanged") == 0)
@@ -398,11 +401,11 @@ void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
                       &duration, &duration_units);
 
         auto params =
-            UI::Events::mk_params<UI::EventID::VIEW_PLAYER_POSITION_UPDATE>(
+            UI::Events::mk_params<UI::EventID::VIEW_PLAYER_STREAM_POSITION>(
                 ID::Stream::make_from_raw_id(raw_stream_id),
                 parse_stream_position(position, position_units),
-                parse_stream_position(duration, duration_units), data);
-        data->event_sink_.store_event(UI::EventID::VIEW_PLAYER_POSITION_UPDATE,
+                parse_stream_position(duration, duration_units));
+        data->event_sink_.store_event(UI::EventID::VIEW_PLAYER_STREAM_POSITION,
                                       std::move(params));
     }
     else

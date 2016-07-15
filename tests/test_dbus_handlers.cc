@@ -86,7 +86,7 @@ void cut_teardown(void)
 
 static DBus::SignalData mk_dbus_signal_data()
 {
-    return DBus::SignalData(*mock_view_manager, *player, *player);
+    return DBus::SignalData(*mock_view_manager);
 }
 
 /*!\test

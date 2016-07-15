@@ -45,6 +45,27 @@ void ViewPlay::View::defocus()
     is_visible_ = false;
 }
 
+static void enhance_meta_data(PlayInfo::MetaData &md,
+                              const std::string *fallback_title = NULL,
+                              const std::string &url = NULL)
+{
+    if(fallback_title == NULL)
+    {
+        BUG("No fallback title available for stream");
+        md.add("x-drcpd-title", NULL, ViewPlay::meta_data_reformatters);
+    }
+    else
+        md.add("x-drcpd-title", fallback_title->c_str(), ViewPlay::meta_data_reformatters);
+
+    if(url.empty())
+    {
+        BUG("No URL available for stream");
+        md.add("x-drcpd-url", NULL, ViewPlay::meta_data_reformatters);
+    }
+    else
+        md.add("x-drcpd-url", url.c_str(), ViewPlay::meta_data_reformatters);
+}
+
 ViewIface::InputResult
 ViewPlay::View::process_event(UI::ViewEventID event_id,
                               std::unique_ptr<const UI::Parameters> parameters)
@@ -97,6 +118,123 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
 
             if(speed != nullptr)
                 BUG("Not implemented: FastWindSetFactor %f", speed->get_specific());
+        }
+
+        break;
+
+      case UI::ViewEventID::NOW_PLAYING:
+        {
+            const auto params =
+                UI::Events::downcast<UI::EventID::VIEW_PLAYER_NOW_PLAYING>(parameters);
+
+            if(params == nullptr)
+                break;
+
+            const auto &plist = params->get_specific();
+            const ID::Stream stream_id(std::get<0>(plist));
+
+            if(!stream_id.is_valid())
+            {
+                /* we are not sending such IDs */
+                BUG("Invalid stream ID %u received from Streamplayer",
+                    stream_id.get_raw_id());
+                break;
+            }
+
+            const bool queue_is_full(std::get<1>(plist));
+            auto &meta_data(const_cast<PlayInfo::MetaData &>(std::get<2>(plist)));
+            const std::string &url_string(std::get<3>(plist));
+
+            const bool have_preloaded_meta_data =
+                player_.start_notification(stream_id, !queue_is_full);
+
+            {
+                const auto info = player_.get_stream_info__locked(stream_id);
+                const StreamInfoItem *const &info_item = info.first;
+
+                if(info_item == nullptr)
+                {
+                    msg_error(EINVAL, LOG_ERR,
+                              "No fallback title found for stream ID %u",
+                              stream_id.get_raw_id());
+                    enhance_meta_data(meta_data, nullptr, url_string);
+                }
+
+                const PlayInfo::MetaData::CopyMode copy_mode =
+                    (have_preloaded_meta_data || info_item != nullptr)
+                    ? PlayInfo::MetaData::CopyMode::NON_EMPTY
+                    : PlayInfo::MetaData::CopyMode::ALL;
+
+                player_.meta_data_put__unlocked(meta_data, copy_mode);
+            }
+
+            if(have_preloaded_meta_data)
+                this->notify_stream_meta_data_changed();
+
+            this->notify_stream_start();
+
+            auto *view = view_manager_->get_playback_initiator_view();
+            if(view != nullptr && view != this)
+                view->notify_stream_start();
+        }
+
+        break;
+
+      case UI::ViewEventID::STREAM_STOPPED:
+        {
+            player_.stop_notification();
+            this->notify_stream_stop();
+
+            auto *view = view_manager_->get_playback_initiator_view();
+            if(view != nullptr && view != this)
+                view->notify_stream_stop();
+        }
+
+        break;
+
+      case UI::ViewEventID::STREAM_PAUSED:
+        player_.pause_notification();
+        this->notify_stream_pause();
+
+        break;
+
+      case UI::ViewEventID::STREAM_POSITION:
+        {
+            const auto params =
+                UI::Events::downcast<UI::EventID::VIEW_PLAYER_STREAM_POSITION>(parameters);
+            const auto &plist = params->get_specific();
+
+            if(player_.track_times_notification(std::get<1>(plist),
+                                                std::get<2>(plist)))
+                this->notify_stream_position_changed();
+        }
+
+        break;
+
+      case UI::ViewEventID::STORE_STREAM_META_DATA:
+        {
+            const auto params =
+                UI::Events::downcast<UI::EventID::VIEW_PLAYER_STORE_STREAM_META_DATA>(parameters);
+
+            if(params == nullptr)
+                break;
+
+            const auto &plist = params->get_specific();
+            const ID::Stream stream_id(std::get<0>(plist));
+
+            if(!stream_id.is_valid())
+            {
+                /* we are not sending such IDs */
+                BUG("Invalid stream ID %u received from Streamplayer",
+                    stream_id.get_raw_id());
+                break;
+            }
+
+            auto &meta_data(const_cast<PlayInfo::MetaData &>(std::get<1>(plist)));
+
+            player_.meta_data_put__locked(meta_data,
+                                          PlayInfo::MetaData::CopyMode::NON_EMPTY);
+            this->notify_stream_meta_data_changed();
         }
 
         break;

@@ -27,7 +27,6 @@
 #include "ui_events.hh"
 #include "actor_id.h"
 #include "playinfo.hh"
-#include "dbus_handlers.hh"
 #include "search_parameters.hh"
 
 namespace UI
@@ -69,7 +68,7 @@ struct ParamTraits<EventID::VIEW_TOGGLE>
 };
 
 template <>
-struct ParamTraits<EventID::VIEW_INVALIDATE_LIST_ID>
+struct ParamTraits<EventID::VIEWMAN_INVALIDATE_LIST_ID>
 {
     using PType = SpecificParameters<std::tuple<void *const, const ID::List, const ID::List>>;
 };
@@ -80,8 +79,7 @@ struct ParamTraits<EventID::VIEW_PLAYER_NOW_PLAYING>
     using PType = SpecificParameters<std::tuple<const ID::Stream,
                                                 const bool,
                                                 PlayInfo::MetaData,
-                                                const std::string,
-                                                DBus::SignalData *>>;
+                                                const std::string>>;
 };
 
 template <>
@@ -93,31 +91,29 @@ struct ParamTraits<EventID::VIEW_PLAYER_STORE_PRELOADED_META_DATA>
 };
 
 template <>
-struct ParamTraits<EventID::VIEW_PLAYER_META_DATA_UPDATE>
+struct ParamTraits<EventID::VIEW_PLAYER_STORE_STREAM_META_DATA>
 {
-    using PType = SpecificParameters<std::tuple<const ID::Stream, PlayInfo::MetaData,
-                                                DBus::SignalData *>>;
+    using PType = SpecificParameters<std::tuple<const ID::Stream, PlayInfo::MetaData>>;
 };
 
 template <>
-struct ParamTraits<EventID::VIEW_PLAYER_STOPPED>
+struct ParamTraits<EventID::VIEW_PLAYER_STREAM_STOPPED>
 {
-    using PType = SpecificParameters<std::tuple<const ID::Stream, DBus::SignalData *>>;
+    using PType = SpecificParameters<const ID::Stream>;
 };
 
 template <>
-struct ParamTraits<EventID::VIEW_PLAYER_PAUSED>
+struct ParamTraits<EventID::VIEW_PLAYER_STREAM_PAUSED>
 {
-    using PType = SpecificParameters<std::tuple<const ID::Stream, DBus::SignalData *>>;
+    using PType = SpecificParameters<const ID::Stream>;
 };
 
 template <>
-struct ParamTraits<EventID::VIEW_PLAYER_POSITION_UPDATE>
+struct ParamTraits<EventID::VIEW_PLAYER_STREAM_POSITION>
 {
     using PType = SpecificParameters<std::tuple<const ID::Stream,
                                                 std::chrono::milliseconds,
-                                                std::chrono::milliseconds,
-                                                DBus::SignalData *>>;
+                                                std::chrono::milliseconds>>;
 };
 
 template <>

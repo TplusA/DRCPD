@@ -64,8 +64,13 @@ enum class ViewEventID
     NAV_GO_BACK_ONE_LEVEL,
     SEARCH_COMMENCE,
     SEARCH_STORE_PARAMETERS,
+    STORE_STREAM_META_DATA,
     STORE_PRELOADED_META_DATA,
     AIRABLE_SERVICE_LOGIN_STATUS_UPDATE,
+    NOW_PLAYING,
+    STREAM_STOPPED,
+    STREAM_PAUSED,
+    STREAM_POSITION,
 };
 
 /*!
@@ -78,10 +83,6 @@ enum class VManEventID
     TOGGLE_VIEWS,
     INVALIDATE_LIST_ID,
     NOW_PLAYING,
-    META_DATA_UPDATE,
-    PLAYER_STOPPED,
-    PLAYER_PAUSED,
-    PLAYER_POSITION_UPDATE,
 };
 
 enum class EventID;
@@ -124,7 +125,9 @@ enum class EventID
 {
     NOP = 0,
 
-    /* active commands issued by the user or some other actor */
+    /* ======================================================
+     * Active commands issued by the user or some other actor
+     * ====================================================== */
     PLAYBACK_START               = mk_event_id(ViewEventID::PLAYBACK_START),
     PLAYBACK_STOP                = mk_event_id(ViewEventID::PLAYBACK_STOP),
     PLAYBACK_PAUSE               = mk_event_id(ViewEventID::PLAYBACK_PAUSE),
@@ -137,26 +140,33 @@ enum class EventID
     PLAYBACK_MODE_REPEAT_TOGGLE  = mk_event_id(ViewEventID::PLAYBACK_MODE_REPEAT_TOGGLE),
     PLAYBACK_MODE_SHUFFLE_TOGGLE = mk_event_id(ViewEventID::PLAYBACK_MODE_SHUFFLE_TOGGLE),
 
-    /* active navigational commands issued by the user or some other actor */
+    /* ===================================================================
+     * Active navigational commands issued by the user or some other actor
+     * =================================================================== */
     NAV_SELECT_ITEM              = mk_event_id(ViewEventID::NAV_SELECT_ITEM),
     NAV_SCROLL_LINES             = mk_event_id(ViewEventID::NAV_SCROLL_LINES),
     NAV_SCROLL_PAGES             = mk_event_id(ViewEventID::NAV_SCROLL_PAGES),
     NAV_GO_BACK_ONE_LEVEL        = mk_event_id(ViewEventID::NAV_GO_BACK_ONE_LEVEL),
 
-    /* other active view-related commands */
+    /* ==================================
+     * Other active view-related commands
+     * ================================== */
     VIEW_OPEN                    = mk_event_id(VManEventID::OPEN_VIEW),
     VIEW_TOGGLE                  = mk_event_id(VManEventID::TOGGLE_VIEWS),
     VIEW_SEARCH_COMMENCE         = mk_event_id(ViewEventID::SEARCH_COMMENCE),
     VIEW_SEARCH_STORE_PARAMETERS = mk_event_id(ViewEventID::SEARCH_STORE_PARAMETERS),
     VIEW_PLAYER_STORE_PRELOADED_META_DATA = mk_event_id(ViewEventID::STORE_PRELOADED_META_DATA),
 
-    /* passive notifications */
-    VIEW_INVALIDATE_LIST_ID      = mk_event_id(VManEventID::INVALIDATE_LIST_ID),
-    VIEW_PLAYER_NOW_PLAYING      = mk_event_id(VManEventID::NOW_PLAYING),
-    VIEW_PLAYER_META_DATA_UPDATE = mk_event_id(VManEventID::META_DATA_UPDATE),
-    VIEW_PLAYER_STOPPED          = mk_event_id(VManEventID::PLAYER_STOPPED),
-    VIEW_PLAYER_PAUSED           = mk_event_id(VManEventID::PLAYER_PAUSED),
-    VIEW_PLAYER_POSITION_UPDATE  = mk_event_id(VManEventID::PLAYER_POSITION_UPDATE),
+    /* =====================
+     * Passive notifications
+     * ===================== */
+    VIEWMAN_INVALIDATE_LIST_ID   = mk_event_id(VManEventID::INVALIDATE_LIST_ID),
+    VIEWMAN_STREAM_NOW_PLAYING   = mk_event_id(VManEventID::NOW_PLAYING),
+    VIEW_PLAYER_NOW_PLAYING      = mk_event_id(ViewEventID::NOW_PLAYING),
+    VIEW_PLAYER_STORE_STREAM_META_DATA = mk_event_id(ViewEventID::STORE_STREAM_META_DATA),
+    VIEW_PLAYER_STREAM_STOPPED   = mk_event_id(ViewEventID::STREAM_STOPPED),
+    VIEW_PLAYER_STREAM_PAUSED    = mk_event_id(ViewEventID::STREAM_PAUSED),
+    VIEW_PLAYER_STREAM_POSITION  = mk_event_id(ViewEventID::STREAM_POSITION),
     VIEW_AIRABLE_SERVICE_LOGIN_STATUS_UPDATE = mk_event_id(ViewEventID::AIRABLE_SERVICE_LOGIN_STATUS_UPDATE),
 };
 

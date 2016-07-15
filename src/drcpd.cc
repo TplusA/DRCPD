@@ -503,8 +503,6 @@ static void connect_everything(ViewManager::Manager &views,
     if(!views.invoke_late_init_functions())
         return;
 
-    dbus_data.play_view_ = views.get_view_by_name(ViewNames::PLAYER);
-
     Busy::init(std::bind(&ViewManager::Manager::busy_state_notification,
                          &views, std::placeholders::_1));
 
@@ -562,7 +560,7 @@ int main(int argc, char *argv[])
                                              dcp_transaction_queue);
 
     static Playback::Player player_singleton(ViewPlay::meta_data_reformatters);
-    static DBus::SignalData dbus_signal_data(view_manager, player_singleton, player_singleton);
+    static DBus::SignalData dbus_signal_data(view_manager);
 
     view_manager.set_output_stream(fd_out);
     view_manager.set_debug_stream(std::cout);

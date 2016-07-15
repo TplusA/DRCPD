@@ -23,11 +23,8 @@
 #include "view_manager.hh"
 #include "view_filebrowser.hh"
 #include "view_nop.hh"
-#include "view_play.hh"
-#include "player.hh"
 #include "ui_parameters_predefined.hh"
 #include "messages.h"
-#include "os.h"
 
 static ViewNop::View nop_view;
 
@@ -186,27 +183,6 @@ void ViewManager::Manager::dispatch_event(UI::ViewEventID event_id,
                             *active_view_);
 }
 
-static void enhance_meta_data(PlayInfo::MetaData &md,
-                              const std::string *fallback_title = NULL,
-                              const std::string &url = NULL)
-{
-    if(fallback_title == NULL)
-    {
-        BUG("No fallback title available for stream");
-        md.add("x-drcpd-title", NULL, ViewPlay::meta_data_reformatters);
-    }
-    else
-        md.add("x-drcpd-title", fallback_title->c_str(), ViewPlay::meta_data_reformatters);
-
-    if(url.empty())
-    {
-        BUG("No URL available for stream");
-        md.add("x-drcpd-url", NULL, ViewPlay::meta_data_reformatters);
-    }
-    else
-        md.add("x-drcpd-url", url.c_str(), ViewPlay::meta_data_reformatters);
-}
-
 void ViewManager::Manager::dispatch_event(UI::VManEventID event_id,
                                           std::unique_ptr<const UI::Parameters> parameters)
 {
@@ -244,13 +220,13 @@ void ViewManager::Manager::dispatch_event(UI::VManEventID event_id,
       case UI::VManEventID::INVALIDATE_LIST_ID:
         {
             const auto params =
-                UI::Events::downcast<UI::EventID::VIEW_INVALIDATE_LIST_ID>(parameters);
+                UI::Events::downcast<UI::EventID::VIEWMAN_INVALIDATE_LIST_ID>(parameters);
 
             if(params == nullptr)
                 break;
 
             const auto &plist = params->get_specific();
-            auto *const proxy = static_cast<GDBusProxy *>(std::get<0>(plist));
+            auto *const proxy = std::get<0>(plist);
             auto *const view =
                 dynamic_cast<ViewFileBrowser::View *>(get_view_by_dbus_proxy(proxy));
 
@@ -263,139 +239,7 @@ void ViewManager::Manager::dispatch_event(UI::VManEventID event_id,
         break;
 
       case UI::VManEventID::NOW_PLAYING:
-        {
-            const auto params =
-                UI::Events::downcast<UI::EventID::VIEW_PLAYER_NOW_PLAYING>(parameters);
-
-            if(params == nullptr)
-                break;
-
-            const auto &plist = params->get_specific();
-            const ID::Stream stream_id(std::get<0>(plist));
-
-            if(!stream_id.is_valid())
-            {
-                /* we are not sending such IDs */
-                BUG("Invalid stream ID %u received from Streamplayer",
-                    stream_id.get_raw_id());
-                break;
-            }
-
-            const bool queue_is_full(std::get<1>(plist));
-            auto &meta_data(const_cast<PlayInfo::MetaData &>(std::get<2>(plist)));
-            const std::string &url_string(std::get<3>(plist));
-            DBus::SignalData &data(*std::get<4>(plist));
-
-            const bool have_preloaded_meta_data =
-                data.player_.start_notification(stream_id, !queue_is_full);
-
-            {
-                const auto info = data.player_.get_stream_info__locked(stream_id);
-                const StreamInfoItem *const &info_item = info.first;
-
-                if(info_item == nullptr)
-                {
-                    msg_error(EINVAL, LOG_ERR,
-                              "No fallback title found for stream ID %u",
-                              stream_id.get_raw_id());
-                    enhance_meta_data(meta_data, nullptr, url_string);
-                }
-
-                const PlayInfo::MetaData::CopyMode copy_mode =
-                    (have_preloaded_meta_data || info_item != nullptr)
-                    ? PlayInfo::MetaData::CopyMode::NON_EMPTY
-                    : PlayInfo::MetaData::CopyMode::ALL;
-
-                data.mdstore_.meta_data_put__unlocked(meta_data, copy_mode);
-            }
-
-            if(have_preloaded_meta_data)
-                data.play_view_->notify_stream_meta_data_changed();
-
-            data.play_view_->notify_stream_start();
-            sync_activate_view_by_name(ViewNames::PLAYER);
-
-            auto *view = get_playback_initiator_view();
-            if(view != nullptr && view != data.play_view_)
-                view->notify_stream_start();
-        }
-
-        break;
-
-      case UI::VManEventID::META_DATA_UPDATE:
-        {
-            const auto params =
-                UI::Events::downcast<UI::EventID::VIEW_PLAYER_META_DATA_UPDATE>(parameters);
-
-            if(params == nullptr)
-                break;
-
-            const auto &plist = params->get_specific();
-            const ID::Stream stream_id(std::get<0>(plist));
-
-            if(!stream_id.is_valid())
-            {
-                /* we are not sending such IDs */
-                BUG("Invalid stream ID %u received from Streamplayer",
-                    stream_id.get_raw_id());
-                break;
-            }
-
-            auto &meta_data(const_cast<PlayInfo::MetaData &>(std::get<1>(plist)));
-            DBus::SignalData &data(*std::get<2>(plist));
-
-            data.mdstore_.meta_data_put__locked(meta_data,
-                                                PlayInfo::MetaData::CopyMode::NON_EMPTY);
-            data.play_view_->notify_stream_meta_data_changed();
-        }
-
-        break;
-
-      case UI::VManEventID::PLAYER_STOPPED:
-        {
-            const auto params =
-                UI::Events::downcast<UI::EventID::VIEW_PLAYER_STOPPED>(parameters);
-            const auto &plist = params->get_specific();
-
-            DBus::SignalData &data(*std::get<1>(plist));
-
-            data.player_.stop_notification();
-            data.play_view_->notify_stream_stop();
-
-            auto *view = get_playback_initiator_view();
-            if(view != nullptr && view != data.play_view_)
-                view->notify_stream_stop();
-        }
-
-        break;
-
-      case UI::VManEventID::PLAYER_PAUSED:
-        {
-            const auto params =
-                UI::Events::downcast<UI::EventID::VIEW_PLAYER_PAUSED>(parameters);
-            const auto &plist = params->get_specific();
-
-            DBus::SignalData &data(*std::get<1>(plist));
-
-            data.player_.pause_notification();
-            data.play_view_->notify_stream_pause();
-        }
-
-        break;
-
-      case UI::VManEventID::PLAYER_POSITION_UPDATE:
-        {
-            const auto params =
-                UI::Events::downcast<UI::EventID::VIEW_PLAYER_POSITION_UPDATE>(parameters);
-            const auto &plist = params->get_specific();
-
-            DBus::SignalData &data(*std::get<3>(plist));
-
-            if(data.player_.track_times_notification(std::get<1>(plist),
-                                                     std::get<2>(plist)))
-                data.play_view_->notify_stream_position_changed();
-        }
-
+        sync_activate_view_by_name(ViewNames::PLAYER);
         break;
     }
 }

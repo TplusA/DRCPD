@@ -26,12 +26,6 @@ namespace UI
     class EventStoreIface;
 }
 
-namespace Playback
-{
-    class PlayerIface;
-    class MetaDataStoreIface;
-}
-
 /*!
  * \addtogroup dbus_handlers DBus handlers for signals
  * \ingroup dbus
@@ -52,17 +46,9 @@ class SignalData
     SignalData(SignalData &&) = default;
 
     UI::EventStoreIface &event_sink_;
-    ViewIface *play_view_;
-    Playback::PlayerIface &player_;
-    Playback::MetaDataStoreIface &mdstore_;
 
-    explicit SignalData(UI::EventStoreIface &event_sink,
-                        Playback::PlayerIface &player,
-                        Playback::MetaDataStoreIface &mdstore):
-        event_sink_(event_sink),
-        play_view_(nullptr),
-        player_(player),
-        mdstore_(mdstore)
+    explicit SignalData(UI::EventStoreIface &event_sink):
+        event_sink_(event_sink)
     {}
 };
 
