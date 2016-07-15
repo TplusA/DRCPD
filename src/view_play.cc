@@ -72,6 +72,9 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
 {
     switch(event_id)
     {
+      case UI::ViewEventID::NOP:
+        break;
+
       case UI::ViewEventID::PLAYBACK_COMMAND_START:
         switch(player_.get_assumed_stream_state__locked())
         {
@@ -104,6 +107,9 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
 
       case UI::ViewEventID::PLAYBACK_NEXT:
         player_.skip_to_next();
+        break;
+
+      case UI::ViewEventID::NAV_SELECT_ITEM:
         break;
 
       case UI::ViewEventID::NAV_GO_BACK_ONE_LEVEL:
@@ -253,7 +259,23 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
 
         break;
 
-      default:
+      case UI::ViewEventID::PLAYBACK_COMMAND_PAUSE:
+      case UI::ViewEventID::PLAYBACK_FAST_WIND_FORWARD:
+      case UI::ViewEventID::PLAYBACK_FAST_WIND_REVERSE:
+      case UI::ViewEventID::PLAYBACK_FAST_WIND_STOP:
+      case UI::ViewEventID::PLAYBACK_MODE_REPEAT_TOGGLE:
+      case UI::ViewEventID::PLAYBACK_MODE_SHUFFLE_TOGGLE:
+        msg_info("%s(): view event 0x%08x not implemented yet",
+                 __PRETTY_FUNCTION__, static_cast<unsigned int>(event_id));
+
+        break;
+
+      case UI::ViewEventID::SEARCH_COMMENCE:
+      case UI::ViewEventID::SEARCH_STORE_PARAMETERS:
+      case UI::ViewEventID::NOTIFY_AIRABLE_SERVICE_LOGIN_STATUS_UPDATE:
+        BUG("Unexpected view event 0x%08x for play view",
+            static_cast<unsigned int>(event_id));
+
         break;
     }
 

@@ -85,6 +85,9 @@ ViewSearch::View::process_event(UI::ViewEventID event_id,
 
         query_ = nullptr;
     }
+    else
+        BUG("Unexpected view event 0x%08x for search view",
+            static_cast<unsigned int>(event_id));
 
     return InputResult::OK;
 }

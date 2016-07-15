@@ -170,9 +170,22 @@ void ViewManager::Manager::dispatch_event(UI::ViewEventID event_id,
     static constexpr const InputBouncer::Item global_bounce_table_data[] =
     {
         InputBouncer::Item(UI::ViewEventID::PLAYBACK_COMMAND_STOP, ViewNames::PLAYER),
+        InputBouncer::Item(UI::ViewEventID::PLAYBACK_COMMAND_PAUSE, ViewNames::PLAYER),
+        InputBouncer::Item(UI::ViewEventID::PLAYBACK_PREVIOUS, ViewNames::PLAYER),
+        InputBouncer::Item(UI::ViewEventID::PLAYBACK_NEXT, ViewNames::PLAYER),
         InputBouncer::Item(UI::ViewEventID::PLAYBACK_FAST_WIND_SET_SPEED, ViewNames::PLAYER),
-        InputBouncer::Item(UI::ViewEventID::SEARCH_STORE_PARAMETERS, ViewNames::SEARCH_OPTIONS),
+        InputBouncer::Item(UI::ViewEventID::PLAYBACK_FAST_WIND_FORWARD, ViewNames::PLAYER),
+        InputBouncer::Item(UI::ViewEventID::PLAYBACK_FAST_WIND_REVERSE, ViewNames::PLAYER),
+        InputBouncer::Item(UI::ViewEventID::PLAYBACK_FAST_WIND_STOP, ViewNames::PLAYER),
+        InputBouncer::Item(UI::ViewEventID::PLAYBACK_MODE_REPEAT_TOGGLE, ViewNames::PLAYER),
+        InputBouncer::Item(UI::ViewEventID::PLAYBACK_MODE_SHUFFLE_TOGGLE, ViewNames::PLAYER),
+        InputBouncer::Item(UI::ViewEventID::STORE_STREAM_META_DATA, ViewNames::PLAYER),
         InputBouncer::Item(UI::ViewEventID::STORE_PRELOADED_META_DATA, ViewNames::PLAYER),
+        InputBouncer::Item(UI::ViewEventID::NOTIFY_NOW_PLAYING, ViewNames::PLAYER),
+        InputBouncer::Item(UI::ViewEventID::NOTIFY_STREAM_STOPPED, ViewNames::PLAYER),
+        InputBouncer::Item(UI::ViewEventID::NOTIFY_STREAM_PAUSED, ViewNames::PLAYER),
+        InputBouncer::Item(UI::ViewEventID::NOTIFY_STREAM_POSITION, ViewNames::PLAYER),
+        InputBouncer::Item(UI::ViewEventID::SEARCH_STORE_PARAMETERS, ViewNames::SEARCH_OPTIONS),
         InputBouncer::Item(UI::ViewEventID::NOTIFY_AIRABLE_SERVICE_LOGIN_STATUS_UPDATE, ViewNames::BROWSER_INETRADIO),
     };
 

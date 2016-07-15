@@ -254,6 +254,9 @@ ViewConfig::View::process_event(UI::ViewEventID event_id,
       }
 
       default:
+        BUG("Unexpected view event 0x%08x for config view",
+            static_cast<unsigned int>(event_id));
+
         break;
     }
 

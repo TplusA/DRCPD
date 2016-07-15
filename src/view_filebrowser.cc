@@ -599,6 +599,9 @@ ViewFileBrowser::View::process_event(UI::ViewEventID event_id,
 
     switch(event_id)
     {
+      case UI::ViewEventID::NOP:
+        break;
+
       case UI::ViewEventID::SEARCH_COMMENCE:
         if((!wait_helper.was_waiting() ||
             !have_search_parameters(search_parameters_view_)))
@@ -615,6 +618,7 @@ ViewFileBrowser::View::process_event(UI::ViewEventID event_id,
         break;
 
       case UI::ViewEventID::SEARCH_STORE_PARAMETERS:
+        /* event bounced from search view */
         if(!wait_helper.was_waiting())
         {
             wait_helper.keep_parameters();
@@ -760,7 +764,26 @@ ViewFileBrowser::View::process_event(UI::ViewEventID event_id,
 
         break;
 
-      default:
+      case UI::ViewEventID::PLAYBACK_COMMAND_STOP:
+      case UI::ViewEventID::PLAYBACK_COMMAND_PAUSE:
+      case UI::ViewEventID::PLAYBACK_PREVIOUS:
+      case UI::ViewEventID::PLAYBACK_NEXT:
+      case UI::ViewEventID::PLAYBACK_FAST_WIND_SET_SPEED:
+      case UI::ViewEventID::PLAYBACK_FAST_WIND_FORWARD:
+      case UI::ViewEventID::PLAYBACK_FAST_WIND_REVERSE:
+      case UI::ViewEventID::PLAYBACK_FAST_WIND_STOP:
+      case UI::ViewEventID::PLAYBACK_MODE_REPEAT_TOGGLE:
+      case UI::ViewEventID::PLAYBACK_MODE_SHUFFLE_TOGGLE:
+      case UI::ViewEventID::STORE_STREAM_META_DATA:
+      case UI::ViewEventID::STORE_PRELOADED_META_DATA:
+      case UI::ViewEventID::NOTIFY_AIRABLE_SERVICE_LOGIN_STATUS_UPDATE:
+      case UI::ViewEventID::NOTIFY_NOW_PLAYING:
+      case UI::ViewEventID::NOTIFY_STREAM_STOPPED:
+      case UI::ViewEventID::NOTIFY_STREAM_PAUSED:
+      case UI::ViewEventID::NOTIFY_STREAM_POSITION:
+        BUG("Unexpected view event 0x%08x for file browser view",
+            static_cast<unsigned int>(event_id));
+
         break;
     }
 
