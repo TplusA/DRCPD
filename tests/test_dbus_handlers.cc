@@ -95,7 +95,7 @@ static DBus::SignalData mk_dbus_signal_data()
 void test_dcpd_playback_start(void)
 {
     DBus::SignalData dbus_signal_data(mk_dbus_signal_data());
-    mock_view_manager->expect_store_event(UI::EventID::PLAYBACK_START);
+    mock_view_manager->expect_store_event(UI::EventID::PLAYBACK_COMMAND_START);
     dbussignal_dcpd_playback(dummy_gdbus_proxy, dummy_sender_name,
                              "Start", nullptr, &dbus_signal_data);
 }
@@ -106,7 +106,7 @@ void test_dcpd_playback_start(void)
 void test_dcpd_playback_stop(void)
 {
     DBus::SignalData dbus_signal_data(mk_dbus_signal_data());
-    mock_view_manager->expect_store_event(UI::EventID::PLAYBACK_STOP);
+    mock_view_manager->expect_store_event(UI::EventID::PLAYBACK_COMMAND_STOP);
     dbussignal_dcpd_playback(dummy_gdbus_proxy, dummy_sender_name,
                              "Stop", nullptr, &dbus_signal_data);
 }
@@ -117,7 +117,7 @@ void test_dcpd_playback_stop(void)
 void test_dcpd_playback_pause(void)
 {
     DBus::SignalData dbus_signal_data(mk_dbus_signal_data());
-    mock_view_manager->expect_store_event(UI::EventID::PLAYBACK_PAUSE);
+    mock_view_manager->expect_store_event(UI::EventID::PLAYBACK_COMMAND_PAUSE);
     dbussignal_dcpd_playback(dummy_gdbus_proxy, dummy_sender_name,
                              "Pause", nullptr, &dbus_signal_data);
 }

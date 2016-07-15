@@ -617,10 +617,10 @@ void test_activate_different_view(void)
  */
 void test_input_command_with_no_need_to_refresh(void)
 {
-    vm->store_event(UI::EventID::PLAYBACK_START);
+    vm->store_event(UI::EventID::PLAYBACK_COMMAND_START);
 
     all_mock_views[0]->expect_process_event(ViewIface::InputResult::OK,
-                                            UI::ViewEventID::PLAYBACK_START, false);
+                                            UI::ViewEventID::PLAYBACK_COMMAND_START, false);
 
     vm->process_pending_events();
 }
@@ -631,10 +631,10 @@ void test_input_command_with_no_need_to_refresh(void)
  */
 void test_input_command_with_need_to_refresh(void)
 {
-    vm->store_event(UI::EventID::PLAYBACK_START);
+    vm->store_event(UI::EventID::PLAYBACK_COMMAND_START);
 
     all_mock_views[0]->expect_process_event(ViewIface::InputResult::UPDATE_NEEDED,
-                                            UI::ViewEventID::PLAYBACK_START, false);
+                                            UI::ViewEventID::PLAYBACK_COMMAND_START, false);
     all_mock_views[0]->expect_update(*views_output);
     all_mock_views[0]->expect_write_xml_begin(true, false);
 
@@ -650,10 +650,10 @@ void test_input_command_with_need_to_refresh(void)
  */
 void test_input_command_with_need_to_hide_view_may_fail(void)
 {
-    vm->store_event(UI::EventID::PLAYBACK_START);
+    vm->store_event(UI::EventID::PLAYBACK_COMMAND_START);
 
     all_mock_views[0]->expect_process_event(ViewIface::InputResult::SHOULD_HIDE,
-                                            UI::ViewEventID::PLAYBACK_START, false);
+                                            UI::ViewEventID::PLAYBACK_COMMAND_START, false);
 
     vm->process_pending_events();
 }
@@ -681,10 +681,10 @@ void test_input_command_with_need_to_hide_nonbrowse_view(void)
 
     /* hide request from active view, view manager switches back to previous
      * browse view in turn (view "First") */
-    vm->store_event(UI::EventID::PLAYBACK_START);
+    vm->store_event(UI::EventID::PLAYBACK_COMMAND_START);
 
     all_mock_views[2]->expect_process_event(ViewIface::InputResult::SHOULD_HIDE,
-                                            UI::ViewEventID::PLAYBACK_START, false);
+                                            UI::ViewEventID::PLAYBACK_COMMAND_START, false);
     all_mock_views[2]->expect_defocus();
     all_mock_views[0]->expect_focus();
     all_mock_views[0]->expect_serialize(*views_output);
@@ -718,10 +718,10 @@ void test_input_command_with_need_to_hide_browse_view_never_works(void)
     check_and_clear_ostream("Second serialize\n", *views_output);
 
     /* hide request from active view, but view manager won't switch focus */
-    vm->store_event(UI::EventID::PLAYBACK_START);
+    vm->store_event(UI::EventID::PLAYBACK_COMMAND_START);
 
     all_mock_views[1]->expect_process_event(ViewIface::InputResult::SHOULD_HIDE,
-                                            UI::ViewEventID::PLAYBACK_START, false);
+                                            UI::ViewEventID::PLAYBACK_COMMAND_START, false);
 
     vm->process_pending_events();
 }

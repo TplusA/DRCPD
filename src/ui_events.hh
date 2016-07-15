@@ -47,9 +47,9 @@ enum class EventTypeID
 enum class ViewEventID
 {
     NOP,
-    PLAYBACK_START,
-    PLAYBACK_STOP,
-    PLAYBACK_PAUSE,
+    PLAYBACK_COMMAND_START,
+    PLAYBACK_COMMAND_STOP,
+    PLAYBACK_COMMAND_PAUSE,
     PLAYBACK_PREVIOUS,
     PLAYBACK_NEXT,
     PLAYBACK_FAST_WIND_SET_SPEED,
@@ -66,11 +66,11 @@ enum class ViewEventID
     SEARCH_STORE_PARAMETERS,
     STORE_STREAM_META_DATA,
     STORE_PRELOADED_META_DATA,
-    AIRABLE_SERVICE_LOGIN_STATUS_UPDATE,
-    NOW_PLAYING,
-    STREAM_STOPPED,
-    STREAM_PAUSED,
-    STREAM_POSITION,
+    NOTIFY_AIRABLE_SERVICE_LOGIN_STATUS_UPDATE,
+    NOTIFY_NOW_PLAYING,
+    NOTIFY_STREAM_STOPPED,
+    NOTIFY_STREAM_PAUSED,
+    NOTIFY_STREAM_POSITION,
 };
 
 /*!
@@ -82,7 +82,7 @@ enum class VManEventID
     OPEN_VIEW,
     TOGGLE_VIEWS,
     INVALIDATE_LIST_ID,
-    NOW_PLAYING,
+    NOTIFY_NOW_PLAYING,
 };
 
 enum class EventID;
@@ -128,9 +128,9 @@ enum class EventID
     /* ======================================================
      * Active commands issued by the user or some other actor
      * ====================================================== */
-    PLAYBACK_START               = mk_event_id(ViewEventID::PLAYBACK_START),
-    PLAYBACK_STOP                = mk_event_id(ViewEventID::PLAYBACK_STOP),
-    PLAYBACK_PAUSE               = mk_event_id(ViewEventID::PLAYBACK_PAUSE),
+    PLAYBACK_COMMAND_START       = mk_event_id(ViewEventID::PLAYBACK_COMMAND_START),
+    PLAYBACK_COMMAND_STOP        = mk_event_id(ViewEventID::PLAYBACK_COMMAND_STOP),
+    PLAYBACK_COMMAND_PAUSE       = mk_event_id(ViewEventID::PLAYBACK_COMMAND_PAUSE),
     PLAYBACK_PREVIOUS            = mk_event_id(ViewEventID::PLAYBACK_PREVIOUS),
     PLAYBACK_NEXT                = mk_event_id(ViewEventID::PLAYBACK_NEXT),
     PLAYBACK_FAST_WIND_SET_SPEED = mk_event_id(ViewEventID::PLAYBACK_FAST_WIND_SET_SPEED),
@@ -161,13 +161,13 @@ enum class EventID
      * Passive notifications
      * ===================== */
     VIEWMAN_INVALIDATE_LIST_ID   = mk_event_id(VManEventID::INVALIDATE_LIST_ID),
-    VIEWMAN_STREAM_NOW_PLAYING   = mk_event_id(VManEventID::NOW_PLAYING),
-    VIEW_PLAYER_NOW_PLAYING      = mk_event_id(ViewEventID::NOW_PLAYING),
+    VIEWMAN_STREAM_NOW_PLAYING   = mk_event_id(VManEventID::NOTIFY_NOW_PLAYING),
+    VIEW_PLAYER_NOW_PLAYING      = mk_event_id(ViewEventID::NOTIFY_NOW_PLAYING),
     VIEW_PLAYER_STORE_STREAM_META_DATA = mk_event_id(ViewEventID::STORE_STREAM_META_DATA),
-    VIEW_PLAYER_STREAM_STOPPED   = mk_event_id(ViewEventID::STREAM_STOPPED),
-    VIEW_PLAYER_STREAM_PAUSED    = mk_event_id(ViewEventID::STREAM_PAUSED),
-    VIEW_PLAYER_STREAM_POSITION  = mk_event_id(ViewEventID::STREAM_POSITION),
-    VIEW_AIRABLE_SERVICE_LOGIN_STATUS_UPDATE = mk_event_id(ViewEventID::AIRABLE_SERVICE_LOGIN_STATUS_UPDATE),
+    VIEW_PLAYER_STREAM_STOPPED   = mk_event_id(ViewEventID::NOTIFY_STREAM_STOPPED),
+    VIEW_PLAYER_STREAM_PAUSED    = mk_event_id(ViewEventID::NOTIFY_STREAM_PAUSED),
+    VIEW_PLAYER_STREAM_POSITION  = mk_event_id(ViewEventID::NOTIFY_STREAM_POSITION),
+    VIEW_AIRABLE_SERVICE_LOGIN_STATUS_UPDATE = mk_event_id(ViewEventID::NOTIFY_AIRABLE_SERVICE_LOGIN_STATUS_UPDATE),
 };
 
 class EventStoreIface

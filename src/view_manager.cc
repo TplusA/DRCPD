@@ -169,7 +169,7 @@ void ViewManager::Manager::dispatch_event(UI::ViewEventID event_id,
 {
     static constexpr const InputBouncer::Item global_bounce_table_data[] =
     {
-        InputBouncer::Item(UI::ViewEventID::PLAYBACK_STOP, ViewNames::PLAYER),
+        InputBouncer::Item(UI::ViewEventID::PLAYBACK_COMMAND_STOP, ViewNames::PLAYER),
         InputBouncer::Item(UI::ViewEventID::PLAYBACK_FAST_WIND_SET_SPEED, ViewNames::PLAYER),
         InputBouncer::Item(UI::ViewEventID::SEARCH_STORE_PARAMETERS, ViewNames::SEARCH_OPTIONS),
         InputBouncer::Item(UI::ViewEventID::STORE_PRELOADED_META_DATA, ViewNames::PLAYER),
@@ -238,7 +238,7 @@ void ViewManager::Manager::dispatch_event(UI::VManEventID event_id,
 
         break;
 
-      case UI::VManEventID::NOW_PLAYING:
+      case UI::VManEventID::NOTIFY_NOW_PLAYING:
         sync_activate_view_by_name(ViewNames::PLAYER);
         break;
     }

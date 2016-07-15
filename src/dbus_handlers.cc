@@ -56,11 +56,11 @@ void dbussignal_dcpd_playback(GDBusProxy *proxy, const gchar *sender_name,
     log_assert(data != nullptr);
 
     if(strcmp(signal_name, "Start") == 0)
-        data->event_sink_.store_event(UI::EventID::PLAYBACK_START);
+        data->event_sink_.store_event(UI::EventID::PLAYBACK_COMMAND_START);
     else if(strcmp(signal_name, "Stop") == 0)
-        data->event_sink_.store_event(UI::EventID::PLAYBACK_STOP);
+        data->event_sink_.store_event(UI::EventID::PLAYBACK_COMMAND_STOP);
     else if(strcmp(signal_name, "Pause") == 0)
-        data->event_sink_.store_event(UI::EventID::PLAYBACK_PAUSE);
+        data->event_sink_.store_event(UI::EventID::PLAYBACK_COMMAND_PAUSE);
     else if(strcmp(signal_name, "Next") == 0)
         data->event_sink_.store_event(UI::EventID::PLAYBACK_NEXT);
     else if(strcmp(signal_name, "Previous") == 0)

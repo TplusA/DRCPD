@@ -683,7 +683,7 @@ ViewFileBrowser::View::process_event(UI::ViewEventID event_id,
               case ListItemKind::REGULAR_FILE:
               case ListItemKind::PLAYLIST_FILE:
               case ListItemKind::OPAQUE:
-                event_id = UI::ViewEventID::PLAYBACK_START;
+                event_id = UI::ViewEventID::PLAYBACK_COMMAND_START;
                 break;
 
               case ListItemKind::SEARCH_FORM:
@@ -698,14 +698,14 @@ ViewFileBrowser::View::process_event(UI::ViewEventID event_id,
             }
         }
 
-        if(event_id != UI::ViewEventID::PLAYBACK_START)
+        if(event_id != UI::ViewEventID::PLAYBACK_COMMAND_START)
             return InputResult::OK;
 
         /* fall-through: event was changed to #UI::ViewEventID::PLAYBACK_START
          *               because the item below the cursor was not a
          *               directory */
 
-      case UI::ViewEventID::PLAYBACK_START:
+      case UI::ViewEventID::PLAYBACK_COMMAND_START:
         if(file_list_.empty())
             return InputResult::OK;
 

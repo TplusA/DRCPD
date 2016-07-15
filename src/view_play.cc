@@ -72,7 +72,7 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
 {
     switch(event_id)
     {
-      case UI::ViewEventID::PLAYBACK_START:
+      case UI::ViewEventID::PLAYBACK_COMMAND_START:
         switch(player_.get_assumed_stream_state__locked())
         {
           case PlayInfo::Data::STREAM_BUFFERING:
@@ -94,7 +94,7 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
 
         break;
 
-      case UI::ViewEventID::PLAYBACK_STOP:
+      case UI::ViewEventID::PLAYBACK_COMMAND_STOP:
         player_.release(true);
         break;
 
@@ -122,7 +122,7 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
 
         break;
 
-      case UI::ViewEventID::NOW_PLAYING:
+      case UI::ViewEventID::NOTIFY_NOW_PLAYING:
         {
             const auto params =
                 UI::Events::downcast<UI::EventID::VIEW_PLAYER_NOW_PLAYING>(parameters);
@@ -180,7 +180,7 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
 
         break;
 
-      case UI::ViewEventID::STREAM_STOPPED:
+      case UI::ViewEventID::NOTIFY_STREAM_STOPPED:
         {
             player_.stop_notification();
             this->notify_stream_stop();
@@ -192,13 +192,13 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
 
         break;
 
-      case UI::ViewEventID::STREAM_PAUSED:
+      case UI::ViewEventID::NOTIFY_STREAM_PAUSED:
         player_.pause_notification();
         this->notify_stream_pause();
 
         break;
 
-      case UI::ViewEventID::STREAM_POSITION:
+      case UI::ViewEventID::NOTIFY_STREAM_POSITION:
         {
             const auto params =
                 UI::Events::downcast<UI::EventID::VIEW_PLAYER_STREAM_POSITION>(parameters);
