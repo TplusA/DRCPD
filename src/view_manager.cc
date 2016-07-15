@@ -173,6 +173,7 @@ void ViewManager::Manager::dispatch_event(UI::ViewEventID event_id,
         InputBouncer::Item(UI::ViewEventID::PLAYBACK_FAST_WIND_SET_SPEED, ViewNames::PLAYER),
         InputBouncer::Item(UI::ViewEventID::SEARCH_STORE_PARAMETERS, ViewNames::SEARCH_OPTIONS),
         InputBouncer::Item(UI::ViewEventID::STORE_PRELOADED_META_DATA, ViewNames::PLAYER),
+        InputBouncer::Item(UI::ViewEventID::NOTIFY_AIRABLE_SERVICE_LOGIN_STATUS_UPDATE, ViewNames::BROWSER_INETRADIO),
     };
 
     static constexpr const ViewManager::InputBouncer global_bounce_table(global_bounce_table_data);

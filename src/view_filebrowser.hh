@@ -184,7 +184,7 @@ class View: public ViewIface, public ViewSerializeBase
     bool sync_with_list_broker(bool is_first_call = false);
 
     InputResult process_event(UI::ViewEventID event_id,
-                              std::unique_ptr<const UI::Parameters> parameters) final override;
+                              std::unique_ptr<const UI::Parameters> parameters) override;
 
     void serialize(DCP::Queue &queue, DCP::Queue::Mode mode,
                    std::ostream *debug_os) final override;

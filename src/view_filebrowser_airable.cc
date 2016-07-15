@@ -22,6 +22,7 @@
 
 #include "view_filebrowser_airable.hh"
 #include "view_filebrowser_utils.hh"
+#include "ui_parameters_predefined.hh"
 #include "de_tahifi_lists_context.h"
 #include "messages.h"
 
@@ -43,6 +44,32 @@ void ViewFileBrowser::AirableView::logged_out_from_service_notification(const ch
         point_to_root_directory();
 
     search_forms_.erase(ctx_id);
+}
+
+ViewIface::InputResult
+ViewFileBrowser::AirableView::process_event(UI::ViewEventID event_id,
+                                            std::unique_ptr<const UI::Parameters> parameters)
+{
+    if(event_id != UI::ViewEventID::NOTIFY_AIRABLE_SERVICE_LOGIN_STATUS_UPDATE)
+        return ViewFileBrowser::View::process_event(event_id, std::move(parameters));
+
+    const auto params =
+        UI::Events::downcast<UI::EventID::VIEW_AIRABLE_SERVICE_LOGIN_STATUS_UPDATE>(parameters);
+
+    if(params == nullptr)
+        return InputResult::OK;
+
+    const auto &plist = params->get_specific();
+    const auto &service_id(std::get<0>(plist));
+    const enum ActorID actor_id(std::get<1>(plist));
+    const bool is_login(std::get<2>(plist));
+
+    if(!is_login)
+        logged_out_from_service_notification(service_id.c_str(), actor_id);
+    else
+        msg_info("Logged into \"%s\" by %u\n", service_id.c_str(), actor_id);
+
+    return InputResult::OK;
 }
 
 bool ViewFileBrowser::AirableView::list_invalidate(ID::List list_id, ID::List replacement_id)

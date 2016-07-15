@@ -68,6 +68,9 @@ class AirableView: public View
 
     ~AirableView() {}
 
+    InputResult process_event(UI::ViewEventID event_id,
+                              std::unique_ptr<const UI::Parameters> parameters) final override;
+
     bool list_invalidate(ID::List list_id, ID::List replacement_id) final override;
 
     void logged_out_from_service_notification(const char *service_id,
