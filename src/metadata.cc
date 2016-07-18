@@ -67,39 +67,44 @@ void MetaData::Set::add(const char *key, const char *value,
     {
         if(strcmp(key, entry.key) == 0)
         {
-            switch(entry.id)
-            {
-              case BITRATE:
-              case BITRATE_MIN:
-              case BITRATE_MAX:
-              case BITRATE_NOM:
-                if(!reformat.bitrate)
-                    break;
-
-                if(value != NULL)
-                    this->values_[entry.id] = reformat.bitrate(value);
-                else
-                    this->values_[entry.id].clear();
-
-                return;
-
-              case TITLE:
-              case ARTIST:
-              case ALBUM:
-              case CODEC:
-              case INTERNAL_DRCPD_TITLE:
-              case INTERNAL_DRCPD_URL:
-                break;
-            }
-
-            if(value != NULL)
-                this->values_[entry.id] = value;
-            else
-                this->values_[entry.id].clear();
-
+            add(entry.id, value, reformat);
             return;
         }
     }
+}
+
+void MetaData::Set::add(const MetaData::Set::ID key_id, const char *value,
+                        const Reformatters &reformat)
+{
+    switch(key_id)
+    {
+      case BITRATE:
+      case BITRATE_MIN:
+      case BITRATE_MAX:
+      case BITRATE_NOM:
+        if(!reformat.bitrate)
+            break;
+
+        if(value != NULL)
+            this->values_[key_id] = reformat.bitrate(value);
+        else
+            this->values_[key_id].clear();
+
+        return;
+
+      case TITLE:
+      case ARTIST:
+      case ALBUM:
+      case CODEC:
+      case INTERNAL_DRCPD_TITLE:
+      case INTERNAL_DRCPD_URL:
+        break;
+    }
+
+    if(value != NULL)
+        this->values_[key_id] = value;
+    else
+        this->values_[key_id].clear();
 }
 
 void MetaData::Set::copy_from(const Set &src, CopyMode mode)

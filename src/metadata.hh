@@ -78,6 +78,7 @@ class Set
 
     void clear(bool keep_internals);
     void add(const char *key, const char *value, const Reformatters &reformat);
+    void add(const ID key_id, const char *value, const Reformatters &reformat);
     void copy_from(const Set &src, CopyMode mode);
 
     bool operator==(const Set &other) const;
