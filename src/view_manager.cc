@@ -339,11 +339,6 @@ ViewIface *ViewManager::Manager::get_view_by_dbus_proxy(const void *dbus_proxy)
     return lookup_view_by_dbus_proxy(all_views_, dbus_proxy);
 }
 
-ViewIface *ViewManager::Manager::get_playback_initiator_view() const
-{
-    return last_browse_view_;
-}
-
 void ViewManager::Manager::sync_activate_view_by_name(const char *view_name)
 {
     msg_info("Requested to activate view \"%s\"", view_name);

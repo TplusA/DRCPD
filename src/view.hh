@@ -150,31 +150,6 @@ class ViewIface
      */
     virtual InputResult process_event(UI::ViewEventID event_id,
                                       std::unique_ptr<const UI::Parameters> parameters) = 0;
-
-    /*!
-     * Called when a stream has started playing.
-     */
-    virtual void notify_stream_start() {}
-
-    /*!
-     * Called when streamplayer has stopped playing.
-     */
-    virtual void notify_stream_stop() {}
-
-    /*!
-     * Called when the playing stream is paused.
-     */
-    virtual void notify_stream_pause() {}
-
-    /*!
-     * Called when stream position has changed.
-     */
-    virtual void notify_stream_position_changed() {}
-
-    /*!
-     * Called when stream meta data have changed.
-     */
-    virtual void notify_stream_meta_data_changed() {}
 };
 
 /*!@}*/

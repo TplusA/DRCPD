@@ -178,23 +178,13 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
                 this->notify_stream_meta_data_changed();
 
             this->notify_stream_start();
-
-            auto *view = view_manager_->get_playback_initiator_view();
-            if(view != nullptr && view != this)
-                view->notify_stream_start();
         }
 
         break;
 
       case UI::ViewEventID::NOTIFY_STREAM_STOPPED:
-        {
-            player_.stop_notification();
-            this->notify_stream_stop();
-
-            auto *view = view_manager_->get_playback_initiator_view();
-            if(view != nullptr && view != this)
-                view->notify_stream_stop();
-        }
+        player_.stop_notification();
+        this->notify_stream_stop();
 
         break;
 

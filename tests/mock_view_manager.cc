@@ -38,7 +38,6 @@ enum class MemberFn
     input_bounce,
     get_view_by_name,
     get_view_by_dbus_proxy,
-    get_playback_initiator_view,
     activate_view_by_name,
     toggle_views_by_name,
 
@@ -79,10 +78,6 @@ static std::ostream &operator<<(std::ostream &os, const MemberFn id)
 
       case MemberFn::get_view_by_dbus_proxy:
         os << "get_view_by_dbus_proxy";
-        break;
-
-      case MemberFn::get_playback_initiator_view:
-        os << "get_playback_initiator_view";
         break;
 
       case MemberFn::toggle_views_by_name:
@@ -349,11 +344,6 @@ void MockViewManager::expect_get_view_by_dbus_proxy(const void *dbus_proxy)
     expectations_->add(Expectation(MemberFn::get_view_by_dbus_proxy));
 }
 
-void MockViewManager::expect_get_playback_initiator_view()
-{
-    expectations_->add(Expectation(MemberFn::get_playback_initiator_view));
-}
-
 void MockViewManager::expect_sync_activate_view_by_name(const char *view_name)
 {
     expectations_->add(Expectation(MemberFn::activate_view_by_name, view_name));
@@ -451,14 +441,6 @@ ViewIface *MockViewManager::get_view_by_name(const char *view_name)
     const auto &expect(expectations_->get_next_expectation(__func__));
 
     cppcut_assert_equal(expect.d.function_id_, MemberFn::get_view_by_name);
-    return nullptr;
-}
-
-ViewIface *MockViewManager::get_playback_initiator_view() const
-{
-    const auto &expect(expectations_->get_next_expectation(__func__));
-
-    cppcut_assert_equal(expect.d.function_id_, MemberFn::get_playback_initiator_view);
     return nullptr;
 }
 

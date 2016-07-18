@@ -76,12 +76,6 @@ class View: public ViewIface, public ViewSerializeBase
     InputResult process_event(UI::ViewEventID event_id,
                               std::unique_ptr<const UI::Parameters> parameters) final override;
 
-    void notify_stream_start() override;
-    void notify_stream_stop() override;
-    void notify_stream_pause() override;
-    void notify_stream_position_changed() override;
-    void notify_stream_meta_data_changed() override;
-
     void serialize(DCP::Queue &queue, DCP::Queue::Mode mode,
                    std::ostream *debug_os) override;
 
@@ -90,6 +84,13 @@ class View: public ViewIface, public ViewSerializeBase
      * Generate XML document from current state.
      */
     bool write_xml(std::ostream &os, const DCP::Queue::Data &data) override;
+
+    void notify_stream_start();
+    void notify_stream_stop();
+    void notify_stream_pause();
+    void notify_stream_position_changed();
+    void notify_stream_meta_data_changed();
+
 };
 
 };

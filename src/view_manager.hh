@@ -122,7 +122,6 @@ class VMIface
     input_bounce(const InputBouncer &bouncer, UI::ViewEventID event_id,
                  std::unique_ptr<const UI::Parameters> parameters = nullptr) = 0;
     virtual ViewIface *get_view_by_name(const char *view_name) = 0;
-    virtual ViewIface *get_playback_initiator_view() const = 0;
     /*
      * TODO: Maybe remove entirely and replace by events
      */
@@ -179,7 +178,6 @@ class Manager: public VMIface, public UI::EventStoreIface
     }
 
     ViewIface *get_view_by_name(const char *view_name) override;
-    ViewIface *get_playback_initiator_view() const override;
     /*
      * TODO: Maybe remove entirely and replace by events
      */
