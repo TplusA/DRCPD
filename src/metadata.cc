@@ -36,23 +36,23 @@ static const struct
     /*!
      * Internally used ID for GStreamer keys.
      */
-    PlayInfo::MetaData::ID id;
+    MetaData::Set::ID id;
 }
-key_to_id[PlayInfo::MetaData::METADATA_ID_LAST + 1] =
+key_to_id[MetaData::Set::METADATA_ID_LAST + 1] =
 {
-    { "title",           PlayInfo::MetaData::TITLE, },
-    { "artist",          PlayInfo::MetaData::ARTIST, },
-    { "album",           PlayInfo::MetaData::ALBUM, },
-    { "audio-codec",     PlayInfo::MetaData::CODEC, },
-    { "bitrate",         PlayInfo::MetaData::BITRATE, },
-    { "minimum-bitrate", PlayInfo::MetaData::BITRATE_MIN, },
-    { "maximum-bitrate", PlayInfo::MetaData::BITRATE_MAX, },
-    { "nominal-bitrate", PlayInfo::MetaData::BITRATE_NOM, },
-    { "x-drcpd-title",   PlayInfo::MetaData::INTERNAL_DRCPD_TITLE, },
-    { "x-drcpd-url",     PlayInfo::MetaData::INTERNAL_DRCPD_URL, },
+    { "title",           MetaData::Set::TITLE, },
+    { "artist",          MetaData::Set::ARTIST, },
+    { "album",           MetaData::Set::ALBUM, },
+    { "audio-codec",     MetaData::Set::CODEC, },
+    { "bitrate",         MetaData::Set::BITRATE, },
+    { "minimum-bitrate", MetaData::Set::BITRATE_MIN, },
+    { "maximum-bitrate", MetaData::Set::BITRATE_MAX, },
+    { "nominal-bitrate", MetaData::Set::BITRATE_NOM, },
+    { "x-drcpd-title",   MetaData::Set::INTERNAL_DRCPD_TITLE, },
+    { "x-drcpd-url",     MetaData::Set::INTERNAL_DRCPD_URL, },
 };
 
-void PlayInfo::MetaData::clear(bool keep_internals)
+void MetaData::Set::clear(bool keep_internals)
 {
     const size_t last = keep_internals ? METADATA_ID_LAST_REGULAR : METADATA_ID_LAST;
 
@@ -60,8 +60,8 @@ void PlayInfo::MetaData::clear(bool keep_internals)
         this->values_[i].clear();
 }
 
-void PlayInfo::MetaData::add(const char *key, const char *value,
-                             const Reformatters &reformat)
+void MetaData::Set::add(const char *key, const char *value,
+                        const Reformatters &reformat)
 {
     for(const auto &entry : key_to_id)
     {
@@ -102,7 +102,7 @@ void PlayInfo::MetaData::add(const char *key, const char *value,
     }
 }
 
-void PlayInfo::MetaData::copy_from(const MetaData &src, CopyMode mode)
+void MetaData::Set::copy_from(const Set &src, CopyMode mode)
 {
     switch(mode)
     {
@@ -128,7 +128,7 @@ void PlayInfo::MetaData::copy_from(const MetaData &src, CopyMode mode)
     }
 }
 
-bool PlayInfo::MetaData::operator==(const MetaData &other) const
+bool MetaData::Set::operator==(const Set &other) const
 {
     for(size_t i = 0; i < values_.size(); ++i)
         if(values_[i] != other.values_[i])
@@ -137,7 +137,7 @@ bool PlayInfo::MetaData::operator==(const MetaData &other) const
     return true;
 }
 
-void PlayInfo::MetaData::dump(const char *what) const
+void MetaData::Set::dump(const char *what) const
 {
     msg_info("Meta data \"%s\"", what);
 

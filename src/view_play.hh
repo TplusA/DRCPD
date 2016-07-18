@@ -39,7 +39,7 @@ namespace Playback { class Player; }
 namespace ViewPlay
 {
 
-extern const PlayInfo::Reformatters meta_data_reformatters;
+extern const MetaData::Reformatters meta_data_reformatters;
 
 class View: public ViewIface, public ViewSerializeBase
 {

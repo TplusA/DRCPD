@@ -45,7 +45,7 @@ void ViewPlay::View::defocus()
     is_visible_ = false;
 }
 
-static void enhance_meta_data(PlayInfo::MetaData &md,
+static void enhance_meta_data(MetaData::Set &md,
                               const std::string *fallback_title = NULL,
                               const std::string &url = NULL)
 {
@@ -148,7 +148,7 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
             }
 
             const bool queue_is_full(std::get<1>(plist));
-            auto &meta_data(const_cast<PlayInfo::MetaData &>(std::get<2>(plist)));
+            auto &meta_data(const_cast<MetaData::Set &>(std::get<2>(plist)));
             const std::string &url_string(std::get<3>(plist));
 
             const bool have_preloaded_meta_data =
@@ -166,10 +166,10 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
                     enhance_meta_data(meta_data, nullptr, url_string);
                 }
 
-                const PlayInfo::MetaData::CopyMode copy_mode =
+                const MetaData::Set::CopyMode copy_mode =
                     (have_preloaded_meta_data || info_item != nullptr)
-                    ? PlayInfo::MetaData::CopyMode::NON_EMPTY
-                    : PlayInfo::MetaData::CopyMode::ALL;
+                    ? MetaData::Set::CopyMode::NON_EMPTY
+                    : MetaData::Set::CopyMode::ALL;
 
                 player_.meta_data_put__unlocked(meta_data, copy_mode);
             }
@@ -226,10 +226,10 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
                 break;
             }
 
-            auto &meta_data(const_cast<PlayInfo::MetaData &>(std::get<1>(plist)));
+            auto &meta_data(const_cast<MetaData::Set &>(std::get<1>(plist)));
 
             player_.meta_data_put__locked(meta_data,
-                                          PlayInfo::MetaData::CopyMode::NON_EMPTY);
+                                          MetaData::Set::CopyMode::NON_EMPTY);
             this->notify_stream_meta_data_changed();
         }
 
@@ -312,31 +312,31 @@ void ViewPlay::View::notify_stream_meta_data_changed()
     view_manager_->update_view_if_active(this, DCP::Queue::Mode::FORCE_ASYNC);
 }
 
-static const std::string &mk_alt_track_name(const PlayInfo::MetaData &meta_data)
+static const std::string &mk_alt_track_name(const MetaData::Set &meta_data)
 {
-    if(!meta_data.values_[PlayInfo::MetaData::INTERNAL_DRCPD_TITLE].empty())
-        return meta_data.values_[PlayInfo::MetaData::INTERNAL_DRCPD_TITLE];
+    if(!meta_data.values_[MetaData::Set::INTERNAL_DRCPD_TITLE].empty())
+        return meta_data.values_[MetaData::Set::INTERNAL_DRCPD_TITLE];
 
-    if(!meta_data.values_[PlayInfo::MetaData::INTERNAL_DRCPD_URL].empty())
-        return meta_data.values_[PlayInfo::MetaData::INTERNAL_DRCPD_URL];
+    if(!meta_data.values_[MetaData::Set::INTERNAL_DRCPD_URL].empty())
+        return meta_data.values_[MetaData::Set::INTERNAL_DRCPD_URL];
 
     static const std::string no_name_fallback("(no data available)");
     return no_name_fallback;
 
 }
 
-static const std::string &get_bitrate(const PlayInfo::MetaData &md)
+static const std::string &get_bitrate(const MetaData::Set &md)
 {
-    if(!md.values_[PlayInfo::MetaData::BITRATE].empty())
-        return md.values_[PlayInfo::MetaData::BITRATE];
+    if(!md.values_[MetaData::Set::BITRATE].empty())
+        return md.values_[MetaData::Set::BITRATE];
 
-    if(!md.values_[PlayInfo::MetaData::BITRATE_NOM].empty())
-        return md.values_[PlayInfo::MetaData::BITRATE_NOM];
+    if(!md.values_[MetaData::Set::BITRATE_NOM].empty())
+        return md.values_[MetaData::Set::BITRATE_NOM];
 
-    if(!md.values_[PlayInfo::MetaData::BITRATE_MAX].empty())
-        return md.values_[PlayInfo::MetaData::BITRATE_MAX];
+    if(!md.values_[MetaData::Set::BITRATE_MAX].empty())
+        return md.values_[MetaData::Set::BITRATE_MAX];
 
-    return md.values_[PlayInfo::MetaData::BITRATE_MIN];
+    return md.values_[MetaData::Set::BITRATE_MIN];
 }
 
 bool ViewPlay::View::write_xml(std::ostream &os, const DCP::Queue::Data &data)
@@ -356,16 +356,16 @@ bool ViewPlay::View::write_xml(std::ostream &os, const DCP::Queue::Data &data)
     else if((update_flags & UPDATE_FLAGS_META_DATA) != 0)
     {
         os << "<text id=\"artist\">"
-           << XmlEscape(md.values_[PlayInfo::MetaData::ARTIST])
+           << XmlEscape(md.values_[MetaData::Set::ARTIST])
            << "</text>";
         os << "<text id=\"track\">"
-           << XmlEscape(md.values_[PlayInfo::MetaData::TITLE])
+           << XmlEscape(md.values_[MetaData::Set::TITLE])
            << "</text>";
         os << "<text id=\"alttrack\">"
            << XmlEscape(mk_alt_track_name(md))
            << "</text>";
         os << "<text id=\"album\">"
-           << XmlEscape(md.values_[PlayInfo::MetaData::ALBUM])
+           << XmlEscape(md.values_[MetaData::Set::ALBUM])
            << "</text>";
         os << "<text id=\"bitrate\">"
            << get_bitrate(md).c_str()
@@ -434,7 +434,7 @@ void ViewPlay::View::serialize(DCP::Queue &queue, DCP::Queue::Mode mode,
     const auto &md(*md_with_lock.first);
 
     *debug_os << "URL: \""
-        << md.values_[PlayInfo::MetaData::INTERNAL_DRCPD_URL]
+        << md.values_[MetaData::Set::INTERNAL_DRCPD_URL]
         << "\" ("
         << stream_state_string[player_.get_assumed_stream_state__unlocked()]
         << ")" << std::endl;
@@ -476,7 +476,7 @@ static const std::string reformat_bitrate(const char *in)
     return os.str();
 }
 
-const PlayInfo::Reformatters ViewPlay::meta_data_reformatters =
+const MetaData::Reformatters ViewPlay::meta_data_reformatters =
 {
     .bitrate = reformat_bitrate,
 };

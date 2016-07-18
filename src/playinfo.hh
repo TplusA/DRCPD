@@ -19,11 +19,9 @@
 #ifndef PLAYINFO_HH
 #define PLAYINFO_HH
 
-#include <array>
-#include <string>
 #include <chrono>
-#include <functional>
 
+#include "metadata.hh"
 #include "busy.hh"
 
 /*!
@@ -36,64 +34,6 @@
 
 namespace PlayInfo
 {
-
-struct Reformatters
-{
-    using fn_t =  std::function<const std::string(const char *in)>;
-
-    const fn_t bitrate;
-};
-
-
-/*!
- * Stream meta data POD as obtained from Streamplayer.
- */
-class MetaData
-{
-  public:
-    enum ID
-    {
-        TITLE = 0,
-        ARTIST,
-        ALBUM,
-        CODEC,
-        BITRATE,
-        BITRATE_MIN,
-        BITRATE_MAX,
-        BITRATE_NOM,
-
-        /* internal tags */
-        INTERNAL_DRCPD_TITLE,
-        INTERNAL_DRCPD_URL,
-
-        METADATA_ID_LAST_REGULAR = BITRATE_NOM,
-        METADATA_ID_FIRST_INTERNAL = INTERNAL_DRCPD_TITLE,
-        METADATA_ID_LAST = INTERNAL_DRCPD_URL,
-    };
-
-    enum class CopyMode
-    {
-        ALL,
-        NON_EMPTY,
-    };
-
-    /* FIXME: The default copy ctor should not be required */
-    MetaData(const MetaData &) = default;
-    MetaData &operator=(const MetaData &) = delete;
-    MetaData(MetaData &&) = default;
-
-    explicit MetaData() {}
-
-    std::array<std::string, METADATA_ID_LAST + 1> values_;
-
-    void clear(bool keep_internals);
-    void add(const char *key, const char *value, const Reformatters &reformat);
-    void copy_from(const MetaData &src, CopyMode mode);
-
-    bool operator==(const MetaData &other) const;
-
-    void dump(const char *what) const;
-};
 
 /*!
  * Stream playback information POD.
@@ -115,7 +55,7 @@ class Data
     StreamState assumed_stream_state_;
 
   public:
-    MetaData meta_data_;
+    MetaData::Set meta_data_;
     std::chrono::milliseconds stream_position_;
     std::chrono::milliseconds stream_duration_;
 

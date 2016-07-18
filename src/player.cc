@@ -233,19 +233,19 @@ bool Playback::Player::start_notification(ID::Stream stream_id,
     if(stream_info_item != NULL)
     {
         const PreloadedMetaData &preloaded(stream_info_item->preloaded_meta_data_);
-        PlayInfo::MetaData &md(current_stream_data_.track_info_.meta_data_);
+        MetaData::Set &md(current_stream_data_.track_info_.meta_data_);
 
         if(preloaded.have_anything())
         {
-            md.values_[PlayInfo::MetaData::ARTIST] = preloaded.artist_;
-            md.values_[PlayInfo::MetaData::ALBUM]  = preloaded.album_;
-            md.values_[PlayInfo::MetaData::TITLE]  = preloaded.title_;
+            md.values_[MetaData::Set::ARTIST] = preloaded.artist_;
+            md.values_[MetaData::Set::ALBUM]  = preloaded.album_;
+            md.values_[MetaData::Set::TITLE]  = preloaded.title_;
 
             retval = true;
         }
 
-        md.values_[PlayInfo::MetaData::INTERNAL_DRCPD_TITLE] = stream_info_item->alt_name_;
-        md.values_[PlayInfo::MetaData::INTERNAL_DRCPD_URL]   = stream_info_item->url_;
+        md.values_[MetaData::Set::INTERNAL_DRCPD_TITLE] = stream_info_item->alt_name_;
+        md.values_[MetaData::Set::INTERNAL_DRCPD_URL]   = stream_info_item->url_;
 
         if(!tdbus_dcpd_playback_call_set_stream_info_sync(dbus_get_dcpd_playback_iface(),
                                                           current_stream_data_.stream_id_.get_raw_id(),
@@ -337,7 +337,7 @@ bool Playback::Player::track_times_notification(const std::chrono::milliseconds 
     return true;
 }
 
-std::pair<const PlayInfo::MetaData *, LoggedLock::UniqueLock<LoggedLock::Mutex>>
+std::pair<const MetaData::Set *, LoggedLock::UniqueLock<LoggedLock::Mutex>>
 Playback::Player::get_track_meta_data__locked() const
 {
     return std::make_pair(&current_stream_data_.track_info_.meta_data_,
@@ -537,21 +537,21 @@ void Playback::Player::do_skip_to_next(LockWithStopRequest &lockstop) const
     do_skip_to_next__unlocked();
 }
 
-bool Playback::Player::meta_data_put__locked(const PlayInfo::MetaData &md,
-                                             PlayInfo::MetaData::CopyMode mode)
+bool Playback::Player::meta_data_put__locked(const MetaData::Set &md,
+                                             MetaData::Set::CopyMode mode)
 {
     std::lock_guard<LoggedLock::Mutex> lock_csd(current_stream_data_.lock_);
     return do_meta_data_put(md, mode);
 }
 
-bool Playback::Player::meta_data_put__unlocked(const PlayInfo::MetaData &md,
-                                               PlayInfo::MetaData::CopyMode mode)
+bool Playback::Player::meta_data_put__unlocked(const MetaData::Set &md,
+                                               MetaData::Set::CopyMode mode)
 {
     return do_meta_data_put(md, mode);
 }
 
-bool Playback::Player::do_meta_data_put(const PlayInfo::MetaData &md,
-                                            PlayInfo::MetaData::CopyMode mode)
+bool Playback::Player::do_meta_data_put(const MetaData::Set &md,
+                                        MetaData::Set::CopyMode mode)
 {
     if(md == current_stream_data_.track_info_.meta_data_)
         return false;

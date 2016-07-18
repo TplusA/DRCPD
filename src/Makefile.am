@@ -36,7 +36,7 @@ drcpd_SOURCES = \
     search_algo.hh \
     actor_id.h \
     ui_parameters.hh ui_parameters_predefined.hh search_parameters.hh \
-    playinfo.hh idtypes.hh stream_id.h stream_id.hh context_map.hh \
+    playinfo.hh metadata.hh idtypes.hh stream_id.h stream_id.hh context_map.hh \
     player.hh playbackmode.hh playbackmode_state.hh logged_lock.hh \
     playback_abort_enqueue.hh busy.hh \
     $(DBUS_IFACES)/de_tahifi_lists_errors.hh \
@@ -81,7 +81,7 @@ libviews_la_SOURCES = \
     view_config.hh view_config.cc \
     view_filebrowser.hh view_filebrowser_utils.hh view_filebrowser.cc \
     view_filebrowser_airable.hh view_filebrowser_airable.cc \
-    view_play.hh view_play.cc playinfo.hh playinfo.cc \
+    view_play.hh view_play.cc playinfo.hh metadata.hh metadata.cc \
     view_search.hh view_search.cc \
     view_manager.hh view_manager.cc \
     ui_events.hh ui_event_queue.hh \

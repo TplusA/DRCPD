@@ -40,7 +40,7 @@ namespace playinfo_tests
 static MockMessages *mock_messages;
 
 static PlayInfo::Data *data;
-static PlayInfo::Reformatters no_reformat;
+static MetaData::Reformatters no_reformat;
 
 void cut_setup()
 {
@@ -81,7 +81,7 @@ void test_allocated_playinfo_data_is_all_empty()
  * All strings except the one with the given ID must be empty. The non-empty
  * one must contain the expected string.
  */
-static void check_single_meta_data(const std::string &expected, PlayInfo::MetaData::ID id)
+static void check_single_meta_data(const std::string &expected, MetaData::Set::ID id)
 {
     cppcut_assert_equal(expected, data->meta_data_.values_[id]);
 
@@ -103,7 +103,7 @@ void test_set_title()
     static const std::string expected = "Ich will brennen";
 
     data->meta_data_.add("title", expected.c_str(), no_reformat);
-    check_single_meta_data(expected, PlayInfo::MetaData::TITLE);
+    check_single_meta_data(expected, MetaData::Set::TITLE);
 }
 
 /*!\test
@@ -114,7 +114,7 @@ void test_set_artist()
     static const std::string expected = "Deine Lakaien";
 
     data->meta_data_.add("artist", expected.c_str(), no_reformat);
-    check_single_meta_data(expected, PlayInfo::MetaData::ARTIST);
+    check_single_meta_data(expected, MetaData::Set::ARTIST);
 }
 
 /*!\test
@@ -125,7 +125,7 @@ void test_set_album()
     static const std::string expected = "Zombieland";
 
     data->meta_data_.add("album", expected.c_str(), no_reformat);
-    check_single_meta_data(expected, PlayInfo::MetaData::ALBUM);
+    check_single_meta_data(expected, MetaData::Set::ALBUM);
 }
 
 /*!\test
@@ -136,7 +136,7 @@ void test_set_audio_codec()
     static const std::string expected = "MPEG 1 Audio, Layer 3 (MP3)";
 
     data->meta_data_.add("audio-codec", expected.c_str(), no_reformat);
-    check_single_meta_data(expected, PlayInfo::MetaData::CODEC);
+    check_single_meta_data(expected, MetaData::Set::CODEC);
 }
 
 /*!\test
@@ -147,7 +147,7 @@ void test_set_minimum_bitrate()
     static const std::string expected = "158315";
 
     data->meta_data_.add("minimum-bitrate", expected.c_str(), no_reformat);
-    check_single_meta_data(expected, PlayInfo::MetaData::BITRATE_MIN);
+    check_single_meta_data(expected, MetaData::Set::BITRATE_MIN);
 }
 
 /*!\test
@@ -158,7 +158,7 @@ void test_set_maximum_bitrate()
     static const std::string expected = "159862";
 
     data->meta_data_.add("maximum-bitrate", expected.c_str(), no_reformat);
-    check_single_meta_data(expected, PlayInfo::MetaData::BITRATE_MAX);
+    check_single_meta_data(expected, MetaData::Set::BITRATE_MAX);
 }
 
 /*!\test
@@ -169,7 +169,7 @@ void test_set_nominal_bitrate()
     static const std::string expected = "160000";
 
     data->meta_data_.add("nominal-bitrate", expected.c_str(), no_reformat);
-    check_single_meta_data(expected, PlayInfo::MetaData::BITRATE_NOM);
+    check_single_meta_data(expected, MetaData::Set::BITRATE_NOM);
 }
 
 /*!\test
@@ -180,7 +180,7 @@ void test_set_plain_bitrate()
     static const std::string expected = "736451";
 
     data->meta_data_.add("bitrate", expected.c_str(), no_reformat);
-    check_single_meta_data(expected, PlayInfo::MetaData::BITRATE);
+    check_single_meta_data(expected, MetaData::Set::BITRATE);
 }
 
 /*!\test
@@ -191,7 +191,7 @@ void test_set_internal_fallback_title()
     static const std::string expected = "Some name obtained from a List Broker";
 
     data->meta_data_.add("x-drcpd-title", expected.c_str(), no_reformat);
-    check_single_meta_data(expected, PlayInfo::MetaData::INTERNAL_DRCPD_TITLE);
+    check_single_meta_data(expected, MetaData::Set::INTERNAL_DRCPD_TITLE);
 }
 
 /*!\test
@@ -202,7 +202,7 @@ void test_set_internal_url()
     static const std::string expected = "Some URL obtained from a List Broker";
 
     data->meta_data_.add("x-drcpd-url", expected.c_str(), no_reformat);
-    check_single_meta_data(expected, PlayInfo::MetaData::INTERNAL_DRCPD_URL);
+    check_single_meta_data(expected, MetaData::Set::INTERNAL_DRCPD_URL);
 }
 
 /*!\test
@@ -232,7 +232,7 @@ void test_set_nominal_bitrate_rounded_to_kbit_per_sec()
     {
         data->meta_data_.add("nominal-bitrate", pair.first,
                              ViewPlay::meta_data_reformatters);
-        check_single_meta_data(pair.second, PlayInfo::MetaData::BITRATE_NOM);
+        check_single_meta_data(pair.second, MetaData::Set::BITRATE_NOM);
     }
 }
 
@@ -265,7 +265,7 @@ void test_set_maximum_bitrate_attempt_rounding_funny_values()
                                         "Invalid bitrate string: \"%s\", leaving as is");
         data->meta_data_.add("maximum-bitrate", s,
                              ViewPlay::meta_data_reformatters);
-        check_single_meta_data(s, PlayInfo::MetaData::BITRATE_MAX);
+        check_single_meta_data(s, MetaData::Set::BITRATE_MAX);
     }
 }
 
@@ -284,22 +284,22 @@ void test_clear_regular_meta_data()
     data->meta_data_.add("bitrate",         "h", no_reformat);
 
     /* all set */
-    for(size_t i = 0; i <= PlayInfo::MetaData::METADATA_ID_LAST_REGULAR; ++i)
+    for(size_t i = 0; i <= MetaData::Set::METADATA_ID_LAST_REGULAR; ++i)
         cut_assert_false(data->meta_data_.values_[i].empty());
 
-    for(size_t i = PlayInfo::MetaData::METADATA_ID_FIRST_INTERNAL;
-        i <= PlayInfo::MetaData::METADATA_ID_LAST;
+    for(size_t i = MetaData::Set::METADATA_ID_FIRST_INTERNAL;
+        i <= MetaData::Set::METADATA_ID_LAST;
         ++i)
         cut_assert_true(data->meta_data_.values_[i].empty());
 
     data->meta_data_.clear(true);
 
     /* none set */
-    for(size_t i = 0; i <= PlayInfo::MetaData::METADATA_ID_LAST_REGULAR; ++i)
+    for(size_t i = 0; i <= MetaData::Set::METADATA_ID_LAST_REGULAR; ++i)
         cut_assert_true(data->meta_data_.values_[i].empty());
 
-    for(size_t i = PlayInfo::MetaData::METADATA_ID_FIRST_INTERNAL;
-        i <= PlayInfo::MetaData::METADATA_ID_LAST;
+    for(size_t i = MetaData::Set::METADATA_ID_FIRST_INTERNAL;
+        i <= MetaData::Set::METADATA_ID_LAST;
         ++i)
         cut_assert_true(data->meta_data_.values_[i].empty());
 }
@@ -315,29 +315,29 @@ void test_clear_meta_data()
     data->meta_data_.add("x-drcpd-title", "c", no_reformat);
     data->meta_data_.add("x-drcpd-url",   "d", no_reformat);
 
-    cut_assert_true(data->meta_data_.values_[PlayInfo::MetaData::TITLE].empty());
-    cut_assert_false(data->meta_data_.values_[PlayInfo::MetaData::ARTIST].empty());
-    cut_assert_true(data->meta_data_.values_[PlayInfo::MetaData::ALBUM].empty());
-    cut_assert_false(data->meta_data_.values_[PlayInfo::MetaData::CODEC].empty());
-    cut_assert_false(data->meta_data_.values_[PlayInfo::MetaData::INTERNAL_DRCPD_TITLE].empty());
-    cut_assert_false(data->meta_data_.values_[PlayInfo::MetaData::INTERNAL_DRCPD_URL].empty());
+    cut_assert_true(data->meta_data_.values_[MetaData::Set::TITLE].empty());
+    cut_assert_false(data->meta_data_.values_[MetaData::Set::ARTIST].empty());
+    cut_assert_true(data->meta_data_.values_[MetaData::Set::ALBUM].empty());
+    cut_assert_false(data->meta_data_.values_[MetaData::Set::CODEC].empty());
+    cut_assert_false(data->meta_data_.values_[MetaData::Set::INTERNAL_DRCPD_TITLE].empty());
+    cut_assert_false(data->meta_data_.values_[MetaData::Set::INTERNAL_DRCPD_URL].empty());
 
     data->meta_data_.clear(true);
 
     /* none set except internal data */
-    for(size_t i = 0; i <= PlayInfo::MetaData::METADATA_ID_LAST_REGULAR; ++i)
+    for(size_t i = 0; i <= MetaData::Set::METADATA_ID_LAST_REGULAR; ++i)
         cut_assert_true(data->meta_data_.values_[i].empty());
 
-    for(size_t i = PlayInfo::MetaData::METADATA_ID_FIRST_INTERNAL;
-        i <= PlayInfo::MetaData::METADATA_ID_LAST;
+    for(size_t i = MetaData::Set::METADATA_ID_FIRST_INTERNAL;
+        i <= MetaData::Set::METADATA_ID_LAST;
         ++i)
         cut_assert_false(data->meta_data_.values_[i].empty());
 
     /* none set */
     data->meta_data_.clear(false);
 
-    for(size_t i = PlayInfo::MetaData::METADATA_ID_FIRST_INTERNAL;
-        i <= PlayInfo::MetaData::METADATA_ID_LAST;
+    for(size_t i = MetaData::Set::METADATA_ID_FIRST_INTERNAL;
+        i <= MetaData::Set::METADATA_ID_LAST;
         ++i)
         cut_assert_true(data->meta_data_.values_[i].empty());
 }

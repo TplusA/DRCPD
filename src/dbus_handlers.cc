@@ -277,7 +277,7 @@ void dbussignal_splay_urlfifo(GDBusProxy *proxy, const gchar *sender_name,
     unknown_signal(iface_name, signal_name, sender_name);
 }
 
-static bool parse_meta_data(PlayInfo::MetaData &md, GVariantIter *meta_data_iter)
+static bool parse_meta_data(MetaData::Set &md, GVariantIter *meta_data_iter)
 {
     log_assert(meta_data_iter != nullptr);
 
@@ -329,7 +329,7 @@ void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
         auto params =
             UI::Events::mk_params<UI::EventID::VIEW_PLAYER_NOW_PLAYING>(
                 ID::Stream::make_from_raw_id(raw_stream_id),
-                queue_is_full, PlayInfo::MetaData(), url_string);
+                queue_is_full, MetaData::Set(), url_string);
 
         if(parse_meta_data(std::get<2>(params->get_specific_non_const()), meta_data_iter))
         {
@@ -352,7 +352,7 @@ void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
         auto params =
             UI::Events::mk_params<UI::EventID::VIEW_PLAYER_STORE_STREAM_META_DATA>(
                 ID::Stream::make_from_raw_id(raw_stream_id),
-                PlayInfo::MetaData());
+                MetaData::Set());
 
         if(parse_meta_data(std::get<1>(params->get_specific_non_const()), meta_data_iter))
             data->event_sink_.store_event(UI::EventID::VIEW_PLAYER_STORE_STREAM_META_DATA,

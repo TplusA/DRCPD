@@ -32,7 +32,7 @@
 /*!@{*/
 
 /*!
- * Minimalist version of #PlayInfo::MetaData.
+ * Minimalist version of #MetaData::Set.
  *
  * This structure is going to be embedded into each list item, so it better be
  * small. It represents the essential stream meta data in cases where the meta

@@ -51,10 +51,10 @@ class MetaDataStoreIface
 
     virtual ~MetaDataStoreIface() {}
 
-    virtual bool meta_data_put__locked(const PlayInfo::MetaData &md,
-                                       PlayInfo::MetaData::CopyMode mode) = 0;
-    virtual bool meta_data_put__unlocked(const PlayInfo::MetaData &md,
-                                         PlayInfo::MetaData::CopyMode mode) = 0;
+    virtual bool meta_data_put__locked(const MetaData::Set &md,
+                                       MetaData::Set::CopyMode mode) = 0;
+    virtual bool meta_data_put__unlocked(const MetaData::Set &md,
+                                         MetaData::Set::CopyMode mode) = 0;
 };
 
 /*!
@@ -202,7 +202,7 @@ class PlayerIface
      *     Track meta data, or \c nullptr in case there is not track playing at
      *     the moment.
      */
-    virtual std::pair<const PlayInfo::MetaData *, LoggedLock::UniqueLock<LoggedLock::Mutex>>
+    virtual std::pair<const MetaData::Set *, LoggedLock::UniqueLock<LoggedLock::Mutex>>
     get_track_meta_data__locked() const = 0;
 
     /*!
@@ -598,7 +598,7 @@ class Player: public PlayerIface, public MetaDataStoreIface
     Requests requests_;
     std::atomic_bool enqueuing_in_progress_;
 
-    const PlayInfo::Reformatters &meta_data_reformatters_;
+    const MetaData::Reformatters &meta_data_reformatters_;
 
     void do_take(LockWithStopRequest &lockstop,
                  const State *expected_playback_state,
@@ -616,7 +616,7 @@ class Player: public PlayerIface, public MetaDataStoreIface
     Player(const Player &) = delete;
     Player &operator=(const Player &) = delete;
 
-    explicit Player(const PlayInfo::Reformatters &meta_data_reformatters):
+    explicit Player(const MetaData::Reformatters &meta_data_reformatters):
         meta_data_reformatters_(meta_data_reformatters)
     {}
 
@@ -637,7 +637,7 @@ class Player: public PlayerIface, public MetaDataStoreIface
     bool track_times_notification(const std::chrono::milliseconds &position,
                                   const std::chrono::milliseconds &duration) override;
 
-    std::pair<const PlayInfo::MetaData *, LoggedLock::UniqueLock<LoggedLock::Mutex>>
+    std::pair<const MetaData::Set *, LoggedLock::UniqueLock<LoggedLock::Mutex>>
     get_track_meta_data__locked() const override;
 
     PlayInfo::Data::StreamState get_assumed_stream_state__locked() const override;
@@ -649,10 +649,10 @@ class Player: public PlayerIface, public MetaDataStoreIface
     void skip_to_previous(std::chrono::milliseconds rewind_threshold) override;
     void skip_to_next() override;
 
-    bool meta_data_put__locked(const PlayInfo::MetaData &md,
-                               PlayInfo::MetaData::CopyMode mode) override;
-    bool meta_data_put__unlocked(const PlayInfo::MetaData &md,
-                                 PlayInfo::MetaData::CopyMode mode) override;
+    bool meta_data_put__locked(const MetaData::Set &md,
+                               MetaData::Set::CopyMode mode) override;
+    bool meta_data_put__unlocked(const MetaData::Set &md,
+                                 MetaData::Set::CopyMode mode) override;
 
     void set_external_stream_meta_data(ID::Stream stream_id,
                                        const std::string &artist,
@@ -662,7 +662,7 @@ class Player: public PlayerIface, public MetaDataStoreIface
                                        const std::string &url);
 
   private:
-    bool do_meta_data_put(const PlayInfo::MetaData &md, PlayInfo::MetaData::CopyMode mode);
+    bool do_meta_data_put(const MetaData::Set &md, MetaData::Set::CopyMode mode);
     bool is_active_mode(const Playback::State *new_state = nullptr);
     bool is_different_active_mode(const Playback::State *new_state);
 
