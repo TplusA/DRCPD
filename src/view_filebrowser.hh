@@ -24,15 +24,11 @@
 #include "view.hh"
 #include "view_serialize.hh"
 #include "playbackmode_state.hh"
-#include "streaminfo.hh"
 #include "search_parameters.hh"
-#include "context_map.hh"
 #include "timeout.hh"
 #include "dbuslist.hh"
 #include "dbus_iface.h"
 #include "dbus_iface_deep.h"
-#include "idtypes.hh"
-#include "de_tahifi_lists_item_kinds.hh"
 
 namespace Playback { class Player; }
 
@@ -283,33 +279,6 @@ class View: public ViewIface, public ViewSerializeBase
                                                      const std::shared_ptr<List::QueryContextEnterList> &ctx);
     virtual void handle_get_item_event(List::AsyncListIface::OpResult result,
                                        const std::shared_ptr<List::QueryContextGetItem> &ctx);
-};
-
-class FileItem: public List::TextItem
-{
-  private:
-    ListItemKind kind_;
-    PreloadedMetaData preloaded_meta_data_;
-
-  public:
-    FileItem(const FileItem &) = delete;
-    FileItem &operator=(const FileItem &) = delete;
-    explicit FileItem(FileItem &&) = default;
-
-    explicit FileItem(const char *text, unsigned int flags,
-                      ListItemKind item_kind, PreloadedMetaData &&meta_data):
-        List::Item(flags),
-        List::TextItem(text, true, flags),
-        kind_(item_kind),
-        preloaded_meta_data_(std::move(meta_data))
-    {}
-
-    ListItemKind get_kind() const { return kind_; }
-
-    const PreloadedMetaData &get_preloaded_meta_data() const
-    {
-        return preloaded_meta_data_;
-    }
 };
 
 };

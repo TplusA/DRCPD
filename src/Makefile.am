@@ -30,7 +30,8 @@ drcpd_SOURCES = \
     list.hh ramlist.hh dbuslist.hh dbuslist_exception.hh listnav.hh \
     view.hh view_serialize.hh view_names.hh view_nop.hh \
     view_manager.hh ui_events.hh ui_event_queue.hh xmlescape.hh \
-    view_config.hh view_filebrowser.hh view_filebrowser_airable.hh \
+    view_config.hh \
+    view_filebrowser.hh view_filebrowser_fileitem.hh view_filebrowser_airable.hh \
     view_filebrowser_utils.hh view_play.hh \
     view_search.hh \
     search_algo.hh \
@@ -80,6 +81,7 @@ libviews_la_SOURCES = \
     view_names.hh view_nop.hh \
     view_config.hh view_config.cc \
     view_filebrowser.hh view_filebrowser_utils.hh view_filebrowser.cc \
+    view_filebrowser_fileitem.hh \
     view_filebrowser_airable.hh view_filebrowser_airable.cc \
     view_play.hh view_play.cc playinfo.hh metadata.hh metadata.cc \
     view_search.hh view_search.cc \

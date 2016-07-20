@@ -22,6 +22,7 @@
 
 #include <cstring>
 
+#include "view_filebrowser_fileitem.hh"
 #include "view_filebrowser.hh"
 #include "view_search.hh"
 #include "view_manager.hh"

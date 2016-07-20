@@ -21,6 +21,7 @@
 #endif /* HAVE_CONFIG_H */
 
 #include "view_filebrowser_airable.hh"
+#include "view_filebrowser_fileitem.hh"
 #include "view_filebrowser_utils.hh"
 #include "ui_parameters_predefined.hh"
 #include "de_tahifi_lists_context.h"

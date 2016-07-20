@@ -25,7 +25,8 @@
 #include "de_tahifi_lists_context.h"
 #include "context_map.hh"
 #include "streaminfo.hh"
-#include "view_filebrowser.hh"
+#include "view_filebrowser_fileitem.hh"
+#include "i18n.h"
 #include "messages.h"
 #include "logged_lock.hh"
 
