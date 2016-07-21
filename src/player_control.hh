@@ -28,6 +28,57 @@
 namespace Player
 {
 
+/*!
+ * Keep track of fast skip requests and user intention.
+ */
+class Skipper
+{
+  public:
+    enum SkipState
+    {
+        REJECTED,
+        FIRST_SKIP_REQUEST,
+        SKIPPING,
+        BACK_TO_NORMAL,
+    };
+
+  private:
+    static constexpr const char MAX_PENDING_SKIP_REQUESTS = 5;
+
+    bool is_skipping_;
+
+    /*!
+     * Cumulated effect of fast skip requests.
+     */
+    char pending_skip_requests_;
+
+  public:
+    Skipper(const Skipper &) = delete;
+    Skipper &operator=(const Skipper &) = delete;
+
+    constexpr explicit Skipper():
+        is_skipping_(false),
+        pending_skip_requests_(0)
+    {}
+
+    void reset()
+    {
+        is_skipping_ = false;
+        pending_skip_requests_ = 0;
+    }
+
+    SkipState forward_request(Data &data, Playlist::CrawlerIface &crawler,
+                              UserIntention &previous_intention);
+    SkipState backward_request(Data &data, Playlist::CrawlerIface &crawler,
+                               UserIntention &previous_intention);
+    bool skipped(Data &data, Playlist::CrawlerIface &crawler);
+    void stop_skipping(Data &data, Playlist::CrawlerIface &crawler);
+
+  private:
+    static bool set_intention_for_skipping(Data &data);
+    static void set_intention_from_skipping(Data &data);
+};
+
 class Control
 {
   public:
@@ -47,12 +98,7 @@ class Control
     LoggedLock::RecMutex crawler_dummy_lock_;
     const LocalPermissionsIface *permissions_;
 
-    /*!
-     * Cumulated effect of fast skip requests.
-     */
-    char pending_skip_requests_;
-
-    static constexpr const char MAX_PENDING_SKIP_REQUESTS = 5;
+    Skipper skip_requests_;
 
     ID::OurStream next_stream_in_queue_;
     bool is_prefetching_;
@@ -66,7 +112,6 @@ class Control
         player_(nullptr),
         crawler_(nullptr),
         permissions_(nullptr),
-        pending_skip_requests_(0),
         next_stream_in_queue_(ID::OurStream::make_invalid()),
         is_prefetching_(false)
     {
