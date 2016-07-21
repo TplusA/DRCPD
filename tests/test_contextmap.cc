@@ -30,6 +30,7 @@
 constexpr const uint32_t List::ContextInfo::HAS_EXTERNAL_META_DATA;
 constexpr const uint32_t List::ContextInfo::HAS_PROPER_SEARCH_FORM;
 constexpr const uint32_t List::ContextInfo::SEARCH_NOT_POSSIBLE;
+constexpr const uint32_t List::ContextInfo::HAS_LOCAL_PERMISSIONS;
 constexpr const uint32_t List::ContextInfo::INTERNAL_INVALID;
 constexpr const uint32_t List::ContextInfo::INTERNAL_FLAGS_MASK;
 constexpr const uint32_t List::ContextInfo::PUBLIC_FLAGS_MASK;

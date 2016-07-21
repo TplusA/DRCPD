@@ -23,7 +23,7 @@
 #include <cstring>
 #include <algorithm>
 
-#include "playinfo.hh"
+#include "metadata.hh"
 #include "messages.h"
 
 static const struct

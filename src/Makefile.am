@@ -37,9 +37,12 @@ drcpd_SOURCES = \
     search_algo.hh \
     actor_id.h \
     ui_parameters.hh ui_parameters_predefined.hh search_parameters.hh \
-    playinfo.hh metadata.hh idtypes.hh stream_id.h stream_id.hh context_map.hh \
-    player.hh playbackmode.hh playbackmode_state.hh logged_lock.hh \
-    playback_abort_enqueue.hh busy.hh \
+    player_control.hh player_control.cc \
+    player_data.hh player_data.cc \
+    playlist_crawler.hh directory_crawler.hh \
+    metadata.hh metadata_preloaded.hh \
+    idtypes.hh stream_id.h stream_id.hh context_map.hh \
+    logged_lock.hh \
     $(DBUS_IFACES)/de_tahifi_lists_errors.hh \
     $(DBUS_IFACES)/de_tahifi_lists_errors.h \
     $(DBUS_IFACES)/de_tahifi_lists_context.h \
@@ -58,14 +61,13 @@ AM_CXXFLAGS = $(CXXWARNINGS)
 
 noinst_LTLIBRARIES = \
     libviews.la \
-    libplayback.la \
     libdcp_transaction.la \
     liblist.la \
     liblistsearch.la \
     libcontextmap.la \
     libdbus_handlers.la \
     libdrcpd_dbus_client.la \
-    libstreaminfo.la \
+    libmetadata.la \
     libbusystate.la
 
 drcpd_LDADD = $(noinst_LTLIBRARIES) $(DRCPD_DEPENDENCIES_LIBS)
@@ -83,28 +85,28 @@ libviews_la_SOURCES = \
     view_filebrowser.hh view_filebrowser_utils.hh view_filebrowser.cc \
     view_filebrowser_fileitem.hh \
     view_filebrowser_airable.hh view_filebrowser_airable.cc \
-    view_play.hh view_play.cc playinfo.hh metadata.hh metadata.cc \
+    view_play.hh view_play.cc metadata.hh metadata_preloaded.hh \
     view_search.hh view_search.cc \
     view_manager.hh view_manager.cc \
     ui_events.hh ui_event_queue.hh \
     idtypes.hh stream_id.h stream_id.hh \
+    playlist_crawler.hh directory_crawler.cc directory_crawler.hh \
     ui_parameters.hh ui_parameters_predefined.hh search_parameters.hh \
     search_algo.hh \
     actor_id.h \
     dbuslist.hh dbuslist_exception.hh \
-    playbackmode.hh playbackmode_state.hh logged_lock.hh \
-    playback_abort_enqueue.hh
+    logged_lock.hh
 libviews_la_CFLAGS = $(AM_CFLAGS)
 libviews_la_CXXFLAGS = $(AM_CXXFLAGS)
 
-libplayback_la_SOURCES = \
-    player.cc player.hh \
-    idtypes.hh stream_id.h stream_id.hh logged_lock.hh \
-    playbackmode.hh playbackmode_state.hh playbackmode_state.cc \
-    playback_abort_enqueue.hh \
-    dbus_async.hh
-libplayback_la_CFLAGS = $(CRELAXEDWARNINGS)
-libplayback_la_CXXFLAGS = $(CXXRELAXEDWARNINGS)
+# libplayback_la_SOURCES = \
+#     player.cc player.hh \
+#     idtypes.hh stream_id.h stream_id.hh logged_lock.hh \
+#     playbackmode.hh playbackmode_state.hh playbackmode_state.cc \
+#     playback_abort_enqueue.hh \
+#     dbus_async.hh
+# libplayback_la_CFLAGS = $(CRELAXEDWARNINGS)
+# libplayback_la_CXXFLAGS = $(CXXRELAXEDWARNINGS)
 
 libdcp_transaction_la_SOURCES = \
     dcp_transaction.cc dcp_transaction.hh \
@@ -116,9 +118,9 @@ libdbus_handlers_la_SOURCES = dbus_handlers.h dbus_handlers.hh dbus_handlers.cc 
 libdbus_handlers_la_CFLAGS = $(AM_CFLAGS)
 libdbus_handlers_la_CXXFLAGS = $(AM_CXXFLAGS)
 
-libstreaminfo_la_SOURCES = streaminfo.hh streaminfo.cc
-libstreaminfo_la_CFLAGS = $(AM_CFLAGS)
-libstreaminfo_la_CXXFLAGS = $(AM_CXXFLAGS)
+libmetadata_la_SOURCES = metadata.hh metadata.cc
+libmetadata_la_CFLAGS = $(AM_CFLAGS)
+libmetadata_la_CXXFLAGS = $(AM_CXXFLAGS)
 
 libbusystate_la_SOURCES = busy.hh busy.cc logged_lock.hh
 libbusystate_la_CFLAGS = $(AM_CFLAGS)

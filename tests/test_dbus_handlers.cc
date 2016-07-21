@@ -25,7 +25,6 @@
 #include "dbus_handlers.h"
 #include "dbus_handlers.hh"
 #include "de_tahifi_lists_errors.hh"
-#include "player.hh"
 #include "view_play.hh"
 #include "ui_parameters_predefined.hh"
 
@@ -45,7 +44,6 @@ namespace dbus_handlers_tests
 
 static MockMessages *mock_messages;
 static MockViewManager *mock_view_manager;
-static Playback::Player *player;
 
 static GDBusProxy *dummy_gdbus_proxy;
 static const char dummy_sender_name[] = ":1.123";
@@ -62,16 +60,10 @@ void cut_setup(void)
     mock_view_manager = new MockViewManager;
     cppcut_assert_not_null(mock_view_manager);
     mock_view_manager->init();
-
-    player = new Playback::Player(ViewPlay::meta_data_reformatters);
-    cppcut_assert_not_null(player);
 }
 
 void cut_teardown(void)
 {
-    delete player;
-    player = nullptr;
-
     mock_messages->check();
     mock_view_manager->check();
 

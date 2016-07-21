@@ -26,7 +26,7 @@
 #include "ui_parameters.hh"
 #include "ui_events.hh"
 #include "actor_id.h"
-#include "playinfo.hh"
+#include "metadata.hh"
 #include "search_parameters.hh"
 
 namespace UI
@@ -85,9 +85,7 @@ struct ParamTraits<EventID::VIEW_PLAYER_NOW_PLAYING>
 template <>
 struct ParamTraits<EventID::VIEW_PLAYER_STORE_PRELOADED_META_DATA>
 {
-    using PType = SpecificParameters<std::tuple<const ID::Stream, const std::string,
-                                                const std::string, const std::string,
-                                                const std::string, const std::string>>;
+    using PType = SpecificParameters<std::tuple<const ID::Stream, MetaData::Set>>;
 };
 
 template <>

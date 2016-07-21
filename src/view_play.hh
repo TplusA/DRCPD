@@ -24,7 +24,7 @@
 #include "view.hh"
 #include "view_serialize.hh"
 #include "view_names.hh"
-#include "playinfo.hh"
+#include "player_control.hh"
 
 namespace Playback { class Player; }
 
@@ -50,7 +50,8 @@ class View: public ViewIface, public ViewSerializeBase
 
     bool is_visible_;
 
-    Playback::Player &player_;
+    Player::Data player_data_;
+    Player::Control player_control_;
 
   public:
     View(const View &) = delete;
@@ -58,12 +59,10 @@ class View: public ViewIface, public ViewSerializeBase
     View &operator=(const View &) = delete;
 
     explicit View(const char *on_screen_name, unsigned int max_lines,
-                  Playback::Player &player,
                   ViewManager::VMIface *view_manager):
         ViewIface(ViewNames::PLAYER, false, view_manager),
         ViewSerializeBase(on_screen_name, "play", 100U),
-        is_visible_(false),
-        player_(player)
+        is_visible_(false)
     {}
 
     virtual ~View() {}
@@ -79,18 +78,18 @@ class View: public ViewIface, public ViewSerializeBase
     void serialize(DCP::Queue &queue, DCP::Queue::Mode mode,
                    std::ostream *debug_os) override;
 
+    void prepare_for_playing(const ViewIface &owning_view,
+                             Playlist::CrawlerIface &crawler);
+    void stop_playing(const ViewIface &owning_view);
+
+    void append_referenced_lists(const ViewIface &owning_view,
+                                 std::vector<ID::List> &list_ids) const;
+
   private:
     /*!
      * Generate XML document from current state.
      */
     bool write_xml(std::ostream &os, const DCP::Queue::Data &data) override;
-
-    void notify_stream_start();
-    void notify_stream_stop();
-    void notify_stream_pause();
-    void notify_stream_position_changed();
-    void notify_stream_meta_data_changed();
-
 };
 
 };

@@ -20,10 +20,16 @@
 #define METADATA_HH
 
 #include <array>
+#include <map>
 #include <string>
 #include <functional>
 
 #include "idtypes.hh"
+
+/*!
+ * \addtogroup metadata Stream meta data
+ */
+/*!@{*/
 
 namespace MetaData
 {
@@ -61,6 +67,7 @@ class Set
         METADATA_ID_LAST = INTERNAL_DRCPD_URL,
     };
 
+    /* XXX: Remove this */
     enum class CopyMode
     {
         ALL,
@@ -86,6 +93,48 @@ class Set
     void dump(const char *what) const;
 };
 
+class Collection
+{
+  private:
+    static constexpr const size_t MAX_ENTRIES = 30;
+    std::map<ID::Stream, Set> meta_data_sets_;
+
+  public:
+    Collection(const Collection &) = delete;
+    Collection &operator=(const Collection &) = delete;
+
+    explicit Collection() {}
+
+    bool is_full() const
+    {
+        return meta_data_sets_.size() >= MAX_ENTRIES;
+    }
+
+    void insert(ID::Stream stream_id, const Set &src)
+    {
+        meta_data_sets_.emplace(stream_id, src);
+    }
+
+    void emplace(ID::Stream stream_id, Set &&src)
+    {
+        meta_data_sets_.emplace(stream_id, std::move(src));
+    }
+
+    bool forget_stream(ID::Stream stream_id)
+    {
+        const auto result(meta_data_sets_.erase(stream_id));
+        return result > 0;
+    }
+
+    Set *get_meta_data_for_update(ID::Stream stream_id)
+    {
+        auto result(meta_data_sets_.find(stream_id));
+        return (result != meta_data_sets_.end() ? &result->second : nullptr);
+    }
 };
+
+};
+
+/*!@}*/
 
 #endif /* !METADATA_HH */

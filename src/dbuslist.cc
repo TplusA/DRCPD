@@ -24,7 +24,6 @@
 #include "de_tahifi_lists_errors.hh"
 #include "de_tahifi_lists_context.h"
 #include "context_map.hh"
-#include "streaminfo.hh"
 #include "view_filebrowser_fileitem.hh"
 #include "i18n.h"
 #include "messages.h"
@@ -817,7 +816,14 @@ List::DBusList::get_item_async_set_hint(unsigned int line, unsigned int count,
         return OpResult::FAILED;
 
     if(count == 0 || count > number_of_prefetched_items_)
+    {
+        if(count == 0)
+            BUG("Hint async operation with no items");
+        else
+            BUG("Hint async operation with more items than prefetched");
+
         return OpResult::FAILED;
+    }
 
     unsigned int size_of_cached_overlap;
     unsigned int size_of_loading_segment;
@@ -883,7 +889,7 @@ List::DBusList::get_item_async(unsigned int line, const Item *&item)
      */
     static const ViewFileBrowser::FileItem loading(_("Loading..."), 0U,
                                                    ListItemKind(ListItemKind::LOCKED),
-                                                   PreloadedMetaData());
+                                                   MetaData::PreloadedSet());
 
     log_assert(window_.list_id_.is_valid());
 
@@ -911,6 +917,12 @@ List::DBusList::get_item_async(unsigned int line, const Item *&item)
     }
 
     return OpResult::FAILED;
+}
+
+void List::DBusList::cancel_async()
+{
+    LoggedLock::UniqueLock<LoggedLock::Mutex> lock(async_dbus_data_.lock_);
+    async_dbus_data_.cancel_all();
 }
 
 void List::DBusList::get_item_async_handle_done(LoggedLock::UniqueLock<LoggedLock::Mutex> &lock)

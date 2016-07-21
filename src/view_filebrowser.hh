@@ -21,16 +21,15 @@
 
 #include <memory>
 
+#include "directory_crawler.hh"
 #include "view.hh"
 #include "view_serialize.hh"
-#include "playbackmode_state.hh"
+#include "listnav.hh"
 #include "search_parameters.hh"
 #include "timeout.hh"
 #include "dbuslist.hh"
 #include "dbus_iface.h"
 #include "dbus_iface_deep.h"
-
-namespace Playback { class Player; }
 
 class WaitForParametersHelper;
 
@@ -99,8 +98,6 @@ class View: public ViewIface, public ViewSerializeBase
     };
 
   private:
-    static constexpr unsigned int assumed_streamplayer_fifo_size = 2;
-
     dbus_listbroker_id_t listbroker_id_;
 
   protected:
@@ -115,20 +112,18 @@ class View: public ViewIface, public ViewSerializeBase
     List::Nav navigation_;
 
   private:
-    /* list for the automatic directory traversal */
-    List::DBusList traversal_list_;
-    bool traversal_reverse_;
+    Playlist::DirectoryCrawler crawler_;
+    Playlist::CrawlerIface::RecursiveMode default_recursive_mode_;
+    Playlist::CrawlerIface::ShuffleMode default_shuffle_mode_;
 
     const uint8_t drcp_browse_id_;
 
-    Playback::Player &player_;
-    bool player_is_mine_;
-    Playback::CurrentMode playback_current_mode_;
-    Playback::State playback_current_state_;
     Timeout::Timer keep_lists_alive_timeout_;
 
     ViewIface *search_parameters_view_;
     bool waiting_for_search_parameters_;
+
+    ViewIface *play_view_;
 
     AsyncCalls async_calls_;
 
@@ -140,8 +135,8 @@ class View: public ViewIface, public ViewSerializeBase
     explicit View(const char *name, const char *on_screen_name,
                   uint8_t drcp_browse_id, unsigned int max_lines,
                   dbus_listbroker_id_t listbroker_id,
-                  Playback::Player &player,
-                  Playback::Mode default_playback_mode,
+                  Playlist::CrawlerIface::RecursiveMode default_recursive_mode,
+                  Playlist::CrawlerIface::ShuffleMode default_shuffle_mode,
                   ViewManager::VMIface *view_manager):
         ViewIface(name, true, view_manager),
         ViewSerializeBase(on_screen_name, "browse", 102U),
@@ -152,15 +147,11 @@ class View: public ViewIface, public ViewSerializeBase
                    construct_file_item),
         item_flags_(&file_list_),
         navigation_(max_lines, List::Nav::WrapMode::FULL_WRAP, item_flags_),
-        traversal_list_(dbus_get_lists_navigation_iface(listbroker_id_),
-                        list_contexts_, assumed_streamplayer_fifo_size + 1,
-                        construct_file_item),
-        traversal_reverse_(false),
+        crawler_(dbus_get_lists_navigation_iface(listbroker_id_),
+                 list_contexts_, construct_file_item),
+        default_recursive_mode_(default_recursive_mode),
+        default_shuffle_mode_(default_shuffle_mode),
         drcp_browse_id_(drcp_browse_id),
-        player_(player),
-        player_is_mine_(false),
-        playback_current_mode_(default_playback_mode),
-        playback_current_state_(traversal_list_, playback_current_mode_),
         search_parameters_view_(nullptr),
         waiting_for_search_parameters_(false)
     {}

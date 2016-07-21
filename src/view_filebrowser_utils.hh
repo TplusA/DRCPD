@@ -22,6 +22,7 @@
 #include "dbuslist.hh"
 #include "de_tahifi_lists_errors.hh"
 #include "listnav.hh"
+#include "search_parameters.hh"
 
 /*!
  * \addtogroup view_filesystem

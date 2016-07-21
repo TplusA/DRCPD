@@ -103,8 +103,15 @@ void dbussignal_dcpd_playback(GDBusProxy *proxy, const gchar *sender_name,
 
         auto params =
             UI::Events::mk_params<UI::EventID::VIEW_PLAYER_STORE_PRELOADED_META_DATA>(
-                ID::Stream::make_from_raw_id(raw_stream_id),
-                artist, album, title, alttrack, url);
+                ID::Stream::make_from_raw_id(raw_stream_id), MetaData::Set());
+
+        auto &md(std::get<1>(params->get_specific_non_const()));
+        md.add(MetaData::Set::ARTIST, artist, ViewPlay::meta_data_reformatters);
+        md.add(MetaData::Set::ALBUM, album, ViewPlay::meta_data_reformatters);
+        md.add(MetaData::Set::TITLE, title, ViewPlay::meta_data_reformatters);
+        md.add(MetaData::Set::INTERNAL_DRCPD_TITLE, alttrack, ViewPlay::meta_data_reformatters);
+        md.add(MetaData::Set::INTERNAL_DRCPD_URL, url, ViewPlay::meta_data_reformatters);
+
         data->event_sink_.store_event(UI::EventID::VIEW_PLAYER_STORE_PRELOADED_META_DATA,
                                       std::move(params));
     }

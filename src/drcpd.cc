@@ -33,7 +33,6 @@
 #include "view_manager.hh"
 #include "view_play.hh"
 #include "view_search.hh"
-#include "player.hh"
 #include "dbus_iface.h"
 #include "dbus_handlers.hh"
 #include "busy.hh"
@@ -446,7 +445,6 @@ static void defer_dcp_transfer(DCP::Queue *queue)
 }
 
 static void connect_everything(ViewManager::Manager &views,
-                               Playback::Player &player,
                                DBus::SignalData &dbus_data)
 {
     static ViewConfig::View cfg(N_("Configuration"),
@@ -455,23 +453,26 @@ static void connect_everything(ViewManager::Manager &views,
                                     N_("USB devices"), 1,
                                     views.NUMBER_OF_LINES_ON_DISPLAY,
                                     DBUS_LISTBROKER_ID_FILESYSTEM,
-                                    player, Playback::Mode::LINEAR,
+                                    Playlist::CrawlerIface::RecursiveMode::DEPTH_FIRST,
+                                    Playlist::CrawlerIface::ShuffleMode::FORWARD,
                                     &views);
     static ViewFileBrowser::AirableView tunein(ViewNames::BROWSER_INETRADIO,
                                                N_("Airable internet radio"), 3,
                                                views.NUMBER_OF_LINES_ON_DISPLAY,
                                                DBUS_LISTBROKER_ID_TUNEIN,
-                                               player, Playback::Mode::LINEAR,
+                                               Playlist::CrawlerIface::RecursiveMode::DEPTH_FIRST,
+                                               Playlist::CrawlerIface::ShuffleMode::FORWARD,
                                                &views);
     static ViewFileBrowser::View upnp(ViewNames::BROWSER_UPNP,
                                       N_("UPnP media servers"), 4,
                                       views.NUMBER_OF_LINES_ON_DISPLAY,
                                       DBUS_LISTBROKER_ID_UPNP,
-                                      player, Playback::Mode::LINEAR,
+                                      Playlist::CrawlerIface::RecursiveMode::DEPTH_FIRST,
+                                      Playlist::CrawlerIface::ShuffleMode::FORWARD,
                                       &views);
     static ViewPlay::View play(N_("Stream information"),
                                views.NUMBER_OF_LINES_ON_DISPLAY,
-                               player, &views);
+                               &views);
     static ViewSearch::View search(N_("Search parameters"),
                                    views.NUMBER_OF_LINES_ON_DISPLAY, &views);
 
@@ -559,7 +560,6 @@ int main(int argc, char *argv[])
     static ViewManager::Manager view_manager(ui_event_queue,
                                              dcp_transaction_queue);
 
-    static Playback::Player player_singleton(ViewPlay::meta_data_reformatters);
     static DBus::SignalData dbus_signal_data(view_manager);
 
     view_manager.set_output_stream(fd_out);
@@ -568,15 +568,13 @@ int main(int argc, char *argv[])
     ui_events_processing_data.vm = &view_manager;
     dcp_dispatch_data.vm = &view_manager;
 
-    player_singleton.start();
-
     if(dbus_setup(parameters.connect_to_session_dbus, &dbus_signal_data) < 0)
         return EXIT_FAILURE;
 
     g_unix_signal_add(SIGINT, signal_handler, loop);
     g_unix_signal_add(SIGTERM, signal_handler, loop);
 
-    connect_everything(view_manager, player_singleton, dbus_signal_data);
+    connect_everything(view_manager, dbus_signal_data);
 
     g_main_loop_run(loop);
 
@@ -585,8 +583,6 @@ int main(int argc, char *argv[])
     fd_sbuf.set_fd(-1);
     shutdown(&files);
     dbus_shutdown();
-
-    player_singleton.shutdown();
 
     return EXIT_SUCCESS;
 }

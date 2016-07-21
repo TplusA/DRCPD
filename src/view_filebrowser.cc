@@ -25,10 +25,10 @@
 #include "view_filebrowser_fileitem.hh"
 #include "view_filebrowser.hh"
 #include "view_search.hh"
+#include "view_play.hh"
 #include "view_manager.hh"
 #include "view_names.hh"
 #include "search_algo.hh"
-#include "player.hh"
 #include "ui_parameters_predefined.hh"
 #include "busy.hh"
 #include "de_tahifi_lists_context.h"
@@ -41,10 +41,10 @@ List::Item *ViewFileBrowser::construct_file_item(const char *name,
 {
     if(names == nullptr)
         return new FileItem(name, 0, kind,
-                            PreloadedMetaData());
+                            MetaData::PreloadedSet());
     else
         return new FileItem(name, 0, kind,
-                            PreloadedMetaData(names[0], names[1], names[2]));
+                            MetaData::PreloadedSet(names[0], names[1], names[2]));
 }
 
 static ID::List finish_async_enter_dir_op(List::AsyncListIface::OpResult result,
@@ -93,6 +93,13 @@ bool ViewFileBrowser::View::handle_enter_list_event_finish(
         current_list_id_ = finish_async_enter_dir_op(result, ctx, async_calls_,
                                                      current_list_id_);
         break;
+
+      case List::QueryContextEnterList::CallerID::CRAWLER_RESTART:
+      case List::QueryContextEnterList::CallerID::CRAWLER_RESET_POSITION:
+      case List::QueryContextEnterList::CallerID::CRAWLER_DESCEND:
+      case List::QueryContextEnterList::CallerID::CRAWLER_ASCEND:
+        BUG("Wrong caller ID in %s()", __PRETTY_FUNCTION__);
+        return false;
     }
 
     return true;
@@ -111,18 +118,8 @@ void ViewFileBrowser::View::handle_enter_list_event_update_after_finish(
 
         if(lines == 0)
             line = 0;
-        else if(!traversal_reverse_)
-        {
-            if(line >= lines)
-                line = lines - 1;
-        }
-        else
-        {
-            if(line >= lines)
-                line = 0;
-            else
-                line = lines - 1 - line;
-        }
+        else if(line >= lines)
+            line = lines - 1;
 
         navigation_.set_cursor_by_line_number(line);
     }
@@ -150,7 +147,6 @@ void ViewFileBrowser::View::handle_get_item_event(List::AsyncListIface::OpResult
         result == List::AsyncListIface::OpResult::FAILED))
     {
         view_manager_->serialize_view_if_active(this, DCP::Queue::Mode::FORCE_ASYNC);
-
     }
 }
 
@@ -176,7 +172,8 @@ bool ViewFileBrowser::View::init()
         });
 
     (void)point_to_root_directory();
-    return true;
+
+    return crawler_.init();
 }
 
 static std::chrono::milliseconds
@@ -203,19 +200,31 @@ bool ViewFileBrowser::View::late_init()
     if(search_parameters_view_ == nullptr)
         return false;
 
+    play_view_ =
+        dynamic_cast<ViewPlay::View *>(view_manager_->get_view_by_name(ViewNames::PLAYER));
+
+    if(play_view_ == nullptr)
+        return false;
+
     return sync_with_list_broker();
 }
 
 static uint32_t get_default_flags_for_context(const char *string_id)
 {
-    static constexpr const std::array<std::pair<const char *const, const uint32_t>, 6> ids =
+    static constexpr const std::array<std::pair<const char *const, const uint32_t>, 7> ids =
     {
         std::make_pair("airable",        List::ContextInfo::SEARCH_NOT_POSSIBLE),
         std::make_pair("airable.radios", List::ContextInfo::HAS_PROPER_SEARCH_FORM),
         std::make_pair("airable.feeds",  List::ContextInfo::HAS_PROPER_SEARCH_FORM),
-        std::make_pair("tidal",  List::ContextInfo::HAS_EXTERNAL_META_DATA | List::ContextInfo::HAS_PROPER_SEARCH_FORM),
-        std::make_pair("deezer", List::ContextInfo::HAS_EXTERNAL_META_DATA | List::ContextInfo::HAS_PROPER_SEARCH_FORM),
-        std::make_pair("qobuz",  List::ContextInfo::HAS_EXTERNAL_META_DATA | List::ContextInfo::HAS_PROPER_SEARCH_FORM),
+        std::make_pair("tidal",          List::ContextInfo::HAS_EXTERNAL_META_DATA |
+                                         List::ContextInfo::HAS_PROPER_SEARCH_FORM),
+        std::make_pair("deezer",         List::ContextInfo::HAS_EXTERNAL_META_DATA |
+                                         List::ContextInfo::HAS_PROPER_SEARCH_FORM),
+        std::make_pair("deezer.program", List::ContextInfo::HAS_EXTERNAL_META_DATA |
+                                         List::ContextInfo::HAS_PROPER_SEARCH_FORM |
+                                         List::ContextInfo::HAS_LOCAL_PERMISSIONS),
+        std::make_pair("qobuz",          List::ContextInfo::HAS_EXTERNAL_META_DATA |
+                                         List::ContextInfo::HAS_PROPER_SEARCH_FORM),
     };
 
     for(const auto &id : ids)
@@ -421,8 +430,8 @@ std::chrono::milliseconds ViewFileBrowser::View::keep_lists_alive_timer_callback
     if(current_list_id_.is_valid())
         list_ids.push_back(current_list_id_);
 
-    if(player_is_mine_)
-        player_.append_referenced_lists(list_ids);
+    const auto *const pview = static_cast<ViewPlay::View *>(play_view_);
+    pview->append_referenced_lists(*this, list_ids);
 
     if(list_ids.empty())
         return std::chrono::milliseconds::zero();
@@ -714,18 +723,13 @@ ViewFileBrowser::View::process_event(UI::ViewEventID event_id,
         if(file_list_.empty())
             return InputResult::OK;
 
-        playback_current_mode_.activate_selected_mode();
+        if(crawler_.set_start_position(file_list_, navigation_.get_line_number_by_cursor()) &&
+           crawler_.configure_and_restart(default_recursive_mode_, default_shuffle_mode_))
+            static_cast<ViewPlay::View *>(play_view_)->prepare_for_playing(*this,
+                                                                           crawler_);
 
-        player_.take(playback_current_state_, file_list_,
-                     navigation_.get_line_number_by_cursor(),
-                     [this] (bool is_buffering)
-                     {
-                         player_is_mine_ = is_buffering;
-                         view_manager_->sync_activate_view_by_name(is_buffering
-                             ? ViewNames::PLAYER
-                             : name_);
-                     },
-                     [this] () { player_is_mine_ = false; });
+        if(crawler_.is_attached_to_player())
+            view_manager_->sync_activate_view_by_name(ViewNames::PLAYER);
 
         return InputResult::OK;
 
@@ -989,8 +993,14 @@ bool ViewFileBrowser::View::list_invalidate(ID::List list_id, ID::List replaceme
 {
     log_assert(list_id.is_valid());
 
-    if(playback_current_state_.list_invalidate(list_id, replacement_id))
-        player_.release(true);
+    if(crawler_.is_attached_to_player())
+    {
+        if(crawler_.list_invalidate(list_id, replacement_id))
+        {
+            auto *const pview = static_cast<ViewPlay::View *>(play_view_);
+            pview->stop_playing(*this);
+        }
+    }
 
     if(list_id != current_list_id_)
         return false;

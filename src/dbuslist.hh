@@ -132,6 +132,10 @@ class QueryContextEnterList: public QueryContext_
         ENTER_CHILD,
         ENTER_PARENT,
         RELOAD_LIST,
+        CRAWLER_RESTART,
+        CRAWLER_RESET_POSITION,
+        CRAWLER_DESCEND,
+        CRAWLER_ASCEND,
     };
 
     tdbuslistsNavigation *proxy_;
@@ -414,6 +418,7 @@ class QueryContextGetItem: public QueryContext_
         SERIALIZE,
         SERIALIZE_DEBUG,
         DBUSLIST_GET_ITEM,
+        CRAWLER_FIND_NEXT,
     };
 
     tdbuslistsNavigation *proxy_;
@@ -731,6 +736,8 @@ class DBusList: public ListIface, public AsyncListIface
     }
 
     OpResult get_item_async(unsigned int line, const Item *&item) override;
+
+    void cancel_async() final override;
 
     ID::List get_list_id() const override { return window_.list_id_; }
 

@@ -250,6 +250,11 @@ class AsyncListIface
      *     The function failed before starting the asynchronous call.
      */
     virtual OpResult get_item_async(unsigned int line, const Item *&item) = 0;
+
+    /*!
+     * Cancel all asynchronous operations, if any.
+     */
+    virtual void cancel_async() = 0;
 };
 
 };

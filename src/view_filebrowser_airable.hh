@@ -59,11 +59,11 @@ class AirableView: public View
     explicit AirableView(const char *name, const char *on_screen_name,
                          uint8_t drcp_browse_id, unsigned int max_lines,
                          dbus_listbroker_id_t listbroker_id,
-                         Playback::Player &player,
-                         Playback::Mode default_playback_mode,
+                         Playlist::CrawlerIface::RecursiveMode default_recursive_mode,
+                         Playlist::CrawlerIface::ShuffleMode default_shuffle_mode,
                          ViewManager::VMIface *view_manager):
         View(name, on_screen_name, drcp_browse_id, max_lines, listbroker_id,
-             player, default_playback_mode, view_manager)
+             default_recursive_mode, default_shuffle_mode, view_manager)
     {}
 
     ~AirableView() {}

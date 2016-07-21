@@ -33,6 +33,7 @@ class ContextInfo
     static constexpr const uint32_t HAS_EXTERNAL_META_DATA = 1U << 0;
     static constexpr const uint32_t HAS_PROPER_SEARCH_FORM = 1U << 1;
     static constexpr const uint32_t SEARCH_NOT_POSSIBLE    = 1U << 2;
+    static constexpr const uint32_t HAS_LOCAL_PERMISSIONS  = 1U << 3;
 
     static constexpr const uint32_t INTERNAL_INVALID       = 1U << 31;
     static constexpr const uint32_t INTERNAL_FLAGS_MASK    = INTERNAL_INVALID;
@@ -139,4 +140,5 @@ class ContextMap
 };
 
 }
+
 #endif /* !CONTEXT_MAP_HH */

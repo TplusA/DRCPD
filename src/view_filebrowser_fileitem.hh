@@ -20,7 +20,7 @@
 #define VIEW_FILEBROWSER_FILEITEM_HH
 
 #include "list.hh"
-#include "streaminfo.hh"
+#include "metadata_preloaded.hh"
 #include "de_tahifi_lists_item_kinds.hh"
 
 namespace ViewFileBrowser
@@ -30,7 +30,7 @@ class FileItem: public List::TextItem
 {
   private:
     ListItemKind kind_;
-    PreloadedMetaData preloaded_meta_data_;
+    MetaData::PreloadedSet preloaded_meta_data_;
 
   public:
     FileItem(const FileItem &) = delete;
@@ -38,7 +38,7 @@ class FileItem: public List::TextItem
     explicit FileItem(FileItem &&) = default;
 
     explicit FileItem(const char *text, unsigned int flags,
-                      ListItemKind item_kind, PreloadedMetaData &&meta_data):
+                      ListItemKind item_kind, MetaData::PreloadedSet &&meta_data):
         List::Item(flags),
         List::TextItem(text, true, flags),
         kind_(item_kind),
@@ -47,7 +47,7 @@ class FileItem: public List::TextItem
 
     ListItemKind get_kind() const { return kind_; }
 
-    const PreloadedMetaData &get_preloaded_meta_data() const
+    const MetaData::PreloadedSet &get_preloaded_meta_data() const
     {
         return preloaded_meta_data_;
     }
