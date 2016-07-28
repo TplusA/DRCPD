@@ -308,7 +308,7 @@ bool Playlist::DirectoryCrawler::try_get_dbuslist_item_after_started_or_successf
  */
 static std::shared_ptr<Playlist::DirectoryCrawler::AsyncGetURIs>
 mk_async_get_uris(tdbuslistsNavigation *proxy,
-                  const DBus::AsyncResultAvailableFunction &result_available_fn)
+                  DBus::AsyncResultAvailableFunction &&result_available_fn)
 {
     return std::make_shared<Playlist::DirectoryCrawler::AsyncGetURIs>(
         proxy,
@@ -333,7 +333,7 @@ mk_async_get_uris(tdbuslistsNavigation *proxy,
 
             promise.set_value(std::move(std::make_tuple(error_code, uri_list)));
         },
-        result_available_fn,
+        std::move(result_available_fn),
         [] (Playlist::DirectoryCrawler::AsyncGetURIs::PromiseReturnType &values)
         {
             gchar **const strings = std::get<1>(values);

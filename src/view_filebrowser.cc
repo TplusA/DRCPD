@@ -1104,7 +1104,7 @@ error_exit:
 
 static std::shared_ptr<ViewFileBrowser::View::AsyncCalls::GetListId>
 mk_get_list_id(tdbuslistsNavigation *proxy,
-               const DBus::AsyncResultAvailableFunction &result_available_fn,
+               DBus::AsyncResultAvailableFunction &&result_available_fn,
                const SearchParameters *search_parameters = nullptr)
 {
     const bool is_simple_get_list = (search_parameters == nullptr);
@@ -1135,7 +1135,7 @@ mk_get_list_id(tdbuslistsNavigation *proxy,
 
             promise.set_value(std::make_pair(error_code, child_list_id));
         },
-        result_available_fn,
+        std::move(result_available_fn),
         [] (ViewFileBrowser::View::AsyncCalls::GetListId::PromiseReturnType &values) {},
         [] () { return true; });
 }

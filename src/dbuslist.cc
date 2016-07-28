@@ -433,7 +433,7 @@ void List::DBusList::enter_list_async_handle_done(LoggedLock::UniqueLock<LoggedL
     notify_watcher(OpEvent::ENTER_LIST, op_result, q, lock);
 }
 
-bool List::QueryContextEnterList::run_async(const DBus::AsyncResultAvailableFunction &result_available)
+bool List::QueryContextEnterList::run_async(DBus::AsyncResultAvailableFunction &&result_available)
 {
     log_assert(async_call_ == nullptr);
 
@@ -444,7 +444,7 @@ bool List::QueryContextEnterList::run_async(const DBus::AsyncResultAvailableFunc
                   std::placeholders::_1, std::placeholders::_2,
                   std::placeholders::_3, std::placeholders::_4,
                   std::placeholders::_5, parameters_.list_id_),
-        result_available,
+        std::move(result_available),
         [] (AsyncListNavCheckRange::PromiseReturnType &values) {},
         [] () { return true; });
 
@@ -1044,7 +1044,7 @@ void List::DBusList::apply_cache_modifications(const CacheModifications &cm)
     window_.first_item_line_ = cm.new_first_line_;
 }
 
-bool List::QueryContextGetItem::run_async(const DBus::AsyncResultAvailableFunction &result_available)
+bool List::QueryContextGetItem::run_async(DBus::AsyncResultAvailableFunction &&result_available)
 {
     log_assert(async_call_ == nullptr);
 
@@ -1056,7 +1056,7 @@ bool List::QueryContextGetItem::run_async(const DBus::AsyncResultAvailableFuncti
                     std::placeholders::_3, std::placeholders::_4,
                     std::placeholders::_5,
                     parameters_.list_id_, parameters_.have_meta_data_),
-        result_available,
+        std::move(result_available),
         [] (AsyncListNavGetRange::PromiseReturnType &values)
         {
             if(std::get<2>(values) != nullptr)

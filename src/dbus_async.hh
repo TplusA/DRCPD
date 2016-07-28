@@ -231,11 +231,11 @@ class AsyncCall: public DBus::AsyncCall_
      *     result of the asynchronous call should still be waited for, \c false
      *     if the operation shall be canceled.
      */
-    explicit AsyncCall(ProxyType *proxy, const ToProxyFunction &to_proxy,
-                       const PutResultFunction &put_result,
-                       const AsyncResultAvailableFunction &result_available,
-                       const DestroyResultFunction &destroy_result,
-                       const std::function<bool(void)> &may_continue):
+    explicit AsyncCall(ProxyType *proxy, ToProxyFunction &&to_proxy,
+                       PutResultFunction &&put_result,
+                       AsyncResultAvailableFunction &&result_available,
+                       DestroyResultFunction &&destroy_result,
+                       std::function<bool(void)> &&may_continue):
         proxy_(proxy),
         to_proxy_fn_(to_proxy),
         put_result_fn_(put_result),

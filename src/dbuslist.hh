@@ -74,7 +74,7 @@ class QueryContext_
      *     progress. Note that a return value of true does \e not indicate
      *     success.
      */
-    virtual bool run_async(const DBus::AsyncResultAvailableFunction &result_available) = 0;
+    virtual bool run_async(DBus::AsyncResultAvailableFunction &&result_available) = 0;
 
     /*!
      * Wait for result, error, or cancelation of asynchronous D-Bus operation.
@@ -171,7 +171,7 @@ class QueryContextEnterList: public QueryContext_
 
     CallerID get_caller_id() const { return static_cast<CallerID>(caller_id_); }
 
-    bool run_async(const DBus::AsyncResultAvailableFunction &result_available) final override;
+    bool run_async(DBus::AsyncResultAvailableFunction &&result_available) final override;
     bool synchronize(DBus::AsyncResult &result) final override;
 
     bool cancel() final override
@@ -460,7 +460,7 @@ class QueryContextGetItem: public QueryContext_
 
     CallerID get_caller_id() const { return static_cast<CallerID>(caller_id_); }
 
-    bool run_async(const DBus::AsyncResultAvailableFunction &result_available) final override;
+    bool run_async(DBus::AsyncResultAvailableFunction &&result_available) final override;
     bool synchronize(DBus::AsyncResult &result) final override;
 
     bool cancel() final override
