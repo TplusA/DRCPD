@@ -1151,5 +1151,12 @@ void List::DBusList::async_done_notification(DBus::AsyncCall_ &async_call)
             get_item_async_handle_done(lock);
     }
     else
-        BUG("Unexpected async done notification");
+    {
+        if(dynamic_cast<QueryContextEnterList::AsyncListNavCheckRange *>(&async_call) != nullptr)
+            BUG("Unexpected async enter-line done notification");
+        else if(dynamic_cast<QueryContextGetItem::AsyncListNavGetRange *>(&async_call) != nullptr)
+            BUG("Unexpected async get-item done notification");
+        else
+            BUG("Unexpected UNKNOWN async done notification");
+    }
 }
