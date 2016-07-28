@@ -213,8 +213,10 @@ static uint32_t get_default_flags_for_context(const char *string_id)
 {
     static constexpr const std::array<std::pair<const char *const, const uint32_t>, 7> ids =
     {
-        std::make_pair("airable",        List::ContextInfo::SEARCH_NOT_POSSIBLE),
-        std::make_pair("airable.radios", List::ContextInfo::HAS_PROPER_SEARCH_FORM),
+        std::make_pair("airable",        List::ContextInfo::SEARCH_NOT_POSSIBLE |
+                                         List::ContextInfo::HAS_LOCAL_PERMISSIONS),
+        std::make_pair("airable.radios", List::ContextInfo::HAS_PROPER_SEARCH_FORM |
+                                         List::ContextInfo::HAS_LOCAL_PERMISSIONS),
         std::make_pair("airable.feeds",  List::ContextInfo::HAS_PROPER_SEARCH_FORM),
         std::make_pair("tidal",          List::ContextInfo::HAS_EXTERNAL_META_DATA |
                                          List::ContextInfo::HAS_PROPER_SEARCH_FORM),
@@ -224,7 +226,8 @@ static uint32_t get_default_flags_for_context(const char *string_id)
                                          List::ContextInfo::HAS_PROPER_SEARCH_FORM |
                                          List::ContextInfo::HAS_LOCAL_PERMISSIONS),
         std::make_pair("qobuz",          List::ContextInfo::HAS_EXTERNAL_META_DATA |
-                                         List::ContextInfo::HAS_PROPER_SEARCH_FORM),
+                                         List::ContextInfo::HAS_PROPER_SEARCH_FORM |
+                                         List::ContextInfo::HAS_LOCAL_PERMISSIONS),
     };
 
     for(const auto &id : ids)
@@ -595,6 +598,13 @@ static ViewIface::InputResult move_up_multi(List::Nav &navigation,
     return moved ? ViewIface::InputResult::UPDATE_NEEDED : ViewIface::InputResult::OK;
 }
 
+const Player::LocalPermissionsIface &
+ViewFileBrowser::View::get_local_permissions() const
+{
+    static const Player::DefaultLocalPermissions default_local_permissions;
+    return default_local_permissions;
+}
+
 ViewIface::InputResult
 ViewFileBrowser::View::process_event(UI::ViewEventID event_id,
                                      std::unique_ptr<const UI::Parameters> parameters)
@@ -720,16 +730,28 @@ ViewFileBrowser::View::process_event(UI::ViewEventID event_id,
          *               directory */
 
       case UI::ViewEventID::PLAYBACK_COMMAND_START:
-        if(file_list_.empty())
-            return InputResult::OK;
+        {
+            if(file_list_.empty())
+                return InputResult::OK;
 
-        if(crawler_.set_start_position(file_list_, navigation_.get_line_number_by_cursor()) &&
-           crawler_.configure_and_restart(default_recursive_mode_, default_shuffle_mode_))
-            static_cast<ViewPlay::View *>(play_view_)->prepare_for_playing(*this,
-                                                                           crawler_);
+            const Player::LocalPermissionsIface &permissions(get_local_permissions());
 
-        if(crawler_.is_attached_to_player())
-            view_manager_->sync_activate_view_by_name(ViewNames::PLAYER);
+            if(!permissions.can_play())
+            {
+                msg_error(EPERM, LOG_INFO, "Ignoring play command");
+                return InputResult::OK;
+            }
+
+            if(crawler_.set_start_position(file_list_, navigation_.get_line_number_by_cursor()) &&
+               crawler_.configure_and_restart(default_recursive_mode_, default_shuffle_mode_))
+                static_cast<ViewPlay::View *>(play_view_)->prepare_for_playing(*this,
+                                                                               crawler_,
+                                                                               permissions);
+
+            if(crawler_.is_attached_to_player())
+                view_manager_->sync_activate_view_by_name(ViewNames::PLAYER);
+
+        }
 
         return InputResult::OK;
 

@@ -79,7 +79,8 @@ class View: public ViewIface, public ViewSerializeBase
                    std::ostream *debug_os) override;
 
     void prepare_for_playing(const ViewIface &owning_view,
-                             Playlist::CrawlerIface &crawler);
+                             Playlist::CrawlerIface &crawler,
+                             const Player::LocalPermissionsIface &permissions);
     void stop_playing(const ViewIface &owning_view);
 
     void append_referenced_lists(const ViewIface &owning_view,

@@ -68,7 +68,8 @@ static void enhance_meta_data(MetaData::Set &md,
 */
 
 void ViewPlay::View::prepare_for_playing(const ViewIface &owning_view,
-                                         Playlist::CrawlerIface &crawler)
+                                         Playlist::CrawlerIface &crawler,
+                                         const Player::LocalPermissionsIface &permissions)
 {
     const auto lock_ctrl(player_control_.lock());
     const auto lock_data(player_data_.lock());
@@ -81,7 +82,7 @@ void ViewPlay::View::prepare_for_playing(const ViewIface &owning_view,
         player_control_.plug(player_data_);
     }
 
-    player_control_.plug(crawler);
+    player_control_.plug(crawler, permissions);
     player_control_.play_request();
 }
 

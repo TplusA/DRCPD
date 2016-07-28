@@ -30,6 +30,7 @@ void Player::Control::plug(const ViewIface &view)
 {
     log_assert(owning_view_ == nullptr);
     log_assert(crawler_ == nullptr);
+    log_assert(permissions_ == nullptr);
 
     owning_view_ = &view;
 }
@@ -38,13 +39,16 @@ void Player::Control::plug(Player::Data &player_data)
 {
     log_assert(player_ == nullptr);
     log_assert(crawler_ == nullptr);
+    log_assert(permissions_ == nullptr);
 
     player_ = &player_data;
 }
 
-void Player::Control::plug(Playlist::CrawlerIface &crawler)
+void Player::Control::plug(Playlist::CrawlerIface &crawler,
+                           const LocalPermissionsIface &permissions)
 {
     crawler_ = &crawler;
+    permissions_ = &permissions;
     pending_skip_requests_ = 0;
     next_stream_in_queue_ = ID::OurStream::make_invalid();
 
@@ -68,6 +72,8 @@ void Player::Control::unplug()
         crawler_->detached_from_player_notification();
         crawler_ = nullptr;
     }
+
+    permissions_ = nullptr;
 }
 
 static bool send_play_command()
@@ -144,6 +150,12 @@ void Player::Control::play_request()
         return;
     }
 
+    if(permissions_ != nullptr && !permissions_->can_play())
+    {
+        msg_error(EPERM, LOG_INFO, "Ignoring play request");
+        return;
+    }
+
     player_->set_intention(UserIntention::LISTENING);
 
     switch(player_->get_current_stream_state())
@@ -181,6 +193,12 @@ void Player::Control::stop_request()
 
 void Player::Control::pause_request()
 {
+    if(permissions_ != nullptr && !permissions_->can_pause())
+    {
+        msg_error(EPERM, LOG_INFO, "Ignoring pause request");
+        return;
+    }
+
     if(is_active_controller())
         player_->set_intention(UserIntention::PAUSING);
 
@@ -273,6 +291,12 @@ void Player::Control::skip_forward_request()
     if(player_ == nullptr || crawler_ == nullptr)
         return;
 
+    if(permissions_ != nullptr && !permissions_->can_skip_forward())
+    {
+        msg_error(EPERM, LOG_INFO, "Ignoring skip forward request");
+        return;
+    }
+
     if(!set_intention_for_skipping(*player_))
         return;
 
@@ -321,6 +345,12 @@ void Player::Control::skip_backward_request()
     if(player_ == nullptr || crawler_ == nullptr)
         return;
 
+    if(permissions_ != nullptr && !permissions_->can_skip_backward())
+    {
+        msg_error(EPERM, LOG_INFO, "Ignoring skip backward request");
+        return;
+    }
+
     if(!set_intention_for_skipping(*player_))
         return;
 
@@ -347,6 +377,12 @@ void Player::Control::skip_backward_request()
 
 void Player::Control::rewind_request()
 {
+    if(permissions_ != nullptr && !permissions_->can_skip_backward())
+    {
+        msg_error(EPERM, LOG_INFO, "Ignoring rewind request");
+        return;
+    }
+
     if(!tdbus_splay_playback_call_seek_sync(dbus_get_streamplayer_playback_iface(),
                                             0, "ms", NULL, NULL))
         msg_error(0, LOG_NOTICE, "Failed restarting stream");
@@ -444,6 +480,11 @@ void Player::Control::need_next_item_hint(bool queue_is_full)
         BUG("Streamplayer reports full queue");
 
     if(crawler_ == nullptr)
+        return;
+
+    auto crawler_lock(crawler_->lock());
+
+    if(!permissions_->can_prefetch_for_gapless())
         return;
 
     if(is_prefetching_)

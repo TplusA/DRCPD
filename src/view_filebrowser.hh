@@ -26,6 +26,7 @@
 #include "view_serialize.hh"
 #include "listnav.hh"
 #include "search_parameters.hh"
+#include "player_permissions.hh"
 #include "timeout.hh"
 #include "dbuslist.hh"
 #include "dbus_iface.h"
@@ -182,6 +183,8 @@ class View: public ViewIface, public ViewSerializeBase
     virtual bool list_invalidate(ID::List list_id, ID::List replacement_id);
 
   protected:
+    virtual const Player::LocalPermissionsIface &get_local_permissions() const;
+
     virtual void cancel_and_delete_all_async_calls()
     {
         async_calls_.cancel_and_delete_all();

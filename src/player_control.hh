@@ -20,6 +20,7 @@
 #define PLAYER_CONTROL_HH
 
 #include "player_data.hh"
+#include "player_permissions.hh"
 #include "playlist_crawler.hh"
 #include "view.hh"
 #include "logged_lock.hh"
@@ -44,6 +45,7 @@ class Control
     Data *player_;
     Playlist::CrawlerIface *crawler_;
     LoggedLock::RecMutex crawler_dummy_lock_;
+    const LocalPermissionsIface *permissions_;
 
     /*!
      * Cumulated effect of fast skip requests.
@@ -63,6 +65,7 @@ class Control
         owning_view_(nullptr),
         player_(nullptr),
         crawler_(nullptr),
+        permissions_(nullptr),
         pending_skip_requests_(0),
         next_stream_in_queue_(ID::OurStream::make_invalid()),
         is_prefetching_(false)
@@ -100,7 +103,7 @@ class Control
     bool is_active_controller_for_view(const ViewIface &view) const { return owning_view_ == &view; }
     void plug(const ViewIface &view);
     void plug(Data &player_data);
-    void plug(Playlist::CrawlerIface &crawler);
+    void plug(Playlist::CrawlerIface &crawler, const LocalPermissionsIface &permissions);
     void unplug();
 
     void set_repeat_mode(RepeatMode repeat_mode);

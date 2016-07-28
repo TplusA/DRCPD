@@ -23,6 +23,7 @@
 #include "view_filebrowser_airable.hh"
 #include "view_filebrowser_fileitem.hh"
 #include "view_filebrowser_utils.hh"
+#include "player_permissions_airable.hh"
 #include "ui_parameters_predefined.hh"
 #include "de_tahifi_lists_context.h"
 #include "messages.h"
@@ -297,6 +298,49 @@ void ViewFileBrowser::AirableView::log_out_from_context(List::context_id_t conte
                                                     ctx.string_id_.c_str(), "",
                                                     true, ACTOR_ID_LOCAL_UI,
                                                     NULL, NULL);
+}
+
+static const Player::LocalPermissionsIface *
+lookup_permissions_for_context(const List::ContextInfo &ctx)
+{
+    static const Player::AirablePermissions       airable;
+    static const Player::AirableRadiosPermissions airable_radios;
+    static const Player::DeezerProgramPermissions deezer_program;
+    static const Player::QobuzPermissions         qobuz;
+
+    if(ctx.string_id_ == "airable")
+        return &airable;
+
+    if(ctx.string_id_ == "airable.radios")
+        return &airable_radios;
+
+    if(ctx.string_id_ == "deezer.program")
+        return &deezer_program;
+
+    if(ctx.string_id_ == "qobuz")
+        return &qobuz;
+
+    return nullptr;
+}
+
+const Player::LocalPermissionsIface &
+ViewFileBrowser::AirableView::get_local_permissions() const
+{
+    const List::context_id_t ctx_id(DBUS_LISTS_CONTEXT_GET(current_list_id_.get_raw_id()));
+    const auto &ctx(list_contexts_[ctx_id]);
+
+    if(ctx.is_valid() && ctx.check_flags(List::ContextInfo::HAS_LOCAL_PERMISSIONS))
+    {
+        const auto *const permissions = lookup_permissions_for_context(ctx);
+
+        if(permissions != nullptr)
+            return *permissions;
+
+        BUG("Expected local permissions for context \"%s\", but none found.",
+            ctx.string_id_.c_str());
+    }
+
+    return ViewFileBrowser::View::get_local_permissions();
 }
 
 void ViewFileBrowser::AirableView::cancel_and_delete_all_async_calls()
