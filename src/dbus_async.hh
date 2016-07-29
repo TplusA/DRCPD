@@ -119,9 +119,9 @@ class AsyncCall_: public std::enable_shared_from_this<AsyncCall_>
         return false;
     }
 
-    bool success() const
+    static bool is_success(AsyncResult result)
     {
-        switch(call_state_)
+        switch(result)
         {
           case AsyncResult::READY:
           case AsyncResult::DONE:
@@ -135,6 +135,11 @@ class AsyncCall_: public std::enable_shared_from_this<AsyncCall_>
         }
 
         return false;
+    }
+
+    bool success() const
+    {
+        return is_success(call_state_);
     }
 
   protected:
@@ -174,6 +179,7 @@ class AsyncCall: public DBus::AsyncCall_
 
     std::promise<PromiseReturnType> promise_;
     PromiseReturnType return_value_;
+    bool have_reported_result_;
 
   public:
     AsyncCall(const AsyncCall &) = delete;
@@ -242,7 +248,8 @@ class AsyncCall: public DBus::AsyncCall_
         result_available_fn_(result_available),
         destroy_result_fn_(destroy_result),
         may_continue_fn_(may_continue),
-        error_(nullptr)
+        error_(nullptr),
+        have_reported_result_(false)
     {}
 
     virtual ~AsyncCall()
@@ -263,6 +270,7 @@ class AsyncCall: public DBus::AsyncCall_
 
         Busy::set(BusySourceID);
         call_state_ = AsyncResult::IN_PROGRESS;
+        have_reported_result_ = false;
         async_op_started();
         dbus_method(proxy_, args..., cancellable_, async_ready_trampoline, this);
     }
@@ -278,14 +286,13 @@ class AsyncCall: public DBus::AsyncCall_
     {
         log_assert(is_active());
 
-        if(call_state_ == AsyncResult::DONE)
+        if(call_state_ == AsyncResult::DONE || call_state_ == AsyncResult::CANCELED)
             return call_state_;
 
         auto future(promise_.get_future());
         log_assert(future.valid());
 
         if(call_state_ != AsyncResult::FAILED &&
-           call_state_ != AsyncResult::CANCELED &&
            !g_cancellable_is_cancelled(cancellable_))
         {
             while(future.wait_for(std::chrono::milliseconds(300)) != std::future_status::ready)
@@ -298,14 +305,19 @@ class AsyncCall: public DBus::AsyncCall_
             }
         }
 
-        if(call_state_ != AsyncResult::CANCELED &&
-           !g_cancellable_is_cancelled(cancellable_))
+        if(g_cancellable_is_cancelled(cancellable_))
         {
-            if(call_state_ != AsyncResult::FAILED)
-                call_state_ = AsyncResult::DONE;
-
-            return_value_ = future.get();
+            /* operation is canceled on low level (GLib), but GLib has not
+             * called us back yet because it didn't have the chance to
+             * process the cancelable up to now, leaving us in an
+             * intermediate state---report ready state directly */
+            return ready(nullptr, nullptr, false);
         }
+
+        if(call_state_ != AsyncResult::FAILED)
+            call_state_ = AsyncResult::DONE;
+
+        return_value_ = future.get();
 
         return call_state_;
     }
@@ -348,10 +360,10 @@ class AsyncCall: public DBus::AsyncCall_
                                        GAsyncResult *res, gpointer user_data)
     {
         auto async(static_cast<AsyncCall *>(user_data));
-        async->ready(async->to_proxy_fn_(source_object), res);
+        async->ready(async->to_proxy_fn_(source_object), res, true);
     }
 
-    void ready(ProxyType *proxy, GAsyncResult *res)
+    AsyncResult ready(ProxyType *proxy, GAsyncResult *res, bool is_done)
     {
         if(g_cancellable_is_cancelled(cancellable_))
             call_state_ = AsyncResult::CANCELED;
@@ -379,7 +391,16 @@ class AsyncCall: public DBus::AsyncCall_
                 msg_error(0, LOG_ERR, "Async D-Bus error: %s", error_->message);
         }
 
-        result_available_fn_(*this);
+        if(!have_reported_result_)
+        {
+           have_reported_result_ = true;
+           result_available_fn_(*this);
+        }
+
+        if(!is_done)
+            return call_state_;
+
+        const auto call_state_copy(call_state_);
 
         async_op_done();
 
@@ -403,6 +424,8 @@ class AsyncCall: public DBus::AsyncCall_
          * template parameter, not a member.
          */
         Busy::clear(BusySourceID);
+
+        return call_state_copy;
     }
 };
 

@@ -470,6 +470,9 @@ bool List::QueryContextEnterList::synchronize(DBus::AsyncResult &result)
         {
             result = async_call_->wait_for_result();
 
+            if(async_call_ == nullptr)
+                return DBus::AsyncCall_::is_success(result);
+
             if(async_call_->success())
                 return true;
 
@@ -1089,6 +1092,9 @@ bool List::QueryContextGetItem::synchronize(DBus::AsyncResult &result)
         try
         {
             result = async_call_->wait_for_result();
+
+            if(async_call_ == nullptr)
+                return DBus::AsyncCall_::is_success(result);
 
             if(async_call_->success())
                 return true;
