@@ -497,7 +497,7 @@ static const std::string reformat_bitrate(const char *in)
     log_assert(in != NULL);
 
     bool failed = false;
-    unsigned long result;
+    unsigned long result = 0;
 
     if(in[0] < '0' || in[0] > '9')
         failed = true;
