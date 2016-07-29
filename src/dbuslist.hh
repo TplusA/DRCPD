@@ -551,7 +551,7 @@ class DBusList: public ListIface, public AsyncListIface
 
     struct AsyncDBusData
     {
-        LoggedLock::Mutex lock_;
+        LoggedLock::RecMutex lock_;
         LoggedLock::ConditionVariable query_done_;
 
         AsyncWatcher event_watcher_;
@@ -768,24 +768,23 @@ class DBusList: public ListIface, public AsyncListIface
                             unsigned int &fetch_head, unsigned int &count,
                             unsigned int &cache_list_replace_index) const;
 
+    /*!
+     * Trigger asynchronous fetching of cached window segment.
+     *
+     * Must be called while holding #List::DBusList::AsyncDBusData::lock_ of
+     * the embedded #List::DBusList::async_dbus_data_ structure.
+     * */
     OpResult load_segment_in_background(const CacheSegment &prefetch_segment,
                                         int keep_cache_entries,
                                         unsigned int current_number_of_loading_items,
-                                        unsigned short caller_id,
-                                        LoggedLock::UniqueLock<LoggedLock::Mutex> &lock);
+                                        unsigned short caller_id);
 
     /*!
      * Little helper that calls the event watcher.
-     *
-     * Function must be called while holding \p lock. The lock will be unlocked
-     * unconditionally before calling the watcher callback.
      */
     void notify_watcher(OpEvent event, OpResult result,
-                        const std::shared_ptr<QueryContext_> &ctx,
-                        LoggedLock::UniqueLock<LoggedLock::Mutex> &lock)
+                        const std::shared_ptr<QueryContext_> &ctx)
     {
-        lock.unlock();
-
         if(async_dbus_data_.event_watcher_ != nullptr)
             async_dbus_data_.event_watcher_(event, result, ctx);
     }
@@ -842,7 +841,7 @@ class DBusList: public ListIface, public AsyncListIface
      * Must be called while holding #List::DBusList::AsyncDBusData::lock_ of
      * the embedded #List::DBusList::async_dbus_data_ structure.
      */
-    void enter_list_async_handle_done(LoggedLock::UniqueLock<LoggedLock::Mutex> &lock);
+    void enter_list_async_handle_done();
 
     /*!
      * Internal function called by #async_done_notification().
@@ -850,7 +849,7 @@ class DBusList: public ListIface, public AsyncListIface
      * Must be called while holding #List::DBusList::AsyncDBusData::lock_ of
      * the embedded #List::DBusList::async_dbus_data_ structure.
      */
-    void get_item_async_handle_done(LoggedLock::UniqueLock<LoggedLock::Mutex> &lock);
+    void get_item_async_handle_done();
 };
 
 };

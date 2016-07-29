@@ -114,7 +114,7 @@ void List::DBusList::enter_list(ID::List list_id, unsigned int line)
 
     if(list_id != window_.list_id_)
     {
-        std::lock_guard<LoggedLock::Mutex> lock((const_cast<List::DBusList *>(this)->async_dbus_data_).lock_);
+        std::lock_guard<LoggedLock::RecMutex> lock((const_cast<List::DBusList *>(this)->async_dbus_data_).lock_);
         const_cast<List::DBusList *>(this)->cancel_enter_list_query();
     }
 
@@ -358,7 +358,7 @@ List::DBusList::enter_list_async(ID::List list_id, unsigned int line,
 {
     log_assert(list_id.is_valid());
 
-    LoggedLock::UniqueLock<LoggedLock::Mutex> lock(async_dbus_data_.lock_);
+    LoggedLock::UniqueLock<LoggedLock::RecMutex> lock(async_dbus_data_.lock_);
 
     cancel_enter_list_query();
     cancel_get_item_query();
@@ -385,12 +385,12 @@ List::DBusList::enter_list_async(ID::List list_id, unsigned int line,
     }
 
     notify_watcher(OpEvent::ENTER_LIST, OpResult::STARTED,
-                   async_dbus_data_.enter_list_query_, lock);
+                   async_dbus_data_.enter_list_query_);
 
     return OpResult::STARTED;
 }
 
-void List::DBusList::enter_list_async_handle_done(LoggedLock::UniqueLock<LoggedLock::Mutex> &lock)
+void List::DBusList::enter_list_async_handle_done()
 {
     auto q = async_dbus_data_.enter_list_query_;
     const ID::List list_id(q->parameters_.list_id_.get_raw_id());
@@ -430,7 +430,7 @@ void List::DBusList::enter_list_async_handle_done(LoggedLock::UniqueLock<LoggedL
     async_dbus_data_.enter_list_query_.reset();
     async_dbus_data_.query_done_.notify_all();
 
-    notify_watcher(OpEvent::ENTER_LIST, op_result, q, lock);
+    notify_watcher(OpEvent::ENTER_LIST, op_result, q);
 }
 
 bool List::QueryContextEnterList::run_async(DBus::AsyncResultAvailableFunction &&result_available)
@@ -728,8 +728,8 @@ List::AsyncListIface::OpResult
 List::DBusList::load_segment_in_background(const CacheSegment &prefetch_segment,
                                            int keep_cache_entries,
                                            unsigned int current_number_of_loading_items,
-                                           unsigned short caller_id,
-                                           LoggedLock::UniqueLock<LoggedLock::Mutex> &lock)
+                                           unsigned short caller_id)
+
 {
     cancel_get_item_query();
 
@@ -791,7 +791,7 @@ List::DBusList::load_segment_in_background(const CacheSegment &prefetch_segment,
     apply_cache_modifications(cm);
 
     notify_watcher(OpEvent::GET_ITEM, OpResult::STARTED,
-                   async_dbus_data_.get_item_query_, lock);
+                   async_dbus_data_.get_item_query_);
 
     return OpResult::STARTED;
 }
@@ -806,7 +806,7 @@ List::DBusList::get_item_async_set_hint(unsigned int line, unsigned int count,
         return OpResult::FAILED;
     }
 
-    LoggedLock::UniqueLock<LoggedLock::Mutex> lock(async_dbus_data_.lock_);
+    LoggedLock::UniqueLock<LoggedLock::RecMutex> lock(async_dbus_data_.lock_);
 
     /* already entering a list, cannot get items in this situation */
     if(async_dbus_data_.enter_list_query_ != nullptr)
@@ -843,7 +843,7 @@ List::DBusList::get_item_async_set_hint(unsigned int line, unsigned int count,
       case CacheSegmentState::LOADING_BOTTOM_EMPTY_TOP:
         /* need to wipe out everything and restart loading everything */
         retval = load_segment_in_background(prefetch_segment, 0, 0,
-                                            caller_id, lock);
+                                            caller_id);
         break;
 
       case CacheSegmentState::CACHED:
@@ -863,7 +863,7 @@ List::DBusList::get_item_async_set_hint(unsigned int line, unsigned int count,
          * canceled and ignored */
         retval = load_segment_in_background(prefetch_segment, size_of_cached_overlap,
                                             size_of_loading_segment,
-                                            caller_id, lock);
+                                            caller_id);
         break;
 
       case CacheSegmentState::CACHED_BOTTOM_EMPTY_TOP:
@@ -872,7 +872,7 @@ List::DBusList::get_item_async_set_hint(unsigned int line, unsigned int count,
          * canceled and ignored */
         retval = load_segment_in_background(prefetch_segment, -size_of_cached_overlap,
                                             size_of_loading_segment,
-                                            caller_id, lock);
+                                            caller_id);
         break;
     }
 
@@ -893,7 +893,7 @@ List::DBusList::get_item_async(unsigned int line, const Item *&item)
 
     log_assert(window_.list_id_.is_valid());
 
-    LoggedLock::UniqueLock<LoggedLock::Mutex> lock(async_dbus_data_.lock_);
+    LoggedLock::UniqueLock<LoggedLock::RecMutex> lock(async_dbus_data_.lock_);
 
     item = nullptr;
 
@@ -921,11 +921,11 @@ List::DBusList::get_item_async(unsigned int line, const Item *&item)
 
 void List::DBusList::cancel_async()
 {
-    LoggedLock::UniqueLock<LoggedLock::Mutex> lock(async_dbus_data_.lock_);
+    LoggedLock::UniqueLock<LoggedLock::RecMutex> lock(async_dbus_data_.lock_);
     async_dbus_data_.cancel_all();
 }
 
-void List::DBusList::get_item_async_handle_done(LoggedLock::UniqueLock<LoggedLock::Mutex> &lock)
+void List::DBusList::get_item_async_handle_done()
 {
     auto q = async_dbus_data_.get_item_query_;
     DBus::AsyncResult async_result;
@@ -976,7 +976,7 @@ void List::DBusList::get_item_async_handle_done(LoggedLock::UniqueLock<LoggedLoc
     async_dbus_data_.get_item_query_.reset();
     async_dbus_data_.query_done_.notify_all();
 
-    notify_watcher(OpEvent::GET_ITEM, op_result, q, lock);
+    notify_watcher(OpEvent::GET_ITEM, op_result, q);
 }
 
 void List::DBusList::apply_cache_modifications(const CacheModifications &cm)
@@ -1150,17 +1150,17 @@ void List::QueryContextGetItem::put_result(DBus::AsyncResult &async_ready,
 
 void List::DBusList::async_done_notification(DBus::AsyncCall_ &async_call)
 {
-    LoggedLock::UniqueLock<LoggedLock::Mutex> lock(async_dbus_data_.lock_);
+    LoggedLock::UniqueLock<LoggedLock::RecMutex> lock(async_dbus_data_.lock_);
 
     if(async_dbus_data_.enter_list_query_ != nullptr)
     {
         if(&async_call == async_dbus_data_.enter_list_query_->async_call_.get())
-            enter_list_async_handle_done(lock);
+            enter_list_async_handle_done();
     }
     else if(async_dbus_data_.get_item_query_ != nullptr)
     {
         if(&async_call == async_dbus_data_.get_item_query_->async_call_.get())
-            get_item_async_handle_done(lock);
+            get_item_async_handle_done();
     }
     else
     {
