@@ -136,6 +136,16 @@ class DirectoryCrawler: public CrawlerIface
      */
     bool is_waiting_for_async_get_list_item_completion_;
 
+    /*!
+     * Whether or not we are trying to step back to an old location.
+     *
+     * To skip backwards it is usually necessary to move back to the previously
+     * marked position (see #Playlist::DirectoryCrawler::marked_position_)
+     * first, and then move backwards from that point. While the marked
+     * position is being looked up, this flag is set to true.
+     */
+    bool is_resetting_to_marked_position_;
+
     std::shared_ptr<AsyncGetURIs> async_get_uris_call_;
 
     ItemInfo current_item_info_;
@@ -163,7 +173,8 @@ class DirectoryCrawler: public CrawlerIface
         directory_depth_(1),
         is_first_item_in_list_processed_(false),
         is_waiting_for_async_enter_list_completion_(false),
-        is_waiting_for_async_get_list_item_completion_(false)
+        is_waiting_for_async_get_list_item_completion_(false),
+        is_resetting_to_marked_position_(false)
     {}
 
     bool init() final override;
@@ -212,7 +223,7 @@ class DirectoryCrawler: public CrawlerIface
 
     RecurseResult try_descend(const FindNextCallback &callback);
     void handle_end_of_list(const FindNextCallback &callback);
-    void handle_entered_list(unsigned int line, bool continue_if_empty);
+    bool handle_entered_list(unsigned int line, bool continue_if_empty);
 
     bool try_get_dbuslist_item_after_started_or_successful_hint(const FindNextCallback &callback);
     RecurseResult process_current_ready_item(const ViewFileBrowser::FileItem *file_item,

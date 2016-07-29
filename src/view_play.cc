@@ -168,7 +168,9 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
         break;
 
       case UI::ViewEventID::PLAYBACK_NEXT:
-        player_control_.skip_forward_request();
+        if(player_control_.skip_forward_request())
+            player_control_.need_next_item_hint(false);
+
         break;
 
       case UI::ViewEventID::NAV_SELECT_ITEM:
@@ -215,7 +217,16 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
             const auto &meta_data(std::get<2>(plist));
             const std::string &url_string(std::get<3>(plist));
 
-            player_data_.forget_current_stream();
+            bool switched_stream;
+
+            if(stream_id == player_data_.get_current_stream_id())
+                switched_stream = false;
+            else
+            {
+                player_data_.forget_current_stream();
+                switched_stream = true;
+            }
+
             player_data_.merge_meta_data(stream_id, meta_data, &url_string);
             player_data_.set_stream_state(stream_id, Player::StreamState::PLAYING);
             player_control_.play_notification(stream_id);
@@ -224,7 +235,8 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
                      is_visible_ ? "send screen update" : "but view is invisible");
             view_manager_->serialize_view_if_active(this, DCP::Queue::Mode::FORCE_ASYNC);
 
-            player_control_.need_next_item_hint(queue_is_full);
+            if(switched_stream)
+                player_control_.need_next_item_hint(queue_is_full);
         }
 
         break;

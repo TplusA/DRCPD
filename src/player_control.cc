@@ -70,10 +70,20 @@ void Player::Skipper::set_intention_from_skipping(Player::Data &data)
     }
 }
 
-void Player::Skipper::stop_skipping(Player::Data &data, Playlist::CrawlerIface &crawler)
+void Player::Skipper::stop_skipping(Player::Data &data, Playlist::CrawlerIface &crawler,
+                                    bool keep_skipping_flag)
 {
-    reset();
-    set_intention_from_skipping(data);
+    if(keep_skipping_flag)
+    {
+        log_assert(is_skipping_);
+        pending_skip_requests_ = 0;
+    }
+    else
+    {
+        reset();
+        set_intention_from_skipping(data);
+    }
+
     crawler.set_direction_forward();
 }
 
@@ -81,10 +91,10 @@ Player::Skipper::SkipState
 Player::Skipper::forward_request(Player::Data &data, Playlist::CrawlerIface &crawler,
                                  Player::UserIntention &previous_intention)
 {
+    previous_intention = data.get_intention();
+
     if(pending_skip_requests_ >= MAX_PENDING_SKIP_REQUESTS)
         return REJECTED;
-
-    previous_intention = data.get_intention();
 
     if(pending_skip_requests_ == 0)
     {
@@ -118,10 +128,10 @@ Player::Skipper::SkipState
 Player::Skipper::backward_request(Player::Data &data, Playlist::CrawlerIface &crawler,
                                   Player::UserIntention &previous_intention)
 {
+    previous_intention = data.get_intention();
+
     if(pending_skip_requests_ <= -MAX_PENDING_SKIP_REQUESTS)
         return REJECTED;
-
-    previous_intention = data.get_intention();
 
     if(pending_skip_requests_ == 0)
     {
@@ -151,16 +161,20 @@ Player::Skipper::backward_request(Player::Data &data, Playlist::CrawlerIface &cr
     return SKIPPING;
 }
 
-bool Player::Skipper::skipped(Data &data, Playlist::CrawlerIface &crawler)
+bool Player::Skipper::skipped(Data &data, Playlist::CrawlerIface &crawler,
+                              bool keep_skipping_flag_if_done)
 {
     if(pending_skip_requests_ == 0)
     {
-        if(!is_skipping_)
+        if(is_skipping_)
+            crawler.mark_current_position();
+        else
+        {
             BUG("Got skipped notification, but not skipping");
+            keep_skipping_flag_if_done = false;
+        }
 
-        set_intention_from_skipping(data);
-        is_skipping_ = false;
-        crawler.set_direction_forward();
+        stop_skipping(data, crawler, keep_skipping_flag_if_done);
 
         return false;
     }
@@ -419,15 +433,15 @@ static void enforce_intention(Player::UserIntention intention,
     }
 }
 
-void Player::Control::skip_forward_request()
+bool Player::Control::skip_forward_request()
 {
     if(player_ == nullptr || crawler_ == nullptr)
-        return;
+        return false;
 
     if(permissions_ != nullptr && !permissions_->can_skip_forward())
     {
         msg_error(EPERM, LOG_INFO, "Ignoring skip forward request");
-        return;
+        return false;
     }
 
     auto crawler_lock(crawler_->lock());
@@ -449,7 +463,7 @@ void Player::Control::skip_forward_request()
             if(!send_skip_to_next_command(next_stream_id, is_playing))
             {
                 player_->set_intention(previous_intention);
-                return;
+                break;
             }
 
             if(!next_stream_in_queue_.compatible_with(next_stream_id))
@@ -459,9 +473,14 @@ void Player::Control::skip_forward_request()
                     next_stream_in_queue_.get().get_raw_id(),
                     next_stream_id.get_raw_id());
 
+            next_stream_in_queue_ = ID::OurStream::make_invalid();
+            skip_requests_.skipped(*player_, *crawler_, false);
+
             /* FIXME: The "known" player state is probably too inaccurate here */
             enforce_intention(player_->get_intention(),
                               is_playing ? Player::StreamState::PLAYING : Player::StreamState::STOPPED);
+
+            return true;
         }
         else if(!crawler_->find_next(std::bind(&Player::Control::found_list_item,
                                                this,
@@ -472,6 +491,8 @@ void Player::Control::skip_forward_request()
 
         break;
     }
+
+    return false;
 }
 
 void Player::Control::skip_backward_request()
@@ -649,7 +670,7 @@ void Player::Control::found_list_item(Playlist::CrawlerIface &crawler,
         switch(ctx)
         {
           case CrawlerContext::SKIP:
-            if(skip_requests_.skipped(*player_, *crawler_))
+            if(skip_requests_.skipped(*player_, *crawler_, true))
             {
                 if(!crawler.find_next(std::bind(&Player::Control::found_list_item,
                                                 this,
@@ -717,7 +738,7 @@ void Player::Control::found_item_information(Playlist::CrawlerIface &crawler,
                 break;
 
               case UserIntention::SKIPPING_PAUSED:
-                player_->set_intention(UserIntention::PAUSING);
+                skip_requests_.stop_skipping(*player_, *crawler_);
 
                 /* fall-through */
 
@@ -727,7 +748,7 @@ void Player::Control::found_item_information(Playlist::CrawlerIface &crawler,
                 break;
 
               case UserIntention::SKIPPING_LIVE:
-                player_->set_intention(UserIntention::LISTENING);
+                skip_requests_.stop_skipping(*player_, *crawler_);
 
                 /* fall-through */
 
@@ -749,6 +770,10 @@ void Player::Control::found_item_information(Playlist::CrawlerIface &crawler,
 
               case UserIntention::SKIPPING_PAUSED:
               case UserIntention::SKIPPING_LIVE:
+                skip_requests_.stop_skipping(*player_, *crawler_);
+
+                /* fall-through */
+
               case UserIntention::PAUSING:
               case UserIntention::LISTENING:
                 queuing_failed = !store_current_item_info_and_play(false);
@@ -768,6 +793,7 @@ void Player::Control::found_item_information(Playlist::CrawlerIface &crawler,
 
               case UserIntention::SKIPPING_PAUSED:
               case UserIntention::SKIPPING_LIVE:
+                skip_requests_.stop_skipping(*player_, *crawler_);
                 queuing_failed = !store_current_item_info_and_play(true);
                 prefetch_more = true;
                 break;

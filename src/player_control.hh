@@ -71,12 +71,20 @@ class Skipper
                               UserIntention &previous_intention);
     SkipState backward_request(Data &data, Playlist::CrawlerIface &crawler,
                                UserIntention &previous_intention);
-    bool skipped(Data &data, Playlist::CrawlerIface &crawler);
-    void stop_skipping(Data &data, Playlist::CrawlerIface &crawler);
+    bool skipped(Data &data, Playlist::CrawlerIface &crawler,
+                 bool keep_skipping_flag_if_done);
+
+    void stop_skipping(Data &data, Playlist::CrawlerIface &crawler)
+    {
+        stop_skipping(data, crawler, false);
+    }
 
   private:
     static bool set_intention_for_skipping(Data &data);
     static void set_intention_from_skipping(Data &data);
+
+    void stop_skipping(Data &data, Playlist::CrawlerIface &crawler,
+                       bool keep_skipping_flag);
 };
 
 class Control
@@ -159,7 +167,7 @@ class Control
     void play_request();
     void stop_request();
     void pause_request();
-    void skip_forward_request();
+    bool skip_forward_request();
     void skip_backward_request();
     void rewind_request();
     void fast_wind_set_speed_request(double speed_factor);

@@ -204,9 +204,8 @@ void Playlist::DirectoryCrawler::switch_direction()
     if(navigation_.get_cursor() != marked_position_.line_)
     {
         navigation_.set_cursor_by_line_number(marked_position_.line_);
-
         set_dbuslist_hint(traversal_list_, navigation_, is_crawling_forward(),
-                          List::QueryContextGetItem::CallerID::CRAWLER_FIND_NEXT);
+                          List::QueryContextGetItem::CallerID::CRAWLER_FIND_MARKED);
     }
 }
 
@@ -374,7 +373,7 @@ static void update_navigation(List::Nav &nav, List::NavItemFilterIface &item_fil
     nav.set_cursor_by_line_number(line);
 }
 
-void Playlist::DirectoryCrawler::handle_entered_list(unsigned int line,
+bool Playlist::DirectoryCrawler::handle_entered_list(unsigned int line,
                                                      bool continue_if_empty)
 {
     ++directory_depth_;
@@ -390,7 +389,9 @@ void Playlist::DirectoryCrawler::handle_entered_list(unsigned int line,
         if(continue_if_empty)
         {
             /* found empty directory, go up again */
-            if(!find_next(std::move(find_next_callback_)))
+            if(find_next(std::move(find_next_callback_)))
+                return true;
+            else
                 fail_crawler();
         }
         else
@@ -402,9 +403,13 @@ void Playlist::DirectoryCrawler::handle_entered_list(unsigned int line,
     else if(find_next_callback_ != nullptr)
     {
         /* have pending find-next request */
-        if(!find_next(std::move(find_next_callback_)))
+        if(find_next(std::move(find_next_callback_)))
+            return true;
+        else
             fail_crawler();
     }
+
+    return false;
 }
 
 Playlist::DirectoryCrawler::RecurseResult
@@ -715,17 +720,19 @@ bool Playlist::DirectoryCrawler::find_next_impl(FindNextCallback callback)
 
     while(looping)
     {
-        msg_info("Find next %s, depth %u, wait enter %d, wait item %d, first is %sprocessed",
+        msg_info("Find next %s, depth %u, wait enter %d, wait item %d, go to marked %d, first is %sprocessed",
                  is_crawling_forward() ? "forward" : "backward",
                  directory_depth_,
                  is_waiting_for_async_enter_list_completion_,
                  is_waiting_for_async_get_list_item_completion_,
+                 is_resetting_to_marked_position_,
                  is_first_item_in_list_processed_ ? "" : "not ");
         looping = false;
 
-        if(is_waiting_for_async_enter_list_completion_)
+        if(is_waiting_for_async_enter_list_completion_ ||
+           is_resetting_to_marked_position_)
         {
-            /* let the enter-list-done handler deal with this */
+            /* let the follow-up handler deal with this */
             find_next_callback_ = callback;
             break;
         }
@@ -738,7 +745,8 @@ bool Playlist::DirectoryCrawler::find_next_impl(FindNextCallback callback)
                 return false;
             }
         }
-        else if(!go_to_next_list_item())
+        else if(!is_waiting_for_async_get_list_item_completion_ &&
+                !go_to_next_list_item())
         {
             if(directory_depth_ <= 1)
             {
@@ -838,6 +846,7 @@ void Playlist::DirectoryCrawler::handle_enter_list_event(List::AsyncListIface::O
         switch(result)
         {
           case List::AsyncListIface::OpResult::STARTED:
+            is_resetting_to_marked_position_ = true;
             break;
 
           case List::AsyncListIface::OpResult::SUCCEEDED:
@@ -846,11 +855,14 @@ void Playlist::DirectoryCrawler::handle_enter_list_event(List::AsyncListIface::O
 
             directory_depth_ = marked_position_.directory_depth_ - 1;
 
-            handle_entered_list(ctx->parameters_.line_, false);
+            if(!handle_entered_list(ctx->parameters_.line_, false))
+                is_resetting_to_marked_position_ = false;
+
             break;
 
           case List::AsyncListIface::OpResult::FAILED:
           case List::AsyncListIface::OpResult::CANCELED:
+            is_resetting_to_marked_position_ = false;
             fail_crawler();
             break;
         }
@@ -929,6 +941,40 @@ void Playlist::DirectoryCrawler::handle_get_item_event(List::AsyncListIface::OpR
       case List::QueryContextGetItem::CallerID::SERIALIZE_DEBUG:
       case List::QueryContextGetItem::CallerID::DBUSLIST_GET_ITEM:
         BUG("Wrong caller ID in %s()", __PRETTY_FUNCTION__);
+        break;
+
+      case List::QueryContextGetItem::CallerID::CRAWLER_FIND_MARKED:
+        switch(result)
+        {
+          case List::AsyncListIface::OpResult::STARTED:
+            is_resetting_to_marked_position_ = true;
+            break;
+
+          case List::AsyncListIface::OpResult::SUCCEEDED:
+            is_resetting_to_marked_position_ = false;
+
+            if(find_next_callback_ != nullptr)
+            {
+                const auto find_next_callback(std::move(find_next_callback_));
+                find_next(find_next_callback);
+            }
+
+            break;
+
+          case List::AsyncListIface::OpResult::FAILED:
+          case List::AsyncListIface::OpResult::CANCELED:
+            is_resetting_to_marked_position_ = false;
+
+            if(find_next_callback_ != nullptr)
+            {
+                const auto find_next_callback(std::move(find_next_callback_));
+                call_callback(find_next_callback, *this,
+                              map_opresult_to_find_next_result(result));
+            }
+
+            break;
+        }
+
         break;
 
       case List::QueryContextGetItem::CallerID::CRAWLER_FIND_NEXT:
