@@ -196,9 +196,19 @@ class QueryContextEnterList: public QueryContext_
 
             synchronize(dummy);
         }
+        catch(const List::DBusListException &e)
+        {
+            BUG("Got list exception while synchronizing enter-list cancel: %s",
+                e.what());
+        }
+        catch(const std::exception &e)
+        {
+            BUG("Got std exception while synchronizing enter-list cancel: %s",
+                e.what());
+        }
         catch(...)
         {
-            /* ignore, the #DBus::AsyncCall is already deleted or a zombie */
+            BUG("Got unknown exception while synchronizing enter-list cancel");
         }
     }
 
@@ -485,9 +495,19 @@ class QueryContextGetItem: public QueryContext_
 
             synchronize(dummy);
         }
+        catch(const List::DBusListException &e)
+        {
+            BUG("Got list exception while synchronizing get-item cancel: %s",
+                e.what());
+        }
+        catch(const std::exception &e)
+        {
+            BUG("Got std exception while synchronizing get-item cancel: %s",
+                e.what());
+        }
         catch(...)
         {
-            /* ignore, the #DBus::AsyncCall is already deleted or a zombie */
+            BUG("Got unknown exception while synchronizing enter-list cancel");
         }
     }
 
