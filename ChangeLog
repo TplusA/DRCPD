@@ -1,3 +1,15 @@
+2016-07-29  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 2.2 released.
+
+	* Playback: The player component has been completely redesigned. It is
+	  follows an MVC-like architecture now. This version, however, is a
+	  poorly tested one. Any kind of problems may still occur in this
+	  version.
+
+	* Stability: Fix rare race-condition in asynchronous list handling
+	  code.
+
 2016-07-21  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 2.1 released.
