@@ -1025,7 +1025,12 @@ bool ViewFileBrowser::View::list_invalidate(ID::List list_id, ID::List replaceme
     }
 
     if(list_id != current_list_id_)
+    {
+        if(!current_list_id_.is_valid())
+            point_to_root_directory();
+
         return false;
+    }
 
     if(replacement_id.is_valid())
     {
@@ -1042,7 +1047,7 @@ bool ViewFileBrowser::View::list_invalidate(ID::List list_id, ID::List replaceme
         point_to_root_directory();
     }
 
-    return true;
+    return false;
 }
 
 /*!
