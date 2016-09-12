@@ -150,6 +150,7 @@ class Data
     Data &operator=(const Data &) = delete;
 
     explicit Data():
+        intention_(UserIntention::NOTHING),
         current_stream_state_(StreamState::STOPPED),
         current_stream_id_(ID::Stream::make_invalid()),
         next_free_stream_id_(ID::OurStream::make()),
@@ -217,19 +218,19 @@ class Data
     const std::string &get_first_stream_uri(const ID::OurStream stream_id);
     const std::string &get_next_stream_uri(const ID::OurStream stream_id);
 
-    const StreamPreplayInfo *get_stream_preplay_info(const ID::OurStream stream_id)
+    const StreamPreplayInfo *get_stream_preplay_info(const ID::OurStream stream_id) const
     {
         return preplay_info_.get_info(stream_id);
     }
 
-    void put_meta_data(const ID::Stream stream_id, const MetaData::Set &meta_data);
-    void put_meta_data(const ID::Stream stream_id, MetaData::Set &&meta_data);
-    bool merge_meta_data(const ID::Stream stream_id, const MetaData::Set &meta_data,
+    void put_meta_data(const ID::Stream &stream_id, const MetaData::Set &meta_data);
+    void put_meta_data(const ID::Stream &stream_id, MetaData::Set &&meta_data);
+    bool merge_meta_data(const ID::Stream &stream_id, const MetaData::Set &meta_data,
                          const std::string *fallback_url = nullptr);
-    const MetaData::Set &get_meta_data(const ID::Stream stream_id);
+    const MetaData::Set &get_meta_data(const ID::Stream &stream_id);
     const MetaData::Set &get_current_meta_data() { return get_meta_data(current_stream_id_); }
 
-    bool forget_stream(const ID::Stream stream_id);
+    bool forget_stream(const ID::Stream &stream_id);
 
     bool forget_current_stream()
     {
@@ -243,7 +244,7 @@ class Data
                             const std::chrono::milliseconds &duration);
 
     void append_referenced_lists(std::vector<ID::List> &list_ids) const;
-    void list_replaced_notification(ID::List old_id, ID::List new_id);
+    void list_replaced_notification(ID::List old_id, ID::List new_id) const;
 };
 
 }

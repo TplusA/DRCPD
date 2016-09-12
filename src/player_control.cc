@@ -528,7 +528,7 @@ void Player::Control::skip_backward_request()
     }
 }
 
-void Player::Control::rewind_request()
+void Player::Control::rewind_request() const
 {
     if(permissions_ != nullptr && !permissions_->can_skip_backward())
     {
@@ -541,22 +541,65 @@ void Player::Control::rewind_request()
         msg_error(0, LOG_NOTICE, "Failed restarting stream");
 }
 
+static inline bool is_fast_winding_allowed(const Player::LocalPermissionsIface *permissions)
+{
+    if(permissions == nullptr)
+        return true;
+
+    return permissions->can_fast_wind_forward() ||
+           permissions->can_fast_wind_backward();
+}
+
+static inline bool is_fast_winding_allowed(const Player::LocalPermissionsIface *permissions,
+                                           bool is_forward)
+{
+    if(permissions == nullptr)
+        return true;
+
+    return (is_forward && permissions->can_fast_wind_forward()) ||
+           (!is_forward && permissions->can_fast_wind_backward());
+}
+
 void Player::Control::fast_wind_set_speed_request(double speed_factor)
 {
+    if(!is_fast_winding_allowed(permissions_))
+    {
+        msg_error(EPERM, LOG_INFO,
+                  "Ignoring fast wind set factor request");
+        return;
+    }
+
     BUG("%s(): not implemented", __func__);
+    fast_wind_data_.speed_factor_ = speed_factor;
 }
 
 void Player::Control::fast_wind_set_direction_request(bool is_forward)
 {
+    if(!is_fast_winding_allowed(permissions_, is_forward))
+    {
+        msg_error(EPERM, LOG_INFO,
+                  "Ignoring fast wind set direction %u request", is_forward);
+        return;
+    }
+
     BUG("%s(): not implemented", __func__);
+    fast_wind_data_.is_forward_mode_ = is_forward;
 }
 
-void Player::Control::fast_wind_start_request()
+void Player::Control::fast_wind_start_request() const
 {
+    if(!is_fast_winding_allowed(permissions_, fast_wind_data_.is_forward_mode_))
+    {
+        msg_error(EPERM, LOG_INFO,
+                  "Ignoring fast wind start request in direction %u",
+                  fast_wind_data_.is_forward_mode_);
+        return;
+    }
+
     BUG("%s(): not implemented", __func__);
 }
 
-void Player::Control::fast_wind_stop_request()
+void Player::Control::fast_wind_stop_request() const
 {
     BUG("%s(): not implemented", __func__);
 }

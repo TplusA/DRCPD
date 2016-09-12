@@ -154,7 +154,8 @@ class View: public ViewIface, public ViewSerializeBase
         default_shuffle_mode_(default_shuffle_mode),
         drcp_browse_id_(drcp_browse_id),
         search_parameters_view_(nullptr),
-        waiting_for_search_parameters_(false)
+        waiting_for_search_parameters_(false),
+        play_view_(nullptr)
     {}
 
     bool init() final override;

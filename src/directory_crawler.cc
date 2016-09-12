@@ -210,7 +210,7 @@ void Playlist::DirectoryCrawler::switch_direction()
 }
 
 static Playlist::CrawlerIface::FindNext
-map_opresult_to_find_next_result(const List::AsyncListIface::OpResult op_result)
+map_opresult_to_find_next_result(const List::AsyncListIface::OpResult &op_result)
 {
     switch(op_result)
     {
@@ -231,7 +231,7 @@ map_opresult_to_find_next_result(const List::AsyncListIface::OpResult op_result)
 }
 
 static Playlist::CrawlerIface::RetrieveItemInfo
-map_asyncresult_to_retrieve_item_result(const DBus::AsyncResult async_result)
+map_asyncresult_to_retrieve_item_result(const DBus::AsyncResult &async_result)
 {
     switch(async_result)
     {
@@ -432,10 +432,37 @@ Playlist::DirectoryCrawler::try_descend(const FindNextCallback &callback)
         return RecurseResult::SKIP;
     }
 
-    const ID::List list_id =
-        ViewFileBrowser::Utils::get_child_item_id(traversal_list_,
-                                                  traversal_list_.get_list_id(),
-                                                  navigation_, nullptr, true);
+    ID::List list_id;
+
+    try
+    {
+        list_id =
+            ViewFileBrowser::Utils::get_child_item_id(traversal_list_,
+                                                      traversal_list_.get_list_id(),
+                                                      navigation_, nullptr, true);
+    }
+    catch(const List::DBusListException &e)
+    {
+        switch(e.get())
+        {
+          case ListError::Code::OK:
+          case ListError::Code::INTERNAL:
+          case ListError::Code::INVALID_ID:
+          case ListError::Code::INCONSISTENT:
+            break;
+
+          case ListError::Code::INTERRUPTED:
+          case ListError::Code::PHYSICAL_MEDIA_IO:
+          case ListError::Code::NET_IO:
+          case ListError::Code::PROTOCOL:
+          case ListError::Code::AUTHENTICATION:
+          case ListError::Code::NOT_SUPPORTED:
+          case ListError::Code::PERMISSION_DENIED:
+            return RecurseResult::SKIP;
+        }
+
+        return RecurseResult::ERROR;
+    }
 
     if(!list_id.is_valid())
         return RecurseResult::ERROR;
@@ -687,8 +714,17 @@ static List::AsyncListIface::OpResult back_to_parent(List::DBusList &list,
         return List::AsyncListIface::OpResult::CANCELED;
 
     unsigned int item_id;
-    const ID::List list_id =
-        ViewFileBrowser::Utils::get_parent_link_id(list, list.get_list_id(), item_id);
+    ID::List list_id;
+
+    try
+    {
+        list_id =
+            ViewFileBrowser::Utils::get_parent_link_id(list, list.get_list_id(), item_id);
+    }
+    catch(const List::DBusListException &e)
+    {
+        /* leave #list_id invalid, fail below */
+    }
 
     if(!list_id.is_valid())
         return List::AsyncListIface::OpResult::FAILED;

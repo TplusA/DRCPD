@@ -155,21 +155,21 @@ static bool too_many_meta_data_entries(const MetaData::Collection &meta_data)
         return false;
 }
 
-void Player::Data::put_meta_data(const ID::Stream stream_id,
+void Player::Data::put_meta_data(const ID::Stream &stream_id,
                                  const MetaData::Set &meta_data)
 {
     if(!too_many_meta_data_entries(meta_data_db_))
         meta_data_db_.insert(stream_id, meta_data);
 }
 
-void Player::Data::put_meta_data(const ID::Stream stream_id,
+void Player::Data::put_meta_data(const ID::Stream &stream_id,
                                  MetaData::Set &&meta_data)
 {
     if(!too_many_meta_data_entries(meta_data_db_))
         meta_data_db_.emplace(stream_id, std::move(meta_data));
 }
 
-bool Player::Data::merge_meta_data(const ID::Stream stream_id,
+bool Player::Data::merge_meta_data(const ID::Stream &stream_id,
                                    const MetaData::Set &meta_data,
                                    const std::string *fallback_url)
 {
@@ -193,7 +193,7 @@ bool Player::Data::merge_meta_data(const ID::Stream stream_id,
     return true;
 }
 
-bool Player::Data::forget_stream(const ID::Stream stream_id)
+bool Player::Data::forget_stream(const ID::Stream &stream_id)
 {
     const ID::List list_id(preplay_info_.get_referenced_list_id(ID::OurStream::make_from_generic_id(stream_id)));
 
@@ -207,7 +207,7 @@ bool Player::Data::forget_stream(const ID::Stream stream_id)
     return retval;
 }
 
-const MetaData::Set &Player::Data::get_meta_data(const ID::Stream stream_id)
+const MetaData::Set &Player::Data::get_meta_data(const ID::Stream &stream_id)
 {
     auto *md = const_cast<Player::Data *>(this)->meta_data_db_.get_meta_data_for_update(stream_id);
 
@@ -242,7 +242,7 @@ void Player::Data::append_referenced_lists(std::vector<ID::List> &list_ids) cons
     }
 }
 
-void Player::Data::list_replaced_notification(ID::List old_id, ID::List new_id)
+void Player::Data::list_replaced_notification(ID::List old_id, ID::List new_id) const
 {
     BUG("%s(): not implemented", __func__);
 }

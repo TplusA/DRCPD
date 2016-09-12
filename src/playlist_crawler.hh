@@ -45,6 +45,8 @@ class CrawlerIface
 
   protected:
     explicit CrawlerIface():
+        recursive_mode_(RecursiveMode::FLAT),
+        shuffle_mode_(ShuffleMode::FORWARD),
         crawler_state_(CrawlerState::NOT_STARTED),
         is_attached_to_player_(false),
         is_crawling_forward_(true)
