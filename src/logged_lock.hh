@@ -177,7 +177,7 @@ class RecMutex
     {
         msg_info("<%08lx> RecMutex %s: unlock, lock count %zu",
                  pthread_self(), name_, lock_count_);
-        unref_owner(false);
+        unref_owner();
         lock_.unlock();
     }
 
@@ -207,7 +207,7 @@ class RecMutex
         owner_ = pthread_self();
     }
 
-    void unref_owner(bool must_be_unlocked)
+    void unref_owner()
     {
         if(owner_ == 0)
             BUG("RecMutex %s: <%08lx> clearing unowned, lock count %zu",
@@ -218,10 +218,6 @@ class RecMutex
         else if(lock_count_ == 0)
             BUG("RecMutex %s: <%08lx> unref with lock count 0, owner <%08lx>",
                 name_, pthread_self(), owner_);
-        else if(must_be_unlocked && lock_count_ != 1)
-            BUG("RecMutex %s: <%08lx> still locked after unref with "
-                "lock count %zu, owner <%08lx>",
-                name_, pthread_self(), lock_count_, owner_);
 
         --lock_count_;
 
@@ -254,9 +250,9 @@ struct MutexTraits<::LoggedLock::RecMutex>
     using StdMutexType = std::recursive_mutex;
 
     static void set_owner(RecMutex &m) { m.ref_owner(); }
-    static void clear_owner(RecMutex &m) { m.unref_owner(false); }
+    static void clear_owner(RecMutex &m) { m.unref_owner(); }
     static pthread_t get_owner(const RecMutex &m) { return m.get_owner(); }
-    static void destroy_owned(RecMutex &m) { m.unref_owner(true); }
+    static void destroy_owned(RecMutex &m) { m.unref_owner(); }
 };
 
 template <typename MutexType>
