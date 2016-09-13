@@ -22,7 +22,8 @@
 #include <mutex>
 #include <condition_variable>
 
-#define LOGGED_LOCKS_ENABLED 0
+#define LOGGED_LOCKS_ENABLED            0
+#define LOGGED_LOCKS_ABORT_ON_BUG       1
 
 #if LOGGED_LOCKS_ENABLED
 /*
@@ -30,6 +31,21 @@
  */
 #include <pthread.h>
 #include "messages.h"
+
+#if LOGGED_LOCKS_ABORT_ON_BUG
+#include <stdlib.h>
+
+#define LOGGED_LOCK_BUG(...) \
+    do \
+    { \
+        BUG(__VA_ARGS__); \
+        abort(); \
+    } \
+    while(0)
+#else /* !LOGGED_LOCKS_ABORT_ON_BUG */
+#define LOGGED_LOCK_BUG(...) BUG(__VA_ARGS__)
+#endif /* LOGGED_LOCKS_ABORT_ON_BUG */
+
 #endif /* LOGGED_LOCKS_ENABLED */
 
 namespace LoggedLock
@@ -56,8 +72,8 @@ class Mutex
     void about_to_lock(bool is_direct) const
     {
         if(owner_ == pthread_self())
-            BUG("Mutex %s: DEADLOCK for <%08lx> (%sdirect)",
-                name_, pthread_self(), is_direct ? "" : "in");
+            LOGGED_LOCK_BUG("Mutex %s: DEADLOCK for <%08lx> (%sdirect)",
+                            name_, pthread_self(), is_direct ? "" : "in");
     }
 
     void lock()
@@ -86,8 +102,8 @@ class Mutex
     void set_owner()
     {
         if(owner_ != 0)
-            BUG("Mutex %s: replace owner <%08lx> by <%08lx>",
-                name_, owner_, pthread_self());
+            LOGGED_LOCK_BUG("Mutex %s: replace owner <%08lx> by <%08lx>",
+                            name_, owner_, pthread_self());
 
         owner_ = pthread_self();
     }
@@ -95,10 +111,11 @@ class Mutex
     void clear_owner()
     {
         if(owner_ == 0)
-            BUG("Mutex %s: <%08lx> clearing unowned", name_, pthread_self());
+            LOGGED_LOCK_BUG("Mutex %s: <%08lx> clearing unowned",
+                            name_, pthread_self());
         else if(owner_ != pthread_self())
-            BUG("Mutex %s: <%08lx> stealing from owner <%08lx>",
-                name_, pthread_self(), owner_);
+            LOGGED_LOCK_BUG("Mutex %s: <%08lx> stealing from owner <%08lx>",
+                            name_, pthread_self(), owner_);
 
         owner_ = 0;
     }
@@ -154,8 +171,9 @@ class RecMutex
         if(is_locked)
         {
             if(lock_count_ > 0 && owner_ != pthread_self())
-                BUG("RecMutex %s: lock attempt by <%08lx> succeeded, but shouldn't have",
-                    name_, pthread_self());
+                LOGGED_LOCK_BUG("RecMutex %s: lock attempt by <%08lx> "
+                                "succeeded, but shouldn't have",
+                                name_, pthread_self());
 
             ref_owner();
             msg_info("<%08lx> RecMutex %s: locked", pthread_self(), name_);
@@ -165,9 +183,10 @@ class RecMutex
             msg_info("<%08lx> RecMutex %s: locking failed", pthread_self(), name_);
 
             if(lock_count_ == 0 || owner_ == pthread_self())
-                BUG("RecMutex %s: lock attempt by <%08lx> should have succeeded "
-                    "(owner <%08lx>, lock count %zu)",
-                    name_, pthread_self(), owner_, lock_count_);
+                LOGGED_LOCK_BUG("RecMutex %s: lock attempt by <%08lx> "
+                                "should have succeeded "
+                                "(owner <%08lx>, lock count %zu)",
+                                name_, pthread_self(), owner_, lock_count_);
         }
 
         return is_locked;
@@ -194,15 +213,17 @@ class RecMutex
         if(owner_ == pthread_self())
         {
             if(lock_count_ <= 1)
-                BUG("RecMutex %s: <%08lx> sets owner for lock count %zu",
-                    name_, pthread_self(), lock_count_);
+                LOGGED_LOCK_BUG("RecMutex %s: <%08lx> sets owner for "
+                                "lock count %zu",
+                                name_, pthread_self(), lock_count_);
 
             return;
         }
 
         if(owner_ != 0)
-            BUG("RecMutex %s: replace owner <%08lx> by <%08lx>, lock count %zu",
-                name_, owner_, pthread_self(), lock_count_);
+            LOGGED_LOCK_BUG("RecMutex %s: replace owner <%08lx> by <%08lx>, "
+                            "lock count %zu",
+                            name_, owner_, pthread_self(), lock_count_);
 
         owner_ = pthread_self();
     }
@@ -210,14 +231,17 @@ class RecMutex
     void unref_owner()
     {
         if(owner_ == 0)
-            BUG("RecMutex %s: <%08lx> clearing unowned, lock count %zu",
-                name_, pthread_self(), lock_count_);
+            LOGGED_LOCK_BUG("RecMutex %s: <%08lx> clearing unowned, "
+                            "lock count %zu",
+                            name_, pthread_self(), lock_count_);
         else if(owner_ != pthread_self())
-            BUG("RecMutex %s: <%08lx> stealing from owner <%08lx>, lock count %zu",
-                name_, pthread_self(), owner_, lock_count_);
+            LOGGED_LOCK_BUG("RecMutex %s: <%08lx> stealing from owner "
+                            "<%08lx>, lock count %zu",
+                            name_, pthread_self(), owner_, lock_count_);
         else if(lock_count_ == 0)
-            BUG("RecMutex %s: <%08lx> unref with lock count 0, owner <%08lx>",
-                name_, pthread_self(), owner_);
+            LOGGED_LOCK_BUG("RecMutex %s: <%08lx> unref with lock count 0, "
+                            "owner <%08lx>",
+                            name_, pthread_self(), owner_);
 
         --lock_count_;
 
@@ -351,8 +375,9 @@ class ConditionVariable
     void wait(UniqueLock<Mutex> &lock, Predicate pred)
     {
         if(lock.get_mutex_owner() != pthread_self())
-            BUG("Cond %s: <%08lx> waiting with foreign mutex owned by <%08lx>",
-                name_, pthread_self(), lock.get_mutex_owner());
+            LOGGED_LOCK_BUG("Cond %s: <%08lx> waiting with foreign mutex "
+                            "owned by <%08lx>",
+                            name_, pthread_self(), lock.get_mutex_owner());
 
         msg_info("<%08lx> Cond %s: wait for %s",
                  pthread_self(), name_, lock.get_mutex_name());
