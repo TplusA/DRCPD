@@ -30,7 +30,7 @@
  */
 #include <pthread.h>
 #include "messages.h"
-#endif /* !LOGGED_LOCKS_ENABLED */
+#endif /* LOGGED_LOCKS_ENABLED */
 
 namespace LoggedLock
 {
