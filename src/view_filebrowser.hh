@@ -62,7 +62,7 @@ class View: public ViewIface, public ViewSerializeBase
     struct AsyncCalls
     {
       private:
-        LoggedLock::Mutex lock_;
+        LoggedLock::RecMutex lock_;
 
       public:
         using GetListId =
@@ -80,9 +80,9 @@ class View: public ViewIface, public ViewSerializeBase
             LoggedLock::set_name(lock_, "FileBrowserAsyncCall");
         }
 
-        std::unique_lock<LoggedLock::Mutex> acquire_lock()
+        std::unique_lock<LoggedLock::RecMutex> acquire_lock()
         {
-            return std::unique_lock<LoggedLock::Mutex>(lock_);
+            return std::unique_lock<LoggedLock::RecMutex>(lock_);
         }
 
         void cancel_and_delete_all()
@@ -191,7 +191,7 @@ class View: public ViewIface, public ViewSerializeBase
         async_calls_.cancel_and_delete_all();
     }
 
-    std::unique_lock<LoggedLock::Mutex> lock_async_calls()
+    std::unique_lock<LoggedLock::RecMutex> lock_async_calls()
     {
         return async_calls_.acquire_lock();
     }
