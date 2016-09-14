@@ -186,11 +186,6 @@ static bool fetch_window_sync(tdbuslistsNavigation *proxy,
     return have_meta_data;
 }
 
-bool List::DBusList::is_position_unchanged(ID::List list_id, unsigned int line) const
-{
-    return list_id == window_.list_id_ && line == window_.first_item_line_;
-}
-
 static void fill_cache_list_generic(List::RamList &items,
                                     List::DBusList::NewItemFn new_item_fn,
                                     unsigned int cache_list_index,
@@ -362,9 +357,6 @@ List::DBusList::enter_list_async(ID::List list_id, unsigned int line,
 
     cancel_enter_list_query();
     cancel_get_item_query();
-
-    if(is_position_unchanged(list_id, line))
-        return OpResult::SUCCEEDED;
 
     async_dbus_data_.enter_list_query_ =
         std::make_shared<QueryContextEnterList>(*this, caller_id,
