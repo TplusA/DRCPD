@@ -175,11 +175,6 @@ class QueryContextEnterList: public QueryContext_
         parameters_({list_id, line})
     {}
 
-    virtual ~QueryContextEnterList()
-    {
-        cancel_sync();
-    }
-
     CallerID get_caller_id() const { return static_cast<CallerID>(caller_id_); }
 
     bool run_async(DBus::AsyncResultAvailableFunction &&result_available) final override;
@@ -491,11 +486,6 @@ class QueryContextGetItem: public QueryContext_
         proxy_(src.proxy_),
         parameters_({list_id, CacheSegment(line, count), have_meta_data, replace_index})
     {}
-
-    virtual ~QueryContextGetItem()
-    {
-        cancel_sync();
-    }
 
     CallerID get_caller_id() const { return static_cast<CallerID>(caller_id_); }
 
