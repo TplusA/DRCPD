@@ -123,7 +123,7 @@ class QueryContext_
 /*!
  * Context for entering a D-Bus list asynchronously.
  */
-class QueryContextEnterList: public QueryContext_
+class QueryContextEnterList: public QueryContext_, public std::enable_shared_from_this<QueryContextEnterList>
 {
   public:
     enum class CallerID
@@ -197,6 +197,8 @@ class QueryContextEnterList: public QueryContext_
 
     void cancel_sync() final override
     {
+        const auto self_local_ref(shared_from_this());
+
         if(!cancel())
             return;
 
@@ -430,7 +432,7 @@ enum class CacheSegmentState
 /*!
  * Context for getting a D-Bus list item asynchronously.
  */
-class QueryContextGetItem: public QueryContext_
+class QueryContextGetItem: public QueryContext_, public std::enable_shared_from_this<QueryContextGetItem>
 {
   public:
     enum class CallerID
@@ -509,6 +511,8 @@ class QueryContextGetItem: public QueryContext_
 
     void cancel_sync() final override
     {
+        const auto self_local_ref(shared_from_this());
+
         if(!cancel())
             return;
 
