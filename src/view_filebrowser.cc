@@ -1003,9 +1003,9 @@ void ViewFileBrowser::View::serialize(DCP::Queue &queue, DCP::Queue::Mode mode,
         if(item != nullptr)
             *debug_os << "Type " << (unsigned int)item->get_kind().get_raw_code()
                       << " " << it << ": "
-                      << item->get_text() << std::endl;
+                      << item->get_text() << '\n';
         else
-            *debug_os << "*NULL ENTRY* " << it << std::endl;
+            *debug_os << "*NULL ENTRY* " << it << '\n';
     }
 }
 

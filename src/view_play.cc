@@ -497,11 +497,11 @@ void ViewPlay::View::serialize(DCP::Queue &queue, DCP::Queue::Mode mode,
         << md.values_[MetaData::Set::INTERNAL_DRCPD_URL]
         << "\" ("
         << stream_state_string[static_cast<size_t>(player_data_.get_current_stream_state())]
-        << ")" << std::endl;
-    *debug_os << "Stream state: " << static_cast<size_t>(player_data_.get_current_stream_state()) << std::endl;
+        << ")\n";
+    *debug_os << "Stream state: " << static_cast<size_t>(player_data_.get_current_stream_state()) << '\n';
 
     for(size_t i = 0; i < md.values_.size(); ++i)
-        *debug_os << "  " << i << ": \"" << md.values_[i] << "\"" << std::endl;
+        *debug_os << "  " << i << ": \"" << md.values_[i] << "\"\n";
 }
 
 static const std::string reformat_bitrate(const char *in)

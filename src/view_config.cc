@@ -289,7 +289,7 @@ void ViewConfig::View::serialize(DCP::Queue &queue, DCP::Queue::Mode mode,
         if(setting != nullptr)
             *debug_os << "\t[" << (setting->is_editable() ? 'E' : 'S') << "] " << setting->get();
 
-        *debug_os << std::endl;
+        *debug_os << '\n';
     }
 }
 

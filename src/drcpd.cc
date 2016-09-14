@@ -287,15 +287,15 @@ static void usage(const char *program_name)
         "  --idcp name    Name of the named pipe the DCP daemon writes to.\n"
         "  --odcp name    Name of the named pipe the DCP daemon reads from.\n"
         "  --session-dbus Connect to session D-Bus.\n"
-        "  --system-dbus  Connect to system D-Bus."
-        << std::endl;
+        "  --system-dbus  Connect to system D-Bus.\n"
+        ;
 }
 
 static bool check_argument(int argc, char *argv[], int &i)
 {
     if(i + 1 >= argc)
     {
-        std::cerr << "Option " << argv[i] << " requires an argument." << std::endl;
+        std::cerr << "Option " << argv[i] << " requires an argument.\n";
         return false;
     }
 
@@ -341,7 +341,7 @@ static int process_command_line(int argc, char *argv[],
         else
         {
             std::cerr << "Unknown option \"" << argv[i]
-                      << "\". Please try --help." << std::endl;
+                      << "\". Please try --help.\n";
             return -1;
         }
     }
