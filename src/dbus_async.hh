@@ -22,6 +22,7 @@
 #include <future>
 #include <functional>
 
+#include "logged_lock.hh"
 #include "busy.hh"
 
 namespace DBus
@@ -34,6 +35,7 @@ enum class AsyncResult
     READY,
     DONE,
     CANCELED,
+    RESTARTED,
     FAILED,
 };
 
@@ -41,14 +43,17 @@ class AsyncCall_: public std::enable_shared_from_this<AsyncCall_>
 {
   private:
     std::shared_ptr<AsyncCall_> pointer_to_self_;
+    LoggedLock::RecMutex lock_;
 
   protected:
     AsyncResult call_state_;
     GCancellable *cancellable_;
+    bool is_canceled_for_restart_;
 
     explicit AsyncCall_():
         call_state_(AsyncResult::INITIALIZED),
-        cancellable_(g_cancellable_new())
+        cancellable_(g_cancellable_new()),
+        is_canceled_for_restart_(false)
     {}
 
   public:
@@ -63,7 +68,7 @@ class AsyncCall_: public std::enable_shared_from_this<AsyncCall_>
         log_assert(pointer_to_self_ == nullptr);
     }
 
-    virtual void cancel() = 0;
+    virtual void cancel(bool will_be_restarted) = 0;
 
     bool is_active() const
     {
@@ -73,6 +78,7 @@ class AsyncCall_: public std::enable_shared_from_this<AsyncCall_>
           case AsyncResult::READY:
           case AsyncResult::DONE:
           case AsyncResult::CANCELED:
+          case AsyncResult::RESTARTED:
           case AsyncResult::FAILED:
             return true;
 
@@ -94,6 +100,7 @@ class AsyncCall_: public std::enable_shared_from_this<AsyncCall_>
           case AsyncResult::READY:
           case AsyncResult::DONE:
           case AsyncResult::CANCELED:
+          case AsyncResult::RESTARTED:
           case AsyncResult::FAILED:
             break;
         }
@@ -108,6 +115,7 @@ class AsyncCall_: public std::enable_shared_from_this<AsyncCall_>
           case AsyncResult::READY:
           case AsyncResult::DONE:
           case AsyncResult::CANCELED:
+          case AsyncResult::RESTARTED:
           case AsyncResult::FAILED:
             return true;
 
@@ -130,6 +138,7 @@ class AsyncCall_: public std::enable_shared_from_this<AsyncCall_>
           case AsyncResult::INITIALIZED:
           case AsyncResult::IN_PROGRESS:
           case AsyncResult::CANCELED:
+          case AsyncResult::RESTARTED:
           case AsyncResult::FAILED:
             break;
         }
@@ -143,6 +152,14 @@ class AsyncCall_: public std::enable_shared_from_this<AsyncCall_>
     }
 
   protected:
+    /*!
+     * Lock this asynchronous call.
+     */
+    LoggedLock::UniqueLock<LoggedLock::RecMutex> lock() const
+    {
+        return LoggedLock::UniqueLock<LoggedLock::RecMutex>(const_cast<AsyncCall_ *>(this)->lock_);
+    }
+
     void async_op_started() { pointer_to_self_ = shared_from_this(); }
 
     void async_op_done()
@@ -286,8 +303,19 @@ class AsyncCall: public DBus::AsyncCall_
     {
         log_assert(is_active());
 
-        if(call_state_ == AsyncResult::DONE || call_state_ == AsyncResult::CANCELED)
+        switch(call_state_)
+        {
+          case AsyncResult::DONE:
+          case AsyncResult::CANCELED:
+          case AsyncResult::RESTARTED:
             return call_state_;
+
+          case AsyncResult::INITIALIZED:
+          case AsyncResult::IN_PROGRESS:
+          case AsyncResult::READY:
+          case AsyncResult::FAILED:
+            break;
+        }
 
         auto future(promise_.get_future());
         log_assert(future.valid());
@@ -322,12 +350,17 @@ class AsyncCall: public DBus::AsyncCall_
         return call_state_;
     }
 
-    void cancel() final override
+    void cancel(bool will_be_restarted) final override
     {
+        auto lock_this(lock());
+
         log_assert(is_active());
 
         if(!g_cancellable_is_cancelled(cancellable_))
+        {
+            is_canceled_for_restart_ = will_be_restarted;
             g_cancellable_cancel(cancellable_);
+        }
     }
 
     static void cancel_and_delete(std::shared_ptr<AsyncCall> &call)
@@ -335,7 +368,9 @@ class AsyncCall: public DBus::AsyncCall_
         if(call == nullptr)
             return;
 
-        call->cancel();
+        auto lock_this(call->lock());
+
+        call->cancel(false);
 
         try
         {
@@ -346,6 +381,7 @@ class AsyncCall: public DBus::AsyncCall_
             /* ignore exceptions because we will clean up anyway */
         }
 
+        lock_this.unlock();
         call.reset();
     }
 
@@ -353,6 +389,11 @@ class AsyncCall: public DBus::AsyncCall_
     {
         log_assert(success());
         return return_value_;
+    }
+
+    AsyncResultAvailableFunction get_result_available_fn() const
+    {
+        return result_available_fn_;
     }
 
   private:
@@ -365,8 +406,13 @@ class AsyncCall: public DBus::AsyncCall_
 
     AsyncResult ready(ProxyType *proxy, GAsyncResult *res, bool is_done)
     {
+        auto lock_this(lock());
+
         if(g_cancellable_is_cancelled(cancellable_))
-            call_state_ = AsyncResult::CANCELED;
+        {
+            call_state_ =
+                is_canceled_for_restart_ ? AsyncResult::RESTARTED : AsyncResult::CANCELED;
+        }
         else
         {
             try
@@ -401,6 +447,8 @@ class AsyncCall: public DBus::AsyncCall_
             return call_state_;
 
         const auto call_state_copy(call_state_);
+
+        lock_this.unlock();
 
         async_op_done();
 

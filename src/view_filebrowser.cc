@@ -822,6 +822,9 @@ bool ViewFileBrowser::View::write_xml(std::ostream &os,
 {
     os << "<text id=\"cbid\">" << int(drcp_browse_id_) << "</text>";
 
+    if(!file_list_.get_list_id().is_valid())
+        return true;
+
     switch(file_list_.get_item_async_set_hint(*(navigation_.begin()),
                                               std::min(navigation_.get_total_number_of_visible_items(),
                                                        navigation_.maximum_number_of_displayed_lines_),
@@ -941,6 +944,12 @@ void ViewFileBrowser::View::serialize(DCP::Queue &queue, DCP::Queue::Mode mode,
     if(!debug_os)
         return;
 
+    if(!file_list_.get_list_id().is_valid())
+    {
+        *debug_os << "Attempted to dump list with invalid list ID\n";
+        return;
+    }
+
     switch(file_list_.get_item_async_set_hint(*(navigation_.begin()),
                                               std::min(navigation_.get_total_number_of_visible_items(),
                                                        navigation_.maximum_number_of_displayed_lines_),
@@ -1014,6 +1023,8 @@ bool ViewFileBrowser::View::owns_dbus_proxy(const void *dbus_proxy) const
 bool ViewFileBrowser::View::list_invalidate(ID::List list_id, ID::List replacement_id)
 {
     log_assert(list_id.is_valid());
+
+    file_list_.list_invalidate(list_id, replacement_id);
 
     if(crawler_.is_attached_to_player())
     {

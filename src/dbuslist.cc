@@ -433,6 +433,24 @@ void List::DBusList::enter_list_async_handle_done()
     notify_watcher(OpEvent::ENTER_LIST, op_result, q);
 }
 
+void List::DBusList::list_invalidate(ID::List list_id, ID::List replacement_id)
+{
+    LoggedLock::UniqueLock<LoggedLock::RecMutex> lock(async_dbus_data_.lock_);
+
+    if(window_.list_id_ == list_id)
+    {
+        if(replacement_id.is_valid())
+            window_.list_id_ = replacement_id;
+        else
+            window_.clear_for_line(ID::List(), 0);
+    }
+
+    QueryContextEnterList::restart_if_necessary(async_dbus_data_.enter_list_query_,
+                                                list_id, replacement_id);
+    QueryContextGetItem::restart_if_necessary(async_dbus_data_.get_item_query_,
+                                              list_id, replacement_id);
+}
+
 bool List::QueryContextEnterList::run_async(DBus::AsyncResultAvailableFunction &&result_available)
 {
     log_assert(async_call_ == nullptr);
@@ -487,6 +505,73 @@ bool List::QueryContextEnterList::synchronize(DBus::AsyncResult &result)
     }
 
     return false;
+}
+
+template <typename QueryContextType>
+static List::AsyncListIface::OpResult
+cancel_and_restart(std::shared_ptr<QueryContextType> &ctx,
+                   const std::shared_ptr<QueryContextType> &ctx_local_ref,
+                   const ID::List invalidated_list_id,
+                   const ID::List replacement_id,
+                   const ID::List list_id_in_invocation,
+                   std::function<std::shared_ptr<QueryContextType>(void)> make_query)
+{
+    const auto async_local_ref(ctx->async_call_);
+
+    if(async_local_ref == nullptr)
+        return List::AsyncListIface::OpResult::SUCCEEDED;
+
+    if(list_id_in_invocation != invalidated_list_id)
+        return List::AsyncListIface::OpResult::SUCCEEDED;
+
+    if(!replacement_id.is_valid())
+    {
+        ctx->cancel(false);
+        return List::AsyncListIface::OpResult::CANCELED;
+    }
+
+    ctx->cancel(true);
+
+    ctx = make_query();
+
+    if(ctx == nullptr)
+        return List::AsyncListIface::OpResult::FAILED;
+
+    if(!ctx->run_async(std::move(async_local_ref->get_result_available_fn())))
+    {
+        ctx.reset();
+        return List::AsyncListIface::OpResult::FAILED;
+    }
+
+    return List::AsyncListIface::OpResult::STARTED;
+}
+
+List::AsyncListIface::OpResult
+List::QueryContextEnterList::restart_if_necessary(std::shared_ptr<QueryContextEnterList> &ctx,
+                                                  ID::List invalidated_list_id,
+                                                  ID::List replacement_id)
+{
+    const std::shared_ptr<QueryContextEnterList> ctx_local_ref(ctx);
+
+    if(ctx == nullptr)
+        return List::AsyncListIface::OpResult::SUCCEEDED;
+
+    const std::function<std::shared_ptr<QueryContextEnterList>(void)>
+    make_query_fn([&ctx_local_ref, replacement_id] ()
+        {
+            auto new_ctx =
+                std::make_shared<QueryContextEnterList>(*ctx_local_ref, replacement_id,
+                                                        ctx_local_ref->parameters_.line_);
+
+            if(new_ctx == nullptr)
+                msg_out_of_memory("asynchronous context (restart enter list)");
+
+            return new_ctx;
+        });
+
+    return cancel_and_restart(ctx, ctx_local_ref,
+                              invalidated_list_id, replacement_id,
+                              ctx->parameters_.list_id_, make_query_fn);
 }
 
 void List::QueryContextEnterList::put_result(DBus::AsyncResult &async_ready,
@@ -1110,6 +1195,38 @@ bool List::QueryContextGetItem::synchronize(DBus::AsyncResult &result)
     }
 
     return false;
+}
+
+List::AsyncListIface::OpResult
+List::QueryContextGetItem::restart_if_necessary(std::shared_ptr<QueryContextGetItem> &ctx,
+                                                ID::List invalidated_list_id,
+                                                ID::List replacement_id)
+{
+    const std::shared_ptr<QueryContextGetItem> ctx_local_ref(ctx);
+
+    if(ctx == nullptr)
+        return List::AsyncListIface::OpResult::SUCCEEDED;
+
+    const std::function<std::shared_ptr<QueryContextGetItem>(void)>
+    make_query_fn([&ctx_local_ref, replacement_id] ()
+        {
+            auto new_ctx =
+                std::make_shared<QueryContextGetItem>(*ctx_local_ref,
+                                                      replacement_id,
+                                                      ctx_local_ref->parameters_.loading_segment_.line_,
+                                                      ctx_local_ref->parameters_.loading_segment_.count_,
+                                                      ctx_local_ref->parameters_.have_meta_data_,
+                                                      ctx_local_ref->parameters_.cache_list_replace_index_);
+
+            if(new_ctx == nullptr)
+                msg_out_of_memory("asynchronous context (restart get item)");
+
+            return new_ctx;
+        });
+
+    return cancel_and_restart(ctx, ctx_local_ref,
+                              invalidated_list_id, replacement_id,
+                              ctx->parameters_.list_id_, make_query_fn);
 }
 
 void List::QueryContextGetItem::put_result(DBus::AsyncResult &async_ready,

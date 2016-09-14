@@ -245,6 +245,7 @@ map_asyncresult_to_retrieve_item_result(const DBus::AsyncResult &async_result)
         return Playlist::CrawlerIface::RetrieveItemInfo::FOUND;
 
       case DBus::AsyncResult::CANCELED:
+      case DBus::AsyncResult::RESTARTED:
         return Playlist::CrawlerIface::RetrieveItemInfo::CANCELED;
     }
 

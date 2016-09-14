@@ -56,8 +56,9 @@ class QueryContext_
         caller_id_(caller_id)
     {}
 
+    QueryContext_(const QueryContext_ &) = default;
+
   public:
-    QueryContext_(const QueryContext_ &) = delete;
     QueryContext_ &operator=(const QueryContext_ &) = delete;
 
     virtual ~QueryContext_()
@@ -102,7 +103,7 @@ class QueryContext_
      *     True if there is an operation in progress (and it was attempted to
      *     be canceled), false if there is no operation in progress.
      */
-    virtual bool cancel() = 0;
+    virtual bool cancel(bool will_be_restarted) = 0;
 
   protected:
     /*!
@@ -164,6 +165,16 @@ class QueryContextEnterList: public QueryContext_
         parameters_({list_id, line})
     {}
 
+    /*!
+     * Constructor for restarting the call with different parameters.
+     */
+    explicit QueryContextEnterList(const QueryContextEnterList &src,
+                                   ID::List list_id, unsigned int line):
+        QueryContext_(src),
+        proxy_(src.proxy_),
+        parameters_({list_id, line})
+    {}
+
     virtual ~QueryContextEnterList()
     {
         cancel_sync();
@@ -174,11 +185,15 @@ class QueryContextEnterList: public QueryContext_
     bool run_async(DBus::AsyncResultAvailableFunction &&result_available) final override;
     bool synchronize(DBus::AsyncResult &result) final override;
 
-    bool cancel() final override
+    static List::AsyncListIface::OpResult
+    restart_if_necessary(std::shared_ptr<QueryContextEnterList> &ctx,
+                         ID::List invalidated_list_id, ID::List replacement_id);
+
+    bool cancel(bool will_be_restarted = false) final override
     {
         if(async_call_ != nullptr)
         {
-            async_call_->cancel();
+            async_call_->cancel(will_be_restarted);
             return true;
         }
         else
@@ -464,6 +479,19 @@ class QueryContextGetItem: public QueryContext_
         parameters_({list_id, CacheSegment(line, count), have_meta_data, replace_index})
     {}
 
+    /*!
+     * Constructor for restarting the call with different parameters.
+     */
+    explicit QueryContextGetItem(const QueryContextGetItem &src,
+                                 ID::List list_id,
+                                 unsigned int line, unsigned int count,
+                                 bool have_meta_data,
+                                 unsigned int replace_index):
+        QueryContext_(src),
+        proxy_(src.proxy_),
+        parameters_({list_id, CacheSegment(line, count), have_meta_data, replace_index})
+    {}
+
     virtual ~QueryContextGetItem()
     {
         cancel_sync();
@@ -474,11 +502,15 @@ class QueryContextGetItem: public QueryContext_
     bool run_async(DBus::AsyncResultAvailableFunction &&result_available) final override;
     bool synchronize(DBus::AsyncResult &result) final override;
 
-    bool cancel() final override
+    static List::AsyncListIface::OpResult
+    restart_if_necessary(std::shared_ptr<QueryContextGetItem> &ctx,
+                         ID::List invalidated_list_id, ID::List replacement_id);
+
+    bool cancel(bool will_be_restarted = false) final override
     {
         if(async_call_ != nullptr)
         {
-            async_call_->cancel();
+            async_call_->cancel(will_be_restarted);
             return true;
         }
         else
@@ -761,6 +793,7 @@ class DBusList: public ListIface, public AsyncListIface
     void cancel_async() final override;
 
     ID::List get_list_id() const override { return window_.list_id_; }
+    void list_invalidate(ID::List list_id, ID::List replacement_id);
 
     tdbuslistsNavigation *get_dbus_proxy() const { return dbus_proxy_; }
 
