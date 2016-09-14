@@ -1140,10 +1140,10 @@ bool List::QueryContextGetItem::run_async(DBus::AsyncResultAvailableFunction &&r
         proxy_,
         [] (GObject *source_object) { return TDBUS_LISTS_NAVIGATION(source_object); },
         std::bind(put_result,
-                    std::placeholders::_1, std::placeholders::_2,
-                    std::placeholders::_3, std::placeholders::_4,
-                    std::placeholders::_5,
-                    parameters_.list_id_, parameters_.have_meta_data_),
+                  std::placeholders::_1, std::placeholders::_2,
+                  std::placeholders::_3, std::placeholders::_4,
+                  std::placeholders::_5,
+                  parameters_.list_id_, parameters_.have_meta_data_),
         std::move(result_available),
         [] (AsyncListNavGetRange::PromiseReturnType &values)
         {

@@ -439,8 +439,8 @@ class AsyncCall: public DBus::AsyncCall_
 
         if(!have_reported_result_)
         {
-           have_reported_result_ = true;
-           result_available_fn_(*this);
+            have_reported_result_ = true;
+            result_available_fn_(*this);
         }
 
         if(!is_done)
