@@ -82,8 +82,8 @@ static unsigned int query_list_size_sync(tdbuslistsNavigation *proxy,
         break;
 
       case ListError::Code::INVALID_ID:
-        msg_error(EINVAL, LOG_NOTICE,
-                  "Invalid list ID %u", list_id.get_raw_id());
+        msg_error(EINVAL, LOG_NOTICE, "Invalid list ID %u, cannot query size",
+                  list_id.get_raw_id());
         break;
 
       case ListError::Code::INTERRUPTED:
@@ -609,7 +609,8 @@ void List::QueryContextEnterList::put_result(DBus::AsyncResult &async_ready,
 
       case ListError::Code::INVALID_ID:
         msg_error(EINVAL, LOG_NOTICE,
-                  "Invalid list ID %u", list_id.get_raw_id());
+                  "Invalid list ID %u, cannot put async result",
+                  list_id.get_raw_id());
         break;
 
       case ListError::Code::INTERRUPTED:
@@ -621,13 +622,13 @@ void List::QueryContextEnterList::put_result(DBus::AsyncResult &async_ready,
       case ListError::Code::PERMISSION_DENIED:
       case ListError::Code::NOT_SUPPORTED:
         msg_error(0, LOG_NOTICE,
-                  "Error while obtaining size of list ID %u: %s",
+                  "Error while putting async result for list ID %u: %s",
                   list_id.get_raw_id(), list_error.to_string());
         break;
     }
 
     if(list_error.get() == ListError::Code::INTERNAL)
-        BUG("Unknown error code %u while obtaining size of list ID %u",
+        BUG("Unknown error code %u while putting async result for list ID %u",
             error_code, list_id.get_raw_id());
 
     throw List::DBusListException(list_error);
