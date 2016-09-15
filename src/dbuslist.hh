@@ -123,7 +123,7 @@ class QueryContext_
 /*!
  * Context for entering a D-Bus list asynchronously.
  */
-class QueryContextEnterList: public QueryContext_, public std::enable_shared_from_this<QueryContextEnterList>
+class QueryContextEnterList: public QueryContext_
 {
   public:
     enum class CallerID
@@ -197,8 +197,6 @@ class QueryContextEnterList: public QueryContext_, public std::enable_shared_fro
 
     void cancel_sync() final override
     {
-        const auto self_local_ref(shared_from_this());
-
         if(!cancel())
             return;
 
@@ -432,7 +430,7 @@ enum class CacheSegmentState
 /*!
  * Context for getting a D-Bus list item asynchronously.
  */
-class QueryContextGetItem: public QueryContext_, public std::enable_shared_from_this<QueryContextGetItem>
+class QueryContextGetItem: public QueryContext_
 {
   public:
     enum class CallerID
@@ -511,8 +509,6 @@ class QueryContextGetItem: public QueryContext_, public std::enable_shared_from_
 
     void cancel_sync() final override
     {
-        const auto self_local_ref(shared_from_this());
-
         if(!cancel())
             return;
 
@@ -612,18 +608,25 @@ class DBusList: public ListIface, public AsyncListIface
             LoggedLock::set_name(query_done_, "DBusListAsyncDone");
         }
 
+        void cancel_enter_list_query() { cancel_query_sync(enter_list_query_); }
+        void cancel_get_item_query()   { cancel_query_sync(get_item_query_); }
+
         void cancel_all()
         {
-            if(enter_list_query_ != nullptr)
-            {
-                enter_list_query_->cancel_sync();
-                enter_list_query_.reset();
-            }
+            cancel_enter_list_query();
+            cancel_get_item_query();
+        }
 
-            if(get_item_query_ != nullptr)
+      private:
+        template <typename QueryContextType>
+        static void cancel_query_sync(std::shared_ptr<QueryContextType> &ctx)
+        {
+            auto local_ref(ctx);
+
+            if(local_ref != nullptr)
             {
-                get_item_query_->cancel_sync();
-                get_item_query_.reset();
+                local_ref->cancel_sync();
+                ctx.reset();
             }
         }
     };
@@ -848,7 +851,7 @@ class DBusList: public ListIface, public AsyncListIface
      * Must be called while holding  #List::DBusList::AsyncDBusData::lock_ of
      * the embedded #List::DBusList::async_dbus_data_ structure.
      */
-    void cancel_enter_list_query();
+    void cancel_enter_list_query() { async_dbus_data_.cancel_enter_list_query(); }
 
     /*!
      * Stop loading items.
@@ -856,7 +859,7 @@ class DBusList: public ListIface, public AsyncListIface
      * Must be called while holding  #List::DBusList::AsyncDBusData::lock_ of
      * the embedded #List::DBusList::async_dbus_data_ structure.
      */
-    void cancel_get_item_query();
+    void cancel_get_item_query() { async_dbus_data_.cancel_get_item_query(); }
 
     /*!
      * Modify visible part of list represented by #List::DBusList::CacheData.

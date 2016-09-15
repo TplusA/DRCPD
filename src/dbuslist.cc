@@ -626,24 +626,6 @@ void List::QueryContextEnterList::put_result(DBus::AsyncResult &async_ready,
     throw List::DBusListException(list_error);
 }
 
-void List::DBusList::cancel_enter_list_query()
-{
-    if(async_dbus_data_.enter_list_query_ != nullptr)
-    {
-        async_dbus_data_.enter_list_query_->cancel_sync();
-        async_dbus_data_.enter_list_query_.reset();
-    }
-}
-
-void List::DBusList::cancel_get_item_query()
-{
-    if(async_dbus_data_.get_item_query_ != nullptr)
-    {
-        async_dbus_data_.get_item_query_->cancel_sync();
-        async_dbus_data_.get_item_query_.reset();
-    }
-}
-
 List::CacheSegmentState
 List::DBusList::get_cache_segment_state(const CacheSegment &segment,
                                         unsigned int &size_of_cached_segment,
