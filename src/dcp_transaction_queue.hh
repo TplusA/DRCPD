@@ -73,7 +73,7 @@ class Queue
 
     struct Active
     {
-        LoggedLock::Mutex lock_;
+        LoggedLock::RecMutex lock_;
         std::unique_ptr<Data> data_;
         Transaction dcpd_;
 

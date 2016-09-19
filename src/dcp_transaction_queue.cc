@@ -58,7 +58,7 @@ bool DCP::Queue::start_transaction(Mode mode)
         return false;
 
     {
-        std::lock_guard<LoggedLock::Mutex> txlock(active_.lock_);
+        std::lock_guard<LoggedLock::RecMutex> txlock(active_.lock_);
 
         if(active_.dcpd_.is_in_progress())
         {
@@ -97,7 +97,7 @@ bool DCP::Queue::process_pending_transactions()
 
 bool DCP::Queue::process()
 {
-    std::lock_guard<LoggedLock::Mutex> txlock(active_.lock_);
+    std::lock_guard<LoggedLock::RecMutex> txlock(active_.lock_);
 
     while(!is_empty())
     {
@@ -134,7 +134,7 @@ bool DCP::Queue::process()
 
 bool DCP::Queue::finish_transaction(DCP::Transaction::Result result)
 {
-    std::lock_guard<LoggedLock::Mutex> txlock(active_.lock_);
+    std::lock_guard<LoggedLock::RecMutex> txlock(active_.lock_);
 
     if(!is_in_progress())
     {
