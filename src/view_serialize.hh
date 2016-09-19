@@ -146,8 +146,6 @@ class ViewSerializeBase
         os << "<" << (data.is_full_serialize_ ? "view" : "update") << " id=\""
            << drcp_view_id_ << "\">";
 
-        os << "<value id=\"busy\">" << (Busy::is_busy() ? '1' : '0') << "</value>";
-
         if(data.is_full_serialize_)
         {
             os << "<text id=\"title\">" << XmlEscape(_(on_screen_name_)) << "</text>";
@@ -177,6 +175,7 @@ class ViewSerializeBase
      */
     virtual bool write_xml_end(std::ostream &os, const DCP::Queue::Data &data)
     {
+        os << "<value id=\"busy\">" << (Busy::is_busy() ? '1' : '0') << "</value>";
         os << "</" << (data.is_full_serialize_ ? "view" : "update") << ">";
         return true;
     }
