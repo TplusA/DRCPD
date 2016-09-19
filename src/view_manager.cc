@@ -438,12 +438,6 @@ void ViewManager::Manager::busy_state_notification(bool is_busy)
     log_assert(view != nullptr);
 
     view->add_base_update_flags(ViewSerializeBase::UPDATE_FLAGS_BASE_BUSY_FLAG);
-
-    /*
-     * TODO: This locks up. Busy notification is broken at the moment.
-     */
-    /*
     view->update(dcp_transaction_queue_, DCP::Queue::Mode::FORCE_ASYNC,
                  debug_stream_);
-    */
 }
