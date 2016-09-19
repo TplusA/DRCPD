@@ -187,7 +187,7 @@ class Control
     void pause_request();
     bool skip_forward_request();
     void skip_backward_request();
-    void rewind_request() const;
+    void rewind_request();
     void fast_wind_set_speed_request(double speed_factor);
     void fast_wind_set_direction_request(bool is_forward);
     void fast_wind_start_request() const;

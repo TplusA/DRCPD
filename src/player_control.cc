@@ -528,12 +528,18 @@ void Player::Control::skip_backward_request()
     }
 }
 
-void Player::Control::rewind_request() const
+void Player::Control::rewind_request()
 {
-    if(permissions_ != nullptr && !permissions_->can_skip_backward())
+    if(permissions_ != nullptr)
     {
-        msg_error(EPERM, LOG_INFO, "Ignoring rewind request");
-        return;
+        if(!permissions_->can_fast_wind_backward())
+        {
+            if(permissions_->can_skip_backward())
+                return skip_backward_request();
+
+            msg_error(EPERM, LOG_INFO, "Ignoring rewind request");
+            return;
+        }
     }
 
     if(!tdbus_splay_playback_call_seek_sync(dbus_get_streamplayer_playback_iface(),
