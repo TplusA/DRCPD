@@ -1313,7 +1313,12 @@ static void point_to_parent_link__got_parent_link(DBus::AsyncCall_ &async_call,
                                    List::QueryContextEnterList::CallerID::ENTER_PARENT);
     else
     {
-        BUG("Got invalid list ID for parent list");
+        if(line == 1)
+            msg_info("Cannot enter parent directory, already at root");
+        else
+            BUG("Got invalid list ID for parent of list %u",
+                child_list_id.get_raw_id());
+
         calls.get_parent_id_.reset();
     }
 }
