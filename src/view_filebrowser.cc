@@ -30,7 +30,6 @@
 #include "view_names.hh"
 #include "search_algo.hh"
 #include "ui_parameters_predefined.hh"
-#include "busy.hh"
 #include "de_tahifi_lists_context.h"
 #include "xmlescape.hh"
 #include "messages.h"
