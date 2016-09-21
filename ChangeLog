@@ -1,3 +1,23 @@
+2016-09-21  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 2.3 released.
+
+	* User interface: Fix showing root list at startup. This version
+	  should not end up showing empty root lists anymore after startup
+	  when the lists shouldn't be empty.
+
+	* User interface: Fix reloading of lists after loss of network
+	  connection.
+
+	* User interface: Busy state updates are more reliable. This avoids
+	  endless display of busy symbol.
+
+	* Playback: Skipping backwards through Airable radio and podcast lists
+	  works. It didn't work before because we tried to rewind to start
+	  before attempting to skip.
+
+	* Stability: Fix several lock-ups and crashes of the user interface.
+
 2016-07-29  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 2.2 released.
