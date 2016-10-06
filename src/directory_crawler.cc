@@ -26,11 +26,21 @@
 #include "directory_crawler.hh"
 #include "view_filebrowser_utils.hh"
 
+template <typename T>
+static inline const T pass_on(T &original_object)
+{
+    const auto obj_copy(original_object);
+
+    original_object = nullptr;
+
+    return obj_copy;
+}
+
 /*!
  * Invoke callback if avalable.
  *
  * The trick with this function template is not so much the null pointer check,
- * but the fact that it can be called with \p callback passed via \c std::move.
+ * but the fact that it can be called with \p callback passed via #pass_on().
  * This results in the original callback pointer to be set to \p nullptr.
  */
 template <typename CBType, typename ResultType>
@@ -390,7 +400,7 @@ bool Playlist::DirectoryCrawler::handle_entered_list(unsigned int line,
         if(continue_if_empty)
         {
             /* found empty directory, go up again */
-            if(find_next(std::move(find_next_callback_)))
+            if(find_next(pass_on(find_next_callback_)))
                 return true;
             else
                 fail_crawler();
@@ -404,7 +414,7 @@ bool Playlist::DirectoryCrawler::handle_entered_list(unsigned int line,
     else if(find_next_callback_ != nullptr)
     {
         /* have pending find-next request */
-        if(find_next(std::move(find_next_callback_)))
+        if(find_next(pass_on(find_next_callback_)))
             return true;
         else
             fail_crawler();
@@ -564,7 +574,7 @@ bool Playlist::DirectoryCrawler::do_retrieve_item_information(const RetrieveItem
 {
     const List::Item *item;
     const auto op_result(traversal_list_.get_item_async(navigation_.get_cursor(), item));
-    const auto find_next_callback(std::move(find_next_callback_));
+    const auto find_next_callback(pass_on(find_next_callback_));
 
     switch(process_current_ready_item(dynamic_cast<const ViewFileBrowser::FileItem *>(item),
                                       op_result, find_next_callback, true))
@@ -616,7 +626,7 @@ void Playlist::DirectoryCrawler::process_item_information(const DBus::AsyncCall_
 
     if(&async_call != async_get_uris_call_.get())
     {
-        call_callback(std::move(retrieve_item_info_callback_), *this,
+        call_callback(pass_on(retrieve_item_info_callback_), *this,
                       RetrieveItemInfo::CANCELED);
         return;
     }
@@ -637,7 +647,7 @@ void Playlist::DirectoryCrawler::process_item_information(const DBus::AsyncCall_
     if(!async_get_uris_call_->success() ||
        async_result != DBus::AsyncResult::DONE)
     {
-        call_callback(std::move(retrieve_item_info_callback_), *this,
+        call_callback(pass_on(retrieve_item_info_callback_), *this,
                       map_asyncresult_to_retrieve_item_result(async_result));
         async_get_uris_call_.reset();
         return;
@@ -651,7 +661,7 @@ void Playlist::DirectoryCrawler::process_item_information(const DBus::AsyncCall_
         msg_error(0, LOG_NOTICE,
                   "Got error %s instead of URIs for item %u in list %u",
                   error.to_string(), line, list_id.get_raw_id());
-        call_callback(std::move(retrieve_item_info_callback_), *this,
+        call_callback(pass_on(retrieve_item_info_callback_), *this,
                       RetrieveItemInfo::FAILED);
         return;
     }
@@ -663,7 +673,7 @@ void Playlist::DirectoryCrawler::process_item_information(const DBus::AsyncCall_
        current_item_info_.file_item_ == nullptr)
     {
         BUG("Invalid item, retrieving item info failed");
-        call_callback(std::move(retrieve_item_info_callback_), *this,
+        call_callback(pass_on(retrieve_item_info_callback_), *this,
                       RetrieveItemInfo::FAILED);
         return;
     }
@@ -696,7 +706,7 @@ void Playlist::DirectoryCrawler::process_item_information(const DBus::AsyncCall_
     if(current_item_info_.stream_uris_.empty())
         msg_info("No URI for item %u in list %u", line, list_id.get_raw_id());
 
-    call_callback(std::move(retrieve_item_info_callback_), *this,
+    call_callback(pass_on(retrieve_item_info_callback_), *this,
                   RetrieveItemInfo::FOUND);
 }
 
@@ -917,7 +927,7 @@ void Playlist::DirectoryCrawler::handle_enter_list_event(List::AsyncListIface::O
             break;
 
           case List::AsyncListIface::OpResult::FAILED:
-            if(!find_next(std::move(find_next_callback_)))
+            if(!find_next(pass_on(find_next_callback_)))
                 fail_crawler();
 
             break;
@@ -947,7 +957,7 @@ void Playlist::DirectoryCrawler::handle_enter_list_event(List::AsyncListIface::O
                 fail_crawler();
             }
 
-            if(!find_next(std::move(find_next_callback_)))
+            if(!find_next(pass_on(find_next_callback_)))
                 fail_crawler();
 
             break;
@@ -991,10 +1001,7 @@ void Playlist::DirectoryCrawler::handle_get_item_event(List::AsyncListIface::OpR
             is_resetting_to_marked_position_ = false;
 
             if(find_next_callback_ != nullptr)
-            {
-                const auto find_next_callback(std::move(find_next_callback_));
-                find_next(find_next_callback);
-            }
+                find_next(pass_on(find_next_callback_));
 
             break;
 
@@ -1003,11 +1010,8 @@ void Playlist::DirectoryCrawler::handle_get_item_event(List::AsyncListIface::OpR
             is_resetting_to_marked_position_ = false;
 
             if(find_next_callback_ != nullptr)
-            {
-                const auto find_next_callback(std::move(find_next_callback_));
-                call_callback(find_next_callback, *this,
+                call_callback(pass_on(find_next_callback_), *this,
                               map_opresult_to_find_next_result(result));
-            }
 
             break;
         }
@@ -1030,7 +1034,7 @@ void Playlist::DirectoryCrawler::handle_get_item_event(List::AsyncListIface::OpR
 
                 const List::Item *item;
                 auto op_result(traversal_list_.get_item_async(navigation_.get_cursor(), item));
-                const auto find_next_callback(std::move(find_next_callback_));
+                const auto find_next_callback(pass_on(find_next_callback_));
 
                 switch(process_current_ready_item(dynamic_cast<const ViewFileBrowser::FileItem *>(item),
                                                   op_result, find_next_callback, false))
