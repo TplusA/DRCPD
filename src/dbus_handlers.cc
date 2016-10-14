@@ -174,7 +174,8 @@ void dbussignal_dcpd_views(GDBusProxy *proxy, const gchar *sender_name,
                 if(strcmp(varname, "text0") == 0 && search_string.empty())
                     search_string = value;
                 else
-                    msg_info("Ignored search parameter \"%s\" = \"%s\"", varname, value);
+                    msg_vinfo(MESSAGE_LEVEL_IMPORTANT,
+                              "Ignored search parameter \"%s\" = \"%s\"", varname, value);
             }
         }
 

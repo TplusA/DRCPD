@@ -356,8 +356,9 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
       case UI::ViewEventID::PLAYBACK_FAST_WIND_STOP:
       case UI::ViewEventID::PLAYBACK_MODE_REPEAT_TOGGLE:
       case UI::ViewEventID::PLAYBACK_MODE_SHUFFLE_TOGGLE:
-        msg_info("%s(): view event 0x%08x not implemented yet",
-                 __PRETTY_FUNCTION__, static_cast<unsigned int>(event_id));
+        msg_vinfo(MESSAGE_LEVEL_IMPORTANT,
+                  "%s(): view event 0x%08x not implemented yet",
+                  __PRETTY_FUNCTION__, static_cast<unsigned int>(event_id));
 
         break;
 

@@ -31,7 +31,8 @@
 void ViewFileBrowser::AirableView::logged_out_from_service_notification(const char *service_id,
                                                                         enum ActorID actor_id)
 {
-    msg_info("Logged out from \"%s\" by %u\n", service_id, actor_id);
+    msg_vinfo(MESSAGE_LEVEL_IMPORTANT, "Logged out from \"%s\" by %u\n",
+              service_id, actor_id);
 
     List::context_id_t ctx_id;
     const auto &ctx(list_contexts_.get_context_info_by_string_id(service_id, ctx_id));
@@ -69,7 +70,8 @@ ViewFileBrowser::AirableView::process_event(UI::ViewEventID event_id,
     if(!is_login)
         logged_out_from_service_notification(service_id.c_str(), actor_id);
     else
-        msg_info("Logged into \"%s\" by %u\n", service_id.c_str(), actor_id);
+        msg_vinfo(MESSAGE_LEVEL_IMPORTANT, "Logged into \"%s\" by %u\n",
+                  service_id.c_str(), actor_id);
 
     return InputResult::OK;
 }
@@ -164,9 +166,10 @@ void ViewFileBrowser::AirableView::finish_async_point_to_child_directory()
 
         if(item->get_kind().get() == ListItemKind::SEARCH_FORM)
         {
-            msg_info("Found search form link for context %s: \"%s\" at /%u/%u",
-                     ctx.string_id_.c_str(), item->get_text(),
-                     selected_line_from_root, i);
+            msg_vinfo(MESSAGE_LEVEL_DEBUG,
+                      "Found search form link for context %s: \"%s\" at /%u/%u",
+                      ctx.string_id_.c_str(), item->get_text(),
+                      selected_line_from_root, i);
 
             search_forms_.emplace(ctx_id, std::make_pair(selected_line_from_root, i));
 

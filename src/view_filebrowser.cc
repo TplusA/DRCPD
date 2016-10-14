@@ -384,7 +384,7 @@ bool ViewFileBrowser::View::point_to_item(const ViewIface &view,
         return false;
     }
 
-    msg_info("Result of binary search: %zd", found);
+    msg_vinfo(MESSAGE_LEVEL_DEBUG, "Result of binary search: %zd", found);
 
     if(found < 0)
         return false;
@@ -559,8 +559,9 @@ bool ViewFileBrowser::View::point_to_search_form_and_wait(WaitForParametersHelpe
     }
 
     const auto &ctx(list_contexts_[ctx_id]);
-    msg_info("No search form found for context \"%s\", cannot search",
-             ctx.string_id_.c_str());
+    msg_vinfo(MESSAGE_LEVEL_IMPORTANT,
+              "No search form found for context \"%s\", cannot search",
+              ctx.string_id_.c_str());
     result = InputResult::OK;
 
     return false;
@@ -1044,16 +1045,17 @@ bool ViewFileBrowser::View::list_invalidate(ID::List list_id, ID::List replaceme
 
     if(replacement_id.is_valid())
     {
-        msg_info("Reloading list %u (was %u)",
-                 replacement_id.get_raw_id(), current_list_id_.get_raw_id());
+        msg_vinfo(MESSAGE_LEVEL_IMPORTANT, "Reloading list %u (was %u)",
+                  replacement_id.get_raw_id(), current_list_id_.get_raw_id());
 
         current_list_id_ = replacement_id;
         reload_list();
     }
     else
     {
-        msg_info("Current list %u got removed, going back to root list",
-                 current_list_id_.get_raw_id());
+        msg_vinfo(MESSAGE_LEVEL_IMPORTANT,
+                  "Current list %u got removed, going back to root list",
+                  current_list_id_.get_raw_id());
         point_to_root_directory();
     }
 

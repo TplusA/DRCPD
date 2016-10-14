@@ -95,8 +95,9 @@ class Utils
                                                              &error_code,
                                                              &list_id, NULL, NULL))
             {
-                msg_info("Failed obtaining ID for item %u in list %u",
-                         navigation.get_cursor(), current_list_id.get_raw_id());
+                msg_vinfo(MESSAGE_LEVEL_IMPORTANT,
+                          "Failed obtaining ID for item %u in list %u",
+                          navigation.get_cursor(), current_list_id.get_raw_id());
 
                 throw List::DBusListException(ListError::Code::INTERNAL, true);
             }
@@ -109,8 +110,9 @@ class Utils
                     search_parameters->get_query().c_str(),
                     &error_code, &list_id, NULL, NULL))
             {
-                msg_info("Failed obtaining ID for search form in list %u",
-                         current_list_id.get_raw_id());
+                msg_vinfo(MESSAGE_LEVEL_IMPORTANT,
+                          "Failed obtaining ID for search form in list %u",
+                          current_list_id.get_raw_id());
 
                 throw List::DBusListException(ListError::Code::INTERNAL, true);
             }
@@ -150,7 +152,9 @@ class Utils
         {
             Busy::clear(Busy::Source::GETTING_PARENT_LINK);
 
-            msg_info("Failed obtaining parent for list %u", current_list_id.get_raw_id());
+            msg_vinfo(MESSAGE_LEVEL_IMPORTANT,
+                      "Failed obtaining parent for list %u",
+                      current_list_id.get_raw_id());
 
             throw List::DBusListException(ListError::Code::INTERNAL, true);
         }

@@ -65,6 +65,7 @@ struct dcp_fifo_dispatch_data_t
 
 struct parameters
 {
+    enum MessageVerboseLevel verbose_level;
     bool run_in_foreground;
     bool connect_to_session_dbus;
 };
@@ -84,9 +85,9 @@ static void show_version_info(void)
 
 static void log_version_info(void)
 {
-    msg_info("Rev %s%s, %s+%d, %s",
-             VCS_FULL_HASH, VCS_WC_MODIFIED ? " (tainted)" : "",
-             VCS_TAG, VCS_TICK, VCS_DATE);
+    msg_vinfo(MESSAGE_LEVEL_IMPORTANT, "Rev %s%s, %s+%d, %s",
+              VCS_FULL_HASH, VCS_WC_MODIFIED ? " (tainted)" : "",
+              VCS_TAG, VCS_TICK, VCS_DATE);
 }
 
 static bool try_reopen_fd(int *fd, const char *devname, const char *errorname)
@@ -216,6 +217,7 @@ static int setup(const struct parameters *parameters,
 {
     msg_enable_syslog(!parameters->run_in_foreground);
     msg_enable_glib_message_redirection();
+    msg_set_verbose_level(parameters->verbose_level);
 
     if(!parameters->run_in_foreground)
         openlog("drcpd", LOG_PID, LOG_DAEMON);
@@ -231,7 +233,7 @@ static int setup(const struct parameters *parameters,
 
     log_version_info();
 
-    msg_info("Attempting to open named pipes");
+    msg_vinfo(MESSAGE_LEVEL_DEBUG, "Attempting to open named pipes");
 
     struct files_t *const files = dispatch_data->files;
 
@@ -283,6 +285,8 @@ static void usage(const char *program_name)
         "Options:\n"
         "  --help         Show this help.\n"
         "  --version      Print version information to stdout.\n"
+        "  --verbose lvl  Set verbosity level to given level.\n"
+        "  --quiet        Short for \"--verbose quite\".\n"
         "  --fg           Run in foreground, don't run as daemon.\n"
         "  --idcp name    Name of the named pipe the DCP daemon writes to.\n"
         "  --odcp name    Name of the named pipe the DCP daemon reads from.\n"
@@ -308,6 +312,7 @@ static int process_command_line(int argc, char *argv[],
                                 struct parameters *parameters,
                                 struct files_t *files)
 {
+    parameters->verbose_level = MESSAGE_LEVEL_NORMAL;
     parameters->run_in_foreground = false;
     parameters->connect_to_session_dbus = true;
 
@@ -322,6 +327,29 @@ static int process_command_line(int argc, char *argv[],
             return 2;
         else if(strcmp(argv[i], "--fg") == 0)
             parameters->run_in_foreground = true;
+        else if(strcmp(argv[i], "--verbose") == 0)
+        {
+            if(!check_argument(argc, argv, i))
+                return -1;
+
+            parameters->verbose_level = msg_verbose_level_name_to_level(argv[i]);
+
+            if(parameters->verbose_level == MESSAGE_LEVEL_IMPOSSIBLE)
+            {
+                fprintf(stderr,
+                        "Invalid verbosity \"%s\". "
+                        "Valid verbosity levels are:\n", argv[i]);
+
+                const char *const *names = msg_get_verbose_level_names();
+
+                for(const char *name = *names; name != NULL; name = *++names)
+                    fprintf(stderr, "    %s\n", name);
+
+                return -1;
+            }
+        }
+        else if(strcmp(argv[i], "--quiet") == 0)
+            parameters->verbose_level = MESSAGE_LEVEL_QUIET;
         else if(strcmp(argv[i], "--idcp") == 0)
         {
             if(!check_argument(argc, argv, i))
@@ -578,7 +606,7 @@ int main(int argc, char *argv[])
 
     g_main_loop_run(loop);
 
-    msg_info("Shutting down");
+    msg_vinfo(MESSAGE_LEVEL_IMPORTANT, "Shutting down");
 
     fd_sbuf.set_fd(-1);
     shutdown(&files);

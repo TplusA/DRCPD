@@ -200,13 +200,13 @@ static void name_lost(GDBusConnection *connection,
 {
     struct dbus_data *data = user_data;
 
-    msg_info("D-Bus name \"%s\" lost", name);
+    msg_vinfo(MESSAGE_LEVEL_IMPORTANT, "D-Bus name \"%s\" lost", name);
     data->acquired = -1;
 }
 
 static void destroy_notification(gpointer data)
 {
-    msg_info("Bus destroyed.");
+    msg_vinfo(MESSAGE_LEVEL_IMPORTANT, "Bus destroyed.");
 }
 
 static struct dbus_data dbus_data;

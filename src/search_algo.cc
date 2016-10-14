@@ -26,21 +26,6 @@
 #include "search_algo.hh"
 
 /*!
- * Hacky debugging of binary search algorithm.
- *
- * FIXME: There should be no debug mode, especially not one implemented via
- *        stupid macros. Instead, there should be proper unit tests that make
- *        BS such as this here useless.
- */
-#define DEBUG_MODE      0
-
-#if DEBUG_MODE
-#define DEBUG(CODE)     do { CODE; } while(0)
-#else
-#define DEBUG(CODE)
-#endif
-
-/*!
  * RAII wrapper around string allocated by GLib.
  */
 class ComparedString
@@ -330,8 +315,9 @@ class BSearchState
         utf8_key_(0),
         depth_(-1)
     {
-        DEBUG(msg_info("Starting binary search in partition [%u, %u]",
-                       all_top_, all_bottom_));
+        msg_vinfo(MESSAGE_LEVEL_DEBUG,
+                  "Starting binary search in partition [%u, %u]",
+                  all_top_, all_bottom_);
     }
 
     void prepare_next_iteration(const char *utf8_char) throw()
@@ -343,10 +329,12 @@ class BSearchState
         utf8_key_ = g_utf8_get_char(utf8_char);
         ++depth_;
 
-        DEBUG(msg_info("BSEARCH: ----------------------------------------"));
-        DEBUG(msg_info("BSEARCH: Partition [%u, %u], center %u, "
-                       "character U+%04" G_GINT32_MODIFIER "X at depth %zu",
-                       all_top_, all_bottom_, upper_.center_, utf8_key_, depth_));
+        msg_vinfo(MESSAGE_LEVEL_DEBUG,
+                  "BSEARCH: ----------------------------------------");
+        msg_vinfo(MESSAGE_LEVEL_DEBUG,
+                  "BSEARCH: Partition [%u, %u], center %u, "
+                  "character U+%04" G_GINT32_MODIFIER "X at depth %zu",
+                  all_top_, all_bottom_, upper_.center_, utf8_key_, depth_);
     }
 
     ssize_t get_result() const throw()
@@ -430,8 +418,9 @@ class BSearchState
     Result bsearch_boundary(const ComparedString &center_string)
         throw(::Search::UnsortedException)
     {
-        DEBUG(msg_info("BSEARCH: Center element \"%s\", length %zu",
-                       center_string.get(), center_string.length()));
+        msg_vinfo(MESSAGE_LEVEL_DEBUG,
+                  "BSEARCH: Center element \"%s\", length %zu",
+                  center_string.get(), center_string.length());
 
         Partition &p(CompareTraits::want_top_most_boundary() ? upper_ : lower_);
 
@@ -446,14 +435,14 @@ class BSearchState
         }
 
         const gunichar ch = center_string.get_char_at(depth_);
-        DEBUG(msg_info("BSEARCH: Decide on character "
-                       "U+%04" G_GINT32_MODIFIER "X "
-                       "(ref U+%04" G_GINT32_MODIFIER "X)",
-                       ch, utf8_key_));
+        msg_vinfo(MESSAGE_LEVEL_DEBUG,
+                  "BSEARCH: Decide on character U+%04" G_GINT32_MODIFIER "X "
+                  "(ref U+%04" G_GINT32_MODIFIER "X)",
+                  ch, utf8_key_);
 
         if(p.is_unique())
         {
-            DEBUG(msg_info("BSEARCH: Final check on last item"));
+            msg_vinfo(MESSAGE_LEVEL_DEBUG, "BSEARCH: Final check on last item");
             return (utf8_key_ == ch) ? Result::FOUND_MATCH : Result::FOUND_APPROXIMATE;
         }
 
@@ -521,14 +510,14 @@ class BSearchState
         if(CompareTraits::is_utf8_character_greater(utf8_key_, ch))
         {
             /* center string is greater than or equal to partition key */
-            DEBUG(msg_info("BSEARCH: pick top half"));
+            msg_vinfo(MESSAGE_LEVEL_DEBUG, "BSEARCH: pick top half");
 
             return p.pick_top_half(0);
         }
         else
         {
             /* center string is smaller than or equal to partition key */
-            DEBUG(msg_info("BSEARCH: pick bottom half"));
+            msg_vinfo(MESSAGE_LEVEL_DEBUG, "BSEARCH: pick bottom half");
 
             if(CompareTraits::want_top_most_boundary())
             {
@@ -540,21 +529,20 @@ class BSearchState
         }
     }
 
-#if DEBUG_MODE
     void dump_state(const char *what, bool is_upper) const throw()
     {
+        if(!msg_is_verbose(MESSAGE_LEVEL_DEBUG))
+            return;
+
         const char *const upper_lower(is_upper ? "UPPER" : "LOWER");
 
-        DEBUG(msg_info("BSEARCH %s %s: Upper partition [%u, %u], center %u",
-                       upper_lower, what,
-                       upper_.top_, upper_.bottom_, upper_.center_));
-        DEBUG(msg_info("BSEARCH %s %s: Lower partition [%u, %u], center %u",
-                       upper_lower, what,
-                       lower_.top_, lower_.bottom_, lower_.center_));
+        msg_info("BSEARCH %s %s: Upper partition [%u, %u], center %u",
+                 upper_lower, what, upper_.top_,
+                 upper_.bottom_, upper_.center_);
+        msg_info("BSEARCH %s %s: Lower partition [%u, %u], center %u",
+                 upper_lower, what,
+                 lower_.top_, lower_.bottom_, lower_.center_);
     }
-#else /* !DEBUG_MODE */
-    static void dump_state(const char *what, bool is_upper) throw() {}
-#endif /* DEBUG_MODE */
 };
 
 ssize_t Search::binary_search_utf8(const List::DBusList &list,
@@ -589,7 +577,8 @@ ssize_t Search::binary_search_utf8(const List::DBusList &list,
         state.prepare_next_iteration(utf8_char);
         result = state.bsearch_top_most(list, temp_string);
 
-        DEBUG(msg_info("Top-most result: %d", result));
+        msg_vinfo(MESSAGE_LEVEL_DEBUG, "Top-most result: %d",
+                  static_cast<int>(result));
 
         log_assert(result == BSearchState::Result::FOUND_MATCH ||
                    result == BSearchState::Result::FOUND_APPROXIMATE ||
@@ -605,7 +594,8 @@ ssize_t Search::binary_search_utf8(const List::DBusList &list,
         {
             result = state.bsearch_bottom_most(list, temp_string);
 
-            DEBUG(msg_info("Bottom-most result: %d", result));
+            msg_vinfo(MESSAGE_LEVEL_DEBUG, "Bottom-most result: %d",
+                      static_cast<int>(result));
 
             log_assert(result == BSearchState::Result::FOUND_MATCH ||
                        result == BSearchState::Result::INTERNAL_FAILURE);
