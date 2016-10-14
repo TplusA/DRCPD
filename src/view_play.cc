@@ -74,9 +74,10 @@ void ViewPlay::View::prepare_for_playing(const ViewIface &owning_view,
     const auto lock_ctrl(player_control_.lock());
     const auto lock_data(player_data_.lock());
 
+    player_control_.stop_request();
+
     if(!player_control_.is_active_controller_for_view(owning_view))
     {
-        player_control_.stop_request();
         player_control_.unplug();
         player_control_.plug(owning_view);
         player_control_.plug(player_data_);
