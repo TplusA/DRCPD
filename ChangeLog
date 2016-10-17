@@ -1,3 +1,13 @@
+2016-10-24  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 2.4 released.
+
+	* User interface: Selecting a track while another one is playing works
+	  again as expected.
+
+	* User interface: Show fallback title for those Internet radios that
+	  do not send any meta data.
+
 2016-09-21  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 2.3 released.
