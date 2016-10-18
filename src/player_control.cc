@@ -977,6 +977,8 @@ static MetaData::Set mk_meta_data_from_preloaded_information(const ViewFileBrows
     meta_data.add(MetaData::Set::ARTIST, preloaded.artist_.c_str(), ViewPlay::meta_data_reformatters);
     meta_data.add(MetaData::Set::ALBUM,  preloaded.album_.c_str(),  ViewPlay::meta_data_reformatters);
     meta_data.add(MetaData::Set::TITLE,  preloaded.title_.c_str(),  ViewPlay::meta_data_reformatters);
+    meta_data.add(MetaData::Set::INTERNAL_DRCPD_TITLE, file_item.get_text(),
+                  ViewPlay::meta_data_reformatters);
 
     return meta_data;
 }
