@@ -43,9 +43,9 @@ namespace MetaData
 class PreloadedSet
 {
   public:
-    std::string artist_;
-    std::string album_;
-    std::string title_;
+    const std::string artist_;
+    const std::string album_;
+    const std::string title_;
 
     explicit PreloadedSet() {}
 
@@ -66,13 +66,6 @@ class PreloadedSet
     bool have_anything() const
     {
         return !artist_.empty() || !album_.empty() || !title_.empty();
-    }
-
-    void clear()
-    {
-        artist_.clear();
-        album_.clear();
-        title_.clear();
     }
 };
 
