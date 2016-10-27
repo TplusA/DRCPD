@@ -448,8 +448,14 @@ class BSearchState
 
         if(p.size() == 2)
         {
-            BUG("The binary search should resort to linear search once "
-                "the searched partition becomes small");
+            static bool shown_bug = false;
+
+            if(!shown_bug)
+            {
+                BUG("The binary search should resort to linear search once "
+                    "the searched partition becomes small");
+                shown_bug = true;
+            }
 
             if(utf8_key_ == ch)
             {
