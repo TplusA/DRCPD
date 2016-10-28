@@ -259,6 +259,7 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
                          is_visible_ ? "send screen update" : "but view is invisible");
 
                 player_control_.unplug();
+                player_data_.forget_all_streams();
 
                 add_update_flags(UPDATE_FLAGS_PLAYBACK_STATE);
                 view_manager_->update_view_if_active(this, DCP::Queue::Mode::FORCE_ASYNC);
@@ -345,7 +346,9 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
                 break;
 
             const auto &plist = params->get_specific();
+            const auto stream_id(Player::AppStream::make_from_generic_id(std::get<0>(plist)));
 
+            player_data_.announce_app_stream(stream_id);
             player_data_.put_meta_data(std::get<0>(plist), std::get<1>(plist));
         }
 

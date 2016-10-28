@@ -59,6 +59,8 @@ enum class StreamState
     STREAM_STATE_LAST = PAUSED,
 };
 
+using AppStream = ID::SourcedStream<STREAM_ID_SOURCE_APP>;
+
 /*!
  * Information about a stream before it is played.
  */
@@ -126,6 +128,11 @@ class StreamPreplayInfoCollection
     }
 
     ID::List get_referenced_list_id(ID::OurStream stream_id) const;
+
+    void clear()
+    {
+        stream_ppinfos_.clear();
+    }
 };
 
 class Data
@@ -141,6 +148,7 @@ class Data
     StreamState current_stream_state_;
     ID::Stream current_stream_id_;
     ID::OurStream next_free_stream_id_;
+    std::array<AppStream, 2> queued_app_streams_;
 
     std::chrono::milliseconds stream_position_;
     std::chrono::milliseconds stream_duration_;
@@ -154,6 +162,7 @@ class Data
         current_stream_state_(StreamState::STOPPED),
         current_stream_id_(ID::Stream::make_invalid()),
         next_free_stream_id_(ID::OurStream::make()),
+        queued_app_streams_{AppStream::make_invalid(), AppStream::make_invalid()},
         stream_position_(-1),
         stream_duration_(-1)
     {}
@@ -197,11 +206,7 @@ class Data
             return false;
     }
 
-    bool set_stream_state(ID::Stream new_current_stream, StreamState state)
-    {
-        current_stream_id_ = new_current_stream;
-        return set_stream_state(state);
-    }
+    bool set_stream_state(ID::Stream new_current_stream, StreamState state);
 
     /*!
      * Return current stream's position and total duration (in this order).
@@ -223,6 +228,7 @@ class Data
         return preplay_info_.get_info(stream_id);
     }
 
+    void announce_app_stream(const AppStream &stream_id);
     void put_meta_data(const ID::Stream &stream_id, const MetaData::Set &meta_data);
     void put_meta_data(const ID::Stream &stream_id, MetaData::Set &&meta_data);
     bool merge_meta_data(const ID::Stream &stream_id, const MetaData::Set &meta_data,
@@ -239,6 +245,8 @@ class Data
         else
             return false;
     }
+
+    void forget_all_streams();
 
     bool update_track_times(const std::chrono::milliseconds &position,
                             const std::chrono::milliseconds &duration);

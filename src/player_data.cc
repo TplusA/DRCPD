@@ -155,6 +155,72 @@ static bool too_many_meta_data_entries(const MetaData::Collection &meta_data)
         return false;
 }
 
+static bool remove_stream_from_queued_app_streams(std::array<Player::AppStream, 2> &queued,
+                                                  const Player::AppStream &app_stream_id)
+{
+    if(!app_stream_id.get().is_valid())
+        return false;
+
+    if(queued[0] == app_stream_id)
+    {
+        queued[0] = queued[1];
+        queued[1] = Player::AppStream::make_invalid();
+        return true;
+    }
+
+    if(queued[1] == app_stream_id)
+    {
+        queued[1] = Player::AppStream::make_invalid();
+        return true;
+    }
+
+    return false;
+}
+
+bool Player::Data::set_stream_state(ID::Stream new_current_stream, StreamState state)
+{
+    current_stream_id_ = new_current_stream;
+
+    remove_stream_from_queued_app_streams(queued_app_streams_,
+                                          AppStream::make_from_generic_id(new_current_stream));
+
+    return set_stream_state(state);
+}
+
+void Player::Data::announce_app_stream(const Player::AppStream &stream_id)
+{
+    if(!stream_id.get().is_valid())
+        return;
+
+    /* already playing it, stream player notification came in faster than
+     * information from dcpd */
+    if(current_stream_id_ == stream_id.get())
+        return;
+
+    /* already knowing it, probably a bug */
+    if(queued_app_streams_[0] == stream_id ||
+       queued_app_streams_[1] == stream_id)
+    {
+        BUG("Announced app stream ID %u, but already knowing it",
+            stream_id.get().get_raw_id());
+        return;
+    }
+
+    if(!queued_app_streams_[0].get().is_valid())
+    {
+        queued_app_streams_[0] = stream_id;
+        log_assert(!queued_app_streams_[1].get().is_valid());
+    }
+    else if(!queued_app_streams_[1].get().is_valid())
+        queued_app_streams_[1] = stream_id;
+    else
+    {
+        meta_data_db_.forget_stream(queued_app_streams_[0].get());
+        queued_app_streams_[0] = queued_app_streams_[1];
+        queued_app_streams_[1] = stream_id;
+    }
+}
+
 void Player::Data::put_meta_data(const ID::Stream &stream_id,
                                  const MetaData::Set &meta_data)
 {
@@ -203,8 +269,18 @@ bool Player::Data::forget_stream(const ID::Stream &stream_id)
 
     if(stream_id == current_stream_id_)
         current_stream_id_ = ID::Stream::make_invalid();
+    else
+        remove_stream_from_queued_app_streams(queued_app_streams_,
+                                              AppStream::make_from_generic_id(stream_id));
 
     return retval;
+}
+
+void Player::Data::forget_all_streams()
+{
+    meta_data_db_.clear();
+    preplay_info_.clear();
+    queued_app_streams_.fill(AppStream::make_invalid());
 }
 
 const MetaData::Set &Player::Data::get_meta_data(const ID::Stream &stream_id)

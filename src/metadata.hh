@@ -131,6 +131,11 @@ class Collection
         auto result(meta_data_sets_.find(stream_id));
         return (result != meta_data_sets_.end() ? &result->second : nullptr);
     }
+
+    void clear()
+    {
+        meta_data_sets_.clear();
+    }
 };
 
 };
