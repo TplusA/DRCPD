@@ -658,12 +658,11 @@ bool Player::Control::stop_notification(ID::Stream stream_id)
 
       case UserIntention::SKIPPING_PAUSED:
       case UserIntention::SKIPPING_LIVE:
-        crawler_->find_next(std::bind(&Player::Control::found_list_item,
-                                      this,
-                                      std::placeholders::_1,
-                                      std::placeholders::_2,
-                                      CrawlerContext::IMMEDIATE_PLAY));
-        break;
+        return !crawler_->find_next(std::bind(&Player::Control::found_list_item,
+                                              this,
+                                              std::placeholders::_1,
+                                              std::placeholders::_2,
+                                              CrawlerContext::IMMEDIATE_PLAY));
     }
 
     return false;
