@@ -1,3 +1,18 @@
+2016-11-03  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 2.5 released.
+
+	* User interface: Jump back from play view to browse view after
+	  playing the last track of a list.
+
+	* User interface: Avoid meta data display troubles in conjunction with
+	  the smartphone app.
+
+	* User interface: Fixed crash when trying to work with an empty list.
+
+	* User interface: Fixed hanging system on startup in case of network
+	  problems.
+
 2016-10-24  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 2.4 released.
