@@ -65,7 +65,7 @@ static unsigned int query_list_size_sync(tdbuslistsNavigation *proxy,
                                                      &size, NULL, NULL))
     {
         msg_error(0, LOG_NOTICE,
-                  "Failed obtaining size of list %u", list_id.get_raw_id());
+                  "Failed obtaining size of list %u (sync)", list_id.get_raw_id());
 
         throw List::DBusListException(ListError::Code::INTERNAL, true);
     }
@@ -416,7 +416,7 @@ void List::DBusList::enter_list_async_handle_done()
                      : OpResult::FAILED);
 
         msg_error(0, LOG_NOTICE,
-                  "Failed obtaining size of list %u", list_id.get_raw_id());
+                  "Failed obtaining size of list %u (async)", list_id.get_raw_id());
     }
 
     async_dbus_data_.enter_list_query_.reset();
