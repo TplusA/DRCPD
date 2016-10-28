@@ -201,7 +201,7 @@ bool Player::Data::forget_stream(const ID::Stream &stream_id)
     preplay_info_.forget_stream(ID::OurStream::make_from_generic_id(stream_id));
     unref_list_id(referenced_lists_, list_id);
 
-    if(stream_id == current_stream_id_ )
+    if(stream_id == current_stream_id_)
         current_stream_id_ = ID::Stream::make_invalid();
 
     return retval;
@@ -219,7 +219,6 @@ const MetaData::Set &Player::Data::get_meta_data(const ID::Stream &stream_id)
         return empty_set;
     }
 }
-
 
 bool Player::Data::update_track_times(const std::chrono::milliseconds &position,
                                       const std::chrono::milliseconds &duration)
