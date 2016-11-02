@@ -986,7 +986,6 @@ void Playlist::DirectoryCrawler::handle_get_item_event(List::AsyncListIface::OpR
     {
       case List::QueryContextGetItem::CallerID::SERIALIZE:
       case List::QueryContextGetItem::CallerID::SERIALIZE_DEBUG:
-      case List::QueryContextGetItem::CallerID::DBUSLIST_GET_ITEM:
         BUG("Wrong caller ID in %s()", __PRETTY_FUNCTION__);
         break;
 

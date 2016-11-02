@@ -441,7 +441,6 @@ class QueryContextGetItem: public QueryContext_
     {
         SERIALIZE,
         SERIALIZE_DEBUG,
-        DBUSLIST_GET_ITEM,
         CRAWLER_FIND_MARKED,
         CRAWLER_FIND_NEXT,
     };
