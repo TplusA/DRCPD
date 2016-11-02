@@ -125,6 +125,9 @@ class QueryContext_
  */
 class QueryContextEnterList: public QueryContext_
 {
+  private:
+    tdbuslistsNavigation *proxy_;
+
   public:
     enum class CallerID
     {
@@ -138,8 +141,6 @@ class QueryContextEnterList: public QueryContext_
         CRAWLER_DESCEND,
         CRAWLER_ASCEND,
     };
-
-    tdbuslistsNavigation *proxy_;
 
     const struct
     {
@@ -432,6 +433,9 @@ enum class CacheSegmentState
  */
 class QueryContextGetItem: public QueryContext_
 {
+  private:
+    tdbuslistsNavigation *proxy_;
+
   public:
     enum class CallerID
     {
@@ -441,8 +445,6 @@ class QueryContextGetItem: public QueryContext_
         CRAWLER_FIND_MARKED,
         CRAWLER_FIND_NEXT,
     };
-
-    tdbuslistsNavigation *proxy_;
 
     const struct
     {
