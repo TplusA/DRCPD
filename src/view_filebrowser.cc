@@ -139,13 +139,32 @@ void ViewFileBrowser::View::handle_enter_list_event_update_after_finish(
 void ViewFileBrowser::View::handle_get_item_event(List::AsyncListIface::OpResult result,
                                                   const std::shared_ptr<List::QueryContextGetItem> &ctx)
 {
-    if(result == List::AsyncListIface::OpResult::STARTED)
+    switch(result)
+    {
+      case List::AsyncListIface::OpResult::STARTED:
+      case List::AsyncListIface::OpResult::CANCELED:
         return;
 
-    if((result == List::AsyncListIface::OpResult::SUCCEEDED ||
-        result == List::AsyncListIface::OpResult::FAILED))
-    {
-        view_manager_->serialize_view_if_active(this, DCP::Queue::Mode::FORCE_ASYNC);
+      case List::AsyncListIface::OpResult::FAILED:
+        if(current_list_id_.is_valid())
+            list_invalidate(current_list_id_, ID::List());
+
+        break;
+
+      case List::AsyncListIface::OpResult::SUCCEEDED:
+        switch(ctx->get_caller_id())
+        {
+          case List::QueryContextGetItem::CallerID::SERIALIZE:
+          case List::QueryContextGetItem::CallerID::SERIALIZE_DEBUG:
+            view_manager_->serialize_view_if_active(this, DCP::Queue::Mode::FORCE_ASYNC);
+            break;
+
+          case List::QueryContextGetItem::CallerID::CRAWLER_FIND_MARKED:
+          case List::QueryContextGetItem::CallerID::CRAWLER_FIND_NEXT:
+            break;
+        }
+
+        break;
     }
 }
 
