@@ -954,7 +954,8 @@ List::DBusList::get_item_async(unsigned int line, const Item *&item)
                                                    ListItemKind(ListItemKind::LOCKED),
                                                    MetaData::PreloadedSet());
 
-    log_assert(window_.list_id_.is_valid());
+    if(!window_.list_id_.is_valid())
+        return OpResult::FAILED;
 
     LoggedLock::UniqueLock<LoggedLock::RecMutex> lock(async_dbus_data_.lock_);
 
