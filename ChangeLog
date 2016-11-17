@@ -1,3 +1,12 @@
+2016-11-17  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 2.6 released.
+
+	* Misc: Send title and URL to dcpd so that it is always up-to-date
+	  with correct and consistent meta data. This worked already in v2.1,
+	  but stopped working in v2.2 as a result of major changes applied
+	  between the two versions.
+
 2016-11-03  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 2.5 released.
