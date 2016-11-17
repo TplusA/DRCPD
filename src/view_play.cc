@@ -26,6 +26,7 @@
 #include "view_play.hh"
 #include "view_manager.hh"
 #include "ui_parameters_predefined.hh"
+#include "dbus_iface_deep.h"
 #include "xmlescape.hh"
 #include "messages.h"
 
@@ -103,6 +104,26 @@ void ViewPlay::View::append_referenced_lists(const ViewIface &owning_view,
 
     if(player_control_.is_active_controller_for_view(owning_view))
         player_data_.append_referenced_lists(list_ids);
+}
+
+static void send_current_stream_info_to_dcpd(const Player::Data &player_data)
+{
+    const auto &md(player_data.get_current_meta_data());
+    const auto stream_id(player_data.get_current_stream_id());
+
+    if(Player::AppStream::compatible_with(stream_id))
+    {
+        /* streams started by the app are managed by dcpd itself, it won't need
+         * our data (in fact, it would emit a bug message if we would)  */
+        return;
+    }
+
+    if(!tdbus_dcpd_playback_call_set_stream_info_sync(
+            dbus_get_dcpd_playback_iface(), stream_id.get_raw_id(),
+            md.values_[MetaData::Set::ID::INTERNAL_DRCPD_TITLE].c_str(),
+            md.values_[MetaData::Set::ID::INTERNAL_DRCPD_URL].c_str(),
+            NULL, NULL))
+        msg_error(0, LOG_NOTICE, "Failed sending stream information to dcpd");
 }
 
 ViewIface::InputResult
@@ -238,6 +259,8 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
 
             if(switched_stream)
                 player_control_.need_next_item_hint(queue_is_full);
+            else
+                send_current_stream_info_to_dcpd(player_data_);
         }
 
         break;
@@ -333,6 +356,9 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
                 add_update_flags(UPDATE_FLAGS_META_DATA);
                 view_manager_->update_view_if_active(this, DCP::Queue::Mode::FORCE_ASYNC);
             }
+
+            if(stream_id == player_data_.get_current_stream_id())
+                send_current_stream_info_to_dcpd(player_data_);
         }
 
         break;
@@ -350,6 +376,9 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
 
             player_data_.announce_app_stream(stream_id);
             player_data_.put_meta_data(std::get<0>(plist), std::get<1>(plist));
+
+            if(stream_id.get() == player_data_.get_current_stream_id())
+                send_current_stream_info_to_dcpd(player_data_);
         }
 
         break;
