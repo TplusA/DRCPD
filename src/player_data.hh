@@ -234,7 +234,11 @@ class Data
     bool merge_meta_data(const ID::Stream &stream_id, const MetaData::Set &meta_data,
                          const std::string *fallback_url = nullptr);
     const MetaData::Set &get_meta_data(const ID::Stream &stream_id);
-    const MetaData::Set &get_current_meta_data() { return get_meta_data(current_stream_id_); }
+
+    const MetaData::Set &get_current_meta_data() const
+    {
+        return const_cast<Data *>(this)->get_meta_data(current_stream_id_);
+    }
 
     bool forget_stream(const ID::Stream &stream_id);
 
