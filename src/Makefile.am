@@ -116,7 +116,10 @@ libdcp_transaction_la_SOURCES = \
 libdcp_transaction_la_CFLAGS = $(AM_CFLAGS)
 libdcp_transaction_la_CXXFLAGS = $(AM_CXXFLAGS)
 
-libdbus_handlers_la_SOURCES = dbus_handlers.h dbus_handlers.hh dbus_handlers.cc actor_id.h
+libdbus_handlers_la_SOURCES = \
+    dbus_handlers.h dbus_handlers.hh dbus_handlers.cc \
+    messages_dbus.h messages_dbus.c \
+    actor_id.h
 libdbus_handlers_la_CFLAGS = $(AM_CFLAGS)
 libdbus_handlers_la_CXXFLAGS = $(AM_CXXFLAGS)
 
@@ -143,7 +146,8 @@ nodist_libdrcpd_dbus_client_la_SOURCES = \
     dcpd_dbus.c dcpd_dbus.h \
     lists_dbus.c lists_dbus.h \
     streamplayer_dbus.c streamplayer_dbus.h \
-    airable_dbus.c airable_dbus.h
+    airable_dbus.c airable_dbus.h \
+    debug_dbus.c debug_dbus.h
 libdrcpd_dbus_client_la_CFLAGS = $(CRELAXEDWARNINGS)
 libdrcpd_dbus_client_la_CXXFLAGS = $(CXXRELAXEDWARNINGS)
 
@@ -160,7 +164,10 @@ BUILT_SOURCES = \
     streamplayer_dbus.stamp \
     de_tahifi_airable.h \
     de_tahifi_airable.md \
-    airable_dbus.stamp
+    airable_dbus.stamp \
+    de_tahifi_debug.h \
+    de_tahifi_debug.md \
+    debug_dbus.stamp
 
 CLEANFILES = $(BUILT_SOURCES)
 
@@ -198,4 +205,13 @@ airable_dbus.h: airable_dbus.stamp
 airable_dbus.stamp: $(DBUS_IFACES)/de_tahifi_airable.xml
 	$(GDBUS_CODEGEN) --generate-c-code=airable_dbus --c-namespace tdbus --interface-prefix de.tahifi. $<
 	$(DBUS_IFACES)/extract_documentation.py -i $< -o de_tahifi_airable.md -H de_tahifi_airable.h -c tdbus -s de.tahifi. -n "$(PACKAGE_NAME) (Airable HTTP session security)"
+	touch $@
+
+de_tahifi_debug.h: debug_dbus.stamp
+de_tahifi_debug.md: debug_dbus.stamp
+debug_dbus.c: debug_dbus.stamp
+debug_dbus.h: debug_dbus.stamp
+debug_dbus.stamp: $(DBUS_IFACES)/de_tahifi_debug.xml
+	$(GDBUS_CODEGEN) --generate-c-code=debug_dbus --c-namespace tdbus_debug --interface-prefix de.tahifi.Debug. $<
+	$(DBUS_IFACES)/extract_documentation.py -i $< -o de_tahifi_debug.md -H de_tahifi_debug.h -c tdbus_debug -s de.tahifi.Debug. -n "Introspection"
 	touch $@
