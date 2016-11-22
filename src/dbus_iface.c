@@ -73,15 +73,18 @@ static void bus_acquired(GDBusConnection *connection,
     msg_info("D-Bus \"%s\" acquired", name);
 }
 
-
 static void handle_error(GError **error)
 {
-    if(*error != NULL)
-    {
-        msg_error(0, LOG_EMERG, "%s", (*error)->message);
-        g_error_free(*error);
-        *error = NULL;
-    }
+    if(*error == NULL)
+        return;
+
+    if((*error)->message != NULL)
+        msg_error(0, LOG_EMERG, "Got D-Bus error: %s", (*error)->message);
+    else
+        msg_error(0, LOG_EMERG, "Got D-Bus error without any message");
+
+    g_error_free(*error);
+    *error = NULL;
 }
 
 static void connect_signals_dcpd(GDBusConnection *connection,
