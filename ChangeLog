@@ -1,3 +1,9 @@
+2016-11-25  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 2.7 released.
+
+	* Debugging: Allow setting verbosity level over D-Bus.
+
 2016-11-17  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 2.6 released.
