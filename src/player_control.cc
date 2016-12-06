@@ -317,7 +317,7 @@ void Player::Control::play_request()
     if(!is_active_controller())
     {
         /* foreign stream, but maybe we can resume it if paused */
-        resume_paused_stream(player_);
+        send_play_command();
         return;
     }
 
