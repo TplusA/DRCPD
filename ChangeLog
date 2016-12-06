@@ -1,3 +1,45 @@
+2017-01-19  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 2.9 released.
+
+	* Qobuz: Support gapless playback.
+
+	* Skipping: Jumping back and forth between tracks works reliably, also
+	  across directory boundaries.
+
+	* Playback: Bit rate of streams can be restricted. In case there are
+	  alternative streams to play for the same track or radio station, the
+	  best stream which fits the configured maximum bit rate is selected.
+
+	* Playback: Pictures, text files, and other non-playable audio files
+	  are ignored and do not interrupt the currently playing list.
+
+	* Playback: Failing streams are retried a few times in case they stop
+	  playing unintendedly.
+
+	* Playback: The number of prefetched of streams depends on context
+	  now. In case of Internet radio, no prefetching is done. In case of
+	  TIDAL and Qobuz, only a single stream is prefetched. In other cases,
+	  up to 5 streams are prefetched.
+
+	* UI: Improved handling of stream meta data. There should be no more
+	  empty entries.
+
+	* UI: Fixed various problems that appeared if the user skipped through
+	  streams quickly.
+
+	* Configuration: There is a configuration file for drcpd now. It can
+	  be read out and manipulated using some new D-Bus interfaces for
+	  generic configuration management.
+
+	* Debugging: Add some useful logs at higher verbosity levels.
+
+	* Compatibility: Requires streamplayer 2.0 to work, older versions are
+	  not supported.
+
+	* Compatibility: Requires listbrokers 1.29 to work, older versions are
+	  not supported.
+
 2016-12-06  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 2.8 released.
