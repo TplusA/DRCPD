@@ -87,6 +87,8 @@ static DBus::SignalData mk_dbus_signal_data()
 void test_dcpd_playback_start(void)
 {
     DBus::SignalData dbus_signal_data(mk_dbus_signal_data());
+    mock_messages->expect_msg_vinfo_formatted(MESSAGE_LEVEL_TRACE,
+                                              "Signal de.tahifi.Dcpd.Playback.Start from :1.123");
     mock_view_manager->expect_store_event(UI::EventID::PLAYBACK_COMMAND_START);
     dbussignal_dcpd_playback(dummy_gdbus_proxy, dummy_sender_name,
                              "Start", nullptr, &dbus_signal_data);
@@ -98,6 +100,8 @@ void test_dcpd_playback_start(void)
 void test_dcpd_playback_stop(void)
 {
     DBus::SignalData dbus_signal_data(mk_dbus_signal_data());
+    mock_messages->expect_msg_vinfo_formatted(MESSAGE_LEVEL_TRACE,
+                                              "Signal de.tahifi.Dcpd.Playback.Stop from :1.123");
     mock_view_manager->expect_store_event(UI::EventID::PLAYBACK_COMMAND_STOP);
     dbussignal_dcpd_playback(dummy_gdbus_proxy, dummy_sender_name,
                              "Stop", nullptr, &dbus_signal_data);
@@ -109,6 +113,8 @@ void test_dcpd_playback_stop(void)
 void test_dcpd_playback_pause(void)
 {
     DBus::SignalData dbus_signal_data(mk_dbus_signal_data());
+    mock_messages->expect_msg_vinfo_formatted(MESSAGE_LEVEL_TRACE,
+                                              "Signal de.tahifi.Dcpd.Playback.Pause from :1.123");
     mock_view_manager->expect_store_event(UI::EventID::PLAYBACK_COMMAND_PAUSE);
     dbussignal_dcpd_playback(dummy_gdbus_proxy, dummy_sender_name,
                              "Pause", nullptr, &dbus_signal_data);
@@ -120,6 +126,8 @@ void test_dcpd_playback_pause(void)
 void test_dcpd_playback_next(void)
 {
     DBus::SignalData dbus_signal_data(mk_dbus_signal_data());
+    mock_messages->expect_msg_vinfo_formatted(MESSAGE_LEVEL_TRACE,
+                                              "Signal de.tahifi.Dcpd.Playback.Next from :1.123");
     mock_view_manager->expect_store_event(UI::EventID::PLAYBACK_NEXT);
     dbussignal_dcpd_playback(dummy_gdbus_proxy, dummy_sender_name,
                              "Next", nullptr, &dbus_signal_data);
@@ -131,6 +139,8 @@ void test_dcpd_playback_next(void)
 void test_dcpd_playback_previous(void)
 {
     DBus::SignalData dbus_signal_data(mk_dbus_signal_data());
+    mock_messages->expect_msg_vinfo_formatted(MESSAGE_LEVEL_TRACE,
+                                              "Signal de.tahifi.Dcpd.Playback.Previous from :1.123");
     mock_view_manager->expect_store_event(UI::EventID::PLAYBACK_PREVIOUS);
     dbussignal_dcpd_playback(dummy_gdbus_proxy, dummy_sender_name,
                              "Previous", nullptr, &dbus_signal_data);
@@ -142,6 +152,8 @@ void test_dcpd_playback_previous(void)
 void test_dcpd_playback_fast_forward(void)
 {
     DBus::SignalData dbus_signal_data(mk_dbus_signal_data());
+    mock_messages->expect_msg_vinfo_formatted(MESSAGE_LEVEL_TRACE,
+                                              "Signal de.tahifi.Dcpd.Playback.FastForward from :1.123");
     mock_view_manager->expect_store_event(UI::EventID::PLAYBACK_FAST_WIND_FORWARD);
     dbussignal_dcpd_playback(dummy_gdbus_proxy, dummy_sender_name,
                              "FastForward", nullptr, &dbus_signal_data);
@@ -153,6 +165,8 @@ void test_dcpd_playback_fast_forward(void)
 void test_dcpd_playback_fast_rewind(void)
 {
     DBus::SignalData dbus_signal_data(mk_dbus_signal_data());
+    mock_messages->expect_msg_vinfo_formatted(MESSAGE_LEVEL_TRACE,
+                                              "Signal de.tahifi.Dcpd.Playback.FastRewind from :1.123");
     mock_view_manager->expect_store_event(UI::EventID::PLAYBACK_FAST_WIND_REVERSE);
     dbussignal_dcpd_playback(dummy_gdbus_proxy, dummy_sender_name,
                              "FastRewind", nullptr, &dbus_signal_data);
@@ -164,6 +178,8 @@ void test_dcpd_playback_fast_rewind(void)
 void test_dcpd_playback_fast_wind_stop(void)
 {
     DBus::SignalData dbus_signal_data(mk_dbus_signal_data());
+    mock_messages->expect_msg_vinfo_formatted(MESSAGE_LEVEL_TRACE,
+                                              "Signal de.tahifi.Dcpd.Playback.FastWindStop from :1.123");
     mock_view_manager->expect_store_event(UI::EventID::PLAYBACK_FAST_WIND_STOP);
     dbussignal_dcpd_playback(dummy_gdbus_proxy, dummy_sender_name,
                              "FastWindStop", nullptr, &dbus_signal_data);
@@ -175,6 +191,8 @@ void test_dcpd_playback_fast_wind_stop(void)
 void test_dcpd_playback_fast_wind_set_factor(void)
 {
     DBus::SignalData dbus_signal_data(mk_dbus_signal_data());
+    mock_messages->expect_msg_vinfo_formatted(MESSAGE_LEVEL_TRACE,
+                                              "Signal de.tahifi.Dcpd.Playback.FastWindSetFactor from :1.123");
 
     auto speed_factor = UI::Events::mk_params<UI::EventID::PLAYBACK_FAST_WIND_SET_SPEED>(6.2);
     mock_view_manager->expect_store_event(UI::EventID::PLAYBACK_FAST_WIND_SET_SPEED,
@@ -197,6 +215,8 @@ void test_dcpd_playback_fast_wind_set_factor(void)
 void test_dcpd_playback_repeat_mode_toggle(void)
 {
     DBus::SignalData dbus_signal_data(mk_dbus_signal_data());
+    mock_messages->expect_msg_vinfo_formatted(MESSAGE_LEVEL_TRACE,
+                                              "Signal de.tahifi.Dcpd.Playback.RepeatModeToggle from :1.123");
     mock_view_manager->expect_store_event(UI::EventID::PLAYBACK_MODE_REPEAT_TOGGLE);
 
     dbussignal_dcpd_playback(dummy_gdbus_proxy, dummy_sender_name,
@@ -209,6 +229,8 @@ void test_dcpd_playback_repeat_mode_toggle(void)
 void test_dcpd_playback_shuffle_mode_toggle(void)
 {
     DBus::SignalData dbus_signal_data(mk_dbus_signal_data());
+    mock_messages->expect_msg_vinfo_formatted(MESSAGE_LEVEL_TRACE,
+                                              "Signal de.tahifi.Dcpd.Playback.ShuffleModeToggle from :1.123");
     mock_view_manager->expect_store_event(UI::EventID::PLAYBACK_MODE_SHUFFLE_TOGGLE);
 
     dbussignal_dcpd_playback(dummy_gdbus_proxy, dummy_sender_name,
@@ -221,6 +243,8 @@ void test_dcpd_playback_shuffle_mode_toggle(void)
 void test_dcpd_playback_unknown_signal_name(void)
 {
     DBus::SignalData dbus_signal_data(mk_dbus_signal_data());
+    mock_messages->expect_msg_vinfo_formatted(MESSAGE_LEVEL_TRACE,
+                                              "Signal de.tahifi.Dcpd.Playback.UnsupportedSignalName from :1.123");
     mock_messages->expect_msg_error_formatted(ENOSYS, LOG_NOTICE,
                                               "Got unknown signal de.tahifi.Dcpd.Playback.UnsupportedSignalName from :1.123 (Function not implemented)");
     dbussignal_dcpd_playback(dummy_gdbus_proxy, dummy_sender_name,
@@ -233,6 +257,8 @@ void test_dcpd_playback_unknown_signal_name(void)
 void test_dcpd_views_open(void)
 {
     DBus::SignalData dbus_signal_data(mk_dbus_signal_data());
+    mock_messages->expect_msg_vinfo_formatted(MESSAGE_LEVEL_TRACE,
+                                              "Signal de.tahifi.Dcpd.Views.Open from :1.123");
 
     auto params = UI::Events::mk_params<UI::EventID::VIEW_OPEN>("SomeViewName");
     mock_view_manager->expect_store_event(UI::EventID::VIEW_OPEN, std::move(params));
@@ -254,6 +280,8 @@ void test_dcpd_views_open(void)
 void test_dcpd_views_toggle(void)
 {
     DBus::SignalData dbus_signal_data(mk_dbus_signal_data());
+    mock_messages->expect_msg_vinfo_formatted(MESSAGE_LEVEL_TRACE,
+                                              "Signal de.tahifi.Dcpd.Views.Toggle from :1.123");
 
     auto params = UI::Events::mk_params<UI::EventID::VIEW_TOGGLE>("Foo", "Bar");
     mock_view_manager->expect_store_event(UI::EventID::VIEW_TOGGLE, std::move(params));
@@ -276,6 +304,8 @@ void test_dcpd_views_toggle(void)
 void test_dcpd_views_unknown_signal_name(void)
 {
     DBus::SignalData dbus_signal_data(mk_dbus_signal_data());
+    mock_messages->expect_msg_vinfo_formatted(MESSAGE_LEVEL_TRACE,
+                                              "Signal de.tahifi.Dcpd.Views.UnsupportedSignalName from :1.123");
     mock_messages->expect_msg_error_formatted(ENOSYS, LOG_NOTICE,
                                               "Got unknown signal de.tahifi.Dcpd.Views.UnsupportedSignalName from :1.123 (Function not implemented)");
     dbussignal_dcpd_views(dummy_gdbus_proxy, dummy_sender_name,
@@ -288,6 +318,8 @@ void test_dcpd_views_unknown_signal_name(void)
 void test_dcpd_listnav_level_up(void)
 {
     DBus::SignalData dbus_signal_data(mk_dbus_signal_data());
+    mock_messages->expect_msg_vinfo_formatted(MESSAGE_LEVEL_TRACE,
+                                              "Signal de.tahifi.Dcpd.ListNavigation.LevelUp from :1.123");
     mock_view_manager->expect_store_event(UI::EventID::NAV_GO_BACK_ONE_LEVEL);
 
     dbussignal_dcpd_listnav(dummy_gdbus_proxy, dummy_sender_name,
@@ -300,6 +332,8 @@ void test_dcpd_listnav_level_up(void)
 void test_dcpd_listnav_level_down(void)
 {
     DBus::SignalData dbus_signal_data(mk_dbus_signal_data());
+    mock_messages->expect_msg_vinfo_formatted(MESSAGE_LEVEL_TRACE,
+                                              "Signal de.tahifi.Dcpd.ListNavigation.LevelDown from :1.123");
     mock_view_manager->expect_store_event(UI::EventID::NAV_SELECT_ITEM);
 
     dbussignal_dcpd_listnav(dummy_gdbus_proxy, dummy_sender_name,
@@ -312,6 +346,8 @@ void test_dcpd_listnav_level_down(void)
 void test_dcpd_listnav_move_lines(void)
 {
     DBus::SignalData dbus_signal_data(mk_dbus_signal_data());
+    mock_messages->expect_msg_vinfo_formatted(MESSAGE_LEVEL_TRACE,
+                                              "Signal de.tahifi.Dcpd.ListNavigation.MoveLines from :1.123");
 
     auto params = UI::Events::mk_params<UI::EventID::NAV_SCROLL_LINES>(3);
     mock_view_manager->expect_store_event(UI::EventID::NAV_SCROLL_LINES, std::move(params));
@@ -333,6 +369,8 @@ void test_dcpd_listnav_move_lines(void)
 void test_dcpd_listnav_move_cursor_by_page(void)
 {
     DBus::SignalData dbus_signal_data(mk_dbus_signal_data());
+    mock_messages->expect_msg_vinfo_formatted(MESSAGE_LEVEL_TRACE,
+                                              "Signal de.tahifi.Dcpd.ListNavigation.MovePages from :1.123");
 
     auto params = UI::Events::mk_params<UI::EventID::NAV_SCROLL_PAGES>(-2);
     mock_view_manager->expect_store_event(UI::EventID::NAV_SCROLL_PAGES, std::move(params));
@@ -355,6 +393,8 @@ void test_dcpd_listnav_move_cursor_by_page(void)
 void test_dcpd_listnav_unknown_signal_name(void)
 {
     DBus::SignalData dbus_signal_data(mk_dbus_signal_data());
+    mock_messages->expect_msg_vinfo_formatted(MESSAGE_LEVEL_TRACE,
+                                              "Signal de.tahifi.Dcpd.ListNavigation.UnsupportedSignalName from :1.123");
     mock_messages->expect_msg_error_formatted(ENOSYS, LOG_NOTICE,
                                               "Got unknown signal de.tahifi.Dcpd.ListNavigation.UnsupportedSignalName from :1.123 (Function not implemented)");
     dbussignal_dcpd_listnav(dummy_gdbus_proxy, dummy_sender_name,

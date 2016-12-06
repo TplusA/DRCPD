@@ -29,6 +29,13 @@
 #include "ui_parameters_predefined.hh"
 #include "messages.h"
 
+static void log_signal(const char *iface_name, const char *signal_name,
+                       const char *sender_name)
+{
+    msg_vinfo(MESSAGE_LEVEL_TRACE, "Signal %s.%s from %s",
+              iface_name, signal_name, sender_name);
+}
+
 static void unknown_signal(const char *iface_name, const char *signal_name,
                            const char *sender_name)
 {
@@ -51,6 +58,8 @@ void dbussignal_dcpd_playback(GDBusProxy *proxy, const gchar *sender_name,
                               gpointer user_data)
 {
     static const char iface_name[] = "de.tahifi.Dcpd.Playback";
+
+    log_signal(iface_name, signal_name, sender_name);
 
     auto *data = static_cast<DBus::SignalData *>(user_data);
     log_assert(data != nullptr);
@@ -124,6 +133,8 @@ void dbussignal_dcpd_views(GDBusProxy *proxy, const gchar *sender_name,
                            gpointer user_data)
 {
     static const char iface_name[] = "de.tahifi.Dcpd.Views";
+
+    log_signal(iface_name, signal_name, sender_name);
 
     auto *data = static_cast<DBus::SignalData *>(user_data);
     log_assert(data != nullptr);
@@ -204,6 +215,8 @@ void dbussignal_dcpd_listnav(GDBusProxy *proxy, const gchar *sender_name,
 {
     static const char iface_name[] = "de.tahifi.Dcpd.ListNavigation";
 
+    log_signal(iface_name, signal_name, sender_name);
+
     auto *data = static_cast<DBus::SignalData *>(user_data);
     log_assert(data != nullptr);
 
@@ -249,6 +262,8 @@ void dbussignal_lists_navigation(GDBusProxy *proxy, const gchar *sender_name,
                                  gpointer user_data)
 {
     static const char iface_name[] = "de.tahifi.Lists.Navigation";
+
+    log_signal(iface_name, signal_name, sender_name);
 
     auto *data = static_cast<DBus::SignalData *>(user_data);
     log_assert(data != nullptr);
@@ -318,6 +333,8 @@ void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
                                gpointer user_data)
 {
     static const char iface_name[] = "de.tahifi.Streamplayer.Playback";
+
+    log_signal(iface_name, signal_name, sender_name);
 
     auto *data = static_cast<DBus::SignalData *>(user_data);
     log_assert(data != nullptr);
@@ -425,6 +442,8 @@ void dbussignal_airable_sec(GDBusProxy *proxy, const gchar *sender_name,
                             gpointer user_data)
 {
     static const char iface_name[] = "de.tahifi.Airable";
+
+    log_signal(iface_name, signal_name, sender_name);
 
     auto *data = static_cast<DBus::SignalData *>(user_data);
     log_assert(data != nullptr);
