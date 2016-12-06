@@ -164,6 +164,14 @@ void ViewManager::Manager::store_event(UI::EventID event_id,
     ui_events_.post(std::move(ev));
 }
 
+static void log_event_dispatch(const UI::ViewEventID event_id,
+                               const char *view_name, bool was_bounced)
+{
+    msg_vinfo(MESSAGE_LEVEL_DEBUG, "Dispatch ViewEventID %d to view %s (%s)",
+              static_cast<int>(event_id), view_name,
+              was_bounced ? "bounced" : "direct");
+}
+
 void ViewManager::Manager::dispatch_event(UI::ViewEventID event_id,
                                           std::unique_ptr<const UI::Parameters> parameters)
 {
@@ -192,9 +200,12 @@ void ViewManager::Manager::dispatch_event(UI::ViewEventID event_id,
     static constexpr const ViewManager::InputBouncer global_bounce_table(global_bounce_table_data);
 
     if(!do_input_bounce(global_bounce_table, event_id, parameters))
+    {
+        log_event_dispatch(event_id, active_view_->name_, false);
         handle_input_result(active_view_->process_event(event_id,
                                                         std::move(parameters)),
                             *active_view_);
+    }
 }
 
 void ViewManager::Manager::dispatch_event(UI::VManEventID event_id,
@@ -271,6 +282,7 @@ bool ViewManager::Manager::do_input_bounce(const ViewManager::InputBouncer &boun
 
     if(view != nullptr)
     {
+        log_event_dispatch(item->xform_event_id_, view->name_, true);
         handle_input_result(view->process_event(item->xform_event_id_,
                                                 std::move(parameters)),
                             *view);
