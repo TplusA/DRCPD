@@ -272,7 +272,7 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
       case UI::ViewEventID::NOTIFY_STREAM_PAUSED:
         {
             const auto stream_id =
-                UI::Events::downcast<UI::EventID::VIEW_PLAYER_STREAM_STOPPED>(parameters);
+                UI::Events::downcast<UI::EventID::VIEW_PLAYER_STREAM_PAUSED>(parameters);
 
             if(stream_id == nullptr)
                 break;
