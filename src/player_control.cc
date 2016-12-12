@@ -21,6 +21,7 @@
 #endif /* HAVE_CONFIG_H */
 
 #include "player_control.hh"
+#include "player_stopped_reason.hh"
 #include "directory_crawler.hh"
 #include "dbus_iface_deep.h"
 #include "view_play.hh"
@@ -222,6 +223,8 @@ void Player::Control::plug(Playlist::CrawlerIface &crawler,
     permissions_ = &permissions;
     skip_requests_.reset();
     next_stream_in_queue_ = ID::OurStream::make_invalid();
+    prefetch_state_ = PrefetchState::NOT_PREFETCHING;
+    retry_data_.reset();
 
     auto crawler_lock(crawler_->lock());
     crawler_->attached_to_player_notification();
@@ -616,6 +619,8 @@ void Player::Control::play_notification(ID::Stream stream_id)
     if(stream_id == next_stream_in_queue_.get())
         next_stream_in_queue_ = ID::OurStream::make_invalid();
 
+    retry_data_.playing(stream_id);
+
     if(player_ != nullptr)
     {
         if(crawler_ != nullptr)
@@ -635,21 +640,30 @@ void Player::Control::play_notification(ID::Stream stream_id)
     }
 }
 
-bool Player::Control::stop_notification(ID::Stream stream_id)
+Player::Control::StopReaction
+Player::Control::stop_notification(ID::Stream stream_id)
 {
+    retry_data_.reset();
+
     if(player_ == nullptr || crawler_ == nullptr)
-        return true;
+        return StopReaction::NOT_ATTACHED;
+
+    const auto our_id(ID::OurStream::make_from_generic_id(stream_id));
+
+    if(!our_id.get().is_valid())
+        return StopReaction::STREAM_IGNORED;
 
     auto crawler_lock(crawler_->lock());
     bool skipping = false;
 
+    /* stream stopped playing with no error---good? */
     switch(player_->get_intention())
     {
       case UserIntention::NOTHING:
       case UserIntention::STOPPING:
         crawler_->configure_and_restart(crawler_->get_recursive_mode(),
                                         crawler_->get_shuffle_mode());
-        return true;
+        return StopReaction::STOPPED;
 
       case UserIntention::PAUSING:
       case UserIntention::LISTENING:
@@ -661,238 +675,59 @@ bool Player::Control::stop_notification(ID::Stream stream_id)
         break;
     }
 
+    switch(prefetch_state_)
+    {
+      case PrefetchState::NOT_PREFETCHING:
+        /* probably end of list, checked below by finding the next item */
+        break;
+
+      case PrefetchState::PREFETCHING_NEXT_LIST_ITEM:
+        /* still prefetching next stream information while the current stream
+         * has stopped already */
+        msg_info("Stream stopped while next stream still unavailable");
+        prefetch_state_ = PrefetchState::PREFETCHING_NEXT_LIST_ITEM_AND_PLAY_IT;
+        return StopReaction::QUEUED;
+
+      case PrefetchState::PREFETCHING_NEXT_LIST_ITEM_AND_PLAY_IT:
+        BUG("This case should not occur");
+        return StopReaction::QUEUED;
+
+      case PrefetchState::HAVE_NEXT_LIST_ITEM:
+        /* we have the item already, now we need to retrieve its information */
+        prefetch_state_ = PrefetchState::PREFETCHING_LIST_ITEM_INFORMATION;
+
+        if(crawler_->retrieve_item_information(std::bind(&Player::Control::found_item_information,
+                                                         this,
+                                                         std::placeholders::_1,
+                                                         std::placeholders::_2,
+                                                         CrawlerContext::IMMEDIATE_PLAY)))
+            return StopReaction::RETRIEVE_QUEUED;
+
+        prefetch_state_ = PrefetchState::NOT_PREFETCHING;
+
+        if(!permissions_->can_skip_on_error())
+            return StopReaction::STOPPED;
+
+        break;
+
+      case PrefetchState::PREFETCHING_LIST_ITEM_INFORMATION:
+      case PrefetchState::HAVE_LIST_ITEM_INFORMATION:
+        /* item information are fetched or already there, so there is nothing
+         * to do here */
+        return Player::Control::StopReaction::NOP;
+    }
+
     if(!skipping)
         crawler_->set_direction_forward();
 
-    return !crawler_->find_next(std::bind(&Player::Control::found_list_item,
-                                          this,
-                                          std::placeholders::_1,
-                                          std::placeholders::_2,
-                                          CrawlerContext::IMMEDIATE_PLAY));
-}
+    if(crawler_->find_next(std::bind(&Player::Control::found_list_item,
+                                     this,
+                                     std::placeholders::_1,
+                                     std::placeholders::_2,
+                                     CrawlerContext::IMMEDIATE_PLAY)))
+        return StopReaction::QUEUED;
 
-void Player::Control::pause_notification(ID::Stream stream_id)
-{
-    if(is_active_controller())
-        enforce_intention(player_->get_intention(), Player::StreamState::PAUSED);
-}
-
-
-void Player::Control::need_next_item_hint(bool queue_is_full)
-{
-    if(queue_is_full)
-        BUG("Streamplayer reports full queue");
-
-    if(crawler_ == nullptr)
-        return;
-
-    auto crawler_lock(crawler_->lock());
-
-    if(!permissions_->can_prefetch_for_gapless())
-        return;
-
-    if(is_prefetching_)
-        return;
-
-    if(next_stream_in_queue_.get().is_valid())
-       return;
-
-    is_prefetching_ = true;
-
-    if(!crawler_->find_next(std::bind(&Player::Control::found_list_item,
-                                      this,
-                                      std::placeholders::_1,
-                                      std::placeholders::_2,
-                                      CrawlerContext::PREFETCH)))
-    {
-        is_prefetching_ = false;
-    }
-}
-
-void Player::Control::found_list_item(Playlist::CrawlerIface &crawler,
-                                      Playlist::CrawlerIface::FindNext result,
-                                      CrawlerContext ctx)
-{
-    auto locks(lock());
-
-    switch(result)
-    {
-      case Playlist::CrawlerIface::FindNext::FOUND:
-        switch(ctx)
-        {
-          case CrawlerContext::SKIP:
-            if(skip_requests_.skipped(*player_, *crawler_, true))
-            {
-                if(!crawler.find_next(std::bind(&Player::Control::found_list_item,
-                                                this,
-                                                std::placeholders::_1,
-                                                std::placeholders::_2,
-                                                ctx)))
-                    skip_requests_.stop_skipping(*player_, *crawler_);
-
-                return;
-            }
-
-            /* fall-through */
-
-          case CrawlerContext::IMMEDIATE_PLAY:
-            crawler.mark_current_position();
-
-            /* fall-through */
-
-          case CrawlerContext::PREFETCH:
-            crawler.retrieve_item_information(std::bind(&Player::Control::found_item_information,
-                                                        this,
-                                                        std::placeholders::_1,
-                                                        std::placeholders::_2,
-                                                        ctx));
-            break;
-        }
-
-        break;
-
-      case Playlist::CrawlerIface::FindNext::FAILED:
-      case Playlist::CrawlerIface::FindNext::CANCELED:
-      case Playlist::CrawlerIface::FindNext::START_OF_LIST:
-      case Playlist::CrawlerIface::FindNext::END_OF_LIST:
-        if(ctx == CrawlerContext::PREFETCH)
-            is_prefetching_ = false;
-
-        skip_requests_.stop_skipping(*player_, *crawler_);
-
-        break;
-    }
-}
-
-void Player::Control::found_item_information(Playlist::CrawlerIface &crawler,
-                                             Playlist::CrawlerIface::RetrieveItemInfo result,
-                                             CrawlerContext ctx)
-{
-    auto locks(lock());
-
-    bool prefetch_more = false;
-    bool queuing_failed = false;
-
-    if(ctx == CrawlerContext::PREFETCH)
-        is_prefetching_ = false;
-
-    switch(result)
-    {
-      case Playlist::CrawlerIface::RetrieveItemInfo::FOUND:
-        switch(ctx)
-        {
-          case CrawlerContext::IMMEDIATE_PLAY:
-            switch(player_->get_intention())
-            {
-              case UserIntention::NOTHING:
-              case UserIntention::STOPPING:
-                break;
-
-              case UserIntention::SKIPPING_PAUSED:
-                skip_requests_.stop_skipping(*player_, *crawler_);
-
-                /* fall-through */
-
-              case UserIntention::PAUSING:
-                queuing_failed = !store_current_item_info_and_play(true);
-                prefetch_more = true;
-                break;
-
-              case UserIntention::SKIPPING_LIVE:
-                skip_requests_.stop_skipping(*player_, *crawler_);
-
-                /* fall-through */
-
-              case UserIntention::LISTENING:
-                queuing_failed = !store_current_item_info_and_play(true);
-                prefetch_more = true;
-                send_play_command();
-                break;
-            }
-
-            break;
-
-          case CrawlerContext::PREFETCH:
-            switch(player_->get_intention())
-            {
-              case UserIntention::NOTHING:
-              case UserIntention::STOPPING:
-                break;
-
-              case UserIntention::SKIPPING_PAUSED:
-              case UserIntention::SKIPPING_LIVE:
-                skip_requests_.stop_skipping(*player_, *crawler_);
-
-                /* fall-through */
-
-              case UserIntention::PAUSING:
-              case UserIntention::LISTENING:
-                queuing_failed = !store_current_item_info_and_play(false);
-                break;
-            }
-
-            break;
-
-          case CrawlerContext::SKIP:
-            switch(player_->get_intention())
-            {
-              case UserIntention::NOTHING:
-              case UserIntention::STOPPING:
-              case UserIntention::PAUSING:
-              case UserIntention::LISTENING:
-                break;
-
-              case UserIntention::SKIPPING_PAUSED:
-              case UserIntention::SKIPPING_LIVE:
-                skip_requests_.stop_skipping(*player_, *crawler_);
-                queuing_failed = !store_current_item_info_and_play(true);
-                prefetch_more = true;
-                break;
-            }
-
-            break;
-        }
-
-        if(queuing_failed)
-        {
-            result = Playlist::CrawlerIface::RetrieveItemInfo::FAILED;
-
-            /* fall-through */
-        }
-        else
-            break;
-
-      case Playlist::CrawlerIface::RetrieveItemInfo::FAILED:
-        /* skip this one, maybe the next one will work */
-        switch(ctx)
-        {
-          case CrawlerContext::IMMEDIATE_PLAY:
-          case CrawlerContext::PREFETCH:
-            crawler.set_direction_forward();
-
-            /* fall-through */
-
-          case CrawlerContext::SKIP:
-            crawler.find_next(std::bind(&Player::Control::found_list_item,
-                                        this,
-                                        std::placeholders::_1,
-                                        std::placeholders::_2,
-                                        ctx));
-
-            break;
-        }
-
-        break;
-
-      case Playlist::CrawlerIface::RetrieveItemInfo::CANCELED:
-        break;
-    }
-
-    if(prefetch_more)
-    {
-        crawler.set_direction_forward();
-        need_next_item_hint(false);
-    }
+    return StopReaction::STOPPED;
 }
 
 /*!
@@ -969,6 +804,378 @@ static bool queue_stream_or_forget(Player::Data &player,
     }
 
     return true;
+}
+
+Player::Control::StopReaction
+Player::Control::stop_notification(ID::Stream stream_id,
+                                   const std::string &error_id,
+                                   bool is_urlfifo_empty)
+{
+    log_assert(!error_id.empty());
+
+    if(player_ == nullptr || crawler_ == nullptr)
+        return StopReaction::NOT_ATTACHED;
+
+    const auto our_id(ID::OurStream::make_from_generic_id(stream_id));
+
+    if(!our_id.get().is_valid())
+        return StopReaction::STREAM_IGNORED;
+
+    /* stream stopped playing due to some error---why? */
+    const StoppedReason reason(error_id);
+
+    msg_info("Stream error %s -> %d.%d",
+             error_id.c_str(), reason.get_domain(), reason.get_code());
+
+    auto crawler_lock(crawler_->lock());
+    bool skipping = false;
+
+    switch(player_->get_intention())
+    {
+      case UserIntention::NOTHING:
+      case UserIntention::STOPPING:
+        crawler_->configure_and_restart(crawler_->get_recursive_mode(),
+                                        crawler_->get_shuffle_mode());
+        return StopReaction::STOPPED;
+
+      case UserIntention::PAUSING:
+      case UserIntention::LISTENING:
+        break;
+
+      case UserIntention::SKIPPING_PAUSED:
+      case UserIntention::SKIPPING_LIVE:
+        skipping = true;
+        break;
+    }
+
+    bool should_retry = false;
+
+    switch(reason.get_code())
+    {
+      case StoppedReason::Code::UNKNOWN:
+      case StoppedReason::Code::FLOW_REPORTED_UNKNOWN:
+      case StoppedReason::Code::IO_MEDIA_FAILURE:
+      case StoppedReason::Code::IO_AUTHENTICATION_FAILURE:
+      case StoppedReason::Code::IO_STREAM_UNAVAILABLE:
+      case StoppedReason::Code::IO_STREAM_TYPE_NOT_SUPPORTED:
+      case StoppedReason::Code::IO_ACCESS_DENIED:
+      case StoppedReason::Code::DATA_CODEC_MISSING:
+      case StoppedReason::Code::DATA_WRONG_FORMAT:
+      case StoppedReason::Code::DATA_ENCRYPTED:
+      case StoppedReason::Code::DATA_ENCRYPTION_SCHEME_NOT_SUPPORTED:
+        break;
+
+      case StoppedReason::Code::FLOW_EMPTY_URLFIFO:
+      case StoppedReason::Code::IO_NETWORK_FAILURE:
+      case StoppedReason::Code::IO_URL_MISSING:
+      case StoppedReason::Code::IO_PROTOCOL_VIOLATION:
+        should_retry = true;
+        break;
+
+      case StoppedReason::Code::DATA_BROKEN_STREAM:
+        should_retry = permissions_->retry_if_stream_broken();
+        break;
+    }
+
+    if(should_retry)
+    {
+        if(retry_data_.retry(our_id))
+        {
+            msg_info("Retry stream %u", our_id.get().get_raw_id());
+
+            if(next_stream_in_queue_.get().is_valid())
+                BUG("There is a stream in queue (%u), we are going to lose it",
+                    next_stream_in_queue_.get().get_raw_id());
+
+            if(queue_stream_or_forget(*player_, our_id, true))
+                return StopReaction::RETRY;
+        }
+        else
+            msg_info("Giving up on stream %u", our_id.get().get_raw_id());
+    }
+
+    retry_data_.reset();
+
+    if(!permissions_->can_skip_on_error())
+        return StopReaction::STOPPED;
+
+    if(!skipping)
+        crawler_->set_direction_forward();
+
+    if(crawler_->find_next(std::bind(&Player::Control::found_list_item,
+                                     this,
+                                     std::placeholders::_1,
+                                     std::placeholders::_2,
+                                     CrawlerContext::IMMEDIATE_PLAY)))
+        return StopReaction::QUEUED;
+
+    return StopReaction::STOPPED;
+}
+
+void Player::Control::pause_notification(ID::Stream stream_id)
+{
+    retry_data_.playing(stream_id);
+
+    if(is_active_controller())
+        enforce_intention(player_->get_intention(), Player::StreamState::PAUSED);
+}
+
+
+void Player::Control::need_next_item_hint(bool queue_is_full)
+{
+    if(queue_is_full)
+        BUG("Streamplayer reports full queue");
+
+    if(crawler_ == nullptr)
+        return;
+
+    auto crawler_lock(crawler_->lock());
+
+    switch(prefetch_state_)
+    {
+      case PrefetchState::NOT_PREFETCHING:
+        break;
+
+      case PrefetchState::PREFETCHING_NEXT_LIST_ITEM:
+      case PrefetchState::PREFETCHING_NEXT_LIST_ITEM_AND_PLAY_IT:
+      case PrefetchState::HAVE_NEXT_LIST_ITEM:
+      case PrefetchState::PREFETCHING_LIST_ITEM_INFORMATION:
+      case PrefetchState::HAVE_LIST_ITEM_INFORMATION:
+        return;
+    }
+
+    if(next_stream_in_queue_.get().is_valid())
+        return;
+
+    /* we always prefetch the next item even for sources that do not support
+     * gapless playback to mask possible network latencies caused by that
+     * operation; we do not, however, fetch the next item's detailed data
+     * because this may cause problems on non-gapless sources */
+    prefetch_state_ = PrefetchState::PREFETCHING_NEXT_LIST_ITEM;
+
+    if(!crawler_->find_next(std::bind(&Player::Control::found_list_item,
+                                      this,
+                                      std::placeholders::_1,
+                                      std::placeholders::_2,
+                                      CrawlerContext::PREFETCH)))
+    {
+        prefetch_state_ = PrefetchState::NOT_PREFETCHING;
+    }
+}
+
+void Player::Control::found_list_item(Playlist::CrawlerIface &crawler,
+                                      Playlist::CrawlerIface::FindNext result,
+                                      CrawlerContext ctx)
+{
+    auto locks(lock());
+
+    bool need_item_information_now = false;
+
+    switch(result)
+    {
+      case Playlist::CrawlerIface::FindNext::FOUND:
+        if(prefetch_state_ == PrefetchState::PREFETCHING_NEXT_LIST_ITEM_AND_PLAY_IT)
+            need_item_information_now = true;
+
+        prefetch_state_ = PrefetchState::HAVE_NEXT_LIST_ITEM;
+
+        switch(ctx)
+        {
+          case CrawlerContext::SKIP:
+            prefetch_state_ = PrefetchState::NOT_PREFETCHING;
+
+            if(skip_requests_.skipped(*player_, *crawler_, true))
+            {
+                if(!crawler.find_next(std::bind(&Player::Control::found_list_item,
+                                                this,
+                                                std::placeholders::_1,
+                                                std::placeholders::_2,
+                                                ctx)))
+                    skip_requests_.stop_skipping(*player_, *crawler_);
+
+                return;
+            }
+
+            /* fall-through */
+
+          case CrawlerContext::IMMEDIATE_PLAY:
+            crawler.mark_current_position();
+            need_item_information_now = true;
+            break;
+
+          case CrawlerContext::PREFETCH:
+            if(!permissions_->can_prefetch_for_gapless())
+            {
+                /* gapless playback is actually not supported in this list,
+                 * retrieval of item information must be deferred to a later
+                 * point if and when needed */
+                return;
+            }
+
+            need_item_information_now = true;
+            break;
+        }
+
+        break;
+
+      case Playlist::CrawlerIface::FindNext::FAILED:
+      case Playlist::CrawlerIface::FindNext::CANCELED:
+      case Playlist::CrawlerIface::FindNext::START_OF_LIST:
+      case Playlist::CrawlerIface::FindNext::END_OF_LIST:
+        prefetch_state_ = PrefetchState::NOT_PREFETCHING;
+        skip_requests_.stop_skipping(*player_, *crawler_);
+        break;
+    }
+
+    if(need_item_information_now)
+    {
+        prefetch_state_ = PrefetchState::PREFETCHING_LIST_ITEM_INFORMATION;
+
+        if(!crawler.retrieve_item_information(std::bind(&Player::Control::found_item_information,
+                                                        this,
+                                                        std::placeholders::_1,
+                                                        std::placeholders::_2,
+                                                        ctx)))
+            prefetch_state_ = PrefetchState::NOT_PREFETCHING;
+    }
+}
+
+void Player::Control::found_item_information(Playlist::CrawlerIface &crawler,
+                                             Playlist::CrawlerIface::RetrieveItemInfo result,
+                                             CrawlerContext ctx)
+{
+    auto locks(lock());
+
+    bool prefetch_more = false;
+    bool queuing_failed = false;
+
+    switch(result)
+    {
+      case Playlist::CrawlerIface::RetrieveItemInfo::FOUND:
+        prefetch_state_ = PrefetchState::HAVE_LIST_ITEM_INFORMATION;
+
+        switch(ctx)
+        {
+          case CrawlerContext::IMMEDIATE_PLAY:
+            switch(player_->get_intention())
+            {
+              case UserIntention::NOTHING:
+              case UserIntention::STOPPING:
+                break;
+
+              case UserIntention::SKIPPING_PAUSED:
+                skip_requests_.stop_skipping(*player_, *crawler_);
+
+                /* fall-through */
+
+              case UserIntention::PAUSING:
+                queuing_failed = !store_current_item_info_and_play(true);
+                prefetch_state_ = PrefetchState::NOT_PREFETCHING;
+                prefetch_more = true;
+                break;
+
+              case UserIntention::SKIPPING_LIVE:
+                skip_requests_.stop_skipping(*player_, *crawler_);
+
+                /* fall-through */
+
+              case UserIntention::LISTENING:
+                queuing_failed = !store_current_item_info_and_play(true);
+                prefetch_state_ = PrefetchState::NOT_PREFETCHING;
+
+                if(!queuing_failed)
+                    send_play_command();
+
+                break;
+            }
+
+            break;
+
+          case CrawlerContext::PREFETCH:
+            switch(player_->get_intention())
+            {
+              case UserIntention::NOTHING:
+              case UserIntention::STOPPING:
+                break;
+
+              case UserIntention::SKIPPING_PAUSED:
+              case UserIntention::SKIPPING_LIVE:
+                skip_requests_.stop_skipping(*player_, *crawler_);
+
+                /* fall-through */
+
+              case UserIntention::PAUSING:
+              case UserIntention::LISTENING:
+                queuing_failed = !store_current_item_info_and_play(false);
+                prefetch_state_ = PrefetchState::NOT_PREFETCHING;
+                break;
+            }
+
+            break;
+
+          case CrawlerContext::SKIP:
+            switch(player_->get_intention())
+            {
+              case UserIntention::NOTHING:
+              case UserIntention::STOPPING:
+              case UserIntention::PAUSING:
+              case UserIntention::LISTENING:
+                break;
+
+              case UserIntention::SKIPPING_PAUSED:
+              case UserIntention::SKIPPING_LIVE:
+                skip_requests_.stop_skipping(*player_, *crawler_);
+                queuing_failed = !store_current_item_info_and_play(true);
+                prefetch_state_ = PrefetchState::NOT_PREFETCHING;
+                prefetch_more = true;
+                break;
+            }
+
+            break;
+        }
+
+        if(queuing_failed)
+        {
+            result = Playlist::CrawlerIface::RetrieveItemInfo::FAILED;
+            prefetch_more = false;
+        }
+
+        break;
+
+      case Playlist::CrawlerIface::RetrieveItemInfo::FAILED:
+        /* skip this one, maybe the next one will work */
+        prefetch_state_ = PrefetchState::NOT_PREFETCHING;
+
+        switch(ctx)
+        {
+          case CrawlerContext::IMMEDIATE_PLAY:
+          case CrawlerContext::PREFETCH:
+            crawler.set_direction_forward();
+
+            /* fall-through */
+
+          case CrawlerContext::SKIP:
+            crawler.find_next(std::bind(&Player::Control::found_list_item,
+                                        this,
+                                        std::placeholders::_1,
+                                        std::placeholders::_2,
+                                        ctx));
+
+            break;
+        }
+
+        break;
+
+      case Playlist::CrawlerIface::RetrieveItemInfo::CANCELED:
+        prefetch_state_ = PrefetchState::NOT_PREFETCHING;
+        break;
+    }
+
+    if(prefetch_more)
+    {
+        crawler.set_direction_forward();
+        need_next_item_hint(false);
+    }
 }
 
 static MetaData::Set mk_meta_data_from_preloaded_information(const ViewFileBrowser::FileItem &file_item)

@@ -44,6 +44,8 @@ class LocalPermissionsIface
     virtual bool can_repeat_all() const = 0;
     virtual bool can_show_listing() const = 0;
     virtual bool can_prefetch_for_gapless() const = 0;
+    virtual bool can_skip_on_error() const = 0;
+    virtual bool retry_if_stream_broken() const = 0;
 };
 
 class DefaultLocalPermissions: public LocalPermissionsIface
@@ -65,6 +67,8 @@ class DefaultLocalPermissions: public LocalPermissionsIface
     bool can_repeat_all()           const override { return true; }
     bool can_show_listing()         const override { return true; }
     bool can_prefetch_for_gapless() const override { return true; }
+    bool can_skip_on_error()        const override { return true; }
+    bool retry_if_stream_broken()   const override { return false; }
 };
 
 }

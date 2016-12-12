@@ -244,18 +244,29 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
 
       case UI::ViewEventID::NOTIFY_STREAM_STOPPED:
         {
-            const auto stream_id =
+            const auto params =
                 UI::Events::downcast<UI::EventID::VIEW_PLAYER_STREAM_STOPPED>(parameters);
 
-            if(stream_id == nullptr)
+            if(params == nullptr)
                 break;
 
-            player_data_.set_stream_state(Player::StreamState::STOPPED);
-            player_data_.forget_stream(stream_id->get_specific());
+            const auto &plist = params->get_specific();
+            const ID::Stream stream_id(std::get<0>(plist));
+            const std::string &error_id(std::get<2>(plist));
 
-            if(player_control_.stop_notification(stream_id->get_specific()))
+            player_data_.set_stream_state(Player::StreamState::STOPPED);
+
+            const auto stop_reaction = error_id.empty()
+                ? player_control_.stop_notification(stream_id)
+                : player_control_.stop_notification(stream_id, error_id, std::get<1>(plist));
+
+            switch(stop_reaction)
             {
-                msg_info("Play view: stream stopped, %s",
+              case Player::Control::StopReaction::NOT_ATTACHED:
+              case Player::Control::StopReaction::STREAM_IGNORED:
+              case Player::Control::StopReaction::STOPPED:
+                msg_info("Play view: stream stopped%s, %s",
+                         error_id.empty() ? "" : " with error",
                          is_visible_ ? "send screen update" : "but view is invisible");
 
                 player_control_.unplug();
@@ -264,6 +275,20 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
                 add_update_flags(UPDATE_FLAGS_PLAYBACK_STATE);
                 view_manager_->update_view_if_active(this, DCP::Queue::Mode::FORCE_ASYNC);
                 view_manager_->hide_view_if_active(this);
+
+                break;
+
+              case Player::Control::StopReaction::QUEUED:
+              case Player::Control::StopReaction::RETRIEVE_QUEUED:
+              case Player::Control::StopReaction::NOP:
+                msg_info("Play view: stream stopped%s, but player keeps going",
+                         error_id.empty() ? "" : " with error");
+                player_data_.forget_stream(stream_id);
+                break;
+
+              case Player::Control::StopReaction::RETRY:
+                msg_info("Play view: stream stopped with error; retrying");
+                break;
             }
         }
 

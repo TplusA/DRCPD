@@ -51,6 +51,19 @@ class AirableRadiosPermissions: public DefaultLocalPermissions
     bool can_repeat_single()        const override { return false; }
     bool can_repeat_all()           const override { return false; }
     bool can_prefetch_for_gapless() const override { return false; }
+    bool can_skip_on_error()        const override { return false; }
+    bool retry_if_stream_broken()   const override { return true; }
+};
+
+class AirableFeedsPermissions: public DefaultLocalPermissions
+{
+  public:
+    AirableFeedsPermissions(const AirableFeedsPermissions &) = delete;
+    AirableFeedsPermissions &operator=(const AirableFeedsPermissions &) = delete;
+
+    constexpr explicit AirableFeedsPermissions() {}
+
+    bool retry_if_stream_broken()   const override { return true; }
 };
 
 class DeezerProgramPermissions: public DefaultLocalPermissions
@@ -70,6 +83,7 @@ class DeezerProgramPermissions: public DefaultLocalPermissions
     bool can_repeat_all()           const override { return false; }
     bool can_show_listing()         const override { return false; }
     bool can_prefetch_for_gapless() const override { return false; }
+    bool can_skip_on_error()        const override { return false; }
 };
 
 }

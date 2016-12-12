@@ -40,6 +40,7 @@ drcpd_SOURCES = \
     ui_parameters.hh ui_parameters_predefined.hh search_parameters.hh \
     player_control.hh player_control.cc \
     player_data.hh player_data.cc \
+    player_stopped_reason.hh \
     playlist_crawler.hh directory_crawler.hh \
     metadata.hh metadata_preloaded.hh \
     idtypes.hh stream_id.h stream_id.hh context_map.hh \

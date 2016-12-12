@@ -97,6 +97,27 @@ class Control
         ALL,
     };
 
+    enum class PrefetchState
+    {
+        NOT_PREFETCHING,
+        PREFETCHING_NEXT_LIST_ITEM,
+        PREFETCHING_NEXT_LIST_ITEM_AND_PLAY_IT,
+        HAVE_NEXT_LIST_ITEM,
+        PREFETCHING_LIST_ITEM_INFORMATION,
+        HAVE_LIST_ITEM_INFORMATION,
+    };
+
+    enum class StopReaction
+    {
+        NOT_ATTACHED,
+        STREAM_IGNORED,
+        STOPPED,
+        QUEUED,
+        RETRIEVE_QUEUED,
+        NOP,
+        RETRY,
+    };
+
   private:
     LoggedLock::RecMutex lock_;
 
@@ -109,7 +130,50 @@ class Control
     Skipper skip_requests_;
 
     ID::OurStream next_stream_in_queue_;
-    bool is_prefetching_;
+    PrefetchState prefetch_state_;
+
+    class Retry
+    {
+      private:
+        static constexpr unsigned int MAX_RETRIES = 2;
+
+        unsigned int count_;
+        ID::OurStream stream_id_;
+
+      public:
+        explicit Retry():
+            count_(0),
+            stream_id_(ID::OurStream::make_invalid())
+        {}
+
+        void reset()
+        {
+            playing(ID::Stream::make_invalid());
+        }
+
+        void playing(ID::Stream stream_id)
+        {
+            count_ = 0;
+            stream_id_ = ID::OurStream::make_from_generic_id(stream_id);
+        }
+
+        bool retry(ID::OurStream stream_id)
+        {
+            log_assert(stream_id.get().is_valid());
+
+            if(stream_id_ != stream_id)
+                playing(stream_id.get());
+
+            if(count_ >= MAX_RETRIES)
+                return false;
+
+            ++count_;
+
+            return true;
+        }
+    };
+
+    Retry retry_data_;
 
     struct FastWindData
     {
@@ -139,7 +203,7 @@ class Control
         crawler_(nullptr),
         permissions_(nullptr),
         next_stream_in_queue_(ID::OurStream::make_invalid()),
-        is_prefetching_(false)
+        prefetch_state_(PrefetchState::NOT_PREFETCHING)
     {
         LoggedLock::set_name(lock_, "Player::Control");
         LoggedLock::set_name(crawler_dummy_lock_, "Player::Control dummy");
@@ -196,7 +260,10 @@ class Control
     /* functions below are called as a result of status updates from the
      * system, so they may be direct reactions to preceding user actions */
     void play_notification(ID::Stream stream_id);
-    bool stop_notification(ID::Stream stream_id);
+    StopReaction stop_notification(ID::Stream stream_id);
+    StopReaction stop_notification(ID::Stream stream_id,
+                                   const std::string &error_id,
+                                   bool is_urlfifo_empty);
     void pause_notification(ID::Stream stream_id);
     void need_next_item_hint(bool queue_is_full);
 

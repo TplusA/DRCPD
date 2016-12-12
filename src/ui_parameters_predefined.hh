@@ -97,7 +97,8 @@ struct ParamTraits<EventID::VIEW_PLAYER_STORE_STREAM_META_DATA>
 template <>
 struct ParamTraits<EventID::VIEW_PLAYER_STREAM_STOPPED>
 {
-    using PType = SpecificParameters<const ID::Stream>;
+    using PType = SpecificParameters<std::tuple<const ID::Stream,
+                                                const bool, const std::string>>;
 };
 
 template <>

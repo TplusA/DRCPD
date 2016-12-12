@@ -394,7 +394,26 @@ void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
 
         auto params =
             UI::Events::mk_params<UI::EventID::VIEW_PLAYER_STREAM_STOPPED>(
-                ID::Stream::make_from_raw_id(raw_stream_id));
+                ID::Stream::make_from_raw_id(raw_stream_id), true, "");
+        data->event_sink_.store_event(UI::EventID::VIEW_PLAYER_STREAM_STOPPED,
+                                      std::move(params));
+    }
+    else if(strcmp(signal_name, "StoppedWithError") == 0)
+    {
+        check_parameter_assertions(parameters, 4);
+
+        guint16 raw_stream_id;
+        const gchar *url;
+        gboolean is_url_fifo_empty;
+        const gchar *stopped_reason;
+
+        g_variant_get(parameters, "(q&sb&s)", &raw_stream_id, &url,
+                      &is_url_fifo_empty, &stopped_reason);
+
+        auto params =
+            UI::Events::mk_params<UI::EventID::VIEW_PLAYER_STREAM_STOPPED>(
+                ID::Stream::make_from_raw_id(raw_stream_id),
+                is_url_fifo_empty, stopped_reason);
         data->event_sink_.store_event(UI::EventID::VIEW_PLAYER_STREAM_STOPPED,
                                       std::move(params));
     }

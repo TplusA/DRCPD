@@ -235,7 +235,8 @@ static uint32_t get_default_flags_for_context(const char *string_id)
                                          List::ContextInfo::HAS_LOCAL_PERMISSIONS),
         std::make_pair("airable.radios", List::ContextInfo::HAS_PROPER_SEARCH_FORM |
                                          List::ContextInfo::HAS_LOCAL_PERMISSIONS),
-        std::make_pair("airable.feeds",  List::ContextInfo::HAS_PROPER_SEARCH_FORM),
+        std::make_pair("airable.feeds",  List::ContextInfo::HAS_PROPER_SEARCH_FORM |
+                                         List::ContextInfo::HAS_LOCAL_PERMISSIONS),
         std::make_pair("tidal",          List::ContextInfo::HAS_EXTERNAL_META_DATA |
                                          List::ContextInfo::HAS_PROPER_SEARCH_FORM),
         std::make_pair("deezer",         List::ContextInfo::HAS_EXTERNAL_META_DATA |

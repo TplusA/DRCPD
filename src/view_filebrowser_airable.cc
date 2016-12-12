@@ -308,6 +308,7 @@ lookup_permissions_for_context(const List::ContextInfo &ctx)
 {
     static const Player::AirablePermissions       airable;
     static const Player::AirableRadiosPermissions airable_radios;
+    static const Player::AirableFeedsPermissions  airable_feeds;
     static const Player::DeezerProgramPermissions deezer_program;
 
     if(ctx.string_id_ == "airable")
@@ -315,6 +316,9 @@ lookup_permissions_for_context(const List::ContextInfo &ctx)
 
     if(ctx.string_id_ == "airable.radios")
         return &airable_radios;
+
+    if(ctx.string_id_ == "airable.feeds")
+        return &airable_feeds;
 
     if(ctx.string_id_ == "deezer.program")
         return &deezer_program;
