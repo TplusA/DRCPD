@@ -641,6 +641,7 @@ bool Player::Control::stop_notification(ID::Stream stream_id)
         return true;
 
     auto crawler_lock(crawler_->lock());
+    bool skipping = false;
 
     switch(player_->get_intention())
     {
@@ -652,20 +653,22 @@ bool Player::Control::stop_notification(ID::Stream stream_id)
 
       case UserIntention::PAUSING:
       case UserIntention::LISTENING:
-        crawler_->set_direction_forward();
-
-        /* fall-through */
+        break;
 
       case UserIntention::SKIPPING_PAUSED:
       case UserIntention::SKIPPING_LIVE:
-        return !crawler_->find_next(std::bind(&Player::Control::found_list_item,
-                                              this,
-                                              std::placeholders::_1,
-                                              std::placeholders::_2,
-                                              CrawlerContext::IMMEDIATE_PLAY));
+        skipping = true;
+        break;
     }
 
-    return false;
+    if(!skipping)
+        crawler_->set_direction_forward();
+
+    return !crawler_->find_next(std::bind(&Player::Control::found_list_item,
+                                          this,
+                                          std::placeholders::_1,
+                                          std::placeholders::_2,
+                                          CrawlerContext::IMMEDIATE_PLAY));
 }
 
 void Player::Control::pause_notification(ID::Stream stream_id)
