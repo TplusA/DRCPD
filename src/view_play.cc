@@ -45,29 +45,6 @@ void ViewPlay::View::defocus()
     is_visible_ = false;
 }
 
-/*
-static void enhance_meta_data(MetaData::Set &md,
-                              const std::string *fallback_title = NULL,
-                              const std::string &url = NULL)
-{
-    if(fallback_title == NULL)
-    {
-        BUG("No fallback title available for stream");
-        md.add("x-drcpd-title", NULL, ViewPlay::meta_data_reformatters);
-    }
-    else
-        md.add("x-drcpd-title", fallback_title->c_str(), ViewPlay::meta_data_reformatters);
-
-    if(url.empty())
-    {
-        BUG("No URL available for stream");
-        md.add("x-drcpd-url", NULL, ViewPlay::meta_data_reformatters);
-    }
-    else
-        md.add("x-drcpd-url", url.c_str(), ViewPlay::meta_data_reformatters);
-}
-*/
-
 void ViewPlay::View::prepare_for_playing(const ViewIface &owning_view,
                                          Playlist::CrawlerIface &crawler,
                                          const Player::LocalPermissionsIface &permissions)
