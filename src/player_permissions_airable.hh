@@ -72,17 +72,6 @@ class DeezerProgramPermissions: public DefaultLocalPermissions
     bool can_prefetch_for_gapless() const override { return false; }
 };
 
-class QobuzPermissions: public DefaultLocalPermissions
-{
-  public:
-    QobuzPermissions(const QobuzPermissions &) = delete;
-    QobuzPermissions &operator=(const QobuzPermissions &) = delete;
-
-    constexpr explicit QobuzPermissions() {}
-
-    bool can_prefetch_for_gapless() const override { return false; }
-};
-
 }
 
 #endif /* !PLAYER_PERMISSIONS_AIRABLE_HH */
