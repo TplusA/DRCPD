@@ -718,10 +718,10 @@ void Playlist::DirectoryCrawler::handle_end_of_list(const FindNextCallback &call
                   is_crawling_forward() ? FindNext::END_OF_LIST : FindNext::START_OF_LIST);
 }
 
-static List::AsyncListIface::OpResult back_to_parent(List::DBusList &list,
-                                                     unsigned int directory_depth)
+List::AsyncListIface::OpResult
+Playlist::DirectoryCrawler::back_to_parent(const FindNextCallback &callback)
 {
-    if(directory_depth <= 1)
+    if(directory_depth_ <= 1)
         return List::AsyncListIface::OpResult::CANCELED;
 
     unsigned int item_id;
@@ -730,7 +730,9 @@ static List::AsyncListIface::OpResult back_to_parent(List::DBusList &list,
     try
     {
         list_id =
-            ViewFileBrowser::Utils::get_parent_link_id(list, list.get_list_id(), item_id);
+            ViewFileBrowser::Utils::get_parent_link_id(traversal_list_,
+                                                       traversal_list_.get_list_id(),
+                                                       item_id);
     }
     catch(const List::DBusListException &e)
     {
@@ -740,9 +742,11 @@ static List::AsyncListIface::OpResult back_to_parent(List::DBusList &list,
     if(!list_id.is_valid())
         return List::AsyncListIface::OpResult::FAILED;
 
+    find_next_callback_ = callback;
+
     const auto result =
-        list.enter_list_async(list_id, item_id,
-                              List::QueryContextEnterList::CallerID::CRAWLER_ASCEND);
+        traversal_list_.enter_list_async(list_id, item_id,
+                                         List::QueryContextEnterList::CallerID::CRAWLER_ASCEND);
 
     switch(result)
     {
@@ -753,6 +757,7 @@ static List::AsyncListIface::OpResult back_to_parent(List::DBusList &list,
       case List::AsyncListIface::OpResult::FAILED:
       case List::AsyncListIface::OpResult::CANCELED:
         msg_error(0, LOG_NOTICE, "Failed entering parent list");
+        find_next_callback_ = nullptr;
         break;
     }
 
@@ -801,7 +806,7 @@ bool Playlist::DirectoryCrawler::find_next_impl(FindNextCallback callback)
                 return false;
             }
 
-            switch(back_to_parent(traversal_list_, directory_depth_))
+            switch(back_to_parent(callback))
             {
               case List::AsyncListIface::OpResult::STARTED:
                 return true;

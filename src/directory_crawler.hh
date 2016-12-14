@@ -224,6 +224,7 @@ class DirectoryCrawler: public CrawlerIface
     RecurseResult try_descend(const FindNextCallback &callback);
     void handle_end_of_list(const FindNextCallback &callback);
     bool handle_entered_list(unsigned int line, bool continue_if_empty);
+    List::AsyncListIface::OpResult back_to_parent(const FindNextCallback &callback);
 
     bool try_get_dbuslist_item_after_started_or_successful_hint(const FindNextCallback &callback);
     RecurseResult process_current_ready_item(const ViewFileBrowser::FileItem *file_item,
