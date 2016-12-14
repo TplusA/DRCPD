@@ -184,8 +184,6 @@ class View: public ViewIface, public ViewSerializeBase
     virtual bool list_invalidate(ID::List list_id, ID::List replacement_id);
 
   protected:
-    virtual const Player::LocalPermissionsIface &get_local_permissions() const;
-
     virtual void cancel_and_delete_all_async_calls()
     {
         async_calls_.cancel_and_delete_all();
@@ -228,6 +226,8 @@ class View: public ViewIface, public ViewSerializeBase
     virtual void log_out_from_context(List::context_id_t context) {}
 
   private:
+    const Player::LocalPermissionsIface &get_local_permissions() const;
+
     bool is_fetching_directory();
 
     /*!

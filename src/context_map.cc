@@ -29,7 +29,8 @@
 
 const List::ContextInfo List::ContextMap::default_context_("#INVALID#",
                                                            "Invalid list context",
-                                                           List::ContextInfo::INTERNAL_INVALID);
+                                                           List::ContextInfo::INTERNAL_INVALID,
+                                                           nullptr);
 
 static bool is_invalid_string_id(const List::ContextMap &map, const char *id)
 {
@@ -50,7 +51,8 @@ static bool is_invalid_string_id(const List::ContextMap &map, const char *id)
 
 List::context_id_t
 List::ContextMap::append(const char *id, const char *description,
-                         uint32_t flags)
+                         uint32_t flags,
+                         const Player::LocalPermissionsIface *permissions)
 {
     log_assert(id != nullptr);
     log_assert(description != nullptr);
@@ -62,7 +64,7 @@ List::ContextMap::append(const char *id, const char *description,
     }
 
     flags &= ContextInfo::PUBLIC_FLAGS_MASK;
-    contexts_.emplace_back(ContextInfo(id, description, flags));
+    contexts_.emplace_back(ContextInfo(id, description, flags, permissions));
 
     const context_id_t new_id(contexts_.size() - 1);
 

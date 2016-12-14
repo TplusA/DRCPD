@@ -28,6 +28,7 @@
 #include "view_play.hh"
 #include "view_manager.hh"
 #include "view_names.hh"
+#include "player_permissions_airable.hh"
 #include "search_algo.hh"
 #include "ui_parameters_predefined.hh"
 #include "de_tahifi_lists_context.h"
@@ -227,34 +228,53 @@ bool ViewFileBrowser::View::late_init()
     return sync_with_list_broker();
 }
 
-static uint32_t get_default_flags_for_context(const char *string_id)
+static std::pair<const uint32_t, const Player::LocalPermissionsIface *const>
+get_default_data_for_context(const char *string_id)
 {
-    static constexpr const std::array<std::pair<const char *const, const uint32_t>, 7> ids =
+    using Data = std::tuple<const char *const, const uint32_t,
+                            const Player::LocalPermissionsIface *const>;
+
+    static const Player::AirablePermissions       airable;
+    static const Player::AirableRadiosPermissions airable_radios;
+    static const Player::AirableFeedsPermissions  airable_feeds;
+    static const Player::DeezerProgramPermissions deezer_program;
+
+    static constexpr const std::array<Data, 7> ids =
     {
-        std::make_pair("airable",        List::ContextInfo::SEARCH_NOT_POSSIBLE |
-                                         List::ContextInfo::HAS_LOCAL_PERMISSIONS),
-        std::make_pair("airable.radios", List::ContextInfo::HAS_PROPER_SEARCH_FORM |
-                                         List::ContextInfo::HAS_LOCAL_PERMISSIONS),
-        std::make_pair("airable.feeds",  List::ContextInfo::HAS_PROPER_SEARCH_FORM |
-                                         List::ContextInfo::HAS_LOCAL_PERMISSIONS),
-        std::make_pair("tidal",          List::ContextInfo::HAS_EXTERNAL_META_DATA |
-                                         List::ContextInfo::HAS_PROPER_SEARCH_FORM),
-        std::make_pair("deezer",         List::ContextInfo::HAS_EXTERNAL_META_DATA |
-                                         List::ContextInfo::HAS_PROPER_SEARCH_FORM),
-        std::make_pair("deezer.program", List::ContextInfo::HAS_EXTERNAL_META_DATA |
-                                         List::ContextInfo::HAS_PROPER_SEARCH_FORM |
-                                         List::ContextInfo::HAS_LOCAL_PERMISSIONS),
-        std::make_pair("qobuz",          List::ContextInfo::HAS_EXTERNAL_META_DATA |
-                                         List::ContextInfo::HAS_PROPER_SEARCH_FORM),
+        std::make_tuple("airable",
+                        List::ContextInfo::SEARCH_NOT_POSSIBLE,
+                        &airable),
+        std::make_tuple("airable.radios",
+                        List::ContextInfo::HAS_PROPER_SEARCH_FORM,
+                        &airable_radios),
+        std::make_tuple("airable.feeds",
+                        List::ContextInfo::HAS_PROPER_SEARCH_FORM,
+                        &airable_feeds),
+        std::make_tuple("tidal",
+                        List::ContextInfo::HAS_EXTERNAL_META_DATA |
+                        List::ContextInfo::HAS_PROPER_SEARCH_FORM,
+                        nullptr),
+        std::make_tuple("deezer",
+                        List::ContextInfo::HAS_EXTERNAL_META_DATA |
+                        List::ContextInfo::HAS_PROPER_SEARCH_FORM,
+                        nullptr),
+        std::make_tuple("deezer.program",
+                        List::ContextInfo::HAS_EXTERNAL_META_DATA |
+                        List::ContextInfo::HAS_PROPER_SEARCH_FORM,
+                        &deezer_program),
+        std::make_tuple("qobuz",
+                        List::ContextInfo::HAS_EXTERNAL_META_DATA |
+                        List::ContextInfo::HAS_PROPER_SEARCH_FORM,
+                        nullptr),
     };
 
     for(const auto &id : ids)
     {
         if(strcmp(std::get<0>(id), string_id) == 0)
-            return std::get<1>(id);
+            return std::make_pair(std::get<1>(id), std::get<2>(id));
     }
 
-    return 0;
+    return std::make_pair(0, nullptr);
 }
 
 static void fill_context_map_from_variant(List::ContextMap &context_map,
@@ -272,7 +292,9 @@ static void fill_context_map_from_variant(List::ContextMap &context_map,
 
     while(g_variant_iter_next(&iter, "(&s&s)", &id, &desc))
     {
-        if(context_map.append(id, desc, get_default_flags_for_context(id)) == List::ContextMap::INVALID_ID)
+        const auto data(get_default_data_for_context(id));
+
+        if(context_map.append(id, desc, data.first, data.second) == List::ContextMap::INVALID_ID)
             msg_error(0, LOG_NOTICE,
                       "List context %s (\"%s\") cannot be used by %s browser",
                       id, desc, self);
@@ -355,6 +377,19 @@ static bool request_search_parameters_from_user(ViewManager::VMIface &vm,
     vm.serialize_view_forced(&view, DCP::Queue::Mode::SYNC_IF_POSSIBLE);
 
     return true;
+}
+
+const Player::LocalPermissionsIface &
+ViewFileBrowser::View::get_local_permissions() const
+{
+    const List::context_id_t ctx_id(DBUS_LISTS_CONTEXT_GET(current_list_id_.get_raw_id()));
+    const auto &ctx(list_contexts_[ctx_id]);
+
+    if(ctx.is_valid() && ctx.permissions_ != nullptr)
+        return *ctx.permissions_;
+
+    static const Player::DefaultLocalPermissions default_local_permissions;
+    return default_local_permissions;
 }
 
 bool ViewFileBrowser::View::is_fetching_directory()
@@ -615,13 +650,6 @@ static ViewIface::InputResult move_up_multi(List::Nav &navigation,
                         : navigation.up(navigation.distance_to_top()));
 
     return moved ? ViewIface::InputResult::UPDATE_NEEDED : ViewIface::InputResult::OK;
-}
-
-const Player::LocalPermissionsIface &
-ViewFileBrowser::View::get_local_permissions() const
-{
-    static const Player::DefaultLocalPermissions default_local_permissions;
-    return default_local_permissions;
 }
 
 ViewIface::InputResult
