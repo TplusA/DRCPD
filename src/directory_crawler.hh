@@ -211,7 +211,7 @@ class DirectoryCrawler: public CrawlerIface
     bool restart() final override;
     bool is_busy_impl() const final override;
     void switch_direction() final override;
-    bool find_next_impl(FindNextCallback callback) final override;
+    FindNextFnResult find_next_impl(FindNextCallback callback) final override;
     bool retrieve_item_information_impl(RetrieveItemInfoCallback callback) final override;
     const List::Item *get_current_list_item_impl() final override;
 
@@ -223,7 +223,8 @@ class DirectoryCrawler: public CrawlerIface
 
     RecurseResult try_descend(const FindNextCallback &callback);
     void handle_end_of_list(const FindNextCallback &callback);
-    bool handle_entered_list(unsigned int line, bool continue_if_empty);
+    bool handle_entered_list(unsigned int line, LineRelative line_relative,
+                             bool continue_if_empty);
     List::AsyncListIface::OpResult back_to_parent(const FindNextCallback &callback);
 
     bool try_get_dbuslist_item_after_started_or_successful_hint(const FindNextCallback &callback);

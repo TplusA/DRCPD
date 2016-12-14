@@ -672,6 +672,9 @@ bool Player::Control::skip_forward_request()
         break;
 
       case Skipper::FIRST_SKIP_REQUEST:
+        if(!crawler_->resume_crawler())
+            break;
+
         if(!queued_streams_.empty())
         {
             /* stream player should have something in queue */
@@ -762,12 +765,22 @@ bool Player::Control::skip_forward_request()
         break;
     }
 
-    if(should_find_next &&
-       !crawler_->find_next(std::bind(&Player::Control::found_list_item, this,
-                                      std::placeholders::_1,
-                                      std::placeholders::_2,
-                                      CrawlerContext::SKIP)))
-        player_->set_intention(previous_intention);
+    if(should_find_next)
+    {
+       switch(crawler_->find_next(std::bind(&Player::Control::found_list_item, this,
+                                            std::placeholders::_1,
+                                            std::placeholders::_2,
+                                            CrawlerContext::SKIP)))
+       {
+         case Playlist::CrawlerIface::FindNextFnResult::SEARCHING:
+         case Playlist::CrawlerIface::FindNextFnResult::STOPPED:
+           break;
+
+         case Playlist::CrawlerIface::FindNextFnResult::FAILED:
+           player_->set_intention(previous_intention);
+           break;
+       }
+    }
 
     return retval;
 }
@@ -794,12 +807,24 @@ void Player::Control::skip_backward_request()
         break;
 
       case Skipper::FIRST_SKIP_REQUEST:
-        if(!crawler_->find_next(std::bind(&Player::Control::found_list_item,
-                                          this,
-                                          std::placeholders::_1,
-                                          std::placeholders::_2,
-                                          CrawlerContext::SKIP)))
+        if(!crawler_->resume_crawler())
+            break;
+
+        switch(crawler_->find_next(std::bind(&Player::Control::found_list_item,
+                                             this,
+                                             std::placeholders::_1,
+                                             std::placeholders::_2,
+                                             CrawlerContext::SKIP)))
+        {
+          case Playlist::CrawlerIface::FindNextFnResult::SEARCHING:
+          case Playlist::CrawlerIface::FindNextFnResult::STOPPED:
+            break;
+
+          case Playlist::CrawlerIface::FindNextFnResult::FAILED:
             player_->set_intention(previous_intention);
+            skip_requests_.stop_skipping(*player_, *crawler_);
+            break;
+        }
 
         break;
     }
@@ -1048,12 +1073,19 @@ Player::Control::stop_notification(ID::Stream stream_id)
     if(!skipping)
         crawler_->set_direction_forward();
 
-    if(crawler_->find_next(std::bind(&Player::Control::found_list_item,
-                                     this,
-                                     std::placeholders::_1,
-                                     std::placeholders::_2,
-                                     CrawlerContext::IMMEDIATE_PLAY)))
+    switch(crawler_->find_next(std::bind(&Player::Control::found_list_item,
+                                         this,
+                                         std::placeholders::_1,
+                                         std::placeholders::_2,
+                                         CrawlerContext::IMMEDIATE_PLAY)))
+    {
+      case Playlist::CrawlerIface::FindNextFnResult::SEARCHING:
         return StopReaction::QUEUED;
+
+      case Playlist::CrawlerIface::FindNextFnResult::STOPPED:
+      case Playlist::CrawlerIface::FindNextFnResult::FAILED:
+        break;
+    }
 
     return StopReaction::STOPPED;
 }
@@ -1401,12 +1433,19 @@ Player::Control::stop_notification(ID::Stream stream_id,
     if(!skipping)
         crawler_->set_direction_forward();
 
-    if(crawler_->find_next(std::bind(&Player::Control::found_list_item,
-                                     this,
-                                     std::placeholders::_1,
-                                     std::placeholders::_2,
-                                     CrawlerContext::IMMEDIATE_PLAY)))
+    switch(crawler_->find_next(std::bind(&Player::Control::found_list_item,
+                                         this,
+                                         std::placeholders::_1,
+                                         std::placeholders::_2,
+                                         CrawlerContext::IMMEDIATE_PLAY)))
+    {
+      case Playlist::CrawlerIface::FindNextFnResult::SEARCHING:
         return StopReaction::QUEUED;
+
+      case Playlist::CrawlerIface::FindNextFnResult::STOPPED:
+      case Playlist::CrawlerIface::FindNextFnResult::FAILED:
+        break;
+    }
 
     return StopReaction::STOPPED;
 }
@@ -1458,13 +1497,19 @@ void Player::Control::need_next_item_hint(bool queue_is_full)
      * because this may cause problems on non-gapless sources */
     prefetch_state_ = PrefetchState::PREFETCHING_NEXT_LIST_ITEM;
 
-    if(!crawler_->find_next(std::bind(&Player::Control::found_list_item,
-                                      this,
-                                      std::placeholders::_1,
-                                      std::placeholders::_2,
-                                      CrawlerContext::PREFETCH)))
+    switch(crawler_->find_next(std::bind(&Player::Control::found_list_item,
+                                         this,
+                                         std::placeholders::_1,
+                                         std::placeholders::_2,
+                                         CrawlerContext::PREFETCH)))
     {
+      case Playlist::CrawlerIface::FindNextFnResult::SEARCHING:
+        break;
+
+      case Playlist::CrawlerIface::FindNextFnResult::STOPPED:
+      case Playlist::CrawlerIface::FindNextFnResult::FAILED:
         prefetch_state_ = PrefetchState::NOT_PREFETCHING;
+        break;
     }
 }
 
@@ -1497,12 +1542,20 @@ void Player::Control::found_list_item(Playlist::CrawlerIface &crawler,
 
             if(skip_requests_.skipped(*player_, *crawler_, true))
             {
-                if(!crawler.find_next(std::bind(&Player::Control::found_list_item,
-                                                this,
-                                                std::placeholders::_1,
-                                                std::placeholders::_2,
-                                                ctx)))
+                switch(crawler.find_next(std::bind(&Player::Control::found_list_item,
+                                                   this,
+                                                   std::placeholders::_1,
+                                                   std::placeholders::_2,
+                                                   ctx)))
+                {
+                  case Playlist::CrawlerIface::FindNextFnResult::SEARCHING:
+                    break;
+
+                  case Playlist::CrawlerIface::FindNextFnResult::STOPPED:
+                  case Playlist::CrawlerIface::FindNextFnResult::FAILED:
                     skip_requests_.stop_skipping(*player_, *crawler_);
+                    break;
+                }
 
                 return;
             }

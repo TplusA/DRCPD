@@ -43,6 +43,13 @@ class CrawlerIface
         SHUFFLE,        /*!< Find tracks in unspecified, random order. */
     };
 
+    enum class FindNextFnResult
+    {
+        SEARCHING,
+        STOPPED,
+        FAILED,
+    };
+
     enum class FindNextItemResult
     {
         FOUND,
@@ -57,6 +64,13 @@ class CrawlerIface
         FOUND,
         FAILED,
         CANCELED,
+    };
+
+    enum class LineRelative
+    {
+        AUTO,
+        START_OF_LIST,
+        END_OF_LIST,
     };
 
   protected:
@@ -213,31 +227,44 @@ class CrawlerIface
         return false;
     }
 
-    bool find_next(FindNextCallback callback)
+    FindNextFnResult find_next(FindNextCallback callback)
     {
         switch(crawler_state_)
         {
           case CrawlerState::NOT_STARTED:
           case CrawlerState::CRAWLING:
-            if(find_next_impl(callback))
             {
-                crawler_state_ = CrawlerState::CRAWLING;
-                return true;
+                const FindNextFnResult result = find_next_impl(callback);
+
+                switch(result)
+                {
+                  case FindNextFnResult::SEARCHING:
+                    start_crawler();
+                    break;
+
+                  case FindNextFnResult::STOPPED:
+                    stop_crawler();
+                    break;
+
+                  case FindNextFnResult::FAILED:
+                    fail_crawler();
+                    break;
+                }
+
+                return result;
             }
 
-            crawler_state_ = CrawlerState::STOPPED_WITH_FAILURE;
-
-            break;
-
           case CrawlerState::STOPPED_SUCCESSFULLY:
+            return FindNextFnResult::STOPPED;
+
           case CrawlerState::STOPPED_WITH_FAILURE:
             break;
         }
 
-        return false;
+        return FindNextFnResult::FAILED;
     }
 
-    inline bool find_next_hint()
+    inline FindNextFnResult find_next_hint()
     {
         return find_next(nullptr);
     }
@@ -274,8 +301,30 @@ class CrawlerIface
         return nullptr;
     }
 
-  protected:
+    bool resume_crawler()
+    {
+        switch(crawler_state_)
+        {
+          case CrawlerState::NOT_STARTED:
+          case CrawlerState::STOPPED_WITH_FAILURE:
+            break;
+
+          case CrawlerState::CRAWLING:
+            return true;
+
+          case CrawlerState::STOPPED_SUCCESSFULLY:
+            start_crawler();
+            return true;
+        }
+
+        return false;
+    }
+
+  private:
+    void start_crawler() { crawler_state_ = CrawlerState::CRAWLING; }
     void stop_crawler() { crawler_state_ = CrawlerState::STOPPED_SUCCESSFULLY; }
+
+  protected:
     void fail_crawler() { crawler_state_ = CrawlerState::STOPPED_WITH_FAILURE; }
 
     /*!
@@ -287,7 +336,7 @@ class CrawlerIface
 
     virtual bool is_busy_impl() const = 0;
     virtual void switch_direction() = 0;
-    virtual bool find_next_impl(FindNextCallback callback) = 0;
+    virtual FindNextFnResult find_next_impl(FindNextCallback callback) = 0;
     virtual bool retrieve_item_information_impl(RetrieveItemInfoCallback callback) = 0;
     virtual const List::Item *get_current_list_item_impl() = 0;
 
