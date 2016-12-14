@@ -234,9 +234,10 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
                      is_visible_ ? "send screen update" : "but view is invisible");
             view_manager_->serialize_view_if_active(this, DCP::Queue::Mode::FORCE_ASYNC);
 
-            if(switched_stream)
-                player_control_.need_next_item_hint(queue_is_full);
-            else
+            if(!queue_is_full)
+                player_control_.need_next_item_hint(false);
+
+            if(!switched_stream)
                 send_current_stream_info_to_dcpd(player_data_);
         }
 

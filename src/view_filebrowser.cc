@@ -234,10 +234,11 @@ get_default_data_for_context(const char *string_id)
     using Data = std::tuple<const char *const, const uint32_t,
                             const Player::LocalPermissionsIface *const>;
 
-    static const Player::AirablePermissions       airable;
-    static const Player::AirableRadiosPermissions airable_radios;
-    static const Player::AirableFeedsPermissions  airable_feeds;
-    static const Player::DeezerProgramPermissions deezer_program;
+    static const Player::AirablePermissions          airable;
+    static const Player::AirableRadiosPermissions    airable_radios;
+    static const Player::AirableFeedsPermissions     airable_feeds;
+    static const Player::StreamingServicePermissions any_streaming_service;
+    static const Player::DeezerProgramPermissions    deezer_program;
 
     static constexpr const std::array<Data, 7> ids =
     {
@@ -253,11 +254,11 @@ get_default_data_for_context(const char *string_id)
         std::make_tuple("tidal",
                         List::ContextInfo::HAS_EXTERNAL_META_DATA |
                         List::ContextInfo::HAS_PROPER_SEARCH_FORM,
-                        nullptr),
+                        &any_streaming_service),
         std::make_tuple("deezer",
                         List::ContextInfo::HAS_EXTERNAL_META_DATA |
                         List::ContextInfo::HAS_PROPER_SEARCH_FORM,
-                        nullptr),
+                        &any_streaming_service),
         std::make_tuple("deezer.program",
                         List::ContextInfo::HAS_EXTERNAL_META_DATA |
                         List::ContextInfo::HAS_PROPER_SEARCH_FORM,
@@ -265,7 +266,7 @@ get_default_data_for_context(const char *string_id)
         std::make_tuple("qobuz",
                         List::ContextInfo::HAS_EXTERNAL_META_DATA |
                         List::ContextInfo::HAS_PROPER_SEARCH_FORM,
-                        nullptr),
+                        &any_streaming_service),
     };
 
     for(const auto &id : ids)

@@ -64,6 +64,18 @@ class AirableFeedsPermissions: public DefaultLocalPermissions
     constexpr explicit AirableFeedsPermissions() {}
 
     bool retry_if_stream_broken()   const override { return true; }
+    uint8_t maximum_number_of_prefetched_streams() const override { return 1; }
+};
+
+class StreamingServicePermissions: public DefaultLocalPermissions
+{
+  public:
+    StreamingServicePermissions(const StreamingServicePermissions &) = delete;
+    StreamingServicePermissions &operator=(const StreamingServicePermissions &) = delete;
+
+    constexpr explicit StreamingServicePermissions() {}
+
+    uint8_t maximum_number_of_prefetched_streams() const override { return 1; }
 };
 
 class DeezerProgramPermissions: public DefaultLocalPermissions

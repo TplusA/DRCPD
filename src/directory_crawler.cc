@@ -87,6 +87,14 @@ bool Playlist::DirectoryCrawler::set_start_position(const List::DBusList &start_
     return true;
 }
 
+bool Playlist::DirectoryCrawler::is_busy_impl() const
+{
+    return is_waiting_for_async_enter_list_completion_ ||
+           is_waiting_for_async_get_list_item_completion_ ||
+           is_resetting_to_marked_position_ ||
+           find_next_callback_ != nullptr;
+}
+
 bool Playlist::DirectoryCrawler::restart()
 {
     directory_depth_ = 0;

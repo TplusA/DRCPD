@@ -46,6 +46,7 @@ class StoppedReason
         UNKNOWN,
         FLOW_REPORTED_UNKNOWN,
         FLOW_EMPTY_URLFIFO,
+        FLOW_ALREADY_STOPPED,
         IO_MEDIA_FAILURE,
         IO_NETWORK_FAILURE,
         IO_URL_MISSING,
@@ -108,10 +109,11 @@ class StoppedReason
 
     static Code parse_flow_code(const std::string &error_id, size_t pos)
     {
-        static constexpr std::array<std::pair<const char *const, const Code>, 2> codes =
+        static constexpr std::array<std::pair<const char *const, const Code>, 3> codes =
         {
             std::make_pair("unknown",     Code::FLOW_REPORTED_UNKNOWN),
             std::make_pair("nourl",       Code::FLOW_EMPTY_URLFIFO),
+            std::make_pair("stopped",     Code::FLOW_ALREADY_STOPPED),
         };
 
         return lookup_code(codes.data(), codes.size(), error_id, pos);

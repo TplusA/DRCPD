@@ -209,6 +209,7 @@ class DirectoryCrawler: public CrawlerIface
 
   protected:
     bool restart() final override;
+    bool is_busy_impl() const final override;
     void switch_direction() final override;
     bool find_next_impl(FindNextCallback callback) final override;
     bool retrieve_item_information_impl(RetrieveItemInfoCallback callback) final override;

@@ -197,6 +197,22 @@ class CrawlerIface
 
     virtual void mark_current_position() = 0;
 
+    bool is_busy() const
+    {
+        switch(crawler_state_)
+        {
+          case CrawlerState::CRAWLING:
+            return is_busy_impl();
+
+          case CrawlerState::NOT_STARTED:
+          case CrawlerState::STOPPED_SUCCESSFULLY:
+          case CrawlerState::STOPPED_WITH_FAILURE:
+            break;
+        }
+
+        return false;
+    }
+
     bool find_next(FindNextCallback callback)
     {
         switch(crawler_state_)
@@ -269,6 +285,7 @@ class CrawlerIface
      */
     virtual bool restart() = 0;
 
+    virtual bool is_busy_impl() const = 0;
     virtual void switch_direction() = 0;
     virtual bool find_next_impl(FindNextCallback callback) = 0;
     virtual bool retrieve_item_information_impl(RetrieveItemInfoCallback callback) = 0;

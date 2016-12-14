@@ -46,6 +46,7 @@ class LocalPermissionsIface
     virtual bool can_prefetch_for_gapless() const = 0;
     virtual bool can_skip_on_error() const = 0;
     virtual bool retry_if_stream_broken() const = 0;
+    virtual uint8_t maximum_number_of_prefetched_streams() const = 0;
 };
 
 class DefaultLocalPermissions: public LocalPermissionsIface
@@ -69,6 +70,7 @@ class DefaultLocalPermissions: public LocalPermissionsIface
     bool can_prefetch_for_gapless() const override { return true; }
     bool can_skip_on_error()        const override { return true; }
     bool retry_if_stream_broken()   const override { return false; }
+    uint8_t maximum_number_of_prefetched_streams() const { return 5; }
 };
 
 }
