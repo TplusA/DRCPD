@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2017  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -222,7 +222,7 @@ void Player::Control::plug(Playlist::CrawlerIface &crawler,
     crawler_ = &crawler;
     permissions_ = &permissions;
     skip_requests_.reset();
-    next_stream_in_queue_ = ID::OurStream::make_invalid();
+    queued_streams_.clear();
     prefetch_state_ = PrefetchState::NOT_PREFETCHING;
     retry_data_.reset();
 
@@ -230,9 +230,28 @@ void Player::Control::plug(Playlist::CrawlerIface &crawler,
     crawler_->attached_to_player_notification();
 }
 
+void Player::Control::forget_queued_and_playing(bool also_forget_playing)
+{
+    if(player_ != nullptr)
+    {
+        for(const auto &id : queued_streams_)
+            player_->forget_stream(id.get());
+
+        if(also_forget_playing)
+            player_->forget_stream(retry_data_.get_stream_id().get());
+    }
+
+    queued_streams_.clear();
+
+    if(also_forget_playing)
+        retry_data_.reset();
+}
+
 void Player::Control::unplug()
 {
     owning_view_ = nullptr;
+
+    forget_queued_and_playing(true);
 
     if(player_ != nullptr)
     {
@@ -436,6 +455,132 @@ static void enforce_intention(Player::UserIntention intention,
     }
 }
 
+enum class StreamExpected
+{
+    OURS_AS_EXPECTED,
+    EMPTY_AS_EXPECTED,
+    NOT_OURS,
+    UNEXPECTEDLY_NOT_OURS,
+    UNEXPECTEDLY_OURS,
+    OURS_WRONG_ID,
+    INVALID_ID,
+};
+
+static StreamExpected is_stream_expected(const ID::OurStream our_stream_id,
+                                         const ID::Stream &stream_id)
+{
+    if(!our_stream_id.get().is_valid())
+    {
+        if(!stream_id.is_valid())
+            return StreamExpected::EMPTY_AS_EXPECTED;
+
+        if(!ID::OurStream::compatible_with(stream_id))
+            return StreamExpected::NOT_OURS;
+
+        return StreamExpected::UNEXPECTEDLY_OURS;
+    }
+
+    if(!stream_id.is_valid())
+        return StreamExpected::INVALID_ID;;
+
+    if(!ID::OurStream::compatible_with(stream_id))
+        return StreamExpected::UNEXPECTEDLY_NOT_OURS;
+
+    if(our_stream_id.get() != stream_id)
+        return StreamExpected::OURS_WRONG_ID;
+
+    return StreamExpected::OURS_AS_EXPECTED;
+}
+
+static StreamExpected is_stream_expected_for_playing(const std::deque<ID::OurStream> &queued,
+                                                     const ID::Stream &stream_id)
+{
+    const auto our_stream_id =
+        queued.empty() ? ID::OurStream::make_invalid() : queued.front();
+
+    const StreamExpected result = is_stream_expected(our_stream_id, stream_id);
+
+    switch(result)
+    {
+      case StreamExpected::OURS_AS_EXPECTED:
+      case StreamExpected::EMPTY_AS_EXPECTED:
+      case StreamExpected::NOT_OURS:
+        break;
+
+      case StreamExpected::UNEXPECTEDLY_NOT_OURS:
+        msg_info("Stream in streamplayer queue (%u) is not ours (expected %u)",
+                 stream_id.get_raw_id(), our_stream_id.get().get_raw_id());
+        break;
+
+      case StreamExpected::UNEXPECTEDLY_OURS:
+        BUG("Out of sync: playing our stream %u that we don't know about",
+            stream_id.get_raw_id());
+        break;
+
+      case StreamExpected::OURS_WRONG_ID:
+        BUG("Out of sync: next stream ID should be %u, but streamplayer says it's %u",
+            our_stream_id.get().get_raw_id(), stream_id.get_raw_id());
+        break;
+
+      case StreamExpected::INVALID_ID:
+        BUG("Out of sync: expected stream %u, but have invalid playing stream",
+            our_stream_id.get().get_raw_id());
+        break;
+    }
+
+    return result;
+}
+
+static StreamExpected is_stream_expected_for_stop(const ID::OurStream current_stream_id,
+                                                  const std::deque<ID::OurStream> &queued,
+                                                  const ID::Stream &stream_id,
+                                                  bool is_stop_with_error)
+{
+    const StreamExpected result =
+        is_stream_expected(current_stream_id, stream_id);
+
+    switch(result)
+    {
+      case StreamExpected::OURS_AS_EXPECTED:
+      case StreamExpected::NOT_OURS:
+        break;
+
+      case StreamExpected::EMPTY_AS_EXPECTED:
+        BUG("Got stop notification for no reason");
+        break;
+
+      case StreamExpected::UNEXPECTEDLY_NOT_OURS:
+        msg_info("Stopped foreign stream %u, expected our stream %u",
+                 stream_id.get_raw_id(), current_stream_id.get().get_raw_id());
+        break;
+
+      case StreamExpected::UNEXPECTEDLY_OURS:
+        if(is_stop_with_error && !queued.empty() && queued.front().get() == stream_id)
+            break;
+
+        BUG("Out of sync: stopped our stream %u that we don't know about",
+            stream_id.get_raw_id());
+
+        break;
+
+      case StreamExpected::OURS_WRONG_ID:
+        if(is_stop_with_error && !queued.empty() && queued.front().get() == stream_id)
+            break;
+
+        BUG("Out of sync: stopped stream ID should be %u, but streamplayer says it's %u",
+            current_stream_id.get().get_raw_id(), stream_id.get_raw_id());
+
+        break;
+
+      case StreamExpected::INVALID_ID:
+        BUG("Out of sync: expected stream %u, but have invalid stopped stream",
+            current_stream_id.get().get_raw_id());
+        break;
+    }
+
+    return result;
+}
+
 bool Player::Control::skip_forward_request()
 {
     if(player_ == nullptr || crawler_ == nullptr)
@@ -449,6 +594,9 @@ bool Player::Control::skip_forward_request()
 
     auto crawler_lock(crawler_->lock());
 
+    bool should_find_next = false;
+    bool retval = false;
+
     UserIntention previous_intention;
     switch(skip_requests_.forward_request(*player_, *crawler_, previous_intention))
     {
@@ -458,8 +606,9 @@ bool Player::Control::skip_forward_request()
         break;
 
       case Skipper::FIRST_SKIP_REQUEST:
-        if(next_stream_in_queue_.get().is_valid())
+        if(!queued_streams_.empty())
         {
+            /* stream player should have something in queue */
             auto next_stream_id(ID::Stream::make_invalid());
             bool is_playing;
 
@@ -469,33 +618,65 @@ bool Player::Control::skip_forward_request()
                 break;
             }
 
-            if(!next_stream_in_queue_.compatible_with(next_stream_id))
-                BUG("Stream in streamplayer queue is not ours");
-            else if(next_stream_in_queue_.get() != next_stream_id)
-                BUG("Next stream ID should be %u, but streamplayer says it's %u",
-                    next_stream_in_queue_.get().get_raw_id(),
-                    next_stream_id.get_raw_id());
+            switch(is_stream_expected_for_playing(queued_streams_, next_stream_id))
+            {
+              case StreamExpected::OURS_AS_EXPECTED:
+                /* OK, we should see the play notification soon */
+                break;
 
-            next_stream_in_queue_ = ID::OurStream::make_invalid();
+              case StreamExpected::EMPTY_AS_EXPECTED:
+                /* this case does not occur */
+                BUG("Queue not empty, but reported as such");
+                forget_queued_and_playing(true);
+                should_find_next = true;
+                break;
+
+              case StreamExpected::NOT_OURS:
+                /* this case does not occur */
+                BUG("Our stream is not ours...");
+                break;
+
+              case StreamExpected::UNEXPECTEDLY_NOT_OURS:
+                unplug();
+                return false;
+
+              case StreamExpected::UNEXPECTEDLY_OURS:
+              case StreamExpected::OURS_WRONG_ID:
+                break;
+
+              case StreamExpected::INVALID_ID:
+                /* stream player queue is empty */
+                should_find_next = true;
+                break;
+            }
+
+            retry_data_.playing(next_stream_id);
+
+            if(should_find_next)
+                break;
+
             skip_requests_.skipped(*player_, *crawler_, false);
 
             /* FIXME: The "known" player state is probably too inaccurate here */
             enforce_intention(player_->get_intention(),
                               is_playing ? Player::StreamState::PLAYING : Player::StreamState::STOPPED);
 
-            return true;
+            retval = true;
         }
-        else if(!crawler_->find_next(std::bind(&Player::Control::found_list_item,
-                                               this,
-                                               std::placeholders::_1,
-                                               std::placeholders::_2,
-                                               CrawlerContext::SKIP)))
-            player_->set_intention(previous_intention);
+        else
+            should_find_next = true;
 
         break;
     }
 
-    return false;
+    if(should_find_next &&
+       !crawler_->find_next(std::bind(&Player::Control::found_list_item, this,
+                                      std::placeholders::_1,
+                                      std::placeholders::_2,
+                                      CrawlerContext::SKIP)))
+        player_->set_intention(previous_intention);
+
+    return retval;
 }
 
 void Player::Control::skip_backward_request()
@@ -608,6 +789,7 @@ void Player::Control::fast_wind_start_request() const
     BUG("%s(): not implemented", __func__);
 }
 
+// cppcheck-suppress functionStatic
 void Player::Control::fast_wind_stop_request() const
 {
     BUG("%s(): not implemented", __func__);
@@ -616,8 +798,28 @@ void Player::Control::fast_wind_stop_request() const
 
 void Player::Control::play_notification(ID::Stream stream_id)
 {
-    if(stream_id == next_stream_in_queue_.get())
-        next_stream_in_queue_ = ID::OurStream::make_invalid();
+    switch(is_stream_expected_for_playing(queued_streams_, stream_id))
+    {
+        case StreamExpected::OURS_AS_EXPECTED:
+          queued_streams_.pop_front();
+          break;
+
+        case StreamExpected::NOT_OURS:
+        case StreamExpected::UNEXPECTEDLY_OURS:
+        case StreamExpected::OURS_WRONG_ID:
+          break;
+
+        case StreamExpected::UNEXPECTEDLY_NOT_OURS:
+          unplug();
+          return;
+
+        case StreamExpected::EMPTY_AS_EXPECTED:
+          BUG("Got play notification for empty queue and invalid stream");
+          return;
+
+        case StreamExpected::INVALID_ID:
+          return;
+    }
 
     retry_data_.playing(stream_id);
 
@@ -643,21 +845,42 @@ void Player::Control::play_notification(ID::Stream stream_id)
 Player::Control::StopReaction
 Player::Control::stop_notification(ID::Stream stream_id)
 {
-    retry_data_.reset();
 
     if(player_ == nullptr || crawler_ == nullptr)
         return StopReaction::NOT_ATTACHED;
 
-    const auto our_id(ID::OurStream::make_from_generic_id(stream_id));
+    bool stop_regardless_of_intention = false;
 
-    if(!our_id.get().is_valid())
+    switch(is_stream_expected_for_stop(retry_data_.get_stream_id(),
+                                       queued_streams_, stream_id, false))
+    {
+      case StreamExpected::OURS_AS_EXPECTED:
+        break;
+
+      case StreamExpected::UNEXPECTEDLY_OURS:
+      case StreamExpected::OURS_WRONG_ID:
+        /* this case is a result of some internal processing error, so we'll
+         * just accept the player's stop notification and do not attempt to
+         * fight it */
+        stop_regardless_of_intention = true;
+        break;
+
+      case StreamExpected::EMPTY_AS_EXPECTED:
+      case StreamExpected::NOT_OURS:
+      case StreamExpected::UNEXPECTEDLY_NOT_OURS:
+      case StreamExpected::INVALID_ID:
+        /* so what... */
         return StopReaction::STREAM_IGNORED;
+    }
 
     auto crawler_lock(crawler_->lock());
     bool skipping = false;
+    const auto intention = stop_regardless_of_intention
+        ? UserIntention::STOPPING
+        : player_->get_intention();
 
     /* stream stopped playing with no error---good? */
-    switch(player_->get_intention())
+    switch(intention)
     {
       case UserIntention::NOTHING:
       case UserIntention::STOPPING:
@@ -675,6 +898,12 @@ Player::Control::stop_notification(ID::Stream stream_id)
         break;
     }
 
+    /* at this point we know for sure that it was indeed our stream that has
+     * failed */
+
+    player_->forget_stream(stream_id);
+    retry_data_.reset();
+
     switch(prefetch_state_)
     {
       case PrefetchState::NOT_PREFETCHING:
@@ -684,7 +913,8 @@ Player::Control::stop_notification(ID::Stream stream_id)
       case PrefetchState::PREFETCHING_NEXT_LIST_ITEM:
         /* still prefetching next stream information while the current stream
          * has stopped already */
-        msg_info("Stream stopped while next stream still unavailable");
+        msg_info("Stream stopped while next stream is still unavailable; "
+                 "audible gap is very likely");
         prefetch_state_ = PrefetchState::PREFETCHING_NEXT_LIST_ITEM_AND_PLAY_IT;
         return StopReaction::QUEUED;
 
@@ -733,9 +963,7 @@ Player::Control::stop_notification(ID::Stream stream_id)
 /*!
  * Try to fill up the streamplayer FIFO.
  *
- * The function fetches the URIs for the selected item from the list broker,
- * then sends the first URI which doesn't look like a playlist to the stream
- * player's queue.
+ * The function sends the given URI to the stream player's queue.
  *
  * No exception thrown in here because the caller needs to react to specific
  * situations.
@@ -744,9 +972,15 @@ Player::Control::stop_notification(ID::Stream stream_id)
  *     Internal ID of the stream for mapping it to extra information maintained
  *     by us.
  *
- * \param play_immediately
- *     If true, request immediate playback of the selected list entry.
- *     Otherwise, the entry is just pushed into the player's internal queue.
+ * \param queue_mode
+ *     How to manipulate the stream player URL FIFO.
+ *
+ * \param play_new_mode
+ *     If set to #Player::Control::PlayNewMode::SEND_PLAY_COMMAND_IF_IDLE or
+ *     #Player::Control::PlayNewMode::SEND_PAUSE_COMMAND_IF_IDLE, then request
+ *     immediate playback or pause of the selected list entry in case the
+ *     player is idle. Otherwise, the entry is just pushed into the player's
+ *     internal queue.
  *
  * \param[out] queued_url
  *     Which URL was chosen for this stream.
@@ -755,22 +989,39 @@ Player::Control::stop_notification(ID::Stream stream_id)
  *     True in case of success, false otherwise.
  */
 static bool send_selected_file_uri_to_streamplayer(ID::OurStream stream_id,
-                                                   bool play_immediately,
+                                                   Player::Control::QueueMode queue_mode,
+                                                   Player::Control::PlayNewMode play_new_mode,
                                                    const std::string &queued_url)
 {
     if(queued_url.empty())
         return false;
 
-    msg_info("Passing URI to player: \"%s\"", queued_url.c_str());
+    msg_info("Passing URI for stream %u to player: \"%s\"",
+             stream_id.get().get_raw_id(), queued_url.c_str());
 
     gboolean fifo_overflow;
     gboolean is_playing;
 
+    gint16 keep_first_n = -1;
+
+    switch(queue_mode)
+    {
+      case Player::Control::QueueMode::APPEND:
+        break;
+
+      case Player::Control::QueueMode::REPLACE_QUEUE:
+        keep_first_n = 0;
+        break;
+
+      case Player::Control::QueueMode::REPLACE_ALL:
+        keep_first_n = -2;
+        break;
+    }
+
     if(!tdbus_splay_urlfifo_call_push_sync(dbus_get_streamplayer_urlfifo_iface(),
                                            stream_id.get().get_raw_id(),
                                            queued_url.c_str(),
-                                           0, "ms", 0, "ms",
-                                           play_immediately ? -2 : -1,
+                                           0, "ms", 0, "ms", keep_first_n,
                                            &fifo_overflow, &is_playing,
                                            NULL, NULL))
     {
@@ -784,19 +1035,42 @@ static bool send_selected_file_uri_to_streamplayer(ID::OurStream stream_id,
         return false;
     }
 
-    if(!is_playing && !send_play_command())
+    if(is_playing)
+        return true;
+
+    switch(play_new_mode)
     {
-        msg_error(0, LOG_NOTICE, "Failed sending start playback message");
-        return false;
+      case Player::Control::PlayNewMode::KEEP:
+        break;
+
+      case Player::Control::PlayNewMode::SEND_PLAY_COMMAND_IF_IDLE:
+        if(!send_play_command())
+        {
+            msg_error(0, LOG_NOTICE, "Failed sending start playback message");
+            return false;
+        }
+
+        break;
+
+      case Player::Control::PlayNewMode::SEND_PAUSE_COMMAND_IF_IDLE:
+        if(!send_pause_command())
+        {
+            msg_error(0, LOG_NOTICE, "Failed sending pause playback message");
+            return false;
+        }
+
+        break;
     }
 
     return true;
 }
 
 static bool queue_stream_or_forget(Player::Data &player,
-                                   ID::OurStream stream_id, bool play_immediately)
+                                   ID::OurStream stream_id,
+                                   Player::Control::QueueMode queue_mode,
+                                   Player::Control::PlayNewMode play_new_mode)
 {
-    if(!send_selected_file_uri_to_streamplayer(stream_id, play_immediately,
+    if(!send_selected_file_uri_to_streamplayer(stream_id, queue_mode, play_new_mode,
                                                player.get_first_stream_uri(stream_id)))
     {
         player.forget_stream(stream_id.get());
@@ -816,10 +1090,37 @@ Player::Control::stop_notification(ID::Stream stream_id,
     if(player_ == nullptr || crawler_ == nullptr)
         return StopReaction::NOT_ATTACHED;
 
-    const auto our_id(ID::OurStream::make_from_generic_id(stream_id));
+    bool stop_regardless_of_intention = false;
 
-    if(!our_id.get().is_valid())
+    switch(is_stream_expected_for_stop(retry_data_.get_stream_id(),
+                                       queued_streams_, stream_id, true))
+    {
+      case StreamExpected::OURS_AS_EXPECTED:
+        break;
+
+      case StreamExpected::UNEXPECTEDLY_OURS:
+      case StreamExpected::OURS_WRONG_ID:
+        if(queued_streams_.empty() ||
+           queued_streams_.front().get() != stream_id)
+        {
+            /* this case is a result of some internal processing error, so
+             * we'll just accept the player's stop notification and do not
+             * attempt to fight it */
+            stop_regardless_of_intention = true;
+        }
+
+        /* if the condition above is not true, then it is our stream that has
+         * failed playing, and it failed without ever playing */
+
+        break;
+
+      case StreamExpected::EMPTY_AS_EXPECTED:
+      case StreamExpected::NOT_OURS:
+      case StreamExpected::UNEXPECTEDLY_NOT_OURS:
+      case StreamExpected::INVALID_ID:
+        /* so what... */
         return StopReaction::STREAM_IGNORED;
+    }
 
     /* stream stopped playing due to some error---why? */
     const StoppedReason reason(error_id);
@@ -829,8 +1130,12 @@ Player::Control::stop_notification(ID::Stream stream_id,
 
     auto crawler_lock(crawler_->lock());
     bool skipping = false;
+    PlayNewMode replay_mode = PlayNewMode::KEEP;
+    const auto intention = stop_regardless_of_intention
+        ? UserIntention::STOPPING
+        : player_->get_intention();
 
-    switch(player_->get_intention())
+    switch(intention)
     {
       case UserIntention::NOTHING:
       case UserIntention::STOPPING:
@@ -839,15 +1144,26 @@ Player::Control::stop_notification(ID::Stream stream_id,
         return StopReaction::STOPPED;
 
       case UserIntention::PAUSING:
+        replay_mode = PlayNewMode::SEND_PAUSE_COMMAND_IF_IDLE;
+        break;
+
       case UserIntention::LISTENING:
+        replay_mode = PlayNewMode::SEND_PLAY_COMMAND_IF_IDLE;
         break;
 
       case UserIntention::SKIPPING_PAUSED:
+        replay_mode = PlayNewMode::SEND_PAUSE_COMMAND_IF_IDLE;
+        skipping = true;
+        break;
+
       case UserIntention::SKIPPING_LIVE:
+        replay_mode = PlayNewMode::SEND_PLAY_COMMAND_IF_IDLE;
         skipping = true;
         break;
     }
 
+    /* at this point we know for sure that it was indeed our stream that has
+     * failed */
     bool should_retry = false;
 
     switch(reason.get_code())
@@ -879,25 +1195,100 @@ Player::Control::stop_notification(ID::Stream stream_id,
 
     if(should_retry)
     {
-        if(retry_data_.retry(our_id))
+        bool may_prefetch_more;
+        const auto replay_result =
+            replay(ID::OurStream::make_from_generic_id(stream_id), true,
+                   replay_mode, may_prefetch_more);
+
+        switch(replay_result)
         {
-            msg_info("Retry stream %u", our_id.get().get_raw_id());
+          case ReplayResult::OK:
+            if(may_prefetch_more)
+                need_next_item_hint(false);
 
-            if(next_stream_in_queue_.get().is_valid())
-                BUG("There is a stream in queue (%u), we are going to lose it",
-                    next_stream_in_queue_.get().get_raw_id());
+            return StopReaction::RETRY;
 
-            if(queue_stream_or_forget(*player_, our_id, true))
-                return StopReaction::RETRY;
+          case ReplayResult::RETRY_FAILED_HARD:
+            return StopReaction::STOPPED;
+
+          case ReplayResult::GAVE_UP:
+          case ReplayResult::EMPTY_QUEUE:
+            break;
         }
-        else
-            msg_info("Giving up on stream %u", our_id.get().get_raw_id());
+    }
+    else
+    {
+        /* retry prohibited due to stop reason or by policy---skip stream if
+         * not prohibited by policy */
     }
 
+    player_->forget_stream(stream_id);
     retry_data_.reset();
 
     if(!permissions_->can_skip_on_error())
         return StopReaction::STOPPED;
+
+    /* so we should skip to the next stream---what *is* the "next" stream? */
+    if(is_urlfifo_empty)
+    {
+        if(!queued_streams_.empty())
+        {
+            /* slightly out of sync: we know something that stream player does
+             * not know, but this case is easy to fix */
+            bool may_prefetch_more;
+            const auto replay_result = replay(queued_streams_.front(), false,
+                                              replay_mode, may_prefetch_more);
+
+            switch(replay_result)
+            {
+              case ReplayResult::OK:
+                if(may_prefetch_more)
+                    need_next_item_hint(false);
+
+                return StopReaction::REPLAY_QUEUE;
+
+              case ReplayResult::RETRY_FAILED_HARD:
+                BUG("Got hard retry failure, but shouldn't be possible");
+                return StopReaction::STOPPED;
+
+              case ReplayResult::GAVE_UP:
+              case ReplayResult::EMPTY_QUEUE:
+                break;
+            }
+        }
+
+        /* nothing queued anywhere or gave up---maybe we can find some other
+         * stream to play below */
+    }
+    else
+    {
+        if(queued_streams_.empty())
+        {
+            BUG("Out of sync: stream player stopped our stream with error "
+                "and has streams queued, but we don't known which");
+            return StopReaction::STOPPED;
+        }
+
+        switch(replay_mode)
+        {
+          case PlayNewMode::KEEP:
+            break;
+
+          case PlayNewMode::SEND_PLAY_COMMAND_IF_IDLE:
+            /* play next in queue */
+            if(send_play_command())
+                return StopReaction::TAKE_NEXT;
+
+            break;
+
+          case PlayNewMode::SEND_PAUSE_COMMAND_IF_IDLE:
+            /* pause next in queue */
+            if(send_pause_command())
+                return StopReaction::TAKE_NEXT;
+
+            break;
+        }
+    }
 
     if(!skipping)
         crawler_->set_direction_forward();
@@ -944,7 +1335,7 @@ void Player::Control::need_next_item_hint(bool queue_is_full)
         return;
     }
 
-    if(next_stream_in_queue_.get().is_valid())
+    if(!queued_streams_.empty())
         return;
 
     /* we always prefetch the next item even for sources that do not support
@@ -1069,7 +1460,8 @@ void Player::Control::found_item_information(Playlist::CrawlerIface &crawler,
                 /* fall-through */
 
               case UserIntention::PAUSING:
-                queuing_failed = !store_current_item_info_and_play(true);
+                queuing_failed = !process_crawler_item(QueueMode::REPLACE_ALL,
+                                                       PlayNewMode::SEND_PAUSE_COMMAND_IF_IDLE);
                 prefetch_state_ = PrefetchState::NOT_PREFETCHING;
                 prefetch_more = true;
                 break;
@@ -1080,7 +1472,8 @@ void Player::Control::found_item_information(Playlist::CrawlerIface &crawler,
                 /* fall-through */
 
               case UserIntention::LISTENING:
-                queuing_failed = !store_current_item_info_and_play(true);
+                queuing_failed = !process_crawler_item(QueueMode::REPLACE_ALL,
+                                                       PlayNewMode::SEND_PLAY_COMMAND_IF_IDLE);
                 prefetch_state_ = PrefetchState::NOT_PREFETCHING;
 
                 if(!queuing_failed)
@@ -1106,7 +1499,8 @@ void Player::Control::found_item_information(Playlist::CrawlerIface &crawler,
 
               case UserIntention::PAUSING:
               case UserIntention::LISTENING:
-                queuing_failed = !store_current_item_info_and_play(false);
+                queuing_failed = !process_crawler_item(QueueMode::REPLACE_QUEUE,
+                                                       PlayNewMode::KEEP);
                 prefetch_state_ = PrefetchState::NOT_PREFETCHING;
                 break;
             }
@@ -1114,31 +1508,41 @@ void Player::Control::found_item_information(Playlist::CrawlerIface &crawler,
             break;
 
           case CrawlerContext::SKIP:
-            switch(player_->get_intention())
             {
-              case UserIntention::NOTHING:
-              case UserIntention::STOPPING:
-              case UserIntention::PAUSING:
-              case UserIntention::LISTENING:
-                break;
+                auto play_new_mode(PlayNewMode::KEEP);
 
-              case UserIntention::SKIPPING_PAUSED:
-              case UserIntention::SKIPPING_LIVE:
-                skip_requests_.stop_skipping(*player_, *crawler_);
-                queuing_failed = !store_current_item_info_and_play(true);
-                prefetch_state_ = PrefetchState::NOT_PREFETCHING;
-                prefetch_more = true;
-                break;
+                switch(player_->get_intention())
+                {
+                  case UserIntention::NOTHING:
+                  case UserIntention::STOPPING:
+                  case UserIntention::PAUSING:
+                  case UserIntention::LISTENING:
+                    break;
+
+                  case UserIntention::SKIPPING_PAUSED:
+                    play_new_mode = PlayNewMode::SEND_PAUSE_COMMAND_IF_IDLE;
+                    break;
+
+                  case UserIntention::SKIPPING_LIVE:
+                    play_new_mode = PlayNewMode::SEND_PLAY_COMMAND_IF_IDLE;
+                    break;
+                }
+
+                if(play_new_mode != PlayNewMode::KEEP)
+                {
+                    skip_requests_.stop_skipping(*player_, *crawler_);
+                    queuing_failed = !process_crawler_item(QueueMode::REPLACE_ALL,
+                                                           play_new_mode);
+                    prefetch_state_ = PrefetchState::NOT_PREFETCHING;
+                    prefetch_more = true;
+                }
             }
 
             break;
         }
 
         if(queuing_failed)
-        {
-            result = Playlist::CrawlerIface::RetrieveItemInfo::FAILED;
             prefetch_more = false;
-        }
 
         break;
 
@@ -1192,7 +1596,8 @@ static MetaData::Set mk_meta_data_from_preloaded_information(const ViewFileBrows
     return meta_data;
 }
 
-bool Player::Control::store_current_item_info_and_play(bool play_immediately)
+bool Player::Control::process_crawler_item(QueueMode queue_mode,
+                                           PlayNewMode play_new_mode)
 {
     if(player_ == nullptr || crawler_ == nullptr)
         return false;
@@ -1215,20 +1620,75 @@ bool Player::Control::store_current_item_info_and_play(bool play_immediately)
     if(!stream_id.get().is_valid())
         return false;
 
+    forget_queued_and_playing(play_new_mode != PlayNewMode::KEEP);
+
     player_->put_meta_data(stream_id.get(),
                            std::move(mk_meta_data_from_preloaded_information(*item_info.file_item_)));
 
-    if(!play_immediately && next_stream_in_queue_.get().is_valid())
-        BUG("Losing information about our next stream ID %u",
-            next_stream_in_queue_.get().get_raw_id());
-
-    next_stream_in_queue_ = ID::OurStream::make_invalid();
-
-    if(!queue_stream_or_forget(*player_, stream_id, play_immediately))
+    if(!queue_stream_or_forget(*player_, stream_id, queue_mode, play_new_mode))
         return false;
 
-    if(!play_immediately)
-        next_stream_in_queue_ = stream_id;
+    queued_streams_.push_back(stream_id);
 
     return true;
+}
+
+Player::Control::ReplayResult
+Player::Control::replay(ID::OurStream stream_id, bool is_retry,
+                        PlayNewMode play_new_mode, bool &took_from_queue)
+{
+    log_assert(stream_id.get().is_valid());
+
+    if(!is_retry && !queued_streams_.empty() && queued_streams_.front() == stream_id)
+    {
+        took_from_queue = true;
+        queued_streams_.pop_front();
+    }
+    else
+        took_from_queue = false;
+
+    if(!retry_data_.retry(stream_id))
+    {
+        if(is_retry)
+            msg_info("Giving up on stream %u", stream_id.get().get_raw_id());
+
+        return ReplayResult::GAVE_UP;
+    }
+
+    if(is_retry)
+        msg_info("Retry stream %u", stream_id.get().get_raw_id());
+
+    const bool is_queued =
+        queue_stream_or_forget(*player_, stream_id,
+                               Player::Control::QueueMode::REPLACE_ALL,
+                               play_new_mode);
+
+    if(!is_queued && is_retry)
+        return ReplayResult::RETRY_FAILED_HARD;
+
+    decltype(queued_streams_) temp;
+
+    if(is_queued)
+        temp.push_back(stream_id);
+
+    for(const auto id : queued_streams_)
+    {
+        if(queue_stream_or_forget(*player_, id,
+                                  Player::Control::QueueMode::APPEND,
+                                  PlayNewMode::KEEP))
+        {
+            temp.push_back(id);
+        }
+    }
+
+    queued_streams_.clear();
+
+    if(!temp.empty())
+        queued_streams_.swap(temp);
+
+    msg_info("Queued %zu streams once again", queued_streams_.size());
+
+    return queued_streams_.empty()
+        ? ReplayResult::EMPTY_QUEUE
+        : ReplayResult::OK;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2017  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -63,15 +63,6 @@ ID::List Player::StreamPreplayInfoCollection::get_referenced_list_id(ID::OurStre
 {
     const auto result(stream_ppinfos_.find(stream_id));
     return (result != stream_ppinfos_.end()) ? result->second.list_id_ : ID::List();
-}
-
-void Player::Data::set_state(StreamState state)
-{
-    /* XXX: for stopped */
-    /*
-    stream_position_ = std::chrono::milliseconds(-1);
-    stream_duration_ = std::chrono::milliseconds(-1);
-    */
 }
 
 static void ref_list_id(std::map<ID::List, size_t> &list_refcounts,

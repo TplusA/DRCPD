@@ -19,6 +19,8 @@
 #ifndef PLAYER_CONTROL_HH
 #define PLAYER_CONTROL_HH
 
+#include <deque>
+
 #include "player_data.hh"
 #include "player_permissions.hh"
 #include "playlist_crawler.hh"
@@ -116,6 +118,30 @@ class Control
         RETRIEVE_QUEUED,
         NOP,
         RETRY,
+        REPLAY_QUEUE,
+        TAKE_NEXT,
+    };
+
+    enum class PlayNewMode
+    {
+        KEEP,
+        SEND_PLAY_COMMAND_IF_IDLE,
+        SEND_PAUSE_COMMAND_IF_IDLE,
+    };
+
+    enum class QueueMode
+    {
+        APPEND,
+        REPLACE_QUEUE,
+        REPLACE_ALL,
+    };
+
+    enum class ReplayResult
+    {
+        OK,
+        GAVE_UP,
+        RETRY_FAILED_HARD,
+        EMPTY_QUEUE,
     };
 
   private:
@@ -129,7 +155,8 @@ class Control
 
     Skipper skip_requests_;
 
-    ID::OurStream next_stream_in_queue_;
+    /* streams queued in streamplayer, but not playing */
+    std::deque<ID::OurStream> queued_streams_;
     PrefetchState prefetch_state_;
 
     class Retry
@@ -171,6 +198,8 @@ class Control
 
             return true;
         }
+
+        ID::OurStream get_stream_id() const { return stream_id_; }
     };
 
     Retry retry_data_;
@@ -202,7 +231,6 @@ class Control
         player_(nullptr),
         crawler_(nullptr),
         permissions_(nullptr),
-        next_stream_in_queue_(ID::OurStream::make_invalid()),
         prefetch_state_(PrefetchState::NOT_PREFETCHING)
     {
         LoggedLock::set_name(lock_, "Player::Control");
@@ -282,7 +310,11 @@ class Control
                                 Playlist::CrawlerIface::RetrieveItemInfo result,
                                 CrawlerContext ctx);
 
-    bool store_current_item_info_and_play(bool play_immediately);
+    bool process_crawler_item(QueueMode queue_mode, PlayNewMode play_new_mode);
+
+    ReplayResult replay(ID::OurStream stream_id, bool is_retry,
+                        PlayNewMode mode, bool &tool_from_queue);
+    void forget_queued_and_playing(bool also_forget_playing);
 };
 
 }

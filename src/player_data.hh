@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2017  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -190,8 +190,6 @@ class Data
 
     UserIntention get_intention() const { return intention_; }
 
-    void set_state(StreamState state);
-
     ID::Stream get_current_stream_id() const { return current_stream_id_; };
     StreamState get_current_stream_state() const { return current_stream_state_; }
 
@@ -200,6 +198,20 @@ class Data
         if(state != current_stream_state_)
         {
             current_stream_state_ = state;
+
+            switch(current_stream_state_)
+            {
+              case StreamState::STOPPED:
+                stream_position_ = std::chrono::milliseconds(-1);
+                stream_duration_ = std::chrono::milliseconds(-1);
+                break;
+
+              case StreamState::BUFFERING:
+              case StreamState::PLAYING:
+              case StreamState::PAUSED:
+                break;
+            }
+
             return true;
         }
         else
