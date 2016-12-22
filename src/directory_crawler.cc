@@ -140,8 +140,6 @@ bool Playlist::DirectoryCrawler::list_invalidate(ID::List list_id, ID::List repl
 
 bool Playlist::DirectoryCrawler::retrieve_item_information_impl(RetrieveItemInfoCallback callback)
 {
-    retrieve_item_info_callback_ = nullptr;
-
     if(!is_waiting_for_async_enter_list_completion_)
         return do_retrieve_item_information(callback);
     else
@@ -582,14 +580,17 @@ bool Playlist::DirectoryCrawler::do_retrieve_item_information(const RetrieveItem
       case RecurseResult::FOUND_ITEM:
         msg_info("Retrieving URIs for item \"%s\"",
                  dynamic_cast<const ViewFileBrowser::FileItem *>(item)->get_text());
-        retrieve_item_info_callback_ = callback;
+
+        if(async_get_uris_call_ != nullptr)
+            AsyncGetURIs::cancel_and_delete(async_get_uris_call_);
+
         async_get_uris_call_ =
             mk_async_get_uris(dbus_proxy_,
                               std::bind(&Playlist::DirectoryCrawler::process_item_information,
                                         this, std::placeholders::_1,
                                         traversal_list_.get_list_id(),
                                         navigation_.get_cursor(),
-                                        directory_depth_));
+                                        directory_depth_, callback));
 
         if(async_get_uris_call_ != nullptr)
         {
@@ -600,7 +601,6 @@ bool Playlist::DirectoryCrawler::do_retrieve_item_information(const RetrieveItem
         }
 
         msg_out_of_memory("asynchronous D-Bus call");
-        retrieve_item_info_callback_ = nullptr;
         break;
 
       case RecurseResult::ERROR:
@@ -618,24 +618,26 @@ bool Playlist::DirectoryCrawler::do_retrieve_item_information(const RetrieveItem
     return false;
 }
 
-void Playlist::DirectoryCrawler::process_item_information(const DBus::AsyncCall_ &async_call,
+void Playlist::DirectoryCrawler::process_item_information(DBus::AsyncCall_ &async_call,
                                                           ID::List list_id, unsigned int line,
-                                                          unsigned int directory_depth)
+                                                          unsigned int directory_depth,
+                                                          const RetrieveItemInfoCallback &callback)
 {
     auto lock_this(lock());
 
     if(&async_call != async_get_uris_call_.get())
     {
-        call_callback(pass_on(retrieve_item_info_callback_), *this,
-                      RetrieveItemInfo::CANCELED);
+        call_callback(callback, *this, RetrieveItemInfo::CANCELED);
         return;
     }
+
+    auto &async(static_cast<AsyncGetURIs &>(async_call));
 
     DBus::AsyncResult async_result;
 
     try
     {
-        async_result = async_get_uris_call_->wait_for_result();
+        async_result = async.wait_for_result();
     }
     catch(const List::DBusListException &e)
     {
@@ -644,16 +646,16 @@ void Playlist::DirectoryCrawler::process_item_information(const DBus::AsyncCall_
                   line, list_id.get_raw_id(), e.what());
     }
 
-    if(!async_get_uris_call_->success() ||
+    if(!async.success() ||
        async_result != DBus::AsyncResult::DONE)
     {
-        call_callback(pass_on(retrieve_item_info_callback_), *this,
+        call_callback(callback, *this,
                       map_asyncresult_to_retrieve_item_result(async_result));
         async_get_uris_call_.reset();
         return;
     }
 
-    const auto &result(async_get_uris_call_->get_result(async_result));
+    const auto &result(async.get_result(async_result));
     const ListError error(std::get<0>(result));
 
     if(error != ListError::Code::OK)
@@ -661,8 +663,7 @@ void Playlist::DirectoryCrawler::process_item_information(const DBus::AsyncCall_
         msg_error(0, LOG_NOTICE,
                   "Got error %s instead of URIs for item %u in list %u",
                   error.to_string(), line, list_id.get_raw_id());
-        call_callback(pass_on(retrieve_item_info_callback_), *this,
-                      RetrieveItemInfo::FAILED);
+        call_callback(callback, *this, RetrieveItemInfo::FAILED);
         return;
     }
 
@@ -673,8 +674,7 @@ void Playlist::DirectoryCrawler::process_item_information(const DBus::AsyncCall_
        current_item_info_.file_item_ == nullptr)
     {
         BUG("Invalid item, retrieving item info failed");
-        call_callback(pass_on(retrieve_item_info_callback_), *this,
-                      RetrieveItemInfo::FAILED);
+        call_callback(callback, *this, RetrieveItemInfo::FAILED);
         return;
     }
 
@@ -706,8 +706,7 @@ void Playlist::DirectoryCrawler::process_item_information(const DBus::AsyncCall_
     if(current_item_info_.stream_uris_.empty())
         msg_info("No URI for item %u in list %u", line, list_id.get_raw_id());
 
-    call_callback(pass_on(retrieve_item_info_callback_), *this,
-                  RetrieveItemInfo::FOUND);
+    call_callback(callback, *this, RetrieveItemInfo::FOUND);
 }
 
 void Playlist::DirectoryCrawler::handle_end_of_list(const FindNextCallback &callback)

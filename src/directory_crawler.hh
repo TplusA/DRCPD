@@ -151,7 +151,6 @@ class DirectoryCrawler: public CrawlerIface
     ItemInfo current_item_info_;
 
     FindNextCallback find_next_callback_;
-    RetrieveItemInfoCallback retrieve_item_info_callback_;
 
     MarkedPosition marked_position_;
 
@@ -232,9 +231,10 @@ class DirectoryCrawler: public CrawlerIface
                                              const FindNextCallback &callback,
                                              bool expecting_file_item);
     bool do_retrieve_item_information(const RetrieveItemInfoCallback &callback);
-    void process_item_information(const DBus::AsyncCall_ &async_call,
+    void process_item_information(DBus::AsyncCall_ &async_call,
                                   ID::List list_id, unsigned int line,
-                                  unsigned int directory_depth);
+                                  unsigned int directory_depth,
+                                  const RetrieveItemInfoCallback &callback);
     void handle_enter_list_event(List::AsyncListIface::OpResult result,
                                  const std::shared_ptr<List::QueryContextEnterList> &ctx);
     void handle_get_item_event(List::AsyncListIface::OpResult result,
