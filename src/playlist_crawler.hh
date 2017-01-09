@@ -43,6 +43,22 @@ class CrawlerIface
         SHUFFLE,        /*!< Find tracks in unspecified, random order. */
     };
 
+    enum class FindNextItemResult
+    {
+        FOUND,
+        FAILED,
+        CANCELED,
+        START_OF_LIST,
+        END_OF_LIST,
+    };
+
+    enum class RetrieveItemInfoResult
+    {
+        FOUND,
+        FAILED,
+        CANCELED,
+    };
+
   protected:
     explicit CrawlerIface():
         recursive_mode_(RecursiveMode::FLAT),
@@ -122,22 +138,6 @@ class CrawlerIface
         }
     }
 
-    enum class FindNext
-    {
-        FOUND,
-        FAILED,
-        CANCELED,
-        START_OF_LIST,
-        END_OF_LIST,
-    };
-
-    enum class RetrieveItemInfo
-    {
-        FOUND,
-        FAILED,
-        CANCELED,
-    };
-
     /*!
      * Type of function called when next list item was found.
      *
@@ -154,7 +154,8 @@ class CrawlerIface
      * \see
      *     #Playlist::CrawlerIface::find_next(),
      */
-    using FindNextCallback = std::function<void(Playlist::CrawlerIface &crawler, FindNext result)>;
+    using FindNextCallback = std::function<void(Playlist::CrawlerIface &crawler,
+                                                FindNextItemResult result)>;
 
     /*!
      * Type of function called when list item was retrieved.
@@ -173,7 +174,8 @@ class CrawlerIface
      * \see
      *     #Playlist::CrawlerIface::retrieve_item_information()
      */
-    using RetrieveItemInfoCallback = std::function<void(Playlist::CrawlerIface &crawler, RetrieveItemInfo result)>;
+    using RetrieveItemInfoCallback = std::function<void(Playlist::CrawlerIface &crawler,
+                                                        RetrieveItemInfoResult result)>;
 
     void set_direction_forward()
     {

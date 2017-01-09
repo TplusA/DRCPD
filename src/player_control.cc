@@ -1355,7 +1355,7 @@ void Player::Control::need_next_item_hint(bool queue_is_full)
 }
 
 void Player::Control::found_list_item(Playlist::CrawlerIface &crawler,
-                                      Playlist::CrawlerIface::FindNext result,
+                                      Playlist::CrawlerIface::FindNextItemResult result,
                                       CrawlerContext ctx)
 {
     auto locks(lock());
@@ -1364,7 +1364,7 @@ void Player::Control::found_list_item(Playlist::CrawlerIface &crawler,
 
     switch(result)
     {
-      case Playlist::CrawlerIface::FindNext::FOUND:
+      case Playlist::CrawlerIface::FindNextItemResult::FOUND:
         if(prefetch_state_ == PrefetchState::PREFETCHING_NEXT_LIST_ITEM_AND_PLAY_IT)
             need_item_information_now = true;
 
@@ -1409,10 +1409,10 @@ void Player::Control::found_list_item(Playlist::CrawlerIface &crawler,
 
         break;
 
-      case Playlist::CrawlerIface::FindNext::FAILED:
-      case Playlist::CrawlerIface::FindNext::CANCELED:
-      case Playlist::CrawlerIface::FindNext::START_OF_LIST:
-      case Playlist::CrawlerIface::FindNext::END_OF_LIST:
+      case Playlist::CrawlerIface::FindNextItemResult::FAILED:
+      case Playlist::CrawlerIface::FindNextItemResult::CANCELED:
+      case Playlist::CrawlerIface::FindNextItemResult::START_OF_LIST:
+      case Playlist::CrawlerIface::FindNextItemResult::END_OF_LIST:
         prefetch_state_ = PrefetchState::NOT_PREFETCHING;
         skip_requests_.stop_skipping(*player_, *crawler_);
         break;
@@ -1432,7 +1432,7 @@ void Player::Control::found_list_item(Playlist::CrawlerIface &crawler,
 }
 
 void Player::Control::found_item_information(Playlist::CrawlerIface &crawler,
-                                             Playlist::CrawlerIface::RetrieveItemInfo result,
+                                             Playlist::CrawlerIface::RetrieveItemInfoResult result,
                                              CrawlerContext ctx)
 {
     auto locks(lock());
@@ -1442,7 +1442,7 @@ void Player::Control::found_item_information(Playlist::CrawlerIface &crawler,
 
     switch(result)
     {
-      case Playlist::CrawlerIface::RetrieveItemInfo::FOUND:
+      case Playlist::CrawlerIface::RetrieveItemInfoResult::FOUND:
         prefetch_state_ = PrefetchState::HAVE_LIST_ITEM_INFORMATION;
 
         switch(ctx)
@@ -1546,7 +1546,7 @@ void Player::Control::found_item_information(Playlist::CrawlerIface &crawler,
 
         break;
 
-      case Playlist::CrawlerIface::RetrieveItemInfo::FAILED:
+      case Playlist::CrawlerIface::RetrieveItemInfoResult::FAILED:
         /* skip this one, maybe the next one will work */
         prefetch_state_ = PrefetchState::NOT_PREFETCHING;
 
@@ -1570,7 +1570,7 @@ void Player::Control::found_item_information(Playlist::CrawlerIface &crawler,
 
         break;
 
-      case Playlist::CrawlerIface::RetrieveItemInfo::CANCELED:
+      case Playlist::CrawlerIface::RetrieveItemInfoResult::CANCELED:
         prefetch_state_ = PrefetchState::NOT_PREFETCHING;
         break;
     }

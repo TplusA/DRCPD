@@ -304,10 +304,10 @@ class Control
     };
 
     void found_list_item(Playlist::CrawlerIface &crawler,
-                         Playlist::CrawlerIface::FindNext result,
+                         Playlist::CrawlerIface::FindNextItemResult result,
                          CrawlerContext ctx);
     void found_item_information(Playlist::CrawlerIface &crawler,
-                                Playlist::CrawlerIface::RetrieveItemInfo result,
+                                Playlist::CrawlerIface::RetrieveItemInfoResult result,
                                 CrawlerContext ctx);
 
     bool process_crawler_item(QueueMode queue_mode, PlayNewMode play_new_mode);

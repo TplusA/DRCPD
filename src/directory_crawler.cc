@@ -217,7 +217,7 @@ void Playlist::DirectoryCrawler::switch_direction()
     }
 }
 
-static Playlist::CrawlerIface::FindNext
+static Playlist::CrawlerIface::FindNextItemResult
 map_opresult_to_find_next_result(const List::AsyncListIface::OpResult &op_result)
 {
     switch(op_result)
@@ -226,19 +226,19 @@ map_opresult_to_find_next_result(const List::AsyncListIface::OpResult &op_result
         break;
 
       case List::AsyncListIface::OpResult::SUCCEEDED:
-        return Playlist::CrawlerIface::FindNext::FOUND;
+        return Playlist::CrawlerIface::FindNextItemResult::FOUND;
 
       case List::AsyncListIface::OpResult::FAILED:
-        return Playlist::CrawlerIface::FindNext::FAILED;
+        return Playlist::CrawlerIface::FindNextItemResult::FAILED;
 
       case List::AsyncListIface::OpResult::CANCELED:
-        return Playlist::CrawlerIface::FindNext::CANCELED;
+        return Playlist::CrawlerIface::FindNextItemResult::CANCELED;
     }
 
-    return Playlist::CrawlerIface::FindNext::FAILED;
+    return Playlist::CrawlerIface::FindNextItemResult::FAILED;
 }
 
-static Playlist::CrawlerIface::RetrieveItemInfo
+static Playlist::CrawlerIface::RetrieveItemInfoResult
 map_asyncresult_to_retrieve_item_result(const DBus::AsyncResult &async_result)
 {
     switch(async_result)
@@ -250,14 +250,14 @@ map_asyncresult_to_retrieve_item_result(const DBus::AsyncResult &async_result)
         break;
 
       case DBus::AsyncResult::DONE:
-        return Playlist::CrawlerIface::RetrieveItemInfo::FOUND;
+        return Playlist::CrawlerIface::RetrieveItemInfoResult::FOUND;
 
       case DBus::AsyncResult::CANCELED:
       case DBus::AsyncResult::RESTARTED:
-        return Playlist::CrawlerIface::RetrieveItemInfo::CANCELED;
+        return Playlist::CrawlerIface::RetrieveItemInfoResult::CANCELED;
     }
 
-    return Playlist::CrawlerIface::RetrieveItemInfo::FAILED;
+    return Playlist::CrawlerIface::RetrieveItemInfoResult::FAILED;
 }
 
 bool Playlist::DirectoryCrawler::try_get_dbuslist_item_after_started_or_successful_hint(const FindNextCallback &callback)
@@ -613,7 +613,7 @@ bool Playlist::DirectoryCrawler::do_retrieve_item_information(const RetrieveItem
         break;
     }
 
-    call_callback(callback, *this, RetrieveItemInfo::FAILED);
+    call_callback(callback, *this, RetrieveItemInfoResult::FAILED);
 
     return false;
 }
@@ -627,7 +627,7 @@ void Playlist::DirectoryCrawler::process_item_information(DBus::AsyncCall_ &asyn
 
     if(&async_call != async_get_uris_call_.get())
     {
-        call_callback(callback, *this, RetrieveItemInfo::CANCELED);
+        call_callback(callback, *this, RetrieveItemInfoResult::CANCELED);
         return;
     }
 
@@ -663,7 +663,7 @@ void Playlist::DirectoryCrawler::process_item_information(DBus::AsyncCall_ &asyn
         msg_error(0, LOG_NOTICE,
                   "Got error %s instead of URIs for item %u in list %u",
                   error.to_string(), line, list_id.get_raw_id());
-        call_callback(callback, *this, RetrieveItemInfo::FAILED);
+        call_callback(callback, *this, RetrieveItemInfoResult::FAILED);
         return;
     }
 
@@ -674,7 +674,7 @@ void Playlist::DirectoryCrawler::process_item_information(DBus::AsyncCall_ &asyn
        current_item_info_.file_item_ == nullptr)
     {
         BUG("Invalid item, retrieving item info failed");
-        call_callback(callback, *this, RetrieveItemInfo::FAILED);
+        call_callback(callback, *this, RetrieveItemInfoResult::FAILED);
         return;
     }
 
@@ -706,15 +706,16 @@ void Playlist::DirectoryCrawler::process_item_information(DBus::AsyncCall_ &asyn
     if(current_item_info_.stream_uris_.empty())
         msg_info("No URI for item %u in list %u", line, list_id.get_raw_id());
 
-    call_callback(callback, *this, RetrieveItemInfo::FOUND);
+    call_callback(callback, *this, RetrieveItemInfoResult::FOUND);
 }
 
 void Playlist::DirectoryCrawler::handle_end_of_list(const FindNextCallback &callback)
 {
     current_item_info_.clear();
 
-    call_callback(callback, *this,
-                  is_crawling_forward() ? FindNext::END_OF_LIST : FindNext::START_OF_LIST);
+    call_callback(callback, *this, is_crawling_forward()
+                                   ? FindNextItemResult::END_OF_LIST
+                                   : FindNextItemResult::START_OF_LIST);
 }
 
 List::AsyncListIface::OpResult
@@ -834,7 +835,7 @@ bool Playlist::DirectoryCrawler::find_next_impl(FindNextCallback callback)
             break;
 
           case List::AsyncListIface::OpResult::FAILED:
-            call_callback(callback, *this, FindNext::FAILED);
+            call_callback(callback, *this, FindNextItemResult::FAILED);
             return false;
 
           case List::AsyncListIface::OpResult::CANCELED:
