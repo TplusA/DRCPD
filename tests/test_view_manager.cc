@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016, 2017  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -323,7 +323,7 @@ void test_move_cursor_up_by_multiple_lines(void)
     vm->store_event(UI::EventID::NAV_SCROLL_LINES, std::move(lines));
 
     mock_messages->expect_msg_vinfo_formatted(MESSAGE_LEVEL_DEBUG,
-                                              "Dispatch ViewEventID 13 to view Mock (direct)");
+                                              "Dispatch NAV_SCROLL_LINES (13) to view Mock (direct)");
 
     lines = UI::Events::mk_params<UI::EventID::NAV_SCROLL_LINES>(-2);
     mock_view->expect_process_event_with_callback(ViewIface::InputResult::UPDATE_NEEDED,
@@ -354,7 +354,7 @@ void test_move_cursor_down_by_multiple_lines(void)
     vm->store_event(UI::EventID::NAV_SCROLL_LINES, std::move(lines));
 
     mock_messages->expect_msg_vinfo_formatted(MESSAGE_LEVEL_DEBUG,
-                                              "Dispatch ViewEventID 13 to view Mock (direct)");
+                                              "Dispatch NAV_SCROLL_LINES (13) to view Mock (direct)");
 
     lines = UI::Events::mk_params<UI::EventID::NAV_SCROLL_LINES>(3);
     mock_view->expect_process_event_with_callback(ViewIface::InputResult::UPDATE_NEEDED,
@@ -384,7 +384,7 @@ void test_move_cursor_up_by_multiple_pages(void)
     vm->store_event(UI::EventID::NAV_SCROLL_PAGES, std::move(pages));
 
     mock_messages->expect_msg_vinfo_formatted(MESSAGE_LEVEL_DEBUG,
-                                              "Dispatch ViewEventID 14 to view Mock (direct)");
+                                              "Dispatch NAV_SCROLL_PAGES (14) to view Mock (direct)");
 
     pages = UI::Events::mk_params<UI::EventID::NAV_SCROLL_PAGES>(-4);
     mock_view->expect_process_event_with_callback(ViewIface::InputResult::UPDATE_NEEDED,
@@ -415,7 +415,7 @@ void test_move_cursor_down_by_multiple_pages(void)
     vm->store_event(UI::EventID::NAV_SCROLL_PAGES, std::move(pages));
 
     mock_messages->expect_msg_vinfo_formatted(MESSAGE_LEVEL_DEBUG,
-                                              "Dispatch ViewEventID 14 to view Mock (direct)");
+                                              "Dispatch NAV_SCROLL_PAGES (14) to view Mock (direct)");
 
     pages = UI::Events::mk_params<UI::EventID::NAV_SCROLL_PAGES>(2);
     mock_view->expect_process_event_with_callback(ViewIface::InputResult::UPDATE_NEEDED,
@@ -632,7 +632,7 @@ void test_input_command_with_no_need_to_refresh(void)
     vm->store_event(UI::EventID::PLAYBACK_COMMAND_START);
 
     mock_messages->expect_msg_vinfo_formatted(MESSAGE_LEVEL_DEBUG,
-                                              "Dispatch ViewEventID 1 to view First (direct)");
+                                              "Dispatch PLAYBACK_COMMAND_START (1) to view First (direct)");
 
     all_mock_views[0]->expect_process_event(ViewIface::InputResult::OK,
                                             UI::ViewEventID::PLAYBACK_COMMAND_START, false);
@@ -649,7 +649,7 @@ void test_input_command_with_need_to_refresh(void)
     vm->store_event(UI::EventID::PLAYBACK_COMMAND_START);
 
     mock_messages->expect_msg_vinfo_formatted(MESSAGE_LEVEL_DEBUG,
-                                              "Dispatch ViewEventID 1 to view First (direct)");
+                                              "Dispatch PLAYBACK_COMMAND_START (1) to view First (direct)");
 
     all_mock_views[0]->expect_process_event(ViewIface::InputResult::UPDATE_NEEDED,
                                             UI::ViewEventID::PLAYBACK_COMMAND_START, false);
@@ -671,7 +671,7 @@ void test_input_command_with_need_to_hide_view_may_fail(void)
     vm->store_event(UI::EventID::PLAYBACK_COMMAND_START);
 
     mock_messages->expect_msg_vinfo_formatted(MESSAGE_LEVEL_DEBUG,
-                                              "Dispatch ViewEventID 1 to view First (direct)");
+                                              "Dispatch PLAYBACK_COMMAND_START (1) to view First (direct)");
 
     all_mock_views[0]->expect_process_event(ViewIface::InputResult::SHOULD_HIDE,
                                             UI::ViewEventID::PLAYBACK_COMMAND_START, false);
@@ -691,7 +691,7 @@ void test_input_command_with_need_to_hide_nonbrowse_view(void)
 
     mock_messages->expect_msg_info_formatted("Requested to activate view \"Third\"");
     mock_messages->expect_msg_vinfo_formatted(MESSAGE_LEVEL_DEBUG,
-                                              "Dispatch ViewEventID 1 to view Third (direct)");
+                                              "Dispatch PLAYBACK_COMMAND_START (1) to view Third (direct)");
     all_mock_views[0]->expect_defocus();
     all_mock_views[2]->expect_focus();
     all_mock_views[2]->expect_serialize(*views_output);
@@ -731,7 +731,7 @@ void test_input_command_with_need_to_hide_browse_view_never_works(void)
 
     mock_messages->expect_msg_info_formatted("Requested to activate view \"Second\"");
     mock_messages->expect_msg_vinfo_formatted(MESSAGE_LEVEL_DEBUG,
-                                              "Dispatch ViewEventID 1 to view Second (direct)");
+                                              "Dispatch PLAYBACK_COMMAND_START (1) to view Second (direct)");
     all_mock_views[0]->expect_defocus();
     all_mock_views[1]->expect_focus();
     all_mock_views[1]->expect_serialize(*views_output);
@@ -772,7 +772,7 @@ void test_input_command_with_data(void)
     vm->store_event(UI::EventID::PLAYBACK_FAST_WIND_SET_SPEED, std::move(speed_factor));
 
     mock_messages->expect_msg_vinfo_formatted(MESSAGE_LEVEL_DEBUG,
-                                              "Dispatch ViewEventID 6 to view Play (bounced)");
+                                              "Dispatch PLAYBACK_FAST_WIND_SET_SPEED (6) to view Play (bounced)");
 
     ViewMock::View view("Play", false);
     cut_assert_true(view.init());
@@ -798,7 +798,7 @@ void test_input_command_with_missing_data(void)
     vm->store_event(UI::EventID::PLAYBACK_FAST_WIND_SET_SPEED);
 
     mock_messages->expect_msg_vinfo_formatted(MESSAGE_LEVEL_DEBUG,
-                                              "Dispatch ViewEventID 6 to view Play (bounced)");
+                                              "Dispatch PLAYBACK_FAST_WIND_SET_SPEED (6) to view Play (bounced)");
 
     ViewMock::View view("Play", false);
     cut_assert_true(view.init());

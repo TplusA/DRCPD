@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2017  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -71,6 +71,8 @@ enum class ViewEventID
     NOTIFY_STREAM_STOPPED,
     NOTIFY_STREAM_PAUSED,
     NOTIFY_STREAM_POSITION,
+
+    LAST_VIEW_EVENT_ID = NOTIFY_STREAM_POSITION,
 };
 
 /*!

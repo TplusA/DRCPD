@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016, 2017  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -167,7 +167,38 @@ void ViewManager::Manager::store_event(UI::EventID event_id,
 static void log_event_dispatch(const UI::ViewEventID event_id,
                                const char *view_name, bool was_bounced)
 {
-    msg_vinfo(MESSAGE_LEVEL_DEBUG, "Dispatch ViewEventID %d to view %s (%s)",
+    static const std::array<const char *,
+                            static_cast<unsigned int>(UI::ViewEventID::LAST_VIEW_EVENT_ID) + 1> events
+    {
+        "NOP",
+        "PLAYBACK_COMMAND_START",
+        "PLAYBACK_COMMAND_STOP",
+        "PLAYBACK_COMMAND_PAUSE",
+        "PLAYBACK_PREVIOUS",
+        "PLAYBACK_NEXT",
+        "PLAYBACK_FAST_WIND_SET_SPEED",
+        "PLAYBACK_FAST_WIND_FORWARD",
+        "PLAYBACK_FAST_WIND_REVERSE",
+        "PLAYBACK_FAST_WIND_STOP",
+        "PLAYBACK_MODE_REPEAT_TOGGLE",
+        "PLAYBACK_MODE_SHUFFLE_TOGGLE",
+        "NAV_SELECT_ITEM",
+        "NAV_SCROLL_LINES",
+        "NAV_SCROLL_PAGES",
+        "NAV_GO_BACK_ONE_LEVEL",
+        "SEARCH_COMMENCE",
+        "SEARCH_STORE_PARAMETERS",
+        "STORE_STREAM_META_DATA",
+        "STORE_PRELOADED_META_DATA",
+        "NOTIFY_AIRABLE_SERVICE_LOGIN_STATUS_UPDATE",
+        "NOTIFY_NOW_PLAYING",
+        "NOTIFY_STREAM_STOPPED",
+        "NOTIFY_STREAM_PAUSED",
+        "NOTIFY_STREAM_POSITION",
+    };
+
+    msg_vinfo(MESSAGE_LEVEL_DEBUG, "Dispatch %s (%d) to view %s (%s)",
+              events[static_cast<unsigned int>(event_id)],
               static_cast<int>(event_id), view_name,
               was_bounced ? "bounced" : "direct");
 }
