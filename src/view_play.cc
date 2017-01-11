@@ -52,17 +52,26 @@ void ViewPlay::View::prepare_for_playing(const ViewIface &owning_view,
     const auto lock_ctrl(player_control_.lock());
     const auto lock_data(player_data_.lock());
 
-    player_control_.stop_request();
-
-    if(!player_control_.is_active_controller_for_view(owning_view))
+    if(player_control_.is_active_controller_for_view(owning_view))
     {
+        /* we already own the player, so we can do a "soft" jump to the newly
+         * selected stream to avoid going through stopped/playing signals and
+         * associated queue management (which would fail without extra
+         * precautions); we assume that the caller has pointed the crawler to
+         * the desired location */
+        player_control_.jump_to_crawler_location();
+    }
+    else
+    {
+        /* we do not own the player yet, so stop the player just in case it is
+         * playing, then plug to it */
+        player_control_.stop_request();
         player_control_.unplug();
         player_control_.plug(owning_view);
         player_control_.plug(player_data_);
+        player_control_.plug(crawler, permissions);
+        player_control_.play_request();
     }
-
-    player_control_.plug(crawler, permissions);
-    player_control_.play_request();
 }
 
 void ViewPlay::View::stop_playing(const ViewIface &owning_view)

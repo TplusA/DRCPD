@@ -277,6 +277,7 @@ class Control
     void play_request();
     void stop_request();
     void pause_request();
+    void jump_to_crawler_location();
     bool skip_forward_request();
     void skip_backward_request();
     void rewind_request();

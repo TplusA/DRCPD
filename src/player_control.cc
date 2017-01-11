@@ -420,6 +420,21 @@ void Player::Control::play_request()
     }
 }
 
+void Player::Control::jump_to_crawler_location()
+{
+    if(!is_active_controller())
+        return;
+
+    auto crawler_lock(crawler_->lock());
+
+    crawler_->set_direction_forward();
+    crawler_->find_next(std::bind(&Player::Control::found_list_item,
+                                  this,
+                                  std::placeholders::_1,
+                                  std::placeholders::_2,
+                                  CrawlerContext::IMMEDIATE_PLAY));
+}
+
 void Player::Control::stop_request()
 {
     if(is_active_controller())
