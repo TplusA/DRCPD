@@ -70,8 +70,9 @@ void ViewPlay::View::prepare_for_playing(const ViewIface &owning_view,
         player_control_.plug(owning_view);
         player_control_.plug(player_data_);
         player_control_.plug(crawler, permissions);
-        player_control_.play_request();
     }
+
+    player_control_.play_request();
 }
 
 void ViewPlay::View::stop_playing(const ViewIface &owning_view)
