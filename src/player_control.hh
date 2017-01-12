@@ -310,8 +310,19 @@ class Control
     void found_item_information(Playlist::CrawlerIface &crawler,
                                 Playlist::CrawlerIface::RetrieveItemInfoResult result,
                                 CrawlerContext ctx);
+    void resolved_redirect_for_found_item(size_t idx,
+                                          StreamPreplayInfo::ResolvedRedirectResult result,
+                                          CrawlerContext ctx, ID::OurStream for_stream,
+                                          QueueMode queue_mode, PlayNewMode play_new_mode);
+    void unexpected_resolve_error(size_t idx,
+                                  Player::StreamPreplayInfo::ResolvedRedirectResult result);;
 
-    bool process_crawler_item(QueueMode queue_mode, PlayNewMode play_new_mode);
+    StreamPreplayInfo::OpResult
+    process_crawler_item(CrawlerContext ctx, QueueMode queue_mode, PlayNewMode play_new_mode);
+    StreamPreplayInfo::OpResult
+    process_crawler_item_tail(CrawlerContext ctx, ID::OurStream stream_id,
+                              QueueMode queue_mode, PlayNewMode play_new_mode,
+                              const StreamPreplayInfo::ResolvedRedirectCallback &callback);
 
     ReplayResult replay(ID::OurStream stream_id, bool is_retry,
                         PlayNewMode mode, bool &tool_from_queue);

@@ -85,6 +85,7 @@ class SortedLinks
     }
 
     bool empty() const { return backing_store_.empty(); }
+    size_t size() const { return backing_store_.size(); }
 
     void add(RankedLink &&link)
     {
@@ -93,6 +94,19 @@ class SortedLinks
     }
 
     void finalize(const std::function<bool(uint32_t)> &is_bitrate_in_range);
+
+    const RankedLink *operator[](size_t i) const
+    {
+        if(i < playable_.size())
+            return playable_[i];
+
+        i -= playable_.size();
+
+        if(i < stuttering_.size())
+            return stuttering_[i];
+
+        return nullptr;
+    }
 };
 
 }

@@ -39,6 +39,9 @@ enum class Source
     GETTING_ITEM_STREAM_LINKS,
     GETTING_LIST_RANGE,
     CHECKING_LIST_RANGE,
+
+    /* specific to Airable */
+    RESOLVING_AIRABLE_REDIRECT,
 };
 
 void init(const std::function<void(bool)> &state_changed_callback);

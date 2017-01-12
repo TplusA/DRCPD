@@ -22,16 +22,171 @@
 
 #include "player_data.hh"
 #include "view_play.hh"
+#include "de_tahifi_lists_errors.hh"
 #include "messages.h"
 
-static const std::string empty_string;
-
-const std::string &Player::StreamPreplayInfo::iter_next()
+static std::shared_ptr<Player::AsyncResolveRedirect>
+mk_async_resolve_redirect(tdbusAirable *proxy,
+                          DBus::AsyncResultAvailableFunction &&result_available_fn)
 {
-    if(next_uri_to_try_ < uris_.size())
-        return uris_[next_uri_to_try_++];
-    else
-        return empty_string;
+    return std::make_shared<Player::AsyncResolveRedirect>(
+        proxy,
+        [] (GObject *source_object) { return TDBUS_AIRABLE(source_object); },
+        [] (DBus::AsyncResult &async_ready,
+            Player::AsyncResolveRedirect::PromiseType &promise,
+            tdbusAirable *p, GAsyncResult *async_result, GError *&error)
+        {
+            guchar error_code = 0;
+            gchar *uri = NULL;
+
+            async_ready =
+                tdbus_airable_call_resolve_redirect_finish(
+                    p, &error_code, &uri, async_result, &error)
+                ? DBus::AsyncResult::READY
+                : DBus::AsyncResult::FAILED;
+
+            if(async_ready == DBus::AsyncResult::FAILED)
+                msg_error(0, LOG_NOTICE,
+                          "Async D-Bus method call failed: %s",
+                          error != nullptr ? error->message : "*NULL*");
+
+            promise.set_value(std::move(std::make_tuple(error_code, uri)));
+        },
+        std::move(result_available_fn),
+        [] (Player::AsyncResolveRedirect::PromiseReturnType &values)
+        {
+            if(std::get<1>(values) != nullptr)
+                g_free(std::get<1>(values));
+        },
+        [] () { return true; });
+}
+
+Player::StreamPreplayInfo::OpResult
+Player::StreamPreplayInfo::iter_next(tdbusAirable *proxy, std::string *&uri,
+                                     const ResolvedRedirectCallback &callback)
+{
+    if(airable_links_.empty())
+    {
+        iter_next_resolved(uri);
+        return OpResult::SUCCEEDED;
+    }
+
+    /* try cached resolved URIs first */
+    if(iter_next_resolved(uri))
+        return OpResult::SUCCEEDED;
+
+    AsyncResolveRedirect::cancel_and_delete(async_resolve_redirect_call_);
+
+    if(next_uri_to_try_ >= airable_links_.size())
+    {
+        /* end of list */
+        uri = nullptr;
+        return OpResult::SUCCEEDED;
+    }
+
+    async_resolve_redirect_call_ =
+        mk_async_resolve_redirect(proxy,
+                                  std::bind(&Player::StreamPreplayInfo::process_resolved_redirect,
+                                            this, std::placeholders::_1,
+                                            next_uri_to_try_, callback));
+
+    if(async_resolve_redirect_call_ == nullptr)
+        return OpResult::FAILED;
+
+    const Airable::RankedLink *const link = airable_links_[next_uri_to_try_];
+    log_assert(link != nullptr);
+
+    msg_vinfo(MESSAGE_LEVEL_DIAG, "Resolving Airable redirect at %zu: \"%s\"",
+              next_uri_to_try_,  link->get_stream_link().c_str());
+
+    async_resolve_redirect_call_->invoke(tdbus_airable_call_resolve_redirect,
+                                         link->get_stream_link().c_str());
+
+    return OpResult::STARTED;
+}
+
+/*!
+ * Invoke callback if avalable.
+ */
+template <typename CBType, typename ResultType>
+static void call_callback(CBType callback, size_t idx, ResultType result)
+{
+    if(callback != nullptr)
+        callback(idx, result);
+}
+
+static Player::StreamPreplayInfo::ResolvedRedirectResult
+map_asyncresult_to_resolve_redirect_result(const DBus::AsyncResult &async_result)
+{
+    switch(async_result)
+    {
+      case DBus::AsyncResult::INITIALIZED:
+      case DBus::AsyncResult::IN_PROGRESS:
+      case DBus::AsyncResult::READY:
+      case DBus::AsyncResult::FAILED:
+        break;
+
+      case DBus::AsyncResult::DONE:
+        return Player::StreamPreplayInfo::ResolvedRedirectResult::FOUND;
+
+      case DBus::AsyncResult::CANCELED:
+      case DBus::AsyncResult::RESTARTED:
+        return Player::StreamPreplayInfo::ResolvedRedirectResult::CANCELED;
+    }
+
+    return Player::StreamPreplayInfo::ResolvedRedirectResult::FAILED;
+}
+
+void Player::StreamPreplayInfo::process_resolved_redirect(
+        DBus::AsyncCall_ &async_call, size_t idx,
+        const ResolvedRedirectCallback &callback)
+{
+    if(&async_call != async_resolve_redirect_call_.get())
+    {
+        msg_vinfo(MESSAGE_LEVEL_DEBUG,
+                  "Ignoring result for resolve request at index %zu, canceled",
+                  idx);
+        call_callback(callback, idx, ResolvedRedirectResult::CANCELED);
+        return;
+    }
+
+    log_assert(idx == next_uri_to_try_);
+    log_assert(idx == uris_.size());
+
+    auto &async(static_cast<AsyncResolveRedirect &>(async_call));
+    DBus::AsyncResult async_result(async.wait_for_result());
+
+    if(!async.success() ||
+       async_result != DBus::AsyncResult::DONE)
+    {
+        msg_error(0, LOG_ERR,
+                  "Resolve request for URI at index %zu failed: %u",
+                  idx, static_cast<unsigned int>(async_result));
+        call_callback(callback, idx, map_asyncresult_to_resolve_redirect_result(async_result));
+        async_resolve_redirect_call_.reset();
+        return;
+    }
+
+    const auto &result(async.get_result(async_result));
+    const ListError error(std::get<0>(result));
+
+    if(error != ListError::Code::OK)
+    {
+        msg_error(0, LOG_ERR,
+                  "Got error %s instead of resolved URI at index %zu",
+                  error.to_string(), idx);
+        call_callback(callback, idx, ResolvedRedirectResult::FAILED);
+        return;
+    }
+
+    gchar *const uri(std::get<1>(result));
+    uris_.push_back(uri);
+
+    msg_vinfo(MESSAGE_LEVEL_DIAG,
+              "Resolved Airable redirect at %zu: \"%s\"", idx, uri);
+
+
+    call_callback(callback, idx, ResolvedRedirectResult::FOUND);
 }
 
 bool Player::StreamPreplayInfoCollection::store(ID::OurStream stream_id,
@@ -119,23 +274,37 @@ ID::OurStream Player::Data::store_stream_preplay_information(std::vector<std::st
     }
 }
 
-const std::string &Player::Data::get_first_stream_uri(const ID::OurStream stream_id)
+Player::StreamPreplayInfo::OpResult
+Player::Data::get_first_stream_uri(const ID::OurStream stream_id, std::string *&uri,
+                                   const StreamPreplayInfo::ResolvedRedirectCallback &callback)
 {
     Player::StreamPreplayInfo *const info = preplay_info_.get_info_for_update(stream_id);
 
     if(info != nullptr)
     {
         info->iter_reset();
-        return info->iter_next();
+        return info->iter_next(airable_proxy_, uri, callback);
     }
-
-    return empty_string;
+    else
+    {
+        uri = nullptr;
+        return Player::StreamPreplayInfo::OpResult::SUCCEEDED;
+    }
 }
 
-const std::string &Player::Data::get_next_stream_uri(const ID::OurStream stream_id)
+Player::StreamPreplayInfo::OpResult
+Player::Data::get_next_stream_uri(const ID::OurStream stream_id, std::string *&uri,
+                                   const StreamPreplayInfo::ResolvedRedirectCallback &callback)
 {
     Player::StreamPreplayInfo *const info = preplay_info_.get_info_for_update(stream_id);
-    return (info != nullptr) ? info->iter_next() : empty_string;
+
+    if(info != nullptr)
+        return info->iter_next(airable_proxy_, uri, callback);
+    else
+    {
+        uri = nullptr;
+        return Player::StreamPreplayInfo::OpResult::SUCCEEDED;
+    }
 }
 
 static bool too_many_meta_data_entries(const MetaData::Collection &meta_data)

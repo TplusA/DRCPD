@@ -23,8 +23,11 @@
 #include <string>
 
 #include "metadata.hh"
+#include "dbus_async.hh"
+#include "airable_dbus.h"
 #include "airable_links.hh"
 #include "logged_lock.hh"
+#include "dbus_iface_deep.h"
 
 namespace Player
 {
@@ -62,6 +65,10 @@ enum class StreamState
 
 using AppStream = ID::SourcedStream<STREAM_ID_SOURCE_APP>;
 
+using AsyncResolveRedirect =
+    DBus::AsyncCall<tdbusAirable, std::tuple<guchar, gchar *>,
+                    Busy::Source::RESOLVING_AIRABLE_REDIRECT>;
+
 /*!
  * Information about a stream before it is played.
  */
@@ -77,11 +84,31 @@ class StreamPreplayInfo
     /* for recovering the list crawler state */
     const unsigned int directory_depth_;
 
+    enum class OpResult
+    {
+        STARTED,
+        SUCCEEDED,
+        FAILED,
+        CANCELED,
+    };
+
+    enum class ResolvedRedirectResult
+    {
+        FOUND,
+        FAILED,
+        CANCELED,
+    };
+
+    using ResolvedRedirectCallback =
+        std::function<void(size_t idx, ResolvedRedirectResult result)>;
+
   private:
     std::vector<std::string> uris_;
     Airable::SortedLinks airable_links_;
 
     size_t next_uri_to_try_;
+
+    std::shared_ptr<AsyncResolveRedirect> async_resolve_redirect_call_;
 
   public:
     StreamPreplayInfo(const StreamPreplayInfo &) = delete;
@@ -100,8 +127,37 @@ class StreamPreplayInfo
         next_uri_to_try_(0)
     {}
 
-    void iter_reset() { next_uri_to_try_ = 0; }
-    const std::string &iter_next();
+    ~StreamPreplayInfo()
+    {
+        AsyncResolveRedirect::cancel_and_delete(async_resolve_redirect_call_);
+    }
+
+    void iter_reset()
+    {
+        AsyncResolveRedirect::cancel_and_delete(async_resolve_redirect_call_);
+        next_uri_to_try_ = 0;
+    }
+
+    OpResult iter_next(tdbusAirable *proxy, std::string *&uri,
+                       const ResolvedRedirectCallback &callback);
+
+  private:
+    bool iter_next_resolved(std::string *&uri)
+    {
+        if(next_uri_to_try_ < uris_.size())
+        {
+            uri = &uris_[next_uri_to_try_++];
+            return true;
+        }
+        else
+        {
+            uri = nullptr;
+            return false;
+        }
+    }
+
+    void process_resolved_redirect(DBus::AsyncCall_ &async_call, size_t idx,
+                                   const ResolvedRedirectCallback &callback);
 };
 
 class StreamPreplayInfoCollection
@@ -159,6 +215,8 @@ class Data
     std::chrono::milliseconds stream_position_;
     std::chrono::milliseconds stream_duration_;
 
+    tdbusAirable *airable_proxy_;
+
   public:
     Data(const Data &) = delete;
     Data &operator=(const Data &) = delete;
@@ -170,7 +228,8 @@ class Data
         next_free_stream_id_(ID::OurStream::make()),
         queued_app_streams_{AppStream::make_invalid(), AppStream::make_invalid()},
         stream_position_(-1),
-        stream_duration_(-1)
+        stream_duration_(-1),
+        airable_proxy_(dbus_get_airable_sec_iface())
     {}
 
     /*!
@@ -239,8 +298,12 @@ class Data
                                                    Airable::SortedLinks &&airable_links,
                                                    ID::List list_id, unsigned int line,
                                                    unsigned int directory_depth);
-    const std::string &get_first_stream_uri(const ID::OurStream stream_id);
-    const std::string &get_next_stream_uri(const ID::OurStream stream_id);
+    Player::StreamPreplayInfo::OpResult
+    get_first_stream_uri(const ID::OurStream stream_id, std::string *&uri,
+                         const StreamPreplayInfo::ResolvedRedirectCallback &callback);
+    Player::StreamPreplayInfo::OpResult
+    get_next_stream_uri(const ID::OurStream stream_id, std::string *&uri,
+                        const StreamPreplayInfo::ResolvedRedirectCallback &callback);
 
     const StreamPreplayInfo *get_stream_preplay_info(const ID::OurStream stream_id) const
     {

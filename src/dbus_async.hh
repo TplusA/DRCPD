@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2017  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -22,8 +22,11 @@
 #include <future>
 #include <functional>
 
+#include <gio/gio.h>
+
 #include "logged_lock.hh"
 #include "busy.hh"
+#include "messages.h"
 
 namespace DBus
 {

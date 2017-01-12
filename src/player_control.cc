@@ -1210,19 +1210,26 @@ static bool send_selected_file_uri_to_streamplayer(ID::OurStream stream_id,
     return true;
 }
 
-static bool queue_stream_or_forget(Player::Data &player,
-                                   ID::OurStream stream_id,
-                                   Player::Control::QueueMode queue_mode,
-                                   Player::Control::PlayNewMode play_new_mode)
+static Player::StreamPreplayInfo::OpResult
+queue_stream_or_forget(Player::Data &player, ID::OurStream stream_id,
+                       Player::Control::QueueMode queue_mode,
+                       Player::Control::PlayNewMode play_new_mode,
+                       const Player::StreamPreplayInfo::ResolvedRedirectCallback &callback)
 {
+    std::string *uri = nullptr;
+    const auto result(player.get_first_stream_uri(stream_id, uri, callback));
+
+    if(uri == nullptr)
+        return result;
+
     if(!send_selected_file_uri_to_streamplayer(stream_id, queue_mode, play_new_mode,
-                                               player.get_first_stream_uri(stream_id)))
+                                               *uri))
     {
         player.forget_stream(stream_id.get());
-        return false;
+        return Player::StreamPreplayInfo::OpResult::FAILED;
     }
 
-    return true;
+    return result;
 }
 
 Player::Control::StopReaction
@@ -1632,7 +1639,7 @@ void Player::Control::found_item_information(Playlist::CrawlerIface &crawler,
     }
 
     bool prefetch_more = false;
-    bool queuing_failed = false;
+    StreamPreplayInfo::OpResult queuing_result = StreamPreplayInfo::OpResult::SUCCEEDED;
 
     switch(result)
     {
@@ -1654,8 +1661,9 @@ void Player::Control::found_item_information(Playlist::CrawlerIface &crawler,
                 /* fall-through */
 
               case UserIntention::PAUSING:
-                queuing_failed = !process_crawler_item(QueueMode::REPLACE_ALL,
-                                                       PlayNewMode::SEND_PAUSE_COMMAND_IF_IDLE);
+                queuing_result =
+                    process_crawler_item(ctx, QueueMode::REPLACE_ALL,
+                                         PlayNewMode::SEND_PAUSE_COMMAND_IF_IDLE);
                 prefetch_state_ = PrefetchState::NOT_PREFETCHING;
                 prefetch_more = true;
                 break;
@@ -1666,11 +1674,12 @@ void Player::Control::found_item_information(Playlist::CrawlerIface &crawler,
                 /* fall-through */
 
               case UserIntention::LISTENING:
-                queuing_failed = !process_crawler_item(QueueMode::REPLACE_ALL,
-                                                       PlayNewMode::SEND_PLAY_COMMAND_IF_IDLE);
+                queuing_result =
+                    process_crawler_item(ctx, QueueMode::REPLACE_ALL,
+                                         PlayNewMode::SEND_PLAY_COMMAND_IF_IDLE);
                 prefetch_state_ = PrefetchState::NOT_PREFETCHING;
 
-                if(!queuing_failed)
+                if(queuing_result == StreamPreplayInfo::OpResult::SUCCEEDED)
                     send_play_command();
 
                 break;
@@ -1693,8 +1702,8 @@ void Player::Control::found_item_information(Playlist::CrawlerIface &crawler,
 
               case UserIntention::PAUSING:
               case UserIntention::LISTENING:
-                queuing_failed = !process_crawler_item(QueueMode::APPEND,
-                                                       PlayNewMode::KEEP);
+                queuing_result =
+                    process_crawler_item(ctx, QueueMode::APPEND, PlayNewMode::KEEP);
                 prefetch_state_ = PrefetchState::NOT_PREFETCHING;
                 prefetch_more = true;
                 break;
@@ -1726,8 +1735,8 @@ void Player::Control::found_item_information(Playlist::CrawlerIface &crawler,
                 if(play_new_mode != PlayNewMode::KEEP)
                 {
                     skip_requests_.stop_skipping(*player_, *crawler_);
-                    queuing_failed = !process_crawler_item(QueueMode::REPLACE_ALL,
-                                                           play_new_mode);
+                    queuing_result =
+                        process_crawler_item(ctx, QueueMode::REPLACE_ALL, play_new_mode);
                     prefetch_state_ = PrefetchState::NOT_PREFETCHING;
                     prefetch_more = true;
                 }
@@ -1736,7 +1745,7 @@ void Player::Control::found_item_information(Playlist::CrawlerIface &crawler,
             break;
         }
 
-        if(queuing_failed)
+        if(queuing_result != StreamPreplayInfo::OpResult::SUCCEEDED)
             prefetch_more = false;
 
         break;
@@ -1777,6 +1786,127 @@ void Player::Control::found_item_information(Playlist::CrawlerIface &crawler,
     }
 }
 
+void Player::Control::resolved_redirect_for_found_item(size_t idx,
+                                                       StreamPreplayInfo::ResolvedRedirectResult result,
+                                                       CrawlerContext ctx,
+                                                       ID::OurStream for_stream,
+                                                       QueueMode queue_mode,
+                                                       PlayNewMode play_new_mode)
+{
+    auto locks(lock());
+
+    if(player_ == nullptr || crawler_ == nullptr)
+    {
+        BUG("Resolved redirect, but not attached to player and/or crawler anymore");
+        return;
+    }
+
+    switch(result)
+    {
+      case StreamPreplayInfo::ResolvedRedirectResult::FOUND:
+        break;
+
+      case StreamPreplayInfo::ResolvedRedirectResult::FAILED:
+        BUG("Resolving link at %zu canceled, but case not handled", idx);
+        return;
+
+      case StreamPreplayInfo::ResolvedRedirectResult::CANCELED:
+        BUG("Resolving link at %zu failed, but case not handled", idx);
+        return;
+    }
+
+    bool prefetch_more = false;
+    StreamPreplayInfo::OpResult queuing_result = StreamPreplayInfo::OpResult::SUCCEEDED;
+
+    switch(ctx)
+    {
+      case CrawlerContext::IMMEDIATE_PLAY:
+        switch(player_->get_intention())
+        {
+          case UserIntention::NOTHING:
+          case UserIntention::STOPPING:
+            break;
+
+          case UserIntention::SKIPPING_PAUSED:
+          case UserIntention::PAUSING:
+            queuing_result =
+                process_crawler_item_tail(ctx, for_stream,
+                                          queue_mode, play_new_mode,
+                                          std::bind(&Player::Control::unexpected_resolve_error, this,
+                                                    std::placeholders::_1, std::placeholders::_2));
+            prefetch_more = true;
+            break;
+
+          case UserIntention::SKIPPING_LIVE:
+          case UserIntention::LISTENING:
+            queuing_result =
+                process_crawler_item_tail(ctx, for_stream,
+                                          queue_mode, play_new_mode,
+                                          std::bind(&Player::Control::unexpected_resolve_error, this,
+                                                    std::placeholders::_1, std::placeholders::_2));
+
+            if(queuing_result == StreamPreplayInfo::OpResult::SUCCEEDED)
+                send_play_command();
+
+            break;
+        }
+
+        break;
+
+      case CrawlerContext::PREFETCH:
+        switch(player_->get_intention())
+        {
+          case UserIntention::NOTHING:
+          case UserIntention::STOPPING:
+            break;
+
+          case UserIntention::SKIPPING_PAUSED:
+          case UserIntention::SKIPPING_LIVE:
+          case UserIntention::PAUSING:
+          case UserIntention::LISTENING:
+            queuing_result =
+                process_crawler_item_tail(ctx, for_stream,
+                                          queue_mode, play_new_mode,
+                                          std::bind(&Player::Control::unexpected_resolve_error, this,
+                                                    std::placeholders::_1, std::placeholders::_2));
+            prefetch_more = true;
+            break;
+        }
+
+        break;
+
+      case CrawlerContext::SKIP:
+        if(play_new_mode != PlayNewMode::KEEP)
+        {
+            queuing_result =
+                process_crawler_item_tail(ctx, for_stream,
+                                          queue_mode, play_new_mode,
+                                          std::bind(&Player::Control::unexpected_resolve_error, this,
+                                                    std::placeholders::_1, std::placeholders::_2));
+            prefetch_more = true;
+        }
+
+        break;
+    }
+
+    if(queuing_result != StreamPreplayInfo::OpResult::SUCCEEDED)
+        prefetch_more = false;
+
+    if(prefetch_more)
+    {
+        crawler_->set_direction_forward();
+        need_next_item_hint(false);
+    }
+}
+
+void Player::Control::unexpected_resolve_error(size_t idx,
+                                               Player::StreamPreplayInfo::ResolvedRedirectResult result)
+{
+    BUG("Asynchronous resolution of Airable redirect failed unexpectedly "
+        "for URL at index %zu, result %u", idx, static_cast<unsigned int>(result));
+    unplug();
+}
+
 static MetaData::Set mk_meta_data_from_preloaded_information(const ViewFileBrowser::FileItem &file_item)
 {
     const auto &preloaded(file_item.get_preloaded_meta_data());
@@ -1791,11 +1921,12 @@ static MetaData::Set mk_meta_data_from_preloaded_information(const ViewFileBrows
     return meta_data;
 }
 
-bool Player::Control::process_crawler_item(QueueMode queue_mode,
-                                           PlayNewMode play_new_mode)
+Player::StreamPreplayInfo::OpResult
+Player::Control::process_crawler_item(CrawlerContext ctx, QueueMode queue_mode,
+                                      PlayNewMode play_new_mode)
 {
     if(player_ == nullptr || crawler_ == nullptr)
-        return false;
+        return StreamPreplayInfo::OpResult::CANCELED;
 
     auto crawler_lock(crawler_->lock());
 
@@ -1816,7 +1947,7 @@ bool Player::Control::process_crawler_item(QueueMode queue_mode,
                                         item_info.position_.directory_depth_));
 
     if(!stream_id.get().is_valid())
-        return false;
+        return StreamPreplayInfo::OpResult::FAILED;
 
     switch(queue_mode)
     {
@@ -1837,12 +1968,35 @@ bool Player::Control::process_crawler_item(QueueMode queue_mode,
     player_->put_meta_data(stream_id.get(),
                            std::move(mk_meta_data_from_preloaded_information(*item_info.file_item_)));
 
-    if(!queue_stream_or_forget(*player_, stream_id, queue_mode, play_new_mode))
-        return false;
+    return process_crawler_item_tail(ctx, stream_id, queue_mode, play_new_mode,
+                                     std::bind(&Player::Control::resolved_redirect_for_found_item,
+                                               this,
+                                               std::placeholders::_1, std::placeholders::_2,
+                                               ctx, stream_id, queue_mode, play_new_mode));
+}
 
-    queued_streams_.push_back(stream_id);
+Player::StreamPreplayInfo::OpResult
+Player::Control::process_crawler_item_tail(CrawlerContext ctx, ID::OurStream stream_id,
+                                           QueueMode queue_mode,
+                                           PlayNewMode play_new_mode,
+                                           const StreamPreplayInfo::ResolvedRedirectCallback &callback)
+{
+    const auto result(queue_stream_or_forget(*player_, stream_id, queue_mode,
+                                             play_new_mode, callback));
 
-    return true;
+    switch(result)
+    {
+      case StreamPreplayInfo::OpResult::SUCCEEDED:
+        queued_streams_.push_back(stream_id);
+        break;
+
+      case StreamPreplayInfo::OpResult::STARTED:
+      case StreamPreplayInfo::OpResult::FAILED:
+      case StreamPreplayInfo::OpResult::CANCELED:
+        break;
+    }
+
+    return result;
 }
 
 Player::Control::ReplayResult
@@ -1870,10 +2024,27 @@ Player::Control::replay(ID::OurStream stream_id, bool is_retry,
     if(is_retry)
         msg_info("Retry stream %u", stream_id.get().get_raw_id());
 
-    const bool is_queued =
-        queue_stream_or_forget(*player_, stream_id,
-                               Player::Control::QueueMode::REPLACE_ALL,
-                               play_new_mode);
+    bool is_queued = false;
+
+    switch(queue_stream_or_forget(*player_, stream_id,
+                                 Player::Control::QueueMode::REPLACE_ALL,
+                                 play_new_mode,
+                                 std::bind(&Player::Control::unexpected_resolve_error,
+                                           this,
+                                           std::placeholders::_1, std::placeholders::_2)))
+    {
+      case StreamPreplayInfo::OpResult::STARTED:
+        BUG("Unexpected async redirect resolution while replaying");
+        return ReplayResult::RETRY_FAILED_HARD;
+
+      case StreamPreplayInfo::OpResult::SUCCEEDED:
+        is_queued = true;
+        break;
+
+      case StreamPreplayInfo::OpResult::FAILED:
+      case StreamPreplayInfo::OpResult::CANCELED:
+        break;
+    }
 
     if(!is_queued && is_retry)
         return ReplayResult::RETRY_FAILED_HARD;
@@ -1885,11 +2056,23 @@ Player::Control::replay(ID::OurStream stream_id, bool is_retry,
 
     for(const auto id : queued_streams_)
     {
-        if(queue_stream_or_forget(*player_, id,
-                                  Player::Control::QueueMode::APPEND,
-                                  PlayNewMode::KEEP))
+        switch(queue_stream_or_forget(*player_, id,
+                                      QueueMode::APPEND,
+                                      PlayNewMode::KEEP,
+                                      std::bind(&Player::Control::unexpected_resolve_error, this,
+                                                std::placeholders::_1, std::placeholders::_2)))
         {
+          case Player::StreamPreplayInfo::OpResult::STARTED:
+            BUG("Unexpected queuing result while replaying");
+            break;
+
+          case Player::StreamPreplayInfo::OpResult::SUCCEEDED:
             temp.push_back(id);
+            break;
+
+          case Player::StreamPreplayInfo::OpResult::FAILED:
+          case Player::StreamPreplayInfo::OpResult::CANCELED:
+            break;
         }
     }
 
