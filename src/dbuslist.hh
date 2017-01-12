@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016, 2017  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -792,6 +792,13 @@ class DBusList: public ListIface, public AsyncListIface
 
     ID::List get_list_id() const override { return window_.list_id_; }
     void list_invalidate(ID::List list_id, ID::List replacement_id);
+
+    const ContextInfo &get_context_info_by_list_id(ID::List id) const;
+
+    const ContextInfo &get_context_info() const
+    {
+        return get_context_info_by_list_id(window_.list_id_);
+    }
 
     tdbuslistsNavigation *get_dbus_proxy() const { return dbus_proxy_; }
 

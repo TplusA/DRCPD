@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016, 2017  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -441,6 +441,11 @@ void List::DBusList::list_invalidate(ID::List list_id, ID::List replacement_id)
                                                 list_id, replacement_id);
     QueryContextGetItem::restart_if_necessary(async_dbus_data_.get_item_query_,
                                               list_id, replacement_id);
+}
+
+const List::ContextInfo &List::DBusList::get_context_info_by_list_id(ID::List id) const
+{
+    return list_contexts_[DBUS_LISTS_CONTEXT_GET(id.get_raw_id())];
 }
 
 bool List::QueryContextEnterList::run_async(DBus::AsyncResultAvailableFunction &&result_available)
