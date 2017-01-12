@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2017  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -36,6 +36,7 @@ enum class Source
     GETTING_LIST_ID,
     GETTING_PARENT_LINK,
     GETTING_ITEM_URI,
+    GETTING_ITEM_STREAM_LINKS,
     GETTING_LIST_RANGE,
     CHECKING_LIST_RANGE,
 };

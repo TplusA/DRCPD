@@ -23,6 +23,7 @@
 #include "dbuslist.hh"
 #include "listnav.hh"
 #include "view_filebrowser_fileitem.hh"
+#include "airable_links.hh"
 
 namespace ViewFileBrowser { class View; }
 
@@ -60,7 +61,9 @@ class DirectoryCrawler: public CrawlerIface
       public:
         MarkedPosition position_;
         const ViewFileBrowser::FileItem *file_item_;
+
         std::vector<std::string> stream_uris_;
+        Airable::SortedLinks airable_links_;
 
         ItemInfo(const ItemInfo &) = delete;
         ItemInfo &operator=(const ItemInfo &) = delete;
@@ -74,6 +77,7 @@ class DirectoryCrawler: public CrawlerIface
             position_.set(ID::List(), 0, 0);
             file_item_ = nullptr;
             stream_uris_.clear();
+            airable_links_.clear();
         }
 
         void set(ID::List list_id, unsigned int line,
@@ -83,14 +87,25 @@ class DirectoryCrawler: public CrawlerIface
             position_.set(list_id, line, directory_depth);
             file_item_ = file_item;
             stream_uris_.clear();
+            airable_links_.clear();
         }
     };
+
+    template <typename T>
+    struct ProcessItemTraits;
 
     /*!
      * Async call for getting stream URIs.
      */
     using AsyncGetURIs = DBus::AsyncCall<tdbuslistsNavigation, std::tuple<guchar, gchar **>,
                                          Busy::Source::GETTING_ITEM_URI>;
+
+    /*!
+     * Async call for getting Airable stream link URIs.
+     */
+    using AsyncGetStreamLinks =
+        DBus::AsyncCall<tdbuslistsNavigation, std::tuple<guchar, GVariant *>,
+                        Busy::Source::GETTING_ITEM_STREAM_LINKS>;
 
   private:
     tdbuslistsNavigation *dbus_proxy_;
@@ -147,6 +162,7 @@ class DirectoryCrawler: public CrawlerIface
     bool is_resetting_to_marked_position_;
 
     std::shared_ptr<AsyncGetURIs> async_get_uris_call_;
+    std::shared_ptr<AsyncGetStreamLinks> async_get_stream_links_call_;
 
     ItemInfo current_item_info_;
 
@@ -233,10 +249,16 @@ class DirectoryCrawler: public CrawlerIface
                                              const FindNextCallback &callback,
                                              bool expecting_file_item);
     bool do_retrieve_item_information(const RetrieveItemInfoCallback &callback);
+
+    template <typename AsyncT, typename Traits = ProcessItemTraits<AsyncT>>
     void process_item_information(DBus::AsyncCall_ &async_call,
                                   ID::List list_id, unsigned int line,
                                   unsigned int directory_depth,
                                   const RetrieveItemInfoCallback &callback);
+
+    template <typename AsyncT>
+    std::shared_ptr<AsyncT> &get_async_call_ptr();
+
     void handle_enter_list_event(List::AsyncListIface::OpResult result,
                                  const std::shared_ptr<List::QueryContextEnterList> &ctx);
     void handle_get_item_event(List::AsyncListIface::OpResult result,

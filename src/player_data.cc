@@ -36,13 +36,15 @@ const std::string &Player::StreamPreplayInfo::iter_next()
 
 bool Player::StreamPreplayInfoCollection::store(ID::OurStream stream_id,
                                                 std::vector<std::string> &&uris,
+                                                Airable::SortedLinks &&airable_links,
                                                 ID::List list_id, unsigned int line,
                                                 unsigned int directory_depth)
 {
     const auto result =
         stream_ppinfos_.emplace(stream_id,
-                                StreamPreplayInfo(std::move(uris), list_id, line,
-                                                  directory_depth));
+                                StreamPreplayInfo(std::move(uris),
+                                                  std::move(airable_links),
+                                                  list_id, line, directory_depth));
 
     return (result.first != stream_ppinfos_.end() && result.second);
 }
@@ -91,10 +93,10 @@ static void unref_list_id(std::map<ID::List, size_t> &list_refcounts,
 }
 
 ID::OurStream Player::Data::store_stream_preplay_information(std::vector<std::string> &&uris,
+                                                             Airable::SortedLinks &&airable_links,
                                                              ID::List list_id, unsigned int line,
                                                              unsigned int directory_depth)
 {
-    log_assert(!uris.empty());
     log_assert(list_id.is_valid());
 
     if(preplay_info_.is_full())
@@ -108,7 +110,8 @@ ID::OurStream Player::Data::store_stream_preplay_information(std::vector<std::st
         const ID::OurStream id = next_free_stream_id_;
         ++next_free_stream_id_;
 
-        if(preplay_info_.store(id, std::move(uris), list_id, line, directory_depth))
+        if(preplay_info_.store(id, std::move(uris), std::move(airable_links),
+                               list_id, line, directory_depth))
         {
             ref_list_id(referenced_lists_, list_id);
             return id;

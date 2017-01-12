@@ -246,26 +246,32 @@ get_default_data_for_context(const char *string_id)
                         List::ContextInfo::SEARCH_NOT_POSSIBLE,
                         &airable),
         std::make_tuple("airable.radios",
-                        List::ContextInfo::HAS_PROPER_SEARCH_FORM,
+                        List::ContextInfo::HAS_PROPER_SEARCH_FORM |
+                        List::ContextInfo::HAS_RANKED_STREAMS,
                         &airable_radios),
         std::make_tuple("airable.feeds",
-                        List::ContextInfo::HAS_PROPER_SEARCH_FORM,
+                        List::ContextInfo::HAS_PROPER_SEARCH_FORM |
+                        List::ContextInfo::HAS_RANKED_STREAMS,
                         &airable_feeds),
         std::make_tuple("tidal",
                         List::ContextInfo::HAS_EXTERNAL_META_DATA |
-                        List::ContextInfo::HAS_PROPER_SEARCH_FORM,
+                        List::ContextInfo::HAS_PROPER_SEARCH_FORM |
+                        List::ContextInfo::HAS_RANKED_STREAMS,
                         &any_streaming_service),
         std::make_tuple("deezer",
                         List::ContextInfo::HAS_EXTERNAL_META_DATA |
-                        List::ContextInfo::HAS_PROPER_SEARCH_FORM,
+                        List::ContextInfo::HAS_PROPER_SEARCH_FORM |
+                        List::ContextInfo::HAS_RANKED_STREAMS,
                         &any_streaming_service),
         std::make_tuple("deezer.program",
                         List::ContextInfo::HAS_EXTERNAL_META_DATA |
-                        List::ContextInfo::HAS_PROPER_SEARCH_FORM,
+                        List::ContextInfo::HAS_PROPER_SEARCH_FORM |
+                        List::ContextInfo::HAS_RANKED_STREAMS,
                         &deezer_program),
         std::make_tuple("qobuz",
                         List::ContextInfo::HAS_EXTERNAL_META_DATA |
-                        List::ContextInfo::HAS_PROPER_SEARCH_FORM,
+                        List::ContextInfo::HAS_PROPER_SEARCH_FORM |
+                        List::ContextInfo::HAS_RANKED_STREAMS,
                         &any_streaming_service),
     };
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2017  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -176,6 +176,27 @@ void tdbus_lists_navigation_call_get_uris(tdbuslistsNavigation *proxy,
 gboolean tdbus_lists_navigation_call_get_uris_finish(tdbuslistsNavigation *proxy,
     guchar *out_error_code, gchar ***out_uri_list, GAsyncResult *res,
     GError **error)
+{
+    cut_fail("Unexpected call of %s()", __func__);
+    return FALSE;
+}
+
+/*
+ * Dummy for the linker.
+ */
+void tdbus_lists_navigation_call_get_ranked_stream_links(tdbuslistsNavigation *proxy,
+    guint arg_list_id, guint arg_item_id, GCancellable *cancellable,
+    GAsyncReadyCallback callback, gpointer user_data)
+{
+    cut_fail("Unexpected call of %s()", __func__);
+}
+
+/*
+ * Dummy for the linker.
+ */
+gboolean tdbus_lists_navigation_call_get_ranked_stream_links_finish(
+    tdbuslistsNavigation *proxy, guchar *out_error_code,
+    GVariant **out_link_list, GAsyncResult *res, GError **error)
 {
     cut_fail("Unexpected call of %s()", __func__);
     return FALSE;

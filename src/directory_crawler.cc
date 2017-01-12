@@ -319,8 +319,6 @@ bool Playlist::DirectoryCrawler::try_get_dbuslist_item_after_started_or_successf
 
 /*!
  * Start retrieving URIs associated with selected item.
- *
- * \bug This function only returns a single URI. See tickets #13 and #285.
  */
 static std::shared_ptr<Playlist::DirectoryCrawler::AsyncGetURIs>
 mk_async_get_uris(tdbuslistsNavigation *proxy,
@@ -361,6 +359,45 @@ mk_async_get_uris(tdbuslistsNavigation *proxy,
                 g_free(*ptr);
 
             g_free(strings);
+        },
+        [] () { return true; });
+}
+
+/*!
+ * Start retrieving ranked stream links associated with selected item.
+ */
+static std::shared_ptr<Playlist::DirectoryCrawler::AsyncGetStreamLinks>
+mk_async_get_stream_links(tdbuslistsNavigation *proxy,
+                          DBus::AsyncResultAvailableFunction &&result_available_fn)
+{
+    return std::make_shared<Playlist::DirectoryCrawler::AsyncGetStreamLinks>(
+        proxy,
+        [] (GObject *source_object) { return TDBUS_LISTS_NAVIGATION(source_object); },
+        [] (DBus::AsyncResult &async_ready,
+            Playlist::DirectoryCrawler::AsyncGetStreamLinks::PromiseType &promise,
+            tdbuslistsNavigation *p, GAsyncResult *async_result, GError *&error)
+        {
+            guchar error_code = 0;
+            GVariant *link_list = NULL;
+
+            async_ready =
+                tdbus_lists_navigation_call_get_ranked_stream_links_finish(
+                    p, &error_code, &link_list, async_result, &error)
+                ? DBus::AsyncResult::READY
+                : DBus::AsyncResult::FAILED;
+
+            if(async_ready == DBus::AsyncResult::FAILED)
+                msg_error(0, LOG_NOTICE,
+                          "Async D-Bus method call failed: %s",
+                          error != nullptr ? error->message : "*NULL*");
+
+            promise.set_value(std::move(std::make_tuple(error_code, link_list)));
+        },
+        std::move(result_available_fn),
+        [] (Playlist::DirectoryCrawler::AsyncGetStreamLinks::PromiseReturnType &values)
+        {
+            if(std::get<1>(values) != nullptr)
+                g_variant_unref(std::get<1>(values));
         },
         [] () { return true; });
 }
@@ -627,23 +664,44 @@ bool Playlist::DirectoryCrawler::do_retrieve_item_information(const RetrieveItem
         msg_info("Retrieving URIs for item \"%s\"",
                  dynamic_cast<const ViewFileBrowser::FileItem *>(item)->get_text());
 
-        if(async_get_uris_call_ != nullptr)
-            AsyncGetURIs::cancel_and_delete(async_get_uris_call_);
+        AsyncGetURIs::cancel_and_delete(async_get_uris_call_);
+        AsyncGetStreamLinks::cancel_and_delete(async_get_stream_links_call_);
 
-        async_get_uris_call_ =
-            mk_async_get_uris(dbus_proxy_,
-                              std::bind(&Playlist::DirectoryCrawler::process_item_information,
-                                        this, std::placeholders::_1,
-                                        traversal_list_.get_list_id(),
-                                        navigation_.get_cursor(),
-                                        directory_depth_, callback));
-
-        if(async_get_uris_call_ != nullptr)
+        if(traversal_list_.get_context_info().check_flags(List::ContextInfo::HAS_RANKED_STREAMS))
         {
-            async_get_uris_call_->invoke(tdbus_lists_navigation_call_get_uris,
-                                         traversal_list_.get_list_id().get_raw_id(),
-                                         navigation_.get_cursor());
-            return true;
+            async_get_stream_links_call_ =
+                mk_async_get_stream_links(dbus_proxy_,
+                                          std::bind(&Playlist::DirectoryCrawler::process_item_information<AsyncGetStreamLinks>,
+                                                    this, std::placeholders::_1,
+                                                    traversal_list_.get_list_id(),
+                                                    navigation_.get_cursor(),
+                                                    directory_depth_, callback));
+
+            if(async_get_stream_links_call_ != nullptr)
+            {
+                async_get_stream_links_call_->invoke(tdbus_lists_navigation_call_get_ranked_stream_links,
+                                                     traversal_list_.get_list_id().get_raw_id(),
+                                                     navigation_.get_cursor());
+                return true;
+            }
+        }
+        else
+        {
+            async_get_uris_call_ =
+                mk_async_get_uris(dbus_proxy_,
+                                  std::bind(&Playlist::DirectoryCrawler::process_item_information<AsyncGetURIs>,
+                                            this, std::placeholders::_1,
+                                            traversal_list_.get_list_id(),
+                                            navigation_.get_cursor(),
+                                            directory_depth_, callback));
+
+            if(async_get_uris_call_ != nullptr)
+            {
+                async_get_uris_call_->invoke(tdbus_lists_navigation_call_get_uris,
+                                             traversal_list_.get_list_id().get_raw_id(),
+                                             navigation_.get_cursor());
+                return true;
+            }
         }
 
         msg_out_of_memory("asynchronous D-Bus call");
@@ -664,6 +722,83 @@ bool Playlist::DirectoryCrawler::do_retrieve_item_information(const RetrieveItem
     return false;
 }
 
+static bool is_uri_acceptable(const char *uri)
+{
+    return uri != NULL && uri[0] != '\0';
+}
+
+namespace Playlist
+{
+    template <>
+    struct DirectoryCrawler::ProcessItemTraits<DirectoryCrawler::AsyncGetURIs>
+    {
+        static bool fill_item_info_from_result(DirectoryCrawler::ItemInfo &item_info,
+                                               const DirectoryCrawler::AsyncGetURIs::PromiseReturnType &result)
+        {
+            gchar **const uri_list(std::get<1>(result));
+
+            if(uri_list == NULL)
+                return false;
+
+            for(gchar **ptr = uri_list; *ptr != NULL; ++ptr)
+            {
+                if(is_uri_acceptable(*ptr))
+                {
+                    msg_info("URI: \"%s\"", *ptr);
+                    item_info.stream_uris_.push_back(*ptr);
+                }
+            }
+
+            return !item_info.stream_uris_.empty();
+        }
+    };
+
+    template <>
+    struct DirectoryCrawler::ProcessItemTraits<DirectoryCrawler::AsyncGetStreamLinks>
+    {
+        static bool fill_item_info_from_result(DirectoryCrawler::ItemInfo &item_info,
+                                               const DirectoryCrawler::AsyncGetStreamLinks::PromiseReturnType &result)
+        {
+            GVariant *const link_list(std::get<1>(result));
+            GVariantIter iter;
+
+            if(g_variant_iter_init(&iter, link_list) <= 0)
+                return false;
+
+            guint rank;
+            guint bitrate;
+            const gchar *link;
+
+            while(g_variant_iter_next(&iter, "(uu&s)", &rank, &bitrate, &link))
+            {
+                if(is_uri_acceptable(link))
+                {
+                    msg_vinfo(MESSAGE_LEVEL_DIAG,
+                              "Link: \"%s\", rank %u, bit rate %u", link, rank, bitrate);
+                    item_info.airable_links_.add(Airable::RankedLink(rank, bitrate, link));
+                }
+            }
+
+            return !item_info.airable_links_.empty();
+        }
+    };
+
+    template <>
+    std::shared_ptr<DirectoryCrawler::AsyncGetURIs> &
+    DirectoryCrawler::get_async_call_ptr<DirectoryCrawler::AsyncGetURIs>()
+    {
+        return async_get_uris_call_;
+    }
+
+    template <>
+    std::shared_ptr<DirectoryCrawler::AsyncGetStreamLinks> &
+    DirectoryCrawler::get_async_call_ptr<DirectoryCrawler::AsyncGetStreamLinks>()
+    {
+        return async_get_stream_links_call_;
+    }
+}
+
+template <typename AsyncT, typename Traits>
 void Playlist::DirectoryCrawler::process_item_information(DBus::AsyncCall_ &async_call,
                                                           ID::List list_id, unsigned int line,
                                                           unsigned int directory_depth,
@@ -671,13 +806,13 @@ void Playlist::DirectoryCrawler::process_item_information(DBus::AsyncCall_ &asyn
 {
     auto lock_this(lock());
 
-    if(&async_call != async_get_uris_call_.get())
+    if(&async_call != get_async_call_ptr<AsyncT>().get())
     {
         call_callback(callback, *this, RetrieveItemInfoResult::CANCELED);
         return;
     }
 
-    auto &async(static_cast<AsyncGetURIs &>(async_call));
+    auto &async(static_cast<AsyncT &>(async_call));
 
     DBus::AsyncResult async_result;
 
@@ -688,7 +823,7 @@ void Playlist::DirectoryCrawler::process_item_information(DBus::AsyncCall_ &asyn
     catch(const List::DBusListException &e)
     {
         async_result = DBus::AsyncResult::FAILED;
-        msg_error(0, LOG_ERR, "Failed stream URIs for item %u in list %u: %s",
+        msg_error(0, LOG_ERR, "Failed getting stream URIs for item %u in list %u: %s",
                   line, list_id.get_raw_id(), e.what());
     }
 
@@ -697,7 +832,7 @@ void Playlist::DirectoryCrawler::process_item_information(DBus::AsyncCall_ &asyn
     {
         call_callback(callback, *this,
                       map_asyncresult_to_retrieve_item_result(async_result));
-        async_get_uris_call_.reset();
+        get_async_call_ptr<AsyncT>().reset();
         return;
     }
 
@@ -724,32 +859,7 @@ void Playlist::DirectoryCrawler::process_item_information(DBus::AsyncCall_ &asyn
         return;
     }
 
-    gchar **const uri_list(std::get<1>(result));
-
-    if(uri_list != NULL)
-    {
-        for(gchar **ptr = uri_list; *ptr != NULL; ++ptr)
-            msg_info("URI: \"%s\"", *ptr);
-
-        for(gchar **ptr = uri_list; *ptr != NULL; ++ptr)
-        {
-            const size_t len = strlen(*ptr);
-
-            if(len < 4)
-                continue;
-
-            const gchar *const suffix = &(*ptr)[len - 4];
-
-            if(strncasecmp(".m3u", suffix, 4) == 0 ||
-               strncasecmp(".pls", suffix, 4) == 0)
-                continue;
-
-            current_item_info_.stream_uris_.push_back(*ptr);
-        }
-
-    }
-
-    if(current_item_info_.stream_uris_.empty())
+    if(!Traits::fill_item_info_from_result(current_item_info_, result))
         msg_info("No URI for item %u in list %u", line, list_id.get_raw_id());
 
     call_callback(callback, *this, RetrieveItemInfoResult::FOUND);

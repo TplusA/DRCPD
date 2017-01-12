@@ -23,6 +23,7 @@
 #include <string>
 
 #include "metadata.hh"
+#include "airable_links.hh"
 #include "logged_lock.hh"
 
 namespace Player
@@ -78,6 +79,8 @@ class StreamPreplayInfo
 
   private:
     std::vector<std::string> uris_;
+    Airable::SortedLinks airable_links_;
+
     size_t next_uri_to_try_;
 
   public:
@@ -86,12 +89,14 @@ class StreamPreplayInfo
     StreamPreplayInfo &operator=(const StreamPreplayInfo &) = delete;
 
     explicit StreamPreplayInfo(std::vector<std::string> &&uris,
+                               Airable::SortedLinks &&airable_links,
                                ID::List list_id, unsigned int line,
                                unsigned int directory_depth):
         list_id_(list_id),
         line_(line),
         directory_depth_(directory_depth),
         uris_(std::move(uris)),
+        airable_links_(std::move(airable_links)),
         next_uri_to_try_(0)
     {}
 
@@ -117,6 +122,7 @@ class StreamPreplayInfoCollection
     }
 
     bool store(ID::OurStream stream_id, std::vector<std::string> &&uris,
+               Airable::SortedLinks &&airable_links,
                ID::List list_id, unsigned int line, unsigned int directory_depth);
     void forget_stream(const ID::OurStream stream_id);
 
@@ -230,6 +236,7 @@ class Data
     }
 
     ID::OurStream store_stream_preplay_information(std::vector<std::string> &&uris,
+                                                   Airable::SortedLinks &&airable_links,
                                                    ID::List list_id, unsigned int line,
                                                    unsigned int directory_depth);
     const std::string &get_first_stream_uri(const ID::OurStream stream_id);

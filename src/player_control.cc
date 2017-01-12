@@ -1806,9 +1806,12 @@ bool Player::Control::process_crawler_item(QueueMode queue_mode,
     log_assert(item_info.position_.list_id_.is_valid());
     log_assert(item_info.file_item_ != nullptr);
 
-    /* we'll steal the URI list from the item info for efficiency */
+    item_info.airable_links_.finalize([] (uint32_t bitrate) -> bool { return bitrate <= 100000; });
+
+    /* we'll steal the URI lists from the item info for efficiency */
     const ID::OurStream stream_id(player_->store_stream_preplay_information(
                                         std::move(item_info.stream_uris_),
+                                        std::move(item_info.airable_links_),
                                         item_info.position_.list_id_, item_info.position_.line_,
                                         item_info.position_.directory_depth_));
 
