@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016, 2017  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -486,4 +486,16 @@ void MockViewManager::update_view_if_active(const ViewIface *view, DCP::Queue::M
 void MockViewManager::hide_view_if_active(const ViewIface *view)
 {
     cut_fail("Not implemented");
+}
+
+Configuration::ConfigChangedIface &MockViewManager::get_config_changer() const
+{
+    cut_fail("Not implemented");
+    return *static_cast<Configuration::ConfigChangedIface *>(nullptr);
+}
+
+const Configuration::DrcpdValues &MockViewManager::get_configuration() const
+{
+    cut_fail("Not implemented");
+    return *static_cast<Configuration::DrcpdValues *>(nullptr);
 }

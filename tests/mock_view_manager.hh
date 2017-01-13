@@ -73,6 +73,8 @@ class MockViewManager: public ViewManager::VMIface, public UI::EventStoreIface
     void serialize_view_forced(const ViewIface *view, DCP::Queue::Mode mode) const override;
     void update_view_if_active(const ViewIface *view, DCP::Queue::Mode mode) const override;
     void hide_view_if_active(const ViewIface *view) override;
+    Configuration::ConfigChangedIface &get_config_changer() const override;
+    const Configuration::DrcpdValues &get_configuration() const override;
 };
 
 #endif /* !MOCK_VIEW_MANAGER_HH */

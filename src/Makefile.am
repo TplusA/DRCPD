@@ -37,6 +37,8 @@ drcpd_SOURCES = \
     player_permissions.hh player_permissions_airable.hh \
     search_algo.hh \
     actor_id.h \
+    configuration.hh configuration_base.hh configuration_changed.hh \
+    configuration_drcpd.hh configuration_settings.hh inifile.h \
     ui_parameters.hh ui_parameters_predefined.hh search_parameters.hh \
     player_control.hh player_control.cc \
     player_data.hh player_data.cc \
@@ -63,6 +65,7 @@ AM_CFLAGS = $(CWARNINGS)
 AM_CXXFLAGS = $(CXXWARNINGS)
 
 noinst_LTLIBRARIES = \
+    libconfiguration.la \
     libviews.la \
     libdcp_transaction.la \
     liblist.la \
@@ -80,6 +83,13 @@ drcpd_LDFLAGS = $(LTLIBINTL)
 liblist_la_SOURCES = list.hh list.cc ramlist.hh ramlist.cc dbuslist.hh dbuslist_exception.hh dbuslist.cc idtypes.hh stream_id.h stream_id.hh
 liblist_la_CFLAGS = $(AM_CFLAGS)
 liblist_la_CXXFLAGS = $(AM_CXXFLAGS)
+
+libconfiguration_la_SOURCES = \
+    configuration.hh configuration_base.hh configuration_changed.hh \
+    configuration_drcpd.hh configuration.cc \
+    inifile.h inifile.c
+libconfiguration_la_CFLAGS = $(AM_CFLAGS)
+libconfiguration_la_CXXFLAGS = $(AM_CXXFLAGS)
 
 libviews_la_SOURCES = \
     view.hh view_serialize.hh \

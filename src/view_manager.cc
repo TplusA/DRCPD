@@ -28,8 +28,10 @@
 
 static ViewNop::View nop_view;
 
-ViewManager::Manager::Manager(UI::EventQueue &event_queue, DCP::Queue &dcp_queue):
+ViewManager::Manager::Manager(UI::EventQueue &event_queue, DCP::Queue &dcp_queue,
+                              ViewManager::Manager::ConfigMgr &config_manager):
     ui_events_(event_queue),
+    config_manager_(config_manager),
     active_view_(&nop_view),
     last_browse_view_(nullptr),
     dcp_transaction_queue_(dcp_queue),

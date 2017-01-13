@@ -74,6 +74,7 @@ namespace view_manager_tests_basics
 
 static MockMessages *mock_messages;
 static UI::EventQueue *ui_queue;
+static Configuration::ConfigManager<Configuration::DrcpdValues> *config_manager;
 static DCP::Queue *dcp_queue;
 static ViewManager::Manager *vm;
 static std::ostringstream *views_output;
@@ -91,10 +92,15 @@ void cut_setup(void)
     ui_queue = new UI::EventQueue(deferred_ui_event_observer);
     cppcut_assert_not_null(ui_queue);
 
+    static const Configuration::DrcpdValues default_config{0};
+    config_manager = new Configuration::ConfigManager<Configuration::DrcpdValues>("/some/config.ini", default_config);
+    cppcut_assert_not_null(config_manager);
+    config_manager->reset_to_defaults();
+
     dcp_queue = new DCP::Queue(transaction_observer, deferred_dcp_transfer_observer);
     cppcut_assert_not_null(dcp_queue);
 
-    vm = new ViewManager::Manager(*ui_queue, *dcp_queue);
+    vm = new ViewManager::Manager(*ui_queue, *dcp_queue, *config_manager);
     cppcut_assert_not_null(vm);
     vm->set_output_stream(*views_output);
 }
@@ -108,6 +114,7 @@ void cut_teardown(void)
 
     delete mock_messages;
     delete vm;
+    delete config_manager;
     delete ui_queue;
     delete dcp_queue;
     delete views_output;
@@ -218,6 +225,7 @@ namespace view_manager_tests
 
 static MockMessages *mock_messages;
 static UI::EventQueue *ui_queue;
+static Configuration::ConfigManager<Configuration::DrcpdValues> *config_manager;
 static DCP::Queue *dcp_queue;
 static ViewManager::Manager *vm;
 static std::ostringstream *views_output;
@@ -241,10 +249,15 @@ void cut_setup(void)
     ui_queue = new UI::EventQueue(deferred_ui_event_observer);
     cppcut_assert_not_null(ui_queue);
 
+    static const Configuration::DrcpdValues default_config{0};
+    config_manager = new Configuration::ConfigManager<Configuration::DrcpdValues>("/some/config.ini", default_config);
+    cppcut_assert_not_null(config_manager);
+    config_manager->reset_to_defaults();
+
     dcp_queue = new DCP::Queue(dcp_transaction_setup_timeout, dcp_deferred_tx);
     cppcut_assert_not_null(dcp_queue);
 
-    vm = new ViewManager::Manager(*ui_queue, *dcp_queue);
+    vm = new ViewManager::Manager(*ui_queue, *dcp_queue, *config_manager);
     cppcut_assert_not_null(vm);
     vm->set_output_stream(*views_output);
     cut_assert_true(vm->add_view(mock_view));
@@ -266,6 +279,7 @@ void cut_teardown(void)
     mock_view->check();
 
     delete vm;
+    delete config_manager;
     delete ui_queue;
     delete dcp_queue;
     delete mock_view;
@@ -275,6 +289,7 @@ void cut_teardown(void)
     mock_messages = nullptr;
     mock_view = nullptr;
     vm =nullptr;
+    config_manager = nullptr;
     ui_queue = nullptr;
     dcp_queue = nullptr;
     views_output = nullptr;
@@ -471,6 +486,7 @@ static void populate_view_manager(ViewManager::Manager &vm,
 static MockMessages *mock_messages;
 static std::array<ViewMock::View *, 4> all_mock_views;
 static UI::EventQueue *ui_queue;
+static Configuration::ConfigManager<Configuration::DrcpdValues> *config_manager;
 static DCP::Queue *dcp_queue;
 static ViewManager::Manager *vm;
 static std::ostringstream *views_output;
@@ -488,10 +504,15 @@ void cut_setup(void)
     ui_queue = new UI::EventQueue(deferred_ui_event_observer);
     cppcut_assert_not_null(ui_queue);
 
+    static const Configuration::DrcpdValues default_config{0};
+    config_manager = new Configuration::ConfigManager<Configuration::DrcpdValues>("/some/config.ini", default_config);
+    cppcut_assert_not_null(config_manager);
+    config_manager->reset_to_defaults();
+
     dcp_queue = new DCP::Queue(dcp_transaction_setup_timeout, dcp_deferred_tx);
     cppcut_assert_not_null(dcp_queue);
 
-    vm = new ViewManager::Manager(*ui_queue, *dcp_queue);
+    vm = new ViewManager::Manager(*ui_queue, *dcp_queue, *config_manager);
     cppcut_assert_not_null(vm);
 
     mock_messages->ignore_all_ = true;
@@ -518,6 +539,7 @@ void cut_teardown(void)
 
     delete mock_messages;
     delete vm;
+    delete config_manager;
     delete ui_queue;
     delete dcp_queue;
     delete views_output;
@@ -1021,6 +1043,7 @@ namespace view_manager_tests_serialization
 
 static MockMessages *mock_messages;
 static UI::EventQueue *ui_queue;
+static Configuration::ConfigManager<Configuration::DrcpdValues> *config_manager;
 static DCP::Queue *dcp_queue;
 static ViewManager::Manager *vm;
 static std::ostringstream *views_output;
@@ -1044,10 +1067,15 @@ void cut_setup(void)
     ui_queue = new UI::EventQueue(deferred_ui_event_observer);
     cppcut_assert_not_null(ui_queue);
 
+    static const Configuration::DrcpdValues default_config{0};
+    config_manager = new Configuration::ConfigManager<Configuration::DrcpdValues>("/some/config.ini", default_config);
+    cppcut_assert_not_null(config_manager);
+    config_manager->reset_to_defaults();
+
     dcp_queue = new DCP::Queue(dcp_transaction_setup_timeout, dcp_deferred_tx);
     cppcut_assert_not_null(dcp_queue);
 
-    vm = new ViewManager::Manager(*ui_queue, *dcp_queue);
+    vm = new ViewManager::Manager(*ui_queue, *dcp_queue, *config_manager);
     cppcut_assert_not_null(vm);
     vm->set_output_stream(*views_output);
     cut_assert_true(vm->add_view(mock_view));
@@ -1064,6 +1092,7 @@ void cut_teardown(void)
     mock_view->check();
 
     delete vm;
+    delete config_manager;
     delete ui_queue;
     delete dcp_queue;
     delete mock_view;

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016, 2017  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -26,6 +26,8 @@
 #include "view.hh"
 #include "ui_event_queue.hh"
 #include "dcp_transaction_queue.hh"
+#include "configuration.hh"
+#include "configuration_drcpd.hh"
 
 /*!
  * \addtogroup view_manager Management of the various views
@@ -136,17 +138,23 @@ class VMIface
     virtual void serialize_view_forced(const ViewIface *view, DCP::Queue::Mode mode) const = 0;
     virtual void update_view_if_active(const ViewIface *view, DCP::Queue::Mode mode) const = 0;
     virtual void hide_view_if_active(const ViewIface *view) = 0;
+
+    virtual Configuration::ConfigChangedIface &get_config_changer() const = 0;
+    virtual const Configuration::DrcpdValues &get_configuration() const = 0;
 };
 
 class Manager: public VMIface, public UI::EventStoreIface
 {
   public:
     using ViewsContainer = std::map<const std::string, ViewIface *>;
+    using ConfigMgr = Configuration::ConfigManager<Configuration::DrcpdValues>;
 
   private:
     ViewsContainer all_views_;
 
     UI::EventQueue &ui_events_;
+
+    ConfigMgr &config_manager_;
 
     ViewIface *active_view_;
     ViewIface *last_browse_view_;
@@ -157,7 +165,8 @@ class Manager: public VMIface, public UI::EventStoreIface
     Manager(const Manager &) = delete;
     Manager &operator=(const Manager &) = delete;
 
-    explicit Manager(UI::EventQueue &event_queue, DCP::Queue &dcp_queue);
+    explicit Manager(UI::EventQueue &event_queue, DCP::Queue &dcp_queue,
+                     ConfigMgr &config_manager);
 
     bool add_view(ViewIface *view) override;
     bool invoke_late_init_functions() override;
@@ -197,6 +206,16 @@ class Manager: public VMIface, public UI::EventStoreIface
     bool is_event_pending() const { return !ui_events_.is_empty(); }
 
     void busy_state_notification(bool is_busy);
+
+    Configuration::ConfigChangedIface &get_config_changer() const override
+    {
+        return config_manager_;
+    }
+
+    const Configuration::DrcpdValues &get_configuration() const override
+    {
+        return config_manager_.values();
+    }
 
   private:
     ViewIface *get_view_by_dbus_proxy(const void *dbus_proxy);

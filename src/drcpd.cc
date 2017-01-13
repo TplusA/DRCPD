@@ -26,6 +26,7 @@
 #include <glib-object.h>
 #include <glib-unix.h>
 
+#include "configuration.hh"
 #include "i18n.h"
 #include "view_filebrowser.hh"
 #include "view_filebrowser_airable.hh"
@@ -473,7 +474,8 @@ static void defer_dcp_transfer(DCP::Queue *queue)
 }
 
 static void connect_everything(ViewManager::Manager &views,
-                               DBus::SignalData &dbus_data)
+                               DBus::SignalData &dbus_data,
+                               const Configuration::DrcpdValues &config)
 {
     static ViewConfig::View cfg(N_("Configuration"),
                                 views.NUMBER_OF_LINES_ON_DISPLAY);
@@ -500,7 +502,7 @@ static void connect_everything(ViewManager::Manager &views,
                                       &views);
     static ViewPlay::View play(N_("Stream information"),
                                views.NUMBER_OF_LINES_ON_DISPLAY,
-                               100000,
+                               config.maximum_bitrate_,
                                &views);
     static ViewSearch::View search(N_("Search parameters"),
                                    views.NUMBER_OF_LINES_ON_DISPLAY, &views);
@@ -579,6 +581,11 @@ int main(int argc, char *argv[])
     if(setup(&parameters, &dcp_dispatch_data, &loop) < 0)
         return EXIT_FAILURE;
 
+    static const Configuration::DrcpdValues default_settings(0);
+    ViewManager::Manager::ConfigMgr config_manager("/var/local/etc/drcpd.ini",
+                                                   default_settings);
+    config_manager.load();
+
     static UI::EventQueue ui_event_queue(
         std::bind(defer_ui_event_processing, &ui_events_processing_data));
     static DCP::Queue dcp_transaction_queue(
@@ -587,7 +594,8 @@ int main(int argc, char *argv[])
     static FdStreambuf fd_sbuf(files.dcp_fifo.out_fd);
     static std::ostream fd_out(&fd_sbuf);
     static ViewManager::Manager view_manager(ui_event_queue,
-                                             dcp_transaction_queue);
+                                             dcp_transaction_queue,
+                                             config_manager);
 
     static DBus::SignalData dbus_signal_data(view_manager);
 
@@ -603,7 +611,7 @@ int main(int argc, char *argv[])
     g_unix_signal_add(SIGINT, signal_handler, loop);
     g_unix_signal_add(SIGTERM, signal_handler, loop);
 
-    connect_everything(view_manager, dbus_signal_data);
+    connect_everything(view_manager, dbus_signal_data, config_manager.values());
 
     g_main_loop_run(loop);
 
