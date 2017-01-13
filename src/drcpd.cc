@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016, 2017  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -500,6 +500,7 @@ static void connect_everything(ViewManager::Manager &views,
                                       &views);
     static ViewPlay::View play(N_("Stream information"),
                                views.NUMBER_OF_LINES_ON_DISPLAY,
+                               100000,
                                &views);
     static ViewSearch::View search(N_("Search parameters"),
                                    views.NUMBER_OF_LINES_ON_DISPLAY, &views);

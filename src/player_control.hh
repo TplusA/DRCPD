@@ -159,6 +159,8 @@ class Control
     std::deque<ID::OurStream> queued_streams_;
     PrefetchState prefetch_state_;
 
+    const std::function<bool(uint32_t)> bitrate_limiter_;
+
     class Retry
     {
       private:
@@ -226,12 +228,13 @@ class Control
     Control(const Control &) = delete;
     Control &operator=(const Control &) = delete;
 
-    explicit Control():
+    explicit Control(std::function<bool(uint32_t)> &&bitrate_limiter):
         owning_view_(nullptr),
         player_(nullptr),
         crawler_(nullptr),
         permissions_(nullptr),
-        prefetch_state_(PrefetchState::NOT_PREFETCHING)
+        prefetch_state_(PrefetchState::NOT_PREFETCHING),
+        bitrate_limiter_(bitrate_limiter)
     {
         LoggedLock::set_name(lock_, "Player::Control");
         LoggedLock::set_name(crawler_dummy_lock_, "Player::Control dummy");

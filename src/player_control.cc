@@ -1937,7 +1937,7 @@ Player::Control::process_crawler_item(CrawlerContext ctx, QueueMode queue_mode,
     log_assert(item_info.position_.list_id_.is_valid());
     log_assert(item_info.file_item_ != nullptr);
 
-    item_info.airable_links_.finalize([] (uint32_t bitrate) -> bool { return bitrate <= 100000; });
+    item_info.airable_links_.finalize(bitrate_limiter_);
 
     /* we'll steal the URI lists from the item info for efficiency */
     const ID::OurStream stream_id(player_->store_stream_preplay_information(

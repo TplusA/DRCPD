@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016, 2017  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -50,6 +50,8 @@ class View: public ViewIface, public ViewSerializeBase
 
     bool is_visible_;
 
+    uint32_t maximum_bitrate_;
+
     Player::Data player_data_;
     Player::Control player_control_;
 
@@ -59,10 +61,16 @@ class View: public ViewIface, public ViewSerializeBase
     View &operator=(const View &) = delete;
 
     explicit View(const char *on_screen_name, unsigned int max_lines,
+                  uint32_t maximum_bitrate_for_streams,
                   ViewManager::VMIface *view_manager):
         ViewIface(ViewNames::PLAYER, false, view_manager),
         ViewSerializeBase(on_screen_name, "play", 100U),
-        is_visible_(false)
+        is_visible_(false),
+        maximum_bitrate_(maximum_bitrate_for_streams),
+        player_control_([this] (uint32_t bitrate)
+                        {
+                            return maximum_bitrate_ == 0 || bitrate <= maximum_bitrate_;
+                        })
     {}
 
     virtual ~View() {}
