@@ -19,6 +19,9 @@
 #ifndef DBUS_HANDLERS_HH
 #define DBUS_HANDLERS_HH
 
+#include "configuration.hh"
+#include "configuration_drcpd.hh"
+
 class ViewIface;
 
 namespace UI
@@ -46,9 +49,12 @@ class SignalData
     SignalData(SignalData &&) = default;
 
     UI::EventStoreIface &event_sink_;
+    Configuration::ConfigManager<Configuration::DrcpdValues> &config_mgr_;
 
-    explicit SignalData(UI::EventStoreIface &event_sink):
-        event_sink_(event_sink)
+    explicit SignalData(UI::EventStoreIface &event_sink,
+                        Configuration::ConfigManager<Configuration::DrcpdValues> &config_mgr):
+        event_sink_(event_sink),
+        config_mgr_(config_mgr)
     {}
 };
 

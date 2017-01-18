@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016, 2017  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -34,6 +34,8 @@ struct dbus_data
     guint owner_id;
     int acquired;
 
+    void *handler_data;
+
     tdbusdcpdPlayback *dcpd_playback_proxy;
     tdbusdcpdViews *dcpd_views_proxy;
     tdbusdcpdListNavigation *dcpd_list_navigation_proxy;
@@ -47,6 +49,10 @@ struct dbus_data
     tdbussplayPlayback *splay_playback_proxy;
 
     tdbusAirable *airable_sec_proxy;
+
+    tdbusConfigurationProxy *configuration_proxy;
+    tdbusConfigurationRead *configuration_read_iface;
+    tdbusConfigurationWrite *configuration_write_iface;
 
     tdbusdebugLogging *debug_logging_iface;
     tdbusdebugLoggingConfig *debug_logging_config_proxy;
@@ -102,12 +108,28 @@ static void bus_acquired(GDBusConnection *connection,
 
     msg_info("D-Bus \"%s\" acquired", name);
 
+    data->configuration_read_iface = tdbus_configuration_read_skeleton_new();
+    data->configuration_write_iface = tdbus_configuration_write_skeleton_new();
     data->debug_logging_iface = tdbus_debug_logging_skeleton_new();
+
+    g_signal_connect(data->configuration_read_iface, "handle-get-all-keys",
+                     G_CALLBACK(dbusmethod_config_get_all_keys), data->handler_data);
+    g_signal_connect(data->configuration_read_iface, "handle-get-value",
+                     G_CALLBACK(dbusmethod_config_get_value), data->handler_data);
+    g_signal_connect(data->configuration_read_iface, "handle-get-all-values",
+                     G_CALLBACK(dbusmethod_config_get_all_values), data->handler_data);
+
+    g_signal_connect(data->configuration_write_iface, "handle-set-value",
+                     G_CALLBACK(dbusmethod_config_set_value), data->handler_data);
+    g_signal_connect(data->configuration_write_iface, "handle-set-multiple-values",
+                     G_CALLBACK(dbusmethod_config_set_multiple_values), data->handler_data);
 
     g_signal_connect(data->debug_logging_iface,
                      "handle-debug-level",
                      G_CALLBACK(msg_dbus_handle_debug_level), NULL);
 
+    try_export_iface(connection, G_DBUS_INTERFACE_SKELETON(data->configuration_read_iface));
+    try_export_iface(connection, G_DBUS_INTERFACE_SKELETON(data->configuration_write_iface));
     try_export_iface(connection, G_DBUS_INTERFACE_SKELETON(data->debug_logging_iface));
 }
 
@@ -145,6 +167,12 @@ static void connect_signals_dcpd(GDBusConnection *connection,
         tdbus_debug_logging_config_proxy_new_sync(connection, flags,
                                                   bus_name, object_path,
                                                   NULL, &error);
+    handle_error(&error);
+
+    data->configuration_proxy =
+        tdbus_configuration_proxy_proxy_new_sync(connection, flags,
+                                                 bus_name, object_path,
+                                                 NULL, &error);
     handle_error(&error);
 }
 
@@ -281,6 +309,11 @@ tdbusAirable *dbus_get_airable_sec_iface(void)
     return dbus_data.airable_sec_proxy;
 }
 
+tdbusConfigurationProxy *dbus_get_configuration_proxy_iface(void)
+{
+    return dbus_data.configuration_proxy;
+}
+
 static struct dbus_process_data process_data;
 
 int dbus_setup(bool connect_to_session_bus,
@@ -308,6 +341,7 @@ int dbus_setup(bool connect_to_session_bus,
 
     static const char bus_name[] = "de.tahifi.Drcpd";
 
+    dbus_data.handler_data = dbus_signal_data_for_dbus_handlers;
     dbus_data.owner_id =
         g_bus_own_name(bus_type, bus_name, G_BUS_NAME_OWNER_FLAGS_NONE,
                        bus_acquired, name_acquired, name_lost, &dbus_data,
@@ -337,6 +371,9 @@ int dbus_setup(bool connect_to_session_bus,
     log_assert(dbus_data.splay_urlfifo_proxy != NULL);
     log_assert(dbus_data.splay_playback_proxy != NULL);
     log_assert(dbus_data.airable_sec_proxy != NULL);
+    log_assert(dbus_data.configuration_proxy != NULL);
+    log_assert(dbus_data.configuration_read_iface != NULL);
+    log_assert(dbus_data.configuration_write_iface != NULL);
     log_assert(dbus_data.debug_logging_iface != NULL);
     log_assert(dbus_data.debug_logging_config_proxy != NULL);
 
@@ -416,6 +453,9 @@ void dbus_shutdown(void)
     g_object_unref(dbus_data.splay_urlfifo_proxy);
     g_object_unref(dbus_data.splay_playback_proxy);
     g_object_unref(dbus_data.airable_sec_proxy);
+    g_object_unref(dbus_data.configuration_proxy);
+    g_object_unref(dbus_data.configuration_read_iface);
+    g_object_unref(dbus_data.configuration_write_iface);
     g_object_unref(dbus_data.debug_logging_iface);
     g_object_unref(dbus_data.debug_logging_config_proxy);
 

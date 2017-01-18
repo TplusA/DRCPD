@@ -21,6 +21,8 @@
 
 #include <gio/gio.h>
 
+#include "configuration_dbus.h"
+
 /*!
  * \addtogroup dbus_handlers DBus handlers for signals
  * \ingroup dbus
@@ -55,6 +57,25 @@ void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
 void dbussignal_airable_sec(GDBusProxy *proxy, const gchar *sender_name,
                             const gchar *signal_name, GVariant *parameters,
                             gpointer user_data);
+
+gboolean dbusmethod_config_get_all_keys(tdbusConfigurationRead *object,
+                                        GDBusMethodInvocation *invocation,
+                                        gpointer user_data);
+gboolean dbusmethod_config_get_value(tdbusConfigurationRead *object,
+                                     GDBusMethodInvocation *invocation,
+                                     const gchar *key, gpointer user_data);
+gboolean dbusmethod_config_get_all_values(tdbusConfigurationRead *object,
+                                          GDBusMethodInvocation *invocation,
+                                          const gchar *database, gpointer user_data);
+
+gboolean dbusmethod_config_set_value(tdbusConfigurationWrite *object,
+                                     GDBusMethodInvocation *invocation,
+                                     const char *origin, const char *key,
+                                     GVariant *value, gpointer user_data);
+gboolean dbusmethod_config_set_multiple_values(tdbusConfigurationWrite *object,
+                                               GDBusMethodInvocation *invocation,
+                                               const char *origin, GVariant *values,
+                                               gpointer user_data);
 
 #ifdef __cplusplus
 }

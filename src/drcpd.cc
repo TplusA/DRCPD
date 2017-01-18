@@ -539,6 +539,24 @@ static void connect_everything(ViewManager::Manager &views,
                          &views, std::placeholders::_1));
 
     views.sync_activate_view_by_name(ViewNames::BROWSER_UPNP);
+
+    GError *error = NULL;
+    if(tdbus_configuration_proxy_call_register_sync(dbus_get_configuration_proxy_iface(),
+                                                    "drcpd", "/de/tahifi/Drcpd",
+                                                    NULL, &error))
+        msg_info("Registered with configuration proxy");
+    else
+    {
+        if(error->message != NULL)
+            msg_error(0, LOG_EMERG,
+                      "Error while registering with configuration proxy: %s",
+                      error->message);
+        else
+            msg_error(0, LOG_EMERG,
+                      "Error while registering with configuration proxy, no error message");
+
+        g_error_free(error);
+    }
 }
 
 static gboolean signal_handler(gpointer user_data)
@@ -597,7 +615,7 @@ int main(int argc, char *argv[])
                                              dcp_transaction_queue,
                                              config_manager);
 
-    static DBus::SignalData dbus_signal_data(view_manager);
+    static DBus::SignalData dbus_signal_data(view_manager, config_manager);
 
     view_manager.set_output_stream(fd_out);
     view_manager.set_debug_stream(std::cout);

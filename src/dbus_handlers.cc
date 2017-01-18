@@ -27,6 +27,8 @@
 #include "dbus_handlers.hh"
 #include "view_play.hh"
 #include "ui_parameters_predefined.hh"
+#include "configuration.hh"
+#include "configuration_drcpd.hh"
 #include "messages.h"
 
 static void log_signal(const char *iface_name, const char *signal_name,
@@ -500,4 +502,218 @@ void dbussignal_airable_sec(GDBusProxy *proxy, const gchar *sender_name,
     }
     else
         unknown_signal(iface_name, signal_name, sender_name);
+}
+
+static void enter_config_read_handler(GDBusMethodInvocation *invocation)
+{
+    static const char iface_name[] = "de.tahifi.Configuration.Read";
+
+    msg_vinfo(MESSAGE_LEVEL_TRACE, "%s method invocation from '%s': %s",
+              iface_name, g_dbus_method_invocation_get_sender(invocation),
+              g_dbus_method_invocation_get_method_name(invocation));
+}
+
+gboolean dbusmethod_config_get_all_keys(tdbusConfigurationRead *object,
+                                        GDBusMethodInvocation *invocation,
+                                        gpointer user_data)
+{
+    enter_config_read_handler(invocation);
+
+    auto *data = static_cast<DBus::SignalData *>(user_data);
+    log_assert(data != nullptr);
+
+    static const char configuration_owner[] = "drcpd";
+
+    auto keys(data->config_mgr_.keys());
+    keys.push_back(nullptr);
+
+    tdbus_configuration_read_complete_get_all_keys(object, invocation,
+                                                   configuration_owner,
+                                                   keys.data());
+
+    return TRUE;
+}
+
+gboolean dbusmethod_config_get_value(tdbusConfigurationRead *object,
+                                     GDBusMethodInvocation *invocation,
+                                     const gchar *key, gpointer user_data)
+{
+    enter_config_read_handler(invocation);
+
+    auto *data = static_cast<DBus::SignalData *>(user_data);
+    log_assert(data != nullptr);
+
+    auto *value = reinterpret_cast<GVariant *>(data->config_mgr_.lookup_boxed(key));
+
+    if(value != nullptr)
+        tdbus_configuration_read_complete_get_value(object, invocation,
+                                                    g_variant_new_variant(value));
+    else
+        g_dbus_method_invocation_return_error(invocation, G_DBUS_ERROR,
+                                              G_DBUS_ERROR_INVALID_ARGS,
+                                              "Configuration key \"%s\" unknown",
+                                              key);
+
+    return TRUE;
+}
+
+gboolean dbusmethod_config_get_all_values(tdbusConfigurationRead *object,
+                                          GDBusMethodInvocation *invocation,
+                                          const gchar *database, gpointer user_data)
+{
+    enter_config_read_handler(invocation);
+
+    auto *data = static_cast<DBus::SignalData *>(user_data);
+    log_assert(data != nullptr);
+
+    GVariantDict dict;
+    g_variant_dict_init(&dict, nullptr);
+
+    for(const auto &k : data->config_mgr_.keys())
+    {
+        auto *value = reinterpret_cast<GVariant *>(data->config_mgr_.lookup_boxed(k));
+
+        if(value != nullptr)
+            g_variant_dict_insert_value(&dict, k, value);
+    }
+
+    tdbus_configuration_read_complete_get_all_values(object, invocation,
+                                                     g_variant_dict_end(&dict));
+
+    return TRUE;
+}
+
+static void enter_config_write_handler(GDBusMethodInvocation *invocation)
+{
+    static const char iface_name[] = "de.tahifi.Configuration.Write";
+
+    msg_vinfo(MESSAGE_LEVEL_TRACE, "%s method invocation from '%s': %s",
+              iface_name, g_dbus_method_invocation_get_sender(invocation),
+              g_dbus_method_invocation_get_method_name(invocation));
+}
+
+static Configuration::InsertResult
+insert_packed_value(Configuration::ConfigChanged<Configuration::DrcpdValues>::UpdateScope &scope,
+                    const char *key, GVariant *value)
+{
+    GVariant *unpacked_value = g_variant_get_child_value(value, 0);
+
+    auto result =
+        scope().insert_boxed(key, reinterpret_cast<Configuration::VariantType *>(unpacked_value));
+
+    g_variant_unref(unpacked_value);
+
+    return result;
+}
+
+gboolean dbusmethod_config_set_value(tdbusConfigurationWrite *object,
+                                     GDBusMethodInvocation *invocation,
+                                     const char *origin, const char *key,
+                                     GVariant *value, gpointer user_data)
+{
+    enter_config_write_handler(invocation);
+
+    auto *data = static_cast<DBus::SignalData *>(user_data);
+    log_assert(data != nullptr);
+
+    auto scope(data->config_mgr_.get_update_scope());
+
+    switch(insert_packed_value(scope, key, value))
+    {
+      case Configuration::InsertResult::UPDATED:
+      case Configuration::InsertResult::UNCHANGED:
+        tdbus_configuration_write_complete_set_value(object, invocation);
+        break;
+
+      case Configuration::InsertResult::KEY_UNKNOWN:
+        g_dbus_method_invocation_return_error(invocation, G_DBUS_ERROR,
+                                              G_DBUS_ERROR_FAILED,
+                                              "Configuration key \"%s\" unknown",
+                                              key);
+        break;
+
+      case Configuration::InsertResult::VALUE_TYPE_INVALID:
+        g_dbus_method_invocation_return_error(invocation, G_DBUS_ERROR,
+                                              G_DBUS_ERROR_FAILED,
+                                              "Type of given value for key \"%s\" invalid",
+                                              key);
+        break;
+
+      case Configuration::InsertResult::VALUE_INVALID:
+        g_dbus_method_invocation_return_error(invocation, G_DBUS_ERROR,
+                                              G_DBUS_ERROR_FAILED,
+                                              "Given value for key \"%s\" invalid",
+                                              key);
+        break;
+
+      case Configuration::InsertResult::PERMISSION_DENIED:
+        g_dbus_method_invocation_return_error(invocation, G_DBUS_ERROR,
+                                              G_DBUS_ERROR_FAILED,
+                                              "Rejected to change value of \"%s\"",
+                                              key);
+        break;
+    }
+
+    return TRUE;
+}
+
+gboolean dbusmethod_config_set_multiple_values(tdbusConfigurationWrite *object,
+                                               GDBusMethodInvocation *invocation,
+                                               const char *origin, GVariant *values,
+                                               gpointer user_data)
+{
+    static constexpr std::array<const char *,
+                                static_cast<size_t>(Configuration::InsertResult::LAST_CODE) + 1>
+        error_codes
+    {
+        "ok",
+        "equal",
+        "key",
+        "type",
+        "value",
+        "ro",
+    };
+
+    static_assert(error_codes[error_codes.size() - 1] != nullptr, "Table incomplete");
+
+    enter_config_write_handler(invocation);
+
+    auto *data = static_cast<DBus::SignalData *>(user_data);
+    log_assert(data != nullptr);
+
+    GVariantBuilder errors;
+    g_variant_builder_init(&errors, G_VARIANT_TYPE("a{ss}"));
+
+    GVariantIter values_iter;
+    g_variant_iter_init(&values_iter, values);
+
+    const gchar *key;
+    GVariant *value;
+
+    auto scope(data->config_mgr_.get_update_scope());
+
+    while(g_variant_iter_loop(&values_iter, "{sv}", &key, &value))
+    {
+        auto err = scope().insert_boxed(key, reinterpret_cast<Configuration::VariantType *>(value));
+
+        switch(err)
+        {
+          case Configuration::InsertResult::UPDATED:
+          case Configuration::InsertResult::UNCHANGED:
+            break;
+
+          case Configuration::InsertResult::KEY_UNKNOWN:
+          case Configuration::InsertResult::VALUE_TYPE_INVALID:
+          case Configuration::InsertResult::VALUE_INVALID:
+          case Configuration::InsertResult::PERMISSION_DENIED:
+            g_variant_builder_add(&errors, "{ss}", key,
+                                  error_codes[static_cast<size_t>(err)]);
+            break;
+        }
+    }
+
+    tdbus_configuration_write_complete_set_multiple_values(object, invocation,
+                                                           g_variant_builder_end(&errors));
+
+    return TRUE;
 }

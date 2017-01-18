@@ -160,6 +160,7 @@ nodist_libdrcpd_dbus_client_la_SOURCES = \
     lists_dbus.c lists_dbus.h \
     streamplayer_dbus.c streamplayer_dbus.h \
     airable_dbus.c airable_dbus.h \
+    configuration_dbus.c configuration_dbus.h \
     debug_dbus.c debug_dbus.h
 libdrcpd_dbus_client_la_CFLAGS = $(CRELAXEDWARNINGS)
 libdrcpd_dbus_client_la_CXXFLAGS = $(CXXRELAXEDWARNINGS)
@@ -178,6 +179,9 @@ BUILT_SOURCES = \
     de_tahifi_airable.h \
     de_tahifi_airable.md \
     airable_dbus.stamp \
+    de_tahifi_configuration.h \
+    de_tahifi_configuration.md \
+    configuration_dbus.stamp \
     de_tahifi_debug.h \
     de_tahifi_debug.md \
     debug_dbus.stamp
@@ -218,6 +222,15 @@ airable_dbus.h: airable_dbus.stamp
 airable_dbus.stamp: $(DBUS_IFACES)/de_tahifi_airable.xml
 	$(GDBUS_CODEGEN) --generate-c-code=airable_dbus --c-namespace tdbus --interface-prefix de.tahifi. $<
 	$(DBUS_IFACES)/extract_documentation.py -i $< -o de_tahifi_airable.md -H de_tahifi_airable.h -c tdbus -s de.tahifi. -n "$(PACKAGE_NAME) (Airable HTTP session security)"
+	touch $@
+
+de_tahifi_configuration.h: configuration_dbus.stamp
+de_tahifi_configuration.md: configuration_dbus.stamp
+configuration_dbus.c: configuration_dbus.stamp
+configuration_dbus.h: configuration_dbus.stamp
+configuration_dbus.stamp: $(DBUS_IFACES)/de_tahifi_configuration.xml
+	$(GDBUS_CODEGEN) --generate-c-code=configuration_dbus --c-namespace tdbus --interface-prefix de.tahifi. $<
+	$(DBUS_IFACES)/extract_documentation.py -i $< -o de_tahifi_configuration.md -H de_tahifi_configuration.h -c tdbus -s de.tahifi. -n "Configuration"
 	touch $@
 
 de_tahifi_debug.h: debug_dbus.stamp
