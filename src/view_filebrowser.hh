@@ -174,6 +174,8 @@ class View: public ViewIface, public ViewSerializeBase
 
     InputResult process_event(UI::ViewEventID event_id,
                               std::unique_ptr<const UI::Parameters> parameters) override;
+    void process_broadcast(UI::BroadcastEventID event_id,
+                           const UI::Parameters *parameters) final override {}
 
     void serialize(DCP::Queue &queue, DCP::Queue::Mode mode,
                    std::ostream *debug_os) final override;

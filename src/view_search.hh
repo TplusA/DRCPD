@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2017  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -64,6 +64,8 @@ class View: public ViewIface, public ViewSerializeBase
 
     InputResult process_event(UI::ViewEventID event_id,
                               std::unique_ptr<const UI::Parameters> parameters) final override;
+    void process_broadcast(UI::BroadcastEventID event_id,
+                           const UI::Parameters *parameters) final override {}
 
     void serialize(DCP::Queue &queue, DCP::Queue::Mode mode,
                    std::ostream *debug_os = nullptr) override

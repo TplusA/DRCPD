@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016, 2017  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -150,6 +150,12 @@ class ViewIface
      */
     virtual InputResult process_event(UI::ViewEventID event_id,
                                       std::unique_ptr<const UI::Parameters> parameters) = 0;
+
+    /*
+     * Process broadcast event.
+     */
+    virtual void process_broadcast(UI::BroadcastEventID event_id,
+                                   const UI::Parameters *parameters) = 0;
 };
 
 /*!@}*/

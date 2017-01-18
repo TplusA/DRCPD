@@ -218,6 +218,8 @@ class Manager: public VMIface, public UI::EventStoreIface
     }
 
   private:
+    void configuration_changed_notification(const std::array<bool, Configuration::DrcpdValues::NUMBER_OF_KEYS> &changed);
+
     ViewIface *get_view_by_dbus_proxy(const void *dbus_proxy);
     void activate_view(ViewIface *view);
     void handle_input_result(ViewIface::InputResult result, ViewIface &view);
@@ -226,6 +228,8 @@ class Manager: public VMIface, public UI::EventStoreIface
                          std::unique_ptr<const UI::Parameters> &parameters);
 
     void dispatch_event(UI::ViewEventID event_id,
+                        std::unique_ptr<const UI::Parameters> parameters);
+    void dispatch_event(UI::BroadcastEventID event_id,
                         std::unique_ptr<const UI::Parameters> parameters);
     void dispatch_event(UI::VManEventID event_id,
                         std::unique_ptr<const UI::Parameters> parameters);

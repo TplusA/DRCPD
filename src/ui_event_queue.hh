@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2017  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -56,6 +56,22 @@ class ViewInput: public BaseEvent
     explicit ViewInput(EventID event_id,
                        std::unique_ptr<const UI::Parameters> parameters):
         event_id_(to_event_type<ViewEventID>(event_id)),
+        parameters_(std::move(parameters))
+    {}
+};
+
+class Broadcast: public BaseEvent
+{
+  public:
+    const BroadcastEventID event_id_;
+    std::unique_ptr<const UI::Parameters> parameters_;
+
+    Broadcast(const Broadcast &) = delete;
+    Broadcast &operator=(const Broadcast &) = delete;
+
+    explicit Broadcast(EventID event_id,
+                       std::unique_ptr<const UI::Parameters> parameters):
+        event_id_(to_event_type<BroadcastEventID>(event_id)),
         parameters_(std::move(parameters))
     {}
 };

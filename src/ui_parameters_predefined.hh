@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2017  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -28,6 +28,7 @@
 #include "actor_id.h"
 #include "metadata.hh"
 #include "search_parameters.hh"
+#include "configuration_drcpd.hh"
 
 namespace UI
 {
@@ -36,6 +37,12 @@ namespace Events
 {
 
 template <EventID E> struct ParamTraits;
+
+template <>
+struct ParamTraits<EventID::CONFIGURATION_UPDATED>
+{
+    using PType = SpecificParameters<std::vector<Configuration::DrcpdValues::KeyID>>;
+};
 
 template <>
 struct ParamTraits<EventID::PLAYBACK_FAST_WIND_SET_SPEED>
@@ -141,6 +148,20 @@ static std::unique_ptr<const typename Traits::PType, D>
 downcast(std::unique_ptr<TParams, D> &params)
 {
     return ::UI::Parameters::downcast<const typename Traits::PType, D>(params);
+}
+
+template <BroadcastEventID E, typename D, typename TParams, typename Traits = ::UI::Events::ParamTraits<mk_event_id(E)>>
+static std::unique_ptr<const typename Traits::PType, D>
+downcast(std::unique_ptr<TParams, D> &params)
+{
+    return ::UI::Parameters::downcast<const typename Traits::PType, D>(params);
+}
+
+template <BroadcastEventID E, typename TParams, typename Traits = ::UI::Events::ParamTraits<mk_event_id(E)>>
+static const typename Traits::PType *
+downcast(const TParams *params)
+{
+    return dynamic_cast<const typename Traits::PType *>(params);
 }
 
 template <ViewEventID E, typename D, typename TParams, typename Traits = ::UI::Events::ParamTraits<mk_event_id(E)>>

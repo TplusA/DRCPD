@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016, 2017  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -29,6 +29,7 @@ enum class MemberFn
     focus,
     defocus,
     process_event,
+    process_broadcast,
     write_xml_begin,
     serialize,
     update,
@@ -60,6 +61,10 @@ static std::ostream &operator<<(std::ostream &os, const MemberFn id)
         os << "process_event";
         break;
 
+      case MemberFn::process_broadcast:
+        os << "process_broadcast";
+        break;
+
       case MemberFn::write_xml_begin:
         os << "write_xml_begin";
         break;
@@ -89,33 +94,36 @@ class ViewMock::View::Expectation
 
     const InputResult retval_input_;
     const bool retval_bool_;
-    const UI::EventID arg_event_id_;
     const UI::ViewEventID arg_view_event_id_;
+    const UI::BroadcastEventID arg_broadcast_event_id_;
     const bool arg_is_full_view_;
     const bool expect_parameters_;
-    const CheckParametersFn check_parameters_fn_;
+    const CheckViewEventParametersFn check_view_event_parameters_fn_;
+    const CheckBroadcastEventParametersFn check_broadcast_event_parameters_fn_;
     std::unique_ptr<const UI::Parameters> expected_parameters_;
 
     explicit Expectation(MemberFn id):
         function_id_(id),
         retval_input_(InputResult::OK),
         retval_bool_(false),
-        arg_event_id_(UI::EventID::NOP),
         arg_view_event_id_(UI::ViewEventID::NOP),
+        arg_broadcast_event_id_(UI::BroadcastEventID::NOP),
         arg_is_full_view_(false),
         expect_parameters_(false),
-        check_parameters_fn_(nullptr)
+        check_view_event_parameters_fn_(nullptr),
+        check_broadcast_event_parameters_fn_(nullptr)
     {}
 
     explicit Expectation(MemberFn id, bool retval, bool is_full_view):
         function_id_(id),
         retval_input_(InputResult::OK),
         retval_bool_(retval),
-        arg_event_id_(UI::EventID::NOP),
         arg_view_event_id_(UI::ViewEventID::NOP),
+        arg_broadcast_event_id_(UI::BroadcastEventID::NOP),
         arg_is_full_view_(is_full_view),
         expect_parameters_(false),
-        check_parameters_fn_(nullptr)
+        check_view_event_parameters_fn_(nullptr),
+        check_broadcast_event_parameters_fn_(nullptr)
     {}
 
     explicit Expectation(MemberFn id, InputResult retval, UI::ViewEventID event_id,
@@ -123,24 +131,54 @@ class ViewMock::View::Expectation
         function_id_(id),
         retval_input_(retval),
         retval_bool_(false),
-        arg_event_id_(UI::EventID::NOP),
         arg_view_event_id_(event_id),
+        arg_broadcast_event_id_(UI::BroadcastEventID::NOP),
         arg_is_full_view_(false),
         expect_parameters_(expect_parameters),
-        check_parameters_fn_(nullptr)
+        check_view_event_parameters_fn_(nullptr),
+        check_broadcast_event_parameters_fn_(nullptr)
     {}
 
     explicit Expectation(MemberFn id, InputResult retval, UI::ViewEventID event_id,
                          std::unique_ptr<const UI::Parameters> expected_parameters,
-                         CheckParametersFn check_params_callback):
+                         CheckViewEventParametersFn check_params_callback):
         function_id_(id),
         retval_input_(retval),
         retval_bool_(false),
-        arg_event_id_(UI::EventID::NOP),
         arg_view_event_id_(event_id),
+        arg_broadcast_event_id_(UI::BroadcastEventID::NOP),
         arg_is_full_view_(false),
         expect_parameters_(expected_parameters != nullptr),
-        check_parameters_fn_(check_params_callback),
+        check_view_event_parameters_fn_(check_params_callback),
+        check_broadcast_event_parameters_fn_(nullptr),
+        expected_parameters_(std::move(expected_parameters))
+    {}
+
+    explicit Expectation(MemberFn id, UI::BroadcastEventID event_id,
+                         bool expect_parameters):
+        function_id_(id),
+        retval_input_(InputResult::OK),
+        retval_bool_(false),
+        arg_view_event_id_(UI::ViewEventID::NOP),
+        arg_broadcast_event_id_(event_id),
+        arg_is_full_view_(false),
+        expect_parameters_(expect_parameters),
+        check_view_event_parameters_fn_(nullptr),
+        check_broadcast_event_parameters_fn_(nullptr)
+    {}
+
+    explicit Expectation(MemberFn id, UI::BroadcastEventID event_id,
+                         std::unique_ptr<const UI::Parameters> expected_parameters,
+                         CheckBroadcastEventParametersFn check_params_callback):
+        function_id_(id),
+        retval_input_(InputResult::OK),
+        retval_bool_(false),
+        arg_view_event_id_(UI::ViewEventID::NOP),
+        arg_broadcast_event_id_(event_id),
+        arg_is_full_view_(false),
+        expect_parameters_(expected_parameters != nullptr),
+        check_view_event_parameters_fn_(nullptr),
+        check_broadcast_event_parameters_fn_(check_params_callback),
         expected_parameters_(std::move(expected_parameters))
     {}
 };
@@ -190,9 +228,24 @@ void ViewMock::View::expect_process_event(InputResult retval, UI::ViewEventID ev
 
 void ViewMock::View::expect_process_event_with_callback(InputResult retval, UI::ViewEventID event_id,
                                                         std::unique_ptr<const UI::Parameters> expected_parameters,
-                                                        CheckParametersFn check_params_callback)
+                                                        CheckViewEventParametersFn check_params_callback)
 {
     expectations_->add(Expectation(MemberFn::process_event, retval, event_id,
+                                   std::move(expected_parameters),
+                                   check_params_callback));
+}
+
+void ViewMock::View::expect_process_broadcast(UI::BroadcastEventID event_id,
+                                              bool expect_parameters)
+{
+    expectations_->add(Expectation(MemberFn::process_broadcast, event_id, expect_parameters));
+}
+
+void ViewMock::View::expect_process_broadcast_with_callback(UI::BroadcastEventID event_id,
+                                                            std::unique_ptr<const UI::Parameters> expected_parameters,
+                                                            CheckBroadcastEventParametersFn check_params_callback)
+{
+    expectations_->add(Expectation(MemberFn::process_broadcast, event_id,
                                    std::move(expected_parameters),
                                    check_params_callback));
 }
@@ -245,15 +298,36 @@ ViewIface::InputResult ViewMock::View::process_event(UI::ViewEventID event_id,
     cppcut_assert_equal(expect.function_id_, MemberFn::process_event);
     cppcut_assert_equal(int(expect.arg_view_event_id_), int(event_id));
 
-    if(expect.check_parameters_fn_ != nullptr)
-        expect.check_parameters_fn_(std::move(const_cast<Expectation &>(expect).expected_parameters_),
-                                    std::move(parameters));
+    if(expect.check_view_event_parameters_fn_ != nullptr)
+        expect.check_view_event_parameters_fn_(
+            std::move(const_cast<Expectation &>(expect).expected_parameters_),
+            std::move(parameters));
     else if(expect.expect_parameters_)
         cppcut_assert_not_null(parameters.get());
     else
         cppcut_assert_null(parameters.get());
 
     return expect.retval_input_;
+}
+
+void ViewMock::View::process_broadcast(UI::BroadcastEventID event_id, const UI::Parameters *parameters)
+{
+    if(ignore_all_)
+        return;
+
+    const auto &expect(expectations_->get_next_expectation(__func__));
+
+    cppcut_assert_equal(expect.function_id_, MemberFn::process_broadcast);
+    cppcut_assert_equal(int(expect.arg_broadcast_event_id_), int(event_id));
+
+    if(expect.check_broadcast_event_parameters_fn_ != nullptr)
+        expect.check_broadcast_event_parameters_fn_(
+            std::move(const_cast<Expectation &>(expect).expected_parameters_),
+            std::move(parameters));
+    else if(expect.expect_parameters_)
+        cppcut_assert_not_null(parameters);
+    else
+        cppcut_assert_null(parameters);
 }
 
 bool ViewMock::View::write_xml_begin(std::ostream &os,

@@ -420,6 +420,36 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
     return InputResult::OK;
 }
 
+void ViewPlay::View::process_broadcast(UI::BroadcastEventID event_id,
+                                       const UI::Parameters *parameters)
+{
+    const auto lock_ctrl(player_control_.lock());
+    const auto lock_data(player_data_.lock());
+
+    switch(event_id)
+    {
+      case UI::BroadcastEventID::NOP:
+        break;
+
+      case UI::BroadcastEventID::CONFIGURATION_UPDATED:
+        {
+            const auto params =
+                UI::Events::downcast<UI::BroadcastEventID::CONFIGURATION_UPDATED>(parameters);
+
+            if(params == nullptr)
+                break;
+
+            const auto &changed_ids(params->get_specific());
+
+            if(std::find(changed_ids.begin(), changed_ids.end(),
+                         Configuration::DrcpdValues::KeyID::MAXIMUM_BITRATE) != changed_ids.end())
+                maximum_bitrate_ = view_manager_->get_configuration().maximum_bitrate_;
+        }
+
+        break;
+    }
+}
+
 static const std::string &mk_alt_track_name(const MetaData::Set &meta_data)
 {
     if(!meta_data.values_[MetaData::Set::INTERNAL_DRCPD_TITLE].empty())

@@ -72,6 +72,10 @@ bool ViewManager::Manager::invoke_late_init_functions()
             ok = false;
     }
 
+    config_manager_.set_updated_notification_callback(
+        std::bind(&ViewManager::Manager::configuration_changed_notification,
+                  this, std::placeholders::_1));
+
     return ok;
 }
 
@@ -158,6 +162,10 @@ void ViewManager::Manager::store_event(UI::EventID event_id,
         ev.reset(new UI::Events::ViewInput(event_id, std::move(parameters)));
         break;
 
+      case UI::EventTypeID::BROADCAST_EVENT:
+        ev.reset(new UI::Events::Broadcast(event_id, std::move(parameters)));
+        break;
+
       case UI::EventTypeID::VIEW_MANAGER_EVENT:
         ev.reset(new UI::Events::ViewMan(event_id, std::move(parameters)));
         break;
@@ -208,6 +216,24 @@ static void log_event_dispatch(const UI::ViewEventID event_id,
               was_bounced ? "bounced" : "direct");
 }
 
+static void log_event_dispatch(const UI::BroadcastEventID event_id,
+                               const char *view_name)
+{
+    static constexpr std::array<const char *const,
+                                static_cast<unsigned int>(UI::BroadcastEventID::LAST_EVENT_ID) + 1>
+        events
+    {
+        "NOP",
+        "CONFIGURATION_UPDATED",
+    };
+
+    static_assert(events[events.size() - 1] != nullptr, "Table too short");
+
+    msg_vinfo(MESSAGE_LEVEL_DEBUG, "Dispatch broadcast %s (%d) to view %s",
+              events[static_cast<unsigned int>(event_id)],
+              static_cast<int>(event_id), view_name);
+}
+
 void ViewManager::Manager::dispatch_event(UI::ViewEventID event_id,
                                           std::unique_ptr<const UI::Parameters> parameters)
 {
@@ -241,6 +267,16 @@ void ViewManager::Manager::dispatch_event(UI::ViewEventID event_id,
         handle_input_result(active_view_->process_event(event_id,
                                                         std::move(parameters)),
                             *active_view_);
+    }
+}
+
+void ViewManager::Manager::dispatch_event(UI::BroadcastEventID event_id,
+                                          std::unique_ptr<const UI::Parameters> parameters)
+{
+    for(auto &view : all_views_)
+    {
+        log_event_dispatch(event_id, view.first.c_str());
+        view.second->process_broadcast(event_id, parameters.get());
     }
 }
 
@@ -466,6 +502,13 @@ void ViewManager::Manager::process_pending_events()
 
             dispatch_event(ev_vi->event_id_, std::move(parameters));
         }
+        else if(auto *ev_bc = dynamic_cast<UI::Events::Broadcast *>(event.get()))
+        {
+            std::unique_ptr<const UI::Parameters> parameters;
+            parameters.swap(ev_bc->parameters_);
+
+            dispatch_event(ev_bc->event_id_, std::move(parameters));
+        }
         else if(auto *ev_vm = dynamic_cast<UI::Events::ViewMan *>(event.get()))
         {
             std::unique_ptr<const UI::Parameters> parameters;
@@ -488,4 +531,18 @@ void ViewManager::Manager::busy_state_notification(bool is_busy)
     view->add_base_update_flags(ViewSerializeBase::UPDATE_FLAGS_BASE_BUSY_FLAG);
     view->update(dcp_transaction_queue_, DCP::Queue::Mode::FORCE_ASYNC,
                  debug_stream_);
+}
+
+void ViewManager::Manager::configuration_changed_notification(const std::array<bool, Configuration::DrcpdValues::NUMBER_OF_KEYS> &changed)
+{
+    auto params = UI::Events::mk_params<UI::EventID::CONFIGURATION_UPDATED>();
+    auto &vec(params->get_specific_non_const());
+
+    for(size_t i = 0; i < Configuration::DrcpdValues::NUMBER_OF_KEYS; ++i)
+    {
+        if(changed[i])
+            vec.push_back(static_cast<Configuration::DrcpdValues::KeyID>(i));
+    }
+
+    store_event(UI::EventID::CONFIGURATION_UPDATED, std::move(params));
 }

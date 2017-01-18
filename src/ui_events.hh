@@ -38,11 +38,12 @@ static constexpr unsigned int EVENT_TYPE_SHIFT = 16U;
 enum class EventTypeID
 {
     INPUT_EVENT = 1,
+    BROADCAST_EVENT,
     VIEW_MANAGER_EVENT,
 };
 
 /*!
- * Input events directed at views.
+ * Input events directed at single views.
  */
 enum class ViewEventID
 {
@@ -76,6 +77,17 @@ enum class ViewEventID
 };
 
 /*!
+ * Events directed at all views.
+ */
+enum class BroadcastEventID
+{
+    NOP,
+    CONFIGURATION_UPDATED,
+
+    LAST_EVENT_ID = CONFIGURATION_UPDATED,
+};
+
+/*!
  * Input events directed at the view manager.
  */
 enum class VManEventID
@@ -94,6 +106,11 @@ template <typename T> struct EventTypeTraits;
 template <> struct EventTypeTraits<ViewEventID>
 {
     static constexpr EventTypeID event_type_id = EventTypeID::INPUT_EVENT;
+};
+
+template <> struct EventTypeTraits<BroadcastEventID>
+{
+    static constexpr EventTypeID event_type_id = EventTypeID::BROADCAST_EVENT;
 };
 
 template <> struct EventTypeTraits<VManEventID>
@@ -162,6 +179,7 @@ enum class EventID
     /* =====================
      * Passive notifications
      * ===================== */
+    CONFIGURATION_UPDATED        = mk_event_id(BroadcastEventID::CONFIGURATION_UPDATED),
     VIEWMAN_INVALIDATE_LIST_ID   = mk_event_id(VManEventID::INVALIDATE_LIST_ID),
     VIEWMAN_STREAM_NOW_PLAYING   = mk_event_id(VManEventID::NOTIFY_NOW_PLAYING),
     VIEW_PLAYER_NOW_PLAYING      = mk_event_id(ViewEventID::NOTIFY_NOW_PLAYING),
