@@ -169,8 +169,9 @@ void ViewManager::Manager::store_event(UI::EventID event_id,
 static void log_event_dispatch(const UI::ViewEventID event_id,
                                const char *view_name, bool was_bounced)
 {
-    static const std::array<const char *,
-                            static_cast<unsigned int>(UI::ViewEventID::LAST_VIEW_EVENT_ID) + 1> events
+    static constexpr std::array<const char *const,
+                                static_cast<unsigned int>(UI::ViewEventID::LAST_VIEW_EVENT_ID) + 1>
+        events
     {
         "NOP",
         "PLAYBACK_COMMAND_START",
@@ -198,6 +199,8 @@ static void log_event_dispatch(const UI::ViewEventID event_id,
         "NOTIFY_STREAM_PAUSED",
         "NOTIFY_STREAM_POSITION",
     };
+
+    static_assert(events[events.size() - 1] != nullptr, "Table too short");
 
     msg_vinfo(MESSAGE_LEVEL_DEBUG, "Dispatch %s (%d) to view %s (%s)",
               events[static_cast<unsigned int>(event_id)],
