@@ -24,6 +24,7 @@
 #include "listnav.hh"
 #include "view_filebrowser_fileitem.hh"
 #include "airable_links.hh"
+#include "gvariantwrapper.hh"
 
 namespace ViewFileBrowser { class View; }
 
@@ -104,7 +105,7 @@ class DirectoryCrawler: public CrawlerIface
      * Async call for getting Airable stream link URIs.
      */
     using AsyncGetStreamLinks =
-        DBus::AsyncCall<tdbuslistsNavigation, std::tuple<guchar, GVariant *>,
+        DBus::AsyncCall<tdbuslistsNavigation, std::tuple<guchar, GVariantWrapper>,
                         Busy::Source::GETTING_ITEM_STREAM_LINKS>;
 
   private:

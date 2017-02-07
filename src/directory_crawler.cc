@@ -391,14 +391,11 @@ mk_async_get_stream_links(tdbuslistsNavigation *proxy,
                           "Async D-Bus method call failed: %s",
                           error != nullptr ? error->message : "*NULL*");
 
-            promise.set_value(std::move(std::make_tuple(error_code, link_list)));
+            promise.set_value(std::move(std::make_tuple(error_code,
+                                                        std::move(GVariantWrapper(link_list)))));
         },
         std::move(result_available_fn),
-        [] (Playlist::DirectoryCrawler::AsyncGetStreamLinks::PromiseReturnType &values)
-        {
-            if(std::get<1>(values) != nullptr)
-                g_variant_unref(std::get<1>(values));
-        },
+        [] (Playlist::DirectoryCrawler::AsyncGetStreamLinks::PromiseReturnType &values) {},
         [] () { return true; });
 }
 
@@ -759,10 +756,10 @@ namespace Playlist
         static bool fill_item_info_from_result(DirectoryCrawler::ItemInfo &item_info,
                                                const DirectoryCrawler::AsyncGetStreamLinks::PromiseReturnType &result)
         {
-            GVariant *const link_list(std::get<1>(result));
+            const GVariantWrapper &link_list(std::get<1>(result));
             GVariantIter iter;
 
-            if(g_variant_iter_init(&iter, link_list) <= 0)
+            if(g_variant_iter_init(&iter, GVariantWrapper::get(link_list)) <= 0)
                 return false;
 
             guint rank;
