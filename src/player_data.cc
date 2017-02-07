@@ -62,7 +62,7 @@ mk_async_resolve_redirect(tdbusAirable *proxy,
 }
 
 Player::StreamPreplayInfo::OpResult
-Player::StreamPreplayInfo::iter_next(tdbusAirable *proxy, std::string *&uri,
+Player::StreamPreplayInfo::iter_next(tdbusAirable *proxy, const std::string *&uri,
                                      const ResolvedRedirectCallback &callback)
 {
     if(airable_links_.empty())
@@ -275,7 +275,8 @@ ID::OurStream Player::Data::store_stream_preplay_information(std::vector<std::st
 }
 
 Player::StreamPreplayInfo::OpResult
-Player::Data::get_first_stream_uri(const ID::OurStream stream_id, std::string *&uri,
+Player::Data::get_first_stream_uri(const ID::OurStream stream_id,
+                                   const std::string *&uri,
                                    const StreamPreplayInfo::ResolvedRedirectCallback &callback)
 {
     Player::StreamPreplayInfo *const info = preplay_info_.get_info_for_update(stream_id);
@@ -293,8 +294,9 @@ Player::Data::get_first_stream_uri(const ID::OurStream stream_id, std::string *&
 }
 
 Player::StreamPreplayInfo::OpResult
-Player::Data::get_next_stream_uri(const ID::OurStream stream_id, std::string *&uri,
-                                   const StreamPreplayInfo::ResolvedRedirectCallback &callback)
+Player::Data::get_next_stream_uri(const ID::OurStream stream_id,
+                                  const std::string *&uri,
+                                  const StreamPreplayInfo::ResolvedRedirectCallback &callback)
 {
     Player::StreamPreplayInfo *const info = preplay_info_.get_info_for_update(stream_id);
 

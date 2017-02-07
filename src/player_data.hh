@@ -138,11 +138,11 @@ class StreamPreplayInfo
         next_uri_to_try_ = 0;
     }
 
-    OpResult iter_next(tdbusAirable *proxy, std::string *&uri,
+    OpResult iter_next(tdbusAirable *proxy, const std::string *&uri,
                        const ResolvedRedirectCallback &callback);
 
   private:
-    bool iter_next_resolved(std::string *&uri)
+    bool iter_next_resolved(const std::string *&uri)
     {
         if(next_uri_to_try_ < uris_.size())
         {
@@ -299,10 +299,12 @@ class Data
                                                    ID::List list_id, unsigned int line,
                                                    unsigned int directory_depth);
     Player::StreamPreplayInfo::OpResult
-    get_first_stream_uri(const ID::OurStream stream_id, std::string *&uri,
+    get_first_stream_uri(const ID::OurStream stream_id,
+                         const std::string *&uri,
                          const StreamPreplayInfo::ResolvedRedirectCallback &callback);
     Player::StreamPreplayInfo::OpResult
-    get_next_stream_uri(const ID::OurStream stream_id, std::string *&uri,
+    get_next_stream_uri(const ID::OurStream stream_id,
+                        const std::string *&uri,
                         const StreamPreplayInfo::ResolvedRedirectCallback &callback);
 
     const StreamPreplayInfo *get_stream_preplay_info(const ID::OurStream stream_id) const

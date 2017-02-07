@@ -1216,7 +1216,7 @@ queue_stream_or_forget(Player::Data &player, ID::OurStream stream_id,
                        Player::Control::PlayNewMode play_new_mode,
                        const Player::StreamPreplayInfo::ResolvedRedirectCallback &callback)
 {
-    std::string *uri = nullptr;
+    const std::string *uri = nullptr;
     const auto result(player.get_first_stream_uri(stream_id, uri, callback));
 
     if(uri == nullptr)
