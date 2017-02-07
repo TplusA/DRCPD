@@ -222,9 +222,9 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
                 break;
             }
 
-            const bool queue_is_full(std::get<1>(plist));
-            const auto &meta_data(std::get<2>(plist));
-            const std::string &url_string(std::get<3>(plist));
+            const bool queue_is_full(std::get<2>(plist));
+            const auto &meta_data(std::get<3>(plist));
+            const std::string &url_string(std::get<4>(plist));
 
             bool switched_stream;
 

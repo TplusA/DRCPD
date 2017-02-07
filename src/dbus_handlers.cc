@@ -343,22 +343,25 @@ void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
 
     if(strcmp(signal_name, "NowPlaying") == 0)
     {
-        check_parameter_assertions(parameters, 4);
+        check_parameter_assertions(parameters, 5);
 
         guint16 raw_stream_id;
+        GVariant *stream_key_variant;
         const gchar *url_string;
         gboolean queue_is_full;
         GVariantIter *meta_data_iter;
 
-        g_variant_get(parameters, "(q&sba(ss))",
-                      &raw_stream_id, &url_string, &queue_is_full, &meta_data_iter);
+        g_variant_get(parameters, "(q@ay&sba(ss))",
+                      &raw_stream_id, &stream_key_variant,
+                      &url_string, &queue_is_full, &meta_data_iter);
 
         auto params =
             UI::Events::mk_params<UI::EventID::VIEW_PLAYER_NOW_PLAYING>(
                 ID::Stream::make_from_raw_id(raw_stream_id),
+                std::move(GVariantWrapper(stream_key_variant)),
                 queue_is_full, MetaData::Set(), url_string);
 
-        if(parse_meta_data(std::get<2>(params->get_specific_non_const()), meta_data_iter))
+        if(parse_meta_data(std::get<3>(params->get_specific_non_const()), meta_data_iter))
         {
             data->event_sink_.store_event(UI::EventID::VIEW_PLAYER_NOW_PLAYING,
                                           std::move(params));

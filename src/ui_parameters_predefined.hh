@@ -29,6 +29,7 @@
 #include "metadata.hh"
 #include "search_parameters.hh"
 #include "configuration_drcpd.hh"
+#include "gvariantwrapper.hh"
 
 namespace UI
 {
@@ -83,7 +84,7 @@ struct ParamTraits<EventID::VIEWMAN_INVALIDATE_LIST_ID>
 template <>
 struct ParamTraits<EventID::VIEW_PLAYER_NOW_PLAYING>
 {
-    using PType = SpecificParameters<std::tuple<const ID::Stream,
+    using PType = SpecificParameters<std::tuple<const ID::Stream, GVariantWrapper,
                                                 const bool,
                                                 MetaData::Set,
                                                 const std::string>>;

@@ -333,9 +333,11 @@ mk_async_get_uris(tdbuslistsNavigation *proxy,
         {
             guchar error_code = 0;
             gchar **uri_list = NULL;
+            GVariant *image_stream_key = NULL;
 
             async_ready =
                 tdbus_lists_navigation_call_get_uris_finish(p, &error_code, &uri_list,
+                                                            &image_stream_key,
                                                             async_result, &error)
                 ? DBus::AsyncResult::READY
                 : DBus::AsyncResult::FAILED;
@@ -345,7 +347,8 @@ mk_async_get_uris(tdbuslistsNavigation *proxy,
                           "Async D-Bus method call failed: %s",
                           error != nullptr ? error->message : "*NULL*");
 
-            promise.set_value(std::move(std::make_tuple(error_code, uri_list)));
+            promise.set_value(std::move(std::make_tuple(error_code, uri_list,
+                                                        std::move(GVariantWrapper(image_stream_key)))));
         },
         std::move(result_available_fn),
         [] (Playlist::DirectoryCrawler::AsyncGetURIs::PromiseReturnType &values)
@@ -379,10 +382,12 @@ mk_async_get_stream_links(tdbuslistsNavigation *proxy,
         {
             guchar error_code = 0;
             GVariant *link_list = NULL;
+            GVariant *image_stream_key = NULL;
 
             async_ready =
                 tdbus_lists_navigation_call_get_ranked_stream_links_finish(
-                    p, &error_code, &link_list, async_result, &error)
+                    p, &error_code, &link_list, &image_stream_key,
+                    async_result, &error)
                 ? DBus::AsyncResult::READY
                 : DBus::AsyncResult::FAILED;
 
@@ -392,7 +397,8 @@ mk_async_get_stream_links(tdbuslistsNavigation *proxy,
                           error != nullptr ? error->message : "*NULL*");
 
             promise.set_value(std::move(std::make_tuple(error_code,
-                                                        std::move(GVariantWrapper(link_list)))));
+                                                        std::move(GVariantWrapper(link_list)),
+                                                        std::move(GVariantWrapper(image_stream_key)))));
         },
         std::move(result_available_fn),
         [] (Playlist::DirectoryCrawler::AsyncGetStreamLinks::PromiseReturnType &values) {},
@@ -846,7 +852,8 @@ void Playlist::DirectoryCrawler::process_item_information(DBus::AsyncCall_ &asyn
     }
 
     current_item_info_.set(list_id, line, directory_depth,
-                           dynamic_cast<const ViewFileBrowser::FileItem *>(get_current_list_item_impl()));
+                           dynamic_cast<const ViewFileBrowser::FileItem *>(get_current_list_item_impl()),
+                           std::move(std::get<2>(const_cast<typename AsyncT::PromiseReturnType &>(result))));
 
     if(!current_item_info_.position_.list_id_.is_valid() ||
        current_item_info_.file_item_ == nullptr)

@@ -1117,6 +1117,9 @@ Player::Control::stop_notification(ID::Stream stream_id)
  *     Internal ID of the stream for mapping it to extra information maintained
  *     by us.
  *
+ * \param stream_key
+ *     Stream key as passed in from the stream source.
+ *
  * \param queue_mode
  *     How to manipulate the stream player URL FIFO.
  *
@@ -1134,6 +1137,7 @@ Player::Control::stop_notification(ID::Stream stream_id)
  *     True in case of success, false otherwise.
  */
 static bool send_selected_file_uri_to_streamplayer(ID::OurStream stream_id,
+                                                   const GVariantWrapper &stream_key,
                                                    Player::Control::QueueMode queue_mode,
                                                    Player::Control::PlayNewMode play_new_mode,
                                                    const std::string &queued_url)
@@ -1165,7 +1169,7 @@ static bool send_selected_file_uri_to_streamplayer(ID::OurStream stream_id,
 
     if(!tdbus_splay_urlfifo_call_push_sync(dbus_get_streamplayer_urlfifo_iface(),
                                            stream_id.get().get_raw_id(),
-                                           queued_url.c_str(),
+                                           queued_url.c_str(), GVariantWrapper::get(stream_key),
                                            0, "ms", 0, "ms", keep_first_n,
                                            &fifo_overflow, &is_playing,
                                            NULL, NULL))
@@ -1216,13 +1220,15 @@ queue_stream_or_forget(Player::Data &player, ID::OurStream stream_id,
                        Player::Control::PlayNewMode play_new_mode,
                        const Player::StreamPreplayInfo::ResolvedRedirectCallback &callback)
 {
+    const GVariantWrapper *stream_key;
     const std::string *uri = nullptr;
-    const auto result(player.get_first_stream_uri(stream_id, uri, callback));
+    const auto result(player.get_first_stream_uri(stream_id, stream_key, uri, callback));
 
     if(uri == nullptr)
         return result;
 
-    if(!send_selected_file_uri_to_streamplayer(stream_id, queue_mode, play_new_mode,
+    if(!send_selected_file_uri_to_streamplayer(stream_id, *stream_key,
+                                               queue_mode, play_new_mode,
                                                *uri))
     {
         player.forget_stream(stream_id.get());
@@ -1939,8 +1945,9 @@ Player::Control::process_crawler_item(CrawlerContext ctx, QueueMode queue_mode,
 
     item_info.airable_links_.finalize(bitrate_limiter_);
 
-    /* we'll steal the URI lists from the item info for efficiency */
+    /* we'll steal some data from the item info for efficiency */
     const ID::OurStream stream_id(player_->store_stream_preplay_information(
+                                        std::move(item_info.stream_key_),
                                         std::move(item_info.stream_uris_),
                                         std::move(item_info.airable_links_),
                                         item_info.position_.list_id_, item_info.position_.line_,

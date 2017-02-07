@@ -63,6 +63,7 @@ class DirectoryCrawler: public CrawlerIface
         MarkedPosition position_;
         const ViewFileBrowser::FileItem *file_item_;
 
+        GVariantWrapper stream_key_;
         std::vector<std::string> stream_uris_;
         Airable::SortedLinks airable_links_;
 
@@ -77,16 +78,19 @@ class DirectoryCrawler: public CrawlerIface
         {
             position_.set(ID::List(), 0, 0);
             file_item_ = nullptr;
+            stream_key_.release();
             stream_uris_.clear();
             airable_links_.clear();
         }
 
         void set(ID::List list_id, unsigned int line,
                  unsigned int directory_depth,
-                 const ViewFileBrowser::FileItem *file_item)
+                 const ViewFileBrowser::FileItem *file_item,
+                 GVariantWrapper &&stream_key)
         {
             position_.set(list_id, line, directory_depth);
             file_item_ = file_item;
+            stream_key_ = std::move(stream_key);
             stream_uris_.clear();
             airable_links_.clear();
         }
@@ -98,14 +102,14 @@ class DirectoryCrawler: public CrawlerIface
     /*!
      * Async call for getting stream URIs.
      */
-    using AsyncGetURIs = DBus::AsyncCall<tdbuslistsNavigation, std::tuple<guchar, gchar **>,
+    using AsyncGetURIs = DBus::AsyncCall<tdbuslistsNavigation, std::tuple<guchar, gchar **, GVariantWrapper>,
                                          Busy::Source::GETTING_ITEM_URI>;
 
     /*!
      * Async call for getting Airable stream link URIs.
      */
     using AsyncGetStreamLinks =
-        DBus::AsyncCall<tdbuslistsNavigation, std::tuple<guchar, GVariantWrapper>,
+        DBus::AsyncCall<tdbuslistsNavigation, std::tuple<guchar, GVariantWrapper, GVariantWrapper>,
                         Busy::Source::GETTING_ITEM_STREAM_LINKS>;
 
   private:
@@ -251,6 +255,10 @@ class DirectoryCrawler: public CrawlerIface
                                              bool expecting_file_item);
     bool do_retrieve_item_information(const RetrieveItemInfoCallback &callback);
 
+    /*!
+     * Callback for #Playlist::DirectoryCrawler::AsyncGetURIs and
+     * #Playlist::DirectoryCrawler::AsyncGetStreamLinks.
+     */
     template <typename AsyncT, typename Traits = ProcessItemTraits<AsyncT>>
     void process_item_information(DBus::AsyncCall_ &async_call,
                                   ID::List list_id, unsigned int line,

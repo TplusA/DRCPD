@@ -28,6 +28,7 @@
 #include "airable_links.hh"
 #include "logged_lock.hh"
 #include "dbus_iface_deep.h"
+#include "gvariantwrapper.hh"
 
 namespace Player
 {
@@ -103,6 +104,7 @@ class StreamPreplayInfo
         std::function<void(size_t idx, ResolvedRedirectResult result)>;
 
   private:
+    GVariantWrapper stream_key_;
     std::vector<std::string> uris_;
     Airable::SortedLinks airable_links_;
 
@@ -115,13 +117,15 @@ class StreamPreplayInfo
     StreamPreplayInfo(StreamPreplayInfo &&) = default;
     StreamPreplayInfo &operator=(const StreamPreplayInfo &) = delete;
 
-    explicit StreamPreplayInfo(std::vector<std::string> &&uris,
+    explicit StreamPreplayInfo(const GVariantWrapper &stream_key,
+                               std::vector<std::string> &&uris,
                                Airable::SortedLinks &&airable_links,
                                ID::List list_id, unsigned int line,
                                unsigned int directory_depth):
         list_id_(list_id),
         line_(line),
         directory_depth_(directory_depth),
+        stream_key_(stream_key),
         uris_(std::move(uris)),
         airable_links_(std::move(airable_links)),
         next_uri_to_try_(0)
@@ -131,6 +135,8 @@ class StreamPreplayInfo
     {
         AsyncResolveRedirect::cancel_and_delete(async_resolve_redirect_call_);
     }
+
+    const GVariantWrapper &get_stream_key() const { return stream_key_; }
 
     void iter_reset()
     {
@@ -177,7 +183,8 @@ class StreamPreplayInfoCollection
         return stream_ppinfos_.size() >= MAX_ENTRIES;
     }
 
-    bool store(ID::OurStream stream_id, std::vector<std::string> &&uris,
+    bool store(ID::OurStream stream_id, const GVariantWrapper &stream_key,
+               std::vector<std::string> &&uris,
                Airable::SortedLinks &&airable_links,
                ID::List list_id, unsigned int line, unsigned int directory_depth);
     void forget_stream(const ID::OurStream stream_id);
@@ -294,16 +301,19 @@ class Data
                     stream_position_, stream_duration_);
     }
 
-    ID::OurStream store_stream_preplay_information(std::vector<std::string> &&uris,
+    ID::OurStream store_stream_preplay_information(const GVariantWrapper &stream_key,
+                                                   std::vector<std::string> &&uris,
                                                    Airable::SortedLinks &&airable_links,
                                                    ID::List list_id, unsigned int line,
                                                    unsigned int directory_depth);
     Player::StreamPreplayInfo::OpResult
     get_first_stream_uri(const ID::OurStream stream_id,
+                         const GVariantWrapper *&stream_key,
                          const std::string *&uri,
                          const StreamPreplayInfo::ResolvedRedirectCallback &callback);
     Player::StreamPreplayInfo::OpResult
     get_next_stream_uri(const ID::OurStream stream_id,
+                        const GVariantWrapper *&stream_key,
                         const std::string *&uri,
                         const StreamPreplayInfo::ResolvedRedirectCallback &callback);
 

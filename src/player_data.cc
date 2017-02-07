@@ -190,6 +190,7 @@ void Player::StreamPreplayInfo::process_resolved_redirect(
 }
 
 bool Player::StreamPreplayInfoCollection::store(ID::OurStream stream_id,
+                                                const GVariantWrapper &stream_key,
                                                 std::vector<std::string> &&uris,
                                                 Airable::SortedLinks &&airable_links,
                                                 ID::List list_id, unsigned int line,
@@ -197,7 +198,7 @@ bool Player::StreamPreplayInfoCollection::store(ID::OurStream stream_id,
 {
     const auto result =
         stream_ppinfos_.emplace(stream_id,
-                                StreamPreplayInfo(std::move(uris),
+                                StreamPreplayInfo(stream_key, std::move(uris),
                                                   std::move(airable_links),
                                                   list_id, line, directory_depth));
 
@@ -247,7 +248,8 @@ static void unref_list_id(std::map<ID::List, size_t> &list_refcounts,
         list_refcounts.erase(list_id);
 }
 
-ID::OurStream Player::Data::store_stream_preplay_information(std::vector<std::string> &&uris,
+ID::OurStream Player::Data::store_stream_preplay_information(const GVariantWrapper &stream_key,
+                                                             std::vector<std::string> &&uris,
                                                              Airable::SortedLinks &&airable_links,
                                                              ID::List list_id, unsigned int line,
                                                              unsigned int directory_depth)
@@ -265,7 +267,8 @@ ID::OurStream Player::Data::store_stream_preplay_information(std::vector<std::st
         const ID::OurStream id = next_free_stream_id_;
         ++next_free_stream_id_;
 
-        if(preplay_info_.store(id, std::move(uris), std::move(airable_links),
+        if(preplay_info_.store(id, stream_key,
+                               std::move(uris), std::move(airable_links),
                                list_id, line, directory_depth))
         {
             ref_list_id(referenced_lists_, list_id);
@@ -276,6 +279,7 @@ ID::OurStream Player::Data::store_stream_preplay_information(std::vector<std::st
 
 Player::StreamPreplayInfo::OpResult
 Player::Data::get_first_stream_uri(const ID::OurStream stream_id,
+                                   const GVariantWrapper *&stream_key,
                                    const std::string *&uri,
                                    const StreamPreplayInfo::ResolvedRedirectCallback &callback)
 {
@@ -284,10 +288,12 @@ Player::Data::get_first_stream_uri(const ID::OurStream stream_id,
     if(info != nullptr)
     {
         info->iter_reset();
+        stream_key = &info->get_stream_key();
         return info->iter_next(airable_proxy_, uri, callback);
     }
     else
     {
+        stream_key = nullptr;
         uri = nullptr;
         return Player::StreamPreplayInfo::OpResult::SUCCEEDED;
     }
@@ -295,15 +301,20 @@ Player::Data::get_first_stream_uri(const ID::OurStream stream_id,
 
 Player::StreamPreplayInfo::OpResult
 Player::Data::get_next_stream_uri(const ID::OurStream stream_id,
+                                  const GVariantWrapper *&stream_key,
                                   const std::string *&uri,
                                   const StreamPreplayInfo::ResolvedRedirectCallback &callback)
 {
     Player::StreamPreplayInfo *const info = preplay_info_.get_info_for_update(stream_id);
 
     if(info != nullptr)
+    {
+        stream_key = &info->get_stream_key();
         return info->iter_next(airable_proxy_, uri, callback);
+    }
     else
     {
+        stream_key = nullptr;
         uri = nullptr;
         return Player::StreamPreplayInfo::OpResult::SUCCEEDED;
     }
