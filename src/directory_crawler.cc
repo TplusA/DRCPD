@@ -348,7 +348,8 @@ mk_async_get_uris(tdbuslistsNavigation *proxy,
                           error != nullptr ? error->message : "*NULL*");
 
             promise.set_value(std::move(std::make_tuple(error_code, uri_list,
-                                                        std::move(GVariantWrapper(image_stream_key)))));
+                                                        std::move(GVariantWrapper(image_stream_key,
+                                                                                  GVariantWrapper::Transfer::JUST_MOVE)))));
         },
         std::move(result_available_fn),
         [] (Playlist::DirectoryCrawler::AsyncGetURIs::PromiseReturnType &values)
@@ -397,8 +398,10 @@ mk_async_get_stream_links(tdbuslistsNavigation *proxy,
                           error != nullptr ? error->message : "*NULL*");
 
             promise.set_value(std::move(std::make_tuple(error_code,
-                                                        std::move(GVariantWrapper(link_list)),
-                                                        std::move(GVariantWrapper(image_stream_key)))));
+                                                        std::move(GVariantWrapper(link_list,
+                                                                                  GVariantWrapper::Transfer::JUST_MOVE)),
+                                                        std::move(GVariantWrapper(image_stream_key,
+                                                                                  GVariantWrapper::Transfer::JUST_MOVE)))));
         },
         std::move(result_available_fn),
         [] (Playlist::DirectoryCrawler::AsyncGetStreamLinks::PromiseReturnType &values) {},
