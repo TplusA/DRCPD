@@ -291,7 +291,7 @@ class Control
 
     /* functions below are called as a result of status updates from the
      * system, so they may be direct reactions to preceding user actions */
-    void play_notification(ID::Stream stream_id);
+    void play_notification(ID::Stream stream_id, bool is_new_stream);
     StopReaction stop_notification(ID::Stream stream_id);
     StopReaction stop_notification(ID::Stream stream_id,
                                    const std::string &error_id,

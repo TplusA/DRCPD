@@ -929,32 +929,36 @@ void Player::Control::fast_wind_stop_request() const
 }
 
 
-void Player::Control::play_notification(ID::Stream stream_id)
+void Player::Control::play_notification(ID::Stream stream_id,
+                                        bool is_new_stream)
 {
-    switch(is_stream_expected_to_start(queued_streams_, stream_id))
+    if(is_new_stream)
     {
-      case StreamExpected::OURS_AS_EXPECTED:
-        break;
+        switch(is_stream_expected_to_start(queued_streams_, stream_id))
+        {
+          case StreamExpected::OURS_AS_EXPECTED:
+            break;
 
-      case StreamExpected::OURS_QUEUED:
-        queued_streams_.pop_front();
-        break;
+          case StreamExpected::OURS_QUEUED:
+            queued_streams_.pop_front();
+            break;
 
-      case StreamExpected::NOT_OURS:
-      case StreamExpected::UNEXPECTEDLY_OURS:
-      case StreamExpected::OURS_WRONG_ID:
-        break;
+          case StreamExpected::NOT_OURS:
+          case StreamExpected::UNEXPECTEDLY_OURS:
+          case StreamExpected::OURS_WRONG_ID:
+            break;
 
-      case StreamExpected::UNEXPECTEDLY_NOT_OURS:
-        unplug();
-        return;
+          case StreamExpected::UNEXPECTEDLY_NOT_OURS:
+            unplug();
+            return;
 
-      case StreamExpected::EMPTY_AS_EXPECTED:
-        BUG("Got play notification for empty queue and invalid stream");
-        return;
+          case StreamExpected::EMPTY_AS_EXPECTED:
+            BUG("Got play notification for empty queue and invalid stream");
+            return;
 
-      case StreamExpected::INVALID_ID:
-        return;
+          case StreamExpected::INVALID_ID:
+            return;
+        }
     }
 
     retry_data_.playing(stream_id);

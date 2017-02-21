@@ -238,7 +238,7 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
 
             player_data_.merge_meta_data(stream_id, meta_data, &url_string);
             player_data_.set_stream_state(stream_id, Player::StreamState::PLAYING);
-            player_control_.play_notification(stream_id);
+            player_control_.play_notification(stream_id, switched_stream);
 
             msg_info("Play view: stream started, %s",
                      is_visible_ ? "send screen update" : "but view is invisible");
