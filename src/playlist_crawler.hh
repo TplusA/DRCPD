@@ -191,22 +191,28 @@ class CrawlerIface
     using RetrieveItemInfoCallback = std::function<void(Playlist::CrawlerIface &crawler,
                                                         RetrieveItemInfoResult result)>;
 
-    void set_direction_forward()
+    bool set_direction_forward()
     {
         if(!is_crawling_forward_)
         {
             is_crawling_forward_ = true;
             switch_direction();
+            return true;
         }
+        else
+            return false;
     }
 
-    void set_direction_backward()
+    bool set_direction_backward()
     {
         if(is_crawling_forward_)
         {
             is_crawling_forward_ = false;
             switch_direction();
+            return true;
         }
+        else
+            return false;
     }
 
     virtual void mark_current_position() = 0;

@@ -90,7 +90,7 @@ void Player::Skipper::set_intention_from_skipping(Player::Data &data)
     }
 }
 
-void Player::Skipper::stop_skipping(Player::Data &data, Playlist::CrawlerIface &crawler,
+bool Player::Skipper::stop_skipping(Player::Data &data, Playlist::CrawlerIface &crawler,
                                     bool keep_skipping_flag)
 {
     if(keep_skipping_flag)
@@ -104,7 +104,7 @@ void Player::Skipper::stop_skipping(Player::Data &data, Playlist::CrawlerIface &
         set_intention_from_skipping(data);
     }
 
-    crawler.set_direction_forward();
+    return crawler.set_direction_forward();
 }
 
 Player::Skipper::SkipState
@@ -181,8 +181,9 @@ Player::Skipper::backward_request(Player::Data &data, Playlist::CrawlerIface &cr
     return SKIPPING;
 }
 
-bool Player::Skipper::skipped(Data &data, Playlist::CrawlerIface &crawler,
-                              bool keep_skipping_flag_if_done)
+Player::Skipper::SkippedResult
+Player::Skipper::skipped(Data &data, Playlist::CrawlerIface &crawler,
+                         bool keep_skipping_flag_if_done)
 {
     if(pending_skip_requests_ == 0)
     {
@@ -194,9 +195,9 @@ bool Player::Skipper::skipped(Data &data, Playlist::CrawlerIface &crawler,
             keep_skipping_flag_if_done = false;
         }
 
-        stop_skipping(data, crawler, keep_skipping_flag_if_done);
-
-        return false;
+        return stop_skipping(data, crawler, keep_skipping_flag_if_done)
+            ? SkippedResult::DONE_BACKWARD
+            : SkippedResult::DONE_FORWARD;
     }
 
     log_assert(is_skipping_);
@@ -207,14 +208,14 @@ bool Player::Skipper::skipped(Data &data, Playlist::CrawlerIface &crawler,
     {
         --pending_skip_requests_;
         crawler.set_direction_forward();
+        return SkippedResult::SKIPPING_FORWARD;
     }
     else
     {
         ++pending_skip_requests_;
         crawler.set_direction_backward();
+        return SkippedResult::SKIPPING_BACKWARD;
     }
-
-    return true;
 }
 
 void Player::Control::plug(const ViewIface &view)
@@ -1572,8 +1573,10 @@ void Player::Control::found_list_item(Playlist::CrawlerIface &crawler,
           case CrawlerContext::SKIP:
             prefetch_state_ = PrefetchState::NOT_PREFETCHING;
 
-            if(skip_requests_.skipped(*player_, *crawler_, true))
+            switch(skip_requests_.skipped(*player_, *crawler_, true))
             {
+              case Player::Skipper::SkippedResult::SKIPPING_FORWARD:
+              case Player::Skipper::SkippedResult::SKIPPING_BACKWARD:
                 switch(crawler.find_next(std::bind(&Player::Control::found_list_item,
                                                    this,
                                                    std::placeholders::_1,
@@ -1590,6 +1593,10 @@ void Player::Control::found_list_item(Playlist::CrawlerIface &crawler,
                 }
 
                 return;
+
+              case Player::Skipper::SkippedResult::DONE_FORWARD:
+              case Player::Skipper::SkippedResult::DONE_BACKWARD:
+                break;
             }
 
             /* fall-through */
