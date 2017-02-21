@@ -1,3 +1,24 @@
+2017-02-28  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 3.1 released.
+
+	* Playback: Fixed problem with toggling between play and pause modes.
+
+	* Playback: Fixed skipping backwards over problematic streams.
+
+	* Skipping: Fast sequences of skip requests work reliably and do not
+	  kill the directory traversal.
+
+	* Skipping: Rewind threshold has been increased from 2 to 5 seconds.
+	  This is because skipping backwards can be slow, especially on UPnP
+	  lists, so even if skipping was clearly intended by the user, the
+	  skip back command may be processed only after more than 2 seconds
+	  into the track. Five seconds still feel natural and practical, so
+	  here we go.
+
+	* Stability: Fixed crash due to dangling file item pointer while
+	  skipping quickly over long stretches of a list.
+
 2017-02-16  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 3.0 released: Changes of D-Bus interfaces were necessary
