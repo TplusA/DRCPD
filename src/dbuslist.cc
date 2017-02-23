@@ -1037,8 +1037,11 @@ void List::DBusList::get_item_async_handle_done()
                      ? OpResult::CANCELED
                      : OpResult::FAILED);
 
-        msg_error(0, LOG_NOTICE, "Failed obtaining line %u of list %u",
+        msg_error(0, LOG_NOTICE,
+                  "%s obtaining lines %u through %u of list %u",
+                  op_result == OpResult::FAILED ? "Failed" : "Canceled",
                   q->parameters_.loading_segment_.line_,
+                  q->parameters_.loading_segment_.line_ + q->parameters_.loading_segment_.count_ - 1,
                   q->parameters_.list_id_.get_raw_id());
     }
 
