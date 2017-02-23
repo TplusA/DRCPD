@@ -91,17 +91,24 @@ void Player::Skipper::set_intention_from_skipping(Player::Data &data)
 }
 
 bool Player::Skipper::stop_skipping(Player::Data &data, Playlist::CrawlerIface &crawler,
-                                    bool keep_skipping_flag)
+                                    Player::Skipper::StopSkipBehavior how)
 {
-    if(keep_skipping_flag)
+    switch(how)
     {
-        log_assert(is_skipping_);
-        pending_skip_requests_ = 0;
-    }
-    else
-    {
+      case StopSkipBehavior::STOP:
         reset();
         set_intention_from_skipping(data);
+        break;
+
+      case StopSkipBehavior::KEEP_SKIPPING_FORWARD:
+      case StopSkipBehavior::KEEP_SKIPPING_IN_CURRENT_DIRECTION:
+        log_assert(is_skipping_);
+        pending_skip_requests_ = 0;
+
+        if(how == StopSkipBehavior::KEEP_SKIPPING_IN_CURRENT_DIRECTION)
+            return !crawler.is_crawling_forward();
+
+        break;
     }
 
     return crawler.set_direction_forward();
@@ -183,7 +190,7 @@ Player::Skipper::backward_request(Player::Data &data, Playlist::CrawlerIface &cr
 
 Player::Skipper::SkippedResult
 Player::Skipper::skipped(Data &data, Playlist::CrawlerIface &crawler,
-                         bool keep_skipping_flag_if_done)
+                         Player::Skipper::StopSkipBehavior how)
 {
     if(pending_skip_requests_ == 0)
     {
@@ -192,10 +199,10 @@ Player::Skipper::skipped(Data &data, Playlist::CrawlerIface &crawler,
         else
         {
             BUG("Got skipped notification, but not skipping");
-            keep_skipping_flag_if_done = false;
+            how = StopSkipBehavior::STOP;
         }
 
-        return stop_skipping(data, crawler, keep_skipping_flag_if_done)
+        return stop_skipping(data, crawler, how)
             ? SkippedResult::DONE_BACKWARD
             : SkippedResult::DONE_FORWARD;
     }
@@ -770,7 +777,8 @@ bool Player::Control::skip_forward_request()
                 break;
             }
 
-            skip_requests_.skipped(*player_, *crawler_, false);
+            skip_requests_.skipped(*player_, *crawler_,
+                                   Player::Skipper::StopSkipBehavior::STOP);
             enforce_intention(player_->get_intention(), streamplayer_status);
 
             retval = true;
@@ -1573,7 +1581,8 @@ void Player::Control::found_list_item(Playlist::CrawlerIface &crawler,
           case CrawlerContext::SKIP:
             prefetch_state_ = PrefetchState::NOT_PREFETCHING;
 
-            switch(skip_requests_.skipped(*player_, *crawler_, true))
+            switch(skip_requests_.skipped(*player_, *crawler_,
+                                          Player::Skipper::StopSkipBehavior::KEEP_SKIPPING_IN_CURRENT_DIRECTION))
             {
               case Player::Skipper::SkippedResult::SKIPPING_FORWARD:
               case Player::Skipper::SkippedResult::SKIPPING_BACKWARD:

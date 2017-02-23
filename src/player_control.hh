@@ -52,6 +52,13 @@ class Skipper
         SKIPPING_BACKWARD,
     };
 
+    enum class StopSkipBehavior
+    {
+        STOP,
+        KEEP_SKIPPING_FORWARD,
+        KEEP_SKIPPING_IN_CURRENT_DIRECTION,
+    };
+
   private:
     static constexpr const char MAX_PENDING_SKIP_REQUESTS = 5;
 
@@ -82,11 +89,11 @@ class Skipper
     SkipState backward_request(Data &data, Playlist::CrawlerIface &crawler,
                                UserIntention &previous_intention);
     SkippedResult skipped(Data &data, Playlist::CrawlerIface &crawler,
-                          bool keep_skipping_flag_if_done);
+                          StopSkipBehavior how);
 
     bool stop_skipping(Data &data, Playlist::CrawlerIface &crawler)
     {
-        return stop_skipping(data, crawler, false);
+        return stop_skipping(data, crawler, StopSkipBehavior::STOP);
     }
 
   private:
@@ -94,7 +101,7 @@ class Skipper
     static void set_intention_from_skipping(Data &data);
 
     bool stop_skipping(Data &data, Playlist::CrawlerIface &crawler,
-                       bool keep_skipping_flag);
+                       StopSkipBehavior how);
 };
 
 class Control
