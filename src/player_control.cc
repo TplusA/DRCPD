@@ -1343,6 +1343,7 @@ Player::Control::stop_notification(ID::Stream stream_id,
     {
       case StoppedReason::Code::UNKNOWN:
       case StoppedReason::Code::FLOW_REPORTED_UNKNOWN:
+      case StoppedReason::Code::FLOW_EMPTY_URLFIFO:
       case StoppedReason::Code::IO_MEDIA_FAILURE:
       case StoppedReason::Code::IO_AUTHENTICATION_FAILURE:
       case StoppedReason::Code::IO_STREAM_UNAVAILABLE:
@@ -1354,12 +1355,7 @@ Player::Control::stop_notification(ID::Stream stream_id,
       case StoppedReason::Code::DATA_ENCRYPTION_SCHEME_NOT_SUPPORTED:
         break;
 
-      case StoppedReason::Code::FLOW_EMPTY_URLFIFO:
-        log_assert(is_urlfifo_empty);
-        break;
-
       case StoppedReason::Code::FLOW_ALREADY_STOPPED:
-        log_assert(is_urlfifo_empty);
         return Player::Control::StopReaction::QUEUED;
 
       case StoppedReason::Code::IO_NETWORK_FAILURE:
