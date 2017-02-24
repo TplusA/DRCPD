@@ -739,8 +739,8 @@ bool Player::Control::skip_forward_request()
 
             if(retry_data_.get_stream_id().get().is_valid())
             {
-               player_->forget_stream(retry_data_.get_stream_id().get());
-               retry_data_.reset();
+                player_->forget_stream(retry_data_.get_stream_id().get());
+                retry_data_.reset();
             }
 
             switch(is_stream_expected_to_start(queued_streams_, next_stream_id))
@@ -791,19 +791,19 @@ bool Player::Control::skip_forward_request()
 
     if(should_find_next)
     {
-       switch(crawler_->find_next(std::bind(&Player::Control::found_list_item, this,
-                                            std::placeholders::_1,
-                                            std::placeholders::_2,
-                                            CrawlerContext::SKIP)))
-       {
-         case Playlist::CrawlerIface::FindNextFnResult::SEARCHING:
-         case Playlist::CrawlerIface::FindNextFnResult::STOPPED:
-           break;
+        switch(crawler_->find_next(std::bind(&Player::Control::found_list_item, this,
+                                             std::placeholders::_1,
+                                             std::placeholders::_2,
+                                             CrawlerContext::SKIP)))
+        {
+          case Playlist::CrawlerIface::FindNextFnResult::SEARCHING:
+          case Playlist::CrawlerIface::FindNextFnResult::STOPPED:
+            break;
 
-         case Playlist::CrawlerIface::FindNextFnResult::FAILED:
-           player_->set_intention(previous_intention);
-           break;
-       }
+          case Playlist::CrawlerIface::FindNextFnResult::FAILED:
+            player_->set_intention(previous_intention);
+            break;
+        }
     }
 
     return retval;
