@@ -1296,9 +1296,10 @@ Player::Control::stop_notification(ID::Stream stream_id,
         return StopReaction::STREAM_IGNORED;
     }
 
-    msg_info("Stream error %s -> %d.%d",
+    msg_info("Stream error %s -> %d.%d, URL FIFO %sempty",
              error_id.c_str(), static_cast<unsigned int>(reason.get_domain()),
-             static_cast<unsigned int>(reason.get_code()));
+             static_cast<unsigned int>(reason.get_code()),
+             is_urlfifo_empty ? "" : "not ");
 
     auto crawler_lock(crawler_->lock());
     bool skipping = false;
