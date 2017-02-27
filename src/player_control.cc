@@ -335,7 +335,6 @@ static bool send_pause_command()
 }
 
 static bool send_skip_to_next_command(ID::Stream &removed_stream_from_queue,
-                                      ID::Stream &next_stream_in_queue,
                                       Player::StreamState &play_status)
 {
     guint skipped_id;
@@ -353,9 +352,6 @@ static bool send_skip_to_next_command(ID::Stream &removed_stream_from_queue,
     removed_stream_from_queue = (skipped_id != UINT32_MAX
                                  ? ID::Stream::make_from_raw_id(skipped_id)
                                  : ID::Stream::make_invalid());
-    next_stream_in_queue = (next_id != UINT32_MAX
-                            ? ID::Stream::make_from_raw_id(next_id)
-                            : ID::Stream::make_invalid());
 
     switch(raw_play_status)
     {
@@ -704,10 +700,9 @@ bool Player::Control::skip_forward_request()
         {
             /* stream player should have something in queue */
             auto skipped_stream_id(ID::Stream::make_invalid());
-            auto next_stream_id(ID::Stream::make_invalid());
             Player::StreamState streamplayer_status;
 
-            if(!send_skip_to_next_command(skipped_stream_id, next_stream_id,
+            if(!send_skip_to_next_command(skipped_stream_id,
                                           streamplayer_status))
             {
                 player_->set_intention(previous_intention);
@@ -732,10 +727,9 @@ bool Player::Control::skip_forward_request()
               case StreamExpected::UNEXPECTEDLY_OURS:
               case StreamExpected::OURS_WRONG_ID:
               case StreamExpected::INVALID_ID:
-                BUG("Unexpected expectation result while skipping (1): %u, %u->%u",
+                BUG("Unexpected expectation result while skipping (1): current %u, skipped %u",
                     retry_data_.get_stream_id().get().get_raw_id(),
-                    skipped_stream_id.get_raw_id(),
-                    next_stream_id.get_raw_id());
+                    skipped_stream_id.get_raw_id());
                 break;
             }
 
@@ -743,40 +737,6 @@ bool Player::Control::skip_forward_request()
             {
                 player_->forget_stream(retry_data_.get_stream_id().get());
                 retry_data_.reset();
-            }
-
-            switch(is_stream_expected_to_start(queued_streams_, next_stream_id))
-            {
-              case StreamExpected::OURS_QUEUED:
-                /* OK, we should see the play notification soon */
-                break;
-
-              case StreamExpected::NOT_OURS:
-                /* this case does not occur */
-                BUG("Our stream is not ours...");
-                break;
-
-              case StreamExpected::UNEXPECTEDLY_NOT_OURS:
-                unplug();
-                return false;
-
-              case StreamExpected::EMPTY_AS_EXPECTED:
-              case StreamExpected::INVALID_ID:
-                /* stream player queue is empty because of extremely fast
-                 * skipping, handled in handler for stop notification with
-                 * error */
-                msg_error(0, LOG_NOTICE,
-                          "Streamplayer FIFO underflow, user skips fast");
-                return false;
-
-              case StreamExpected::OURS_AS_EXPECTED:
-              case StreamExpected::UNEXPECTEDLY_OURS:
-              case StreamExpected::OURS_WRONG_ID:
-                BUG("Unexpected expectation result while skipping (2): %u, %u->%u",
-                    retry_data_.get_stream_id().get().get_raw_id(),
-                    skipped_stream_id.get_raw_id(),
-                    next_stream_id.get_raw_id());
-                break;
             }
 
             skip_requests_.skipped(*player_, *crawler_,
@@ -1411,31 +1371,19 @@ Player::Control::stop_notification(ID::Stream stream_id,
     {
         if(!queued_streams_.empty())
         {
-            /* slightly out of sync: we know something that stream player does
-             * not know, but this case is easy to fix */
-            bool may_prefetch_more;
-            const auto replay_result = replay(queued_streams_.front(), false,
-                                              replay_mode, may_prefetch_more);
-
-            switch(replay_result)
-            {
-              case ReplayResult::OK:
-                if(may_prefetch_more)
-                    need_next_item_hint(false);
-
-                return StopReaction::REPLAY_QUEUE;
-
-              case ReplayResult::RETRY_FAILED_HARD:
-                BUG("Got hard retry failure, but shouldn't be possible");
-                return StopReaction::STOPPED;
-
-              case ReplayResult::GAVE_UP:
-              case ReplayResult::EMPTY_QUEUE:
-                break;
-            }
+            /* looks slightly out of sync because of a race between the stream
+             * player and this process (stream player has sent the stop
+             * notification before it could process our last push), but
+             * everything is fine */
+            return StopReaction::QUEUED;
         }
         else if(crawler_->is_busy())
+        {
+            /* empty URL FIFO, and we haven't anything either---crawler is
+             * already busy fetching the next stream, so everything is fine,
+             * just a bit too slow for the user's actions */
             return StopReaction::QUEUED;
+        }
 
         /* nothing queued anywhere or gave up---maybe we can find some other
          * stream to play below */
