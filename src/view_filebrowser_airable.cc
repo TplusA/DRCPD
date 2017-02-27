@@ -56,7 +56,7 @@ ViewFileBrowser::AirableView::process_event(UI::ViewEventID event_id,
         return ViewFileBrowser::View::process_event(event_id, std::move(parameters));
 
     const auto params =
-        UI::Events::downcast<UI::EventID::VIEW_AIRABLE_SERVICE_LOGIN_STATUS_UPDATE>(parameters);
+        UI::Events::downcast<UI::ViewEventID::NOTIFY_AIRABLE_SERVICE_LOGIN_STATUS_UPDATE>(parameters);
 
     if(params == nullptr)
         return InputResult::OK;

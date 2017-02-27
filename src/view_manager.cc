@@ -290,7 +290,7 @@ void ViewManager::Manager::dispatch_event(UI::VManEventID event_id,
 
       case UI::VManEventID::OPEN_VIEW:
         {
-            const auto params = UI::Events::downcast<UI::EventID::VIEW_OPEN>(parameters);
+            const auto params = UI::Events::downcast<UI::VManEventID::OPEN_VIEW>(parameters);
 
             if(params == nullptr)
                 break;
@@ -302,7 +302,7 @@ void ViewManager::Manager::dispatch_event(UI::VManEventID event_id,
 
       case UI::VManEventID::TOGGLE_VIEWS:
         {
-            const auto params = UI::Events::downcast<UI::EventID::VIEW_TOGGLE>(parameters);
+            const auto params = UI::Events::downcast<UI::VManEventID::TOGGLE_VIEWS>(parameters);
 
             if(params == nullptr)
                 break;
@@ -317,7 +317,7 @@ void ViewManager::Manager::dispatch_event(UI::VManEventID event_id,
       case UI::VManEventID::INVALIDATE_LIST_ID:
         {
             const auto params =
-                UI::Events::downcast<UI::EventID::VIEWMAN_INVALIDATE_LIST_ID>(parameters);
+                UI::Events::downcast<UI::VManEventID::INVALIDATE_LIST_ID>(parameters);
 
             if(params == nullptr)
                 break;

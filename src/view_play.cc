@@ -206,7 +206,7 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
       case UI::ViewEventID::NOTIFY_NOW_PLAYING:
         {
             const auto params =
-                UI::Events::downcast<UI::EventID::VIEW_PLAYER_NOW_PLAYING>(parameters);
+                UI::Events::downcast<UI::ViewEventID::NOTIFY_NOW_PLAYING>(parameters);
 
             if(params == nullptr)
                 break;
@@ -256,7 +256,7 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
       case UI::ViewEventID::NOTIFY_STREAM_STOPPED:
         {
             const auto params =
-                UI::Events::downcast<UI::EventID::VIEW_PLAYER_STREAM_STOPPED>(parameters);
+                UI::Events::downcast<UI::ViewEventID::NOTIFY_STREAM_STOPPED>(parameters);
 
             if(params == nullptr)
                 break;
@@ -309,7 +309,7 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
       case UI::ViewEventID::NOTIFY_STREAM_PAUSED:
         {
             const auto stream_id =
-                UI::Events::downcast<UI::EventID::VIEW_PLAYER_STREAM_PAUSED>(parameters);
+                UI::Events::downcast<UI::ViewEventID::NOTIFY_STREAM_PAUSED>(parameters);
 
             if(stream_id == nullptr)
                 break;
@@ -329,7 +329,7 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
       case UI::ViewEventID::NOTIFY_STREAM_POSITION:
         {
             const auto params =
-                UI::Events::downcast<UI::EventID::VIEW_PLAYER_STREAM_POSITION>(parameters);
+                UI::Events::downcast<UI::ViewEventID::NOTIFY_STREAM_POSITION>(parameters);
 
             if(params == nullptr)
                 break;
@@ -349,7 +349,7 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
       case UI::ViewEventID::STORE_STREAM_META_DATA:
         {
             const auto params =
-                UI::Events::downcast<UI::EventID::VIEW_PLAYER_STORE_STREAM_META_DATA>(parameters);
+                UI::Events::downcast<UI::ViewEventID::STORE_STREAM_META_DATA>(parameters);
 
             if(params == nullptr)
                 break;
