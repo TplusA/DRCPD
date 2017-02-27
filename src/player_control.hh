@@ -164,6 +164,7 @@ class Control
 
     const ViewIface *owning_view_;
     Data *player_;
+    LoggedLock::RecMutex player_dummy_lock_;
     Playlist::CrawlerIface *crawler_;
     LoggedLock::RecMutex crawler_dummy_lock_;
     const LocalPermissionsIface *permissions_;
@@ -252,6 +253,7 @@ class Control
         bitrate_limiter_(bitrate_limiter)
     {
         LoggedLock::set_name(lock_, "Player::Control");
+        LoggedLock::set_name(player_dummy_lock_, "Player::Data dummy");
         LoggedLock::set_name(crawler_dummy_lock_, "Player::Control dummy");
     }
 
@@ -261,23 +263,20 @@ class Control
      * Before calling \e any function member, the lock must be acquired using
      * this function.
      */
-    std::pair<LoggedLock::UniqueLock<LoggedLock::RecMutex>,
-              LoggedLock::UniqueLock<LoggedLock::RecMutex>>
+    std::tuple<LoggedLock::UniqueLock<LoggedLock::RecMutex>,
+               LoggedLock::UniqueLock<LoggedLock::RecMutex>,
+               LoggedLock::UniqueLock<LoggedLock::RecMutex>>
     lock() const
     {
-        if(crawler_ != nullptr)
-        {
-            auto crawler_lock(crawler_->lock());
-            return std::make_pair(LoggedLock::UniqueLock<LoggedLock::RecMutex>(const_cast<Control *>(this)->lock_),
-                                  std::move(crawler_lock));
-        }
-        else
-        {
-            auto crawler_lock(LoggedLock::UniqueLock<LoggedLock::RecMutex>(const_cast<Control *>(this)->crawler_dummy_lock_));
-            return std::make_pair(LoggedLock::UniqueLock<LoggedLock::RecMutex>(const_cast<Control *>(this)->lock_),
-                                  std::move(crawler_lock));
-        }
+        Control &ncthis(*const_cast<Control *>(this));
 
+        return std::make_tuple(LoggedLock::UniqueLock<LoggedLock::RecMutex>(ncthis.lock_),
+                               crawler_ != nullptr
+                               ? crawler_->lock()
+                               : LoggedLock::UniqueLock<LoggedLock::RecMutex>(ncthis.crawler_dummy_lock_),
+                               player_ != nullptr
+                               ? player_->lock()
+                               : LoggedLock::UniqueLock<LoggedLock::RecMutex>(ncthis.player_dummy_lock_));
     }
 
     bool is_active_controller() const { return owning_view_ != nullptr; };

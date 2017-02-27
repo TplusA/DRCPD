@@ -276,6 +276,8 @@ void Player::Control::forget_queued_and_playing(bool also_forget_playing)
 
 void Player::Control::unplug()
 {
+    auto locks(lock());
+
     owning_view_ = nullptr;
 
     forget_queued_and_playing(true);
@@ -1950,8 +1952,6 @@ Player::Control::process_crawler_item(CrawlerContext ctx, QueueMode queue_mode,
 {
     if(player_ == nullptr || crawler_ == nullptr)
         return StreamPreplayInfo::OpResult::CANCELED;
-
-    auto crawler_lock(crawler_->lock());
 
     auto *crawler = dynamic_cast<Playlist::DirectoryCrawler *>(crawler_);
     log_assert(crawler != nullptr);
