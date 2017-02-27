@@ -203,7 +203,6 @@ class Manager: public VMIface, public UI::EventStoreIface
     void hide_view_if_active(const ViewIface *view) override;
 
     void process_pending_events();
-    bool is_event_pending() const { return !ui_events_.is_empty(); }
 
     void busy_state_notification(bool is_busy);
 

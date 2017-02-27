@@ -169,8 +169,6 @@ class EventQueue
 
         return ret;
     }
-
-    bool is_empty() const { return queue_.empty(); }
 };
 
 }
