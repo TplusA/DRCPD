@@ -959,12 +959,12 @@ List::DBusList::get_item_async(unsigned int line, const Item *&item)
                                                    ListItemKind(ListItemKind::LOCKED),
                                                    MetaData::PreloadedSet());
 
+    item = nullptr;
+
     if(!window_.list_id_.is_valid())
         return OpResult::FAILED;
 
     LoggedLock::UniqueLock<LoggedLock::RecMutex> lock(async_dbus_data_.lock_);
-
-    item = nullptr;
 
     /* already entering a list, cannot get items in this situation */
     if(async_dbus_data_.enter_list_query_ != nullptr)
