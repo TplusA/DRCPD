@@ -62,8 +62,6 @@ class SpecificParameters: public Parameters
     SpecificParameters &operator=(const SpecificParameters &) = delete;
     SpecificParameters(SpecificParameters &&) = default;
 
-    constexpr explicit SpecificParameters() {}
-
     explicit SpecificParameters(T &&value): value_(std::move(value)) {}
 
     const T &get_specific() const { return value_; }
