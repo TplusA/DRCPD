@@ -496,30 +496,13 @@ void ViewManager::Manager::process_pending_events()
             return;
 
         if(auto *ev_vi = dynamic_cast<UI::Events::ViewInput *>(event.get()))
-        {
-            std::unique_ptr<const UI::Parameters> parameters;
-            parameters.swap(ev_vi->parameters_);
-
-            dispatch_event(ev_vi->event_id_, std::move(parameters));
-        }
+            dispatch_event(ev_vi->event_id_, std::move(ev_vi->parameters_));
         else if(auto *ev_bc = dynamic_cast<UI::Events::Broadcast *>(event.get()))
-        {
-            std::unique_ptr<const UI::Parameters> parameters;
-            parameters.swap(ev_bc->parameters_);
-
-            dispatch_event(ev_bc->event_id_, std::move(parameters));
-        }
+            dispatch_event(ev_bc->event_id_, std::move(ev_bc->parameters_));
         else if(auto *ev_vm = dynamic_cast<UI::Events::ViewMan *>(event.get()))
-        {
-            std::unique_ptr<const UI::Parameters> parameters;
-            parameters.swap(ev_vm->parameters_);
-
-            dispatch_event(ev_vm->event_id_, std::move(parameters));
-        }
+            dispatch_event(ev_vm->event_id_, std::move(ev_vm->parameters_));
         else
-        {
             BUG("Unhandled event");
-        }
     }
 }
 

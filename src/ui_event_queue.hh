@@ -162,9 +162,7 @@ class EventQueue
         if(queue_.empty())
             return nullptr;
 
-        std::unique_ptr<Events::BaseEvent> ret;
-
-        ret.swap(queue_.front());
+        std::unique_ptr<Events::BaseEvent> ret = std::move(queue_.front());
         queue_.pop_front();
 
         return ret;
