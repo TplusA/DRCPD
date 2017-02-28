@@ -151,7 +151,7 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
 
       case UI::ViewEventID::PLAYBACK_PREVIOUS:
         {
-            static constexpr const auto rewind_threshold(std::chrono::milliseconds(2000));
+            static constexpr const auto rewind_threshold(std::chrono::milliseconds(5000));
             const auto times(player_data_.get_times());
 
             if(times.first <= rewind_threshold)
