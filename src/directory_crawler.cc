@@ -303,6 +303,10 @@ bool Playlist::DirectoryCrawler::try_get_dbuslist_item_after_started_or_successf
              * it, \e and succeeded immediately */
             return true;
 
+          case RecurseResult::ASYNC_CANCELED:
+            op_result = List::AsyncListIface::OpResult::CANCELED;
+            break;
+
           case RecurseResult::ERROR:
             op_result = List::AsyncListIface::OpResult::FAILED;
             break;
@@ -598,6 +602,8 @@ Playlist::DirectoryCrawler::process_current_ready_item(const ViewFileBrowser::Fi
                                                        const FindNextCallback &callback,
                                                        bool expecting_file_item)
 {
+    Playlist::DirectoryCrawler::RecurseResult fail_retval = RecurseResult::ERROR;
+
     switch(op_result)
     {
       case List::AsyncListIface::OpResult::STARTED:
@@ -629,9 +635,11 @@ Playlist::DirectoryCrawler::process_current_ready_item(const ViewFileBrowser::Fi
                 break;
 
               case RecurseResult::ASYNC_IN_PROGRESS:
+              case RecurseResult::ASYNC_DONE:
                 break;
 
-              case RecurseResult::ASYNC_DONE:
+              case RecurseResult::ASYNC_CANCELED:
+                fail_retval = RecurseResult::ASYNC_CANCELED;
                 break;
 
               case RecurseResult::SKIP:
@@ -649,12 +657,15 @@ Playlist::DirectoryCrawler::process_current_ready_item(const ViewFileBrowser::Fi
 
         break;
 
-      case List::AsyncListIface::OpResult::FAILED:
       case List::AsyncListIface::OpResult::CANCELED:
+        fail_retval = RecurseResult::ASYNC_CANCELED;
+        break;
+
+      case List::AsyncListIface::OpResult::FAILED:
         break;
     }
 
-    return RecurseResult::ERROR;
+    return fail_retval;
 }
 
 bool Playlist::DirectoryCrawler::do_retrieve_item_information(const RetrieveItemInfoCallback &callback)
@@ -662,6 +673,8 @@ bool Playlist::DirectoryCrawler::do_retrieve_item_information(const RetrieveItem
     const List::Item *item;
     const auto op_result(traversal_list_.get_item_async(navigation_.get_cursor(), item));
     const auto find_next_callback(pass_on(find_next_callback_));
+
+    RetrieveItemInfoResult result_for_callback = RetrieveItemInfoResult::FAILED;
 
     switch(process_current_ready_item(dynamic_cast<const ViewFileBrowser::FileItem *>(item),
                                       op_result, find_next_callback, true))
@@ -713,6 +726,10 @@ bool Playlist::DirectoryCrawler::do_retrieve_item_information(const RetrieveItem
         msg_out_of_memory("asynchronous D-Bus call");
         break;
 
+      case RecurseResult::ASYNC_CANCELED:
+        result_for_callback = RetrieveItemInfoResult::CANCELED;
+        break;
+
       case RecurseResult::ERROR:
         break;
 
@@ -723,7 +740,7 @@ bool Playlist::DirectoryCrawler::do_retrieve_item_information(const RetrieveItem
         break;
     }
 
-    call_callback(callback, *this, RetrieveItemInfoResult::FAILED);
+    call_callback(callback, *this, result_for_callback);
 
     return false;
 }
@@ -1212,6 +1229,10 @@ void Playlist::DirectoryCrawler::handle_get_item_event(List::AsyncListIface::OpR
                   case RecurseResult::ASYNC_DONE:
                     find_next(find_next_callback);
                     return;
+
+                  case RecurseResult::ASYNC_CANCELED:
+                    result = List::AsyncListIface::OpResult::CANCELED;
+                    break;
 
                   case RecurseResult::ERROR:
                     result = List::AsyncListIface::OpResult::FAILED;

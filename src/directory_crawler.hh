@@ -128,6 +128,7 @@ class DirectoryCrawler: public CrawlerIface
         FOUND_ITEM,
         ASYNC_IN_PROGRESS,
         ASYNC_DONE,
+        ASYNC_CANCELED,
         SKIP,
         ERROR,
     };
