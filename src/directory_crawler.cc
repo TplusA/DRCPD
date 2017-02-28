@@ -1212,8 +1212,10 @@ void Playlist::DirectoryCrawler::handle_get_item_event(List::AsyncListIface::OpR
             {
                 is_first_item_in_list_processed_ = true;
 
-                const List::Item *item;
-                auto op_result(traversal_list_.get_item_async(navigation_.get_cursor(), item));
+                const List::Item *item = nullptr;
+                auto op_result(result == List::AsyncListIface::OpResult::SUCCEEDED
+                               ? traversal_list_.get_item_async(navigation_.get_cursor(), item):
+                               result);
                 const auto find_next_callback(pass_on(find_next_callback_));
 
                 switch(process_current_ready_item(dynamic_cast<const ViewFileBrowser::FileItem *>(item),

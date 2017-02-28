@@ -722,6 +722,8 @@ bool Player::Control::skip_forward_request()
                 break;
 
               case StreamExpected::EMPTY_AS_EXPECTED:
+                break;
+
               case StreamExpected::NOT_OURS:
               case StreamExpected::UNEXPECTEDLY_NOT_OURS:
               case StreamExpected::UNEXPECTEDLY_OURS:
@@ -1258,10 +1260,10 @@ Player::Control::stop_notification(ID::Stream stream_id,
         return StopReaction::STREAM_IGNORED;
     }
 
-    msg_info("Stream error %s -> %d.%d, URL FIFO %sempty",
+    msg_info("Stream error %s -> %d.%d, URL FIFO %sempty, expected queue size %zu",
              error_id.c_str(), static_cast<unsigned int>(reason.get_domain()),
              static_cast<unsigned int>(reason.get_code()),
-             is_urlfifo_empty ? "" : "not ");
+             is_urlfifo_empty ? "" : "not ", queued_streams_.size());
 
     auto crawler_lock(crawler_->lock());
     bool skipping = false;
@@ -1577,8 +1579,10 @@ void Player::Control::found_list_item(Playlist::CrawlerIface &crawler,
 
         break;
 
-      case Playlist::CrawlerIface::FindNextItemResult::FAILED:
       case Playlist::CrawlerIface::FindNextItemResult::CANCELED:
+        break;
+
+      case Playlist::CrawlerIface::FindNextItemResult::FAILED:
       case Playlist::CrawlerIface::FindNextItemResult::START_OF_LIST:
       case Playlist::CrawlerIface::FindNextItemResult::END_OF_LIST:
         prefetch_state_ = PrefetchState::NOT_PREFETCHING;

@@ -976,6 +976,7 @@ List::DBusList::get_item_async(unsigned int line, const Item *&item)
     if(is_line_cached(line))
     {
         item = window_[line];
+        log_assert(item != nullptr);
         return OpResult::SUCCEEDED;
     }
 
