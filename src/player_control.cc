@@ -22,6 +22,7 @@
 
 #include "player_control.hh"
 #include "player_stopped_reason.hh"
+#include "view_filebrowser_fileitem.hh"
 #include "directory_crawler.hh"
 #include "dbus_iface_deep.h"
 #include "view_play.hh"
@@ -1886,15 +1887,16 @@ void Player::Control::unexpected_resolve_error(size_t idx,
     unplug();
 }
 
-static MetaData::Set mk_meta_data_from_preloaded_information(const ViewFileBrowser::FileItem &file_item)
+static MetaData::Set
+mk_meta_data_from_preloaded_information(const Playlist::DirectoryCrawler::ItemInfo &item_info)
 {
-    const auto &preloaded(file_item.get_preloaded_meta_data());
+    const auto &preloaded(item_info.file_item_meta_data_);
     MetaData::Set meta_data;
 
     meta_data.add(MetaData::Set::ARTIST, preloaded.artist_.c_str(), ViewPlay::meta_data_reformatters);
     meta_data.add(MetaData::Set::ALBUM,  preloaded.album_.c_str(),  ViewPlay::meta_data_reformatters);
     meta_data.add(MetaData::Set::TITLE,  preloaded.title_.c_str(),  ViewPlay::meta_data_reformatters);
-    meta_data.add(MetaData::Set::INTERNAL_DRCPD_TITLE, file_item.get_text(),
+    meta_data.add(MetaData::Set::INTERNAL_DRCPD_TITLE, item_info.file_item_text_.c_str(),
                   ViewPlay::meta_data_reformatters);
 
     return meta_data;
@@ -1912,7 +1914,7 @@ Player::Control::process_crawler_item(CrawlerContext ctx, QueueMode queue_mode,
 
     auto &item_info(crawler->get_current_list_item_info_non_const());
     log_assert(item_info.position_.list_id_.is_valid());
-    log_assert(item_info.file_item_ != nullptr);
+    log_assert(item_info.is_item_info_valid_);
 
     item_info.airable_links_.finalize(bitrate_limiter_);
 
@@ -1944,7 +1946,7 @@ Player::Control::process_crawler_item(CrawlerContext ctx, QueueMode queue_mode,
     }
 
     player_->put_meta_data(stream_id.get(),
-                           std::move(mk_meta_data_from_preloaded_information(*item_info.file_item_)));
+                           std::move(mk_meta_data_from_preloaded_information(item_info)));
 
     return process_crawler_item_tail(ctx, stream_id, queue_mode, play_new_mode,
                                      std::bind(&Player::Control::resolved_redirect_for_found_item,

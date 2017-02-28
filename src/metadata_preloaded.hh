@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016, 2017  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -66,6 +66,22 @@ class PreloadedSet
     bool have_anything() const
     {
         return !artist_.empty() || !album_.empty() || !title_.empty();
+    }
+
+    /* For special purposes: Like operator=(), but more explicit. */
+    void copy_from(const PreloadedSet &src)
+    {
+        const_cast<std::string &>(artist_) = src.artist_;
+        const_cast<std::string &>(album_) = src.album_;
+        const_cast<std::string &>(title_) = src.title_;
+    }
+
+    /* For special purposes: Clear all strings. */
+    void clear_individual_copy()
+    {
+        const_cast<std::string &>(artist_).clear();
+        const_cast<std::string &>(album_).clear();
+        const_cast<std::string &>(title_).clear();
     }
 };
 

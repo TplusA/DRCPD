@@ -24,6 +24,7 @@
 #include <cstring>
 
 #include "directory_crawler.hh"
+#include "view_filebrowser_fileitem.hh"
 #include "view_filebrowser_utils.hh"
 
 template <typename T>
@@ -871,12 +872,20 @@ void Playlist::DirectoryCrawler::process_item_information(DBus::AsyncCall_ &asyn
         return;
     }
 
-    current_item_info_.set(list_id, line, directory_depth,
-                           dynamic_cast<const ViewFileBrowser::FileItem *>(get_current_list_item_impl()),
-                           std::move(std::get<2>(const_cast<typename AsyncT::PromiseReturnType &>(result))));
+    const auto *file_item =
+        dynamic_cast<const ViewFileBrowser::FileItem *>(get_current_list_item_impl());
+
+    if(file_item != nullptr)
+        current_item_info_.set(list_id, line, directory_depth,
+                               file_item->get_text(),
+                               file_item->get_preloaded_meta_data(),
+                               std::move(std::get<2>(const_cast<typename AsyncT::PromiseReturnType &>(result))));
+    else
+        current_item_info_.set(list_id, line, directory_depth,
+                               std::move(std::get<2>(const_cast<typename AsyncT::PromiseReturnType &>(result))));
 
     if(!current_item_info_.position_.list_id_.is_valid() ||
-       current_item_info_.file_item_ == nullptr)
+       !current_item_info_.is_item_info_valid_)
     {
         BUG("Invalid item, retrieving item info failed");
         call_callback(callback, *this, RetrieveItemInfoResult::FAILED);

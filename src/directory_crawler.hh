@@ -19,14 +19,20 @@
 #ifndef DIRECTORY_CRAWLER_HH
 #define DIRECTORY_CRAWLER_HH
 
+#include <string>
+
 #include "playlist_crawler.hh"
 #include "dbuslist.hh"
 #include "listnav.hh"
-#include "view_filebrowser_fileitem.hh"
+#include "metadata_preloaded.hh"
 #include "airable_links.hh"
 #include "gvariantwrapper.hh"
 
-namespace ViewFileBrowser { class View; }
+namespace ViewFileBrowser
+{
+    class View;
+    class FileItem;
+}
 
 namespace Playlist
 {
@@ -61,7 +67,10 @@ class DirectoryCrawler: public CrawlerIface
     {
       public:
         MarkedPosition position_;
-        const ViewFileBrowser::FileItem *file_item_;
+
+        bool is_item_info_valid_;
+        std::string file_item_text_;
+        MetaData::PreloadedSet file_item_meta_data_;
 
         GVariantWrapper stream_key_;
         std::vector<std::string> stream_uris_;
@@ -71,13 +80,15 @@ class DirectoryCrawler: public CrawlerIface
         ItemInfo &operator=(const ItemInfo &) = delete;
 
         explicit ItemInfo():
-            file_item_(nullptr)
+            is_item_info_valid_(false)
         {}
 
         void clear()
         {
             position_.set(ID::List(), 0, 0);
-            file_item_ = nullptr;
+            is_item_info_valid_ = false;
+            file_item_text_.clear();
+            file_item_meta_data_.clear_individual_copy();
             stream_key_.release();
             stream_uris_.clear();
             airable_links_.clear();
@@ -85,11 +96,32 @@ class DirectoryCrawler: public CrawlerIface
 
         void set(ID::List list_id, unsigned int line,
                  unsigned int directory_depth,
-                 const ViewFileBrowser::FileItem *file_item,
                  GVariantWrapper &&stream_key)
         {
+            set_common(list_id, line, directory_depth, std::move(stream_key));
+            is_item_info_valid_ = false;
+            file_item_text_.clear();
+            file_item_meta_data_.clear_individual_copy();
+        }
+
+        void set(ID::List list_id, unsigned int line,
+                 unsigned int directory_depth,
+                 const std::string &file_item_text,
+                 const MetaData::PreloadedSet &file_item_meta_data,
+                 GVariantWrapper &&stream_key)
+        {
+            set_common(list_id, line, directory_depth, std::move(stream_key));
+            file_item_text_ = file_item_text;
+            file_item_meta_data_.copy_from(file_item_meta_data);
+            is_item_info_valid_ = true;
+        }
+
+      private:
+        void set_common(ID::List list_id, unsigned int line,
+                        unsigned int directory_depth,
+                        GVariantWrapper &&stream_key)
+        {
             position_.set(list_id, line, directory_depth);
-            file_item_ = file_item;
             stream_key_ = std::move(stream_key);
             stream_uris_.clear();
             airable_links_.clear();
