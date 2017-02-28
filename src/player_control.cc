@@ -637,21 +637,20 @@ static StreamExpected is_stream_expected_playing(const ID::OurStream current_str
         break;
 
       case StreamExpected::UNEXPECTEDLY_OURS:
+      case StreamExpected::OURS_WRONG_ID:
         if(peek_at_queue && !queued.empty() && queued.front().get() == stream_id)
         {
             result = StreamExpected::OURS_QUEUED;
             break;
         }
 
-        BUG("Out of sync: %s our stream %u that we don't know about",
-            mode_name, stream_id.get_raw_id());;
-
-        break;
-
-      case StreamExpected::OURS_WRONG_ID:
-        BUG("Out of sync: %s stream ID should be %u, but streamplayer says it's %u",
-            mode_name,
-            current_stream_id.get().get_raw_id(), stream_id.get_raw_id());
+        if(result == StreamExpected::UNEXPECTEDLY_OURS)
+            BUG("Out of sync: %s our stream %u that we don't know about",
+                mode_name, stream_id.get_raw_id());
+        else
+            BUG("Out of sync: %s stream ID should be %u, but streamplayer says it's %u",
+                mode_name,
+                current_stream_id.get().get_raw_id(), stream_id.get_raw_id());
 
         break;
 
@@ -721,13 +720,16 @@ bool Player::Control::skip_forward_request()
                 queued_streams_.pop_front();
                 break;
 
+              case StreamExpected::OURS_WRONG_ID:
+                if(queued_streams_.front().get() == skipped_stream_id)
+                break;
+
               case StreamExpected::EMPTY_AS_EXPECTED:
                 break;
 
               case StreamExpected::NOT_OURS:
               case StreamExpected::UNEXPECTEDLY_NOT_OURS:
               case StreamExpected::UNEXPECTEDLY_OURS:
-              case StreamExpected::OURS_WRONG_ID:
               case StreamExpected::INVALID_ID:
                 BUG("Unexpected expectation result while skipping (1): current %u, skipped %u",
                     retry_data_.get_stream_id().get().get_raw_id(),
