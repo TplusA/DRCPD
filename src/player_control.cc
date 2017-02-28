@@ -898,7 +898,6 @@ void Player::Control::fast_wind_start_request() const
     BUG("%s(): not implemented", __func__);
 }
 
-// cppcheck-suppress functionStatic
 void Player::Control::fast_wind_stop_request() const
 {
     BUG("%s(): not implemented", __func__);
