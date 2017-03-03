@@ -383,7 +383,7 @@ void ViewMock::View::update(DCP::Queue &queue, DCP::Queue::Mode mode,
         cppcut_assert_equal(expect.function_id_, MemberFn::update);
     }
 
-    const bool was_idle = queue.is_idle();
+    const bool was_idle = queue.get_introspection_iface().is_idle();
     const bool succeeded =
         InternalDoSerialize::do_serialize(*this, queue, false);
 

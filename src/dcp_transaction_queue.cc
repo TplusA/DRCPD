@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2017  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -54,7 +54,7 @@ void DCP::Queue::add(ViewSerializeBase *view,
 
 bool DCP::Queue::start_transaction(Mode mode)
 {
-    if(is_empty())
+    if(q_.data_.empty())
         return false;
 
     {
@@ -136,7 +136,7 @@ bool DCP::Queue::finish_transaction(DCP::Transaction::Result result)
 {
     std::lock_guard<LoggedLock::RecMutex> txlock(active_.lock_);
 
-    if(!is_in_progress())
+    if(!active_.dcpd_.is_in_progress())
     {
         BUG("Received result from DCPD for idle transaction");
         return true;

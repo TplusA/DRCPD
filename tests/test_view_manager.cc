@@ -108,7 +108,7 @@ void cut_setup(void)
 void cut_teardown(void)
 {
     cppcut_assert_equal("", views_output->str().c_str());
-    cut_assert_true(dcp_queue->is_idle());
+    cut_assert_true(dcp_queue->get_introspection_iface().is_idle());
 
     mock_messages->check();
 
@@ -273,7 +273,7 @@ void cut_setup(void)
 void cut_teardown(void)
 {
     cppcut_assert_equal("", views_output->str().c_str());
-    cut_assert_true(dcp_queue->is_idle());
+    cut_assert_true(dcp_queue->get_introspection_iface().is_idle());
 
     mock_messages->check();
     mock_view->check();
@@ -530,7 +530,7 @@ void cut_setup(void)
 void cut_teardown(void)
 {
     cppcut_assert_equal("", views_output->str().c_str());
-    cut_assert_true(dcp_queue->is_idle());
+    cut_assert_true(dcp_queue->get_introspection_iface().is_idle());
 
     mock_messages->check();
 
@@ -1080,13 +1080,13 @@ void cut_setup(void)
     vm->set_output_stream(*views_output);
     cut_assert_true(vm->add_view(mock_view));
 
-    cut_assert_false(dcp_queue->is_in_progress());
+    cut_assert_false(dcp_queue->get_introspection_iface().is_in_progress());
 }
 
 void cut_teardown(void)
 {
     cppcut_assert_equal("", views_output->str().c_str());
-    cut_assert_true(dcp_queue->is_idle());
+    cut_assert_true(dcp_queue->get_introspection_iface().is_idle());
 
     mock_messages->check();
     mock_view->check();
@@ -1207,22 +1207,24 @@ void test_hard_io_error(void)
  */
 void test_view_update_does_not_affect_ongoing_transfer()
 {
-    cut_assert_false(dcp_queue->is_in_progress());
-    cut_assert_true(dcp_queue->is_empty());
-    cut_assert_true(dcp_queue->is_idle());
+    const auto &q_introspect(dcp_queue->get_introspection_iface());
+
+    cut_assert_false(q_introspect.is_in_progress());
+    cut_assert_true(q_introspect.is_empty());
+    cut_assert_true(q_introspect.is_idle());
 
     activate_view();
 
-    cut_assert_true(dcp_queue->is_in_progress());
-    cut_assert_true(dcp_queue->is_empty());
-    cut_assert_false(dcp_queue->is_idle());
+    cut_assert_true(q_introspect.is_in_progress());
+    cut_assert_true(q_introspect.is_empty());
+    cut_assert_false(q_introspect.is_idle());
 
     mock_view->expect_defocus();
     activate_view(false);
 
-    cut_assert_true(dcp_queue->is_in_progress());
-    cut_assert_false(dcp_queue->is_empty());
-    cut_assert_false(dcp_queue->is_idle());
+    cut_assert_true(q_introspect.is_in_progress());
+    cut_assert_false(q_introspect.is_empty());
+    cut_assert_false(q_introspect.is_idle());
 
     /* expecting serialization of queued DCP transfer upon completion of the
      * first one */
@@ -1233,9 +1235,9 @@ void test_view_update_does_not_affect_ongoing_transfer()
     mock_messages->check();
     mock_view->check();
 
-    cut_assert_true(dcp_queue->is_in_progress());
-    cut_assert_true(dcp_queue->is_empty());
-    cut_assert_false(dcp_queue->is_idle());
+    cut_assert_true(q_introspect.is_in_progress());
+    cut_assert_true(q_introspect.is_empty());
+    cut_assert_false(q_introspect.is_idle());
 
     vm->serialization_result(DCP::Transaction::OK);
 }

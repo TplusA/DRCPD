@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2017  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -32,7 +32,34 @@ class ViewSerializeBase;
 namespace DCP
 {
 
-class Queue
+class QueueIntrospectionIface
+{
+  protected:
+    explicit QueueIntrospectionIface() {}
+
+  public:
+    QueueIntrospectionIface(const QueueIntrospectionIface &) = delete;
+    QueueIntrospectionIface &operator=(const QueueIntrospectionIface &) = delete;
+
+    virtual ~QueueIntrospectionIface() {}
+
+    /*!
+     * Check whether or not the queue is empty.
+     */
+    virtual bool is_empty() const = 0;
+
+    /*!
+     * Check whether or not there is an active DCP transaction in progress.
+     */
+    virtual bool is_in_progress() const = 0;
+
+    /*!
+     * Check if idle, i.e., queue is empty and no transaction in progress.
+     */
+    virtual bool is_idle() const = 0;
+};
+
+class Queue: public QueueIntrospectionIface
 {
   public:
     enum class Mode
@@ -112,32 +139,18 @@ class Queue
     bool finish_transaction(DCP::Transaction::Result result);
 
     /*!\internal
-     *
-     * Check whether or not the queue is empty.
-     *
-     * This function should be private. It is public ONLY because of unit
-     * tests.
+     * This function exists ONLY because of unit tests.
      */
-    bool is_empty()
-    {
-        std::lock_guard<LoggedLock::Mutex> lock(q_.lock_);
-        return q_.data_.empty();
-    }
-
-    /*!\internal
-     * Check whether or not there is an active DCP transaction in progress.
-     */
-    bool is_in_progress() const
-    {
-        return active_.dcpd_.is_in_progress();
-    }
-
-    /*!\internal
-     * Check if idle, i.e., queue is empty and no transaction in progress.
-     */
-    bool is_idle() { return is_empty() && !is_in_progress(); }
+    const QueueIntrospectionIface &get_introspection_iface() const { return *this; }
 
   private:
+    bool is_empty() const override { return q_.data_.empty(); }
+    bool is_in_progress() const override { return active_.dcpd_.is_in_progress(); }
+    bool is_idle() const override { return is_empty() && !is_in_progress(); }
+
+    /*!
+     * Take next item from queue, mark as active, and commit DCP transaction.
+     */
     bool process();
 };
 
