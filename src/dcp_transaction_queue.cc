@@ -54,11 +54,15 @@ void DCP::Queue::add(ViewSerializeBase *view,
 
 bool DCP::Queue::start_transaction(Mode mode)
 {
-    if(q_.data_.empty())
-        return false;
-
     {
         std::lock_guard<LoggedLock::RecMutex> txlock(active_.lock_);
+
+        {
+            std::lock_guard<LoggedLock::Mutex> qlock(q_.lock_);
+
+            if(q_.data_.empty())
+                return false;
+        }
 
         if(active_.dcpd_.is_in_progress())
         {
@@ -99,18 +103,21 @@ bool DCP::Queue::process()
 {
     std::lock_guard<LoggedLock::RecMutex> txlock(active_.lock_);
 
-    while(!is_empty())
+    while(true)
     {
-        if(!active_.dcpd_.start())
-        {
-            log_assert(active_.data_ != nullptr);
-            break;
-        }
-
-        log_assert(active_.data_ == nullptr);
-
         {
             std::lock_guard<LoggedLock::Mutex> qlock(q_.lock_);
+
+            if(q_.data_.empty())
+                break;
+
+            if(!active_.dcpd_.start())
+            {
+                log_assert(active_.data_ != nullptr);
+                break;
+            }
+
+            log_assert(active_.data_ == nullptr);
 
             active_.data_ = std::move(q_.data_.front());
             q_.data_.pop_front();
