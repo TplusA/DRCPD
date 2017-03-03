@@ -149,16 +149,18 @@ bool DCP::Queue::finish_transaction(DCP::Transaction::Result result)
         return true;
     }
 
-    log_assert(active_.data_ != nullptr);
-    active_.data_.reset();
-
     if(result == DCP::Transaction::OK)
     {
+        log_assert(active_.data_ != nullptr);
+        active_.data_.reset();
+
         if(active_.dcpd_.done())
             return true;
 
         BUG("Failed closing successful transaction, trying to abort");
     }
+
+    active_.data_.reset();
 
     if(!active_.dcpd_.abort())
     {
