@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016, 2017  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -114,6 +114,10 @@ class Transaction
 
     /*!
      * Commence sending the data, no further writes are allowed.
+     *
+     * \returns
+     *     True if the commit succeeded and the transaction is waiting for an
+     *     answer now, false otherwise.
      */
     bool commit();
 
