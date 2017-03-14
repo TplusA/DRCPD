@@ -50,6 +50,9 @@ struct dbus_data
 
     tdbusAirable *airable_sec_proxy;
 
+    tdbusaupathSource *audiopath_source_iface;
+    tdbusaupathManager *audiopath_manager_proxy;
+
     tdbusConfigurationProxy *configuration_proxy;
     tdbusConfigurationRead *configuration_read_iface;
     tdbusConfigurationWrite *configuration_write_iface;
@@ -110,9 +113,15 @@ static void bus_acquired(GDBusConnection *connection,
 
     msg_info("D-Bus \"%s\" acquired", name);
 
+    data->audiopath_source_iface = tdbus_aupath_source_skeleton_new();
     data->configuration_read_iface = tdbus_configuration_read_skeleton_new();
     data->configuration_write_iface = tdbus_configuration_write_skeleton_new();
     data->debug_logging_iface = tdbus_debug_logging_skeleton_new();
+
+    g_signal_connect(data->audiopath_source_iface, "handle-selected",
+                     G_CALLBACK(dbusmethod_audiopath_source_selected), data->handler_data);
+    g_signal_connect(data->audiopath_source_iface, "handle-deselected",
+                     G_CALLBACK(dbusmethod_audiopath_source_deselected), data->handler_data);
 
     g_signal_connect(data->configuration_read_iface, "handle-get-all-keys",
                      G_CALLBACK(dbusmethod_config_get_all_keys), data->handler_data);
@@ -130,6 +139,7 @@ static void bus_acquired(GDBusConnection *connection,
                      "handle-debug-level",
                      G_CALLBACK(msg_dbus_handle_debug_level), NULL);
 
+    try_export_iface(connection, G_DBUS_INTERFACE_SKELETON(data->audiopath_source_iface));
     try_export_iface(connection, G_DBUS_INTERFACE_SKELETON(data->configuration_read_iface));
     try_export_iface(connection, G_DBUS_INTERFACE_SKELETON(data->configuration_write_iface));
     try_export_iface(connection, G_DBUS_INTERFACE_SKELETON(data->debug_logging_iface));
@@ -259,6 +269,21 @@ static void connect_signals_airable(GDBusConnection *connection,
     handle_error(&error);
 }
 
+static void connect_signals_audiopath(GDBusConnection *connection,
+                                      tdbusaupathManager **proxy,
+                                      GDBusProxyFlags flags,
+                                      const char *bus_name,
+                                      const char *object_path)
+{
+    GError *error = NULL;
+
+    *proxy =
+        tdbus_aupath_manager_proxy_new_sync(connection, flags,
+                                            bus_name, object_path,
+                                            NULL, &error);
+    handle_error(&error);
+}
+
 static void name_acquired(GDBusConnection *connection,
                           const gchar *name, gpointer user_data)
 {
@@ -286,6 +311,9 @@ static void name_acquired(GDBusConnection *connection,
     connect_signals_airable(connection, &data->airable_sec_proxy,
                             G_DBUS_PROXY_FLAGS_NONE,
                             "de.tahifi.TuneInBroker", "/de/tahifi/TuneInBroker");
+    connect_signals_audiopath(connection, &data->audiopath_manager_proxy,
+                              G_DBUS_PROXY_FLAGS_NONE,
+                              "de.tahifi.TAPSwitch", "/de/tahifi/TAPSwitch");
 }
 
 static void name_lost(GDBusConnection *connection,
@@ -339,6 +367,11 @@ tdbusdcpdPlayback *dbus_get_dcpd_playback_iface(void)
 tdbusAirable *dbus_get_airable_sec_iface(void)
 {
     return dbus_data.airable_sec_proxy;
+}
+
+tdbusaupathManager *dbus_audiopath_get_manager_iface(void)
+{
+    return dbus_data.audiopath_manager_proxy;
 }
 
 static struct dbus_process_data process_data;
@@ -398,6 +431,8 @@ int dbus_setup(bool connect_to_session_bus,
     log_assert(dbus_data.splay_urlfifo_proxy != NULL);
     log_assert(dbus_data.splay_playback_proxy != NULL);
     log_assert(dbus_data.airable_sec_proxy != NULL);
+    log_assert(dbus_data.audiopath_source_iface != NULL);
+    log_assert(dbus_data.audiopath_manager_proxy != NULL);
     log_assert(dbus_data.configuration_read_iface != NULL);
     log_assert(dbus_data.configuration_write_iface != NULL);
     log_assert(dbus_data.debug_logging_iface != NULL);
@@ -474,6 +509,8 @@ void dbus_shutdown(void)
     g_object_unref(dbus_data.splay_urlfifo_proxy);
     g_object_unref(dbus_data.splay_playback_proxy);
     g_object_unref(dbus_data.airable_sec_proxy);
+    g_object_unref(dbus_data.audiopath_source_iface);
+    g_object_unref(dbus_data.audiopath_manager_proxy);
     g_object_unref(dbus_data.configuration_read_iface);
     g_object_unref(dbus_data.configuration_write_iface);
     g_object_unref(dbus_data.debug_logging_iface);

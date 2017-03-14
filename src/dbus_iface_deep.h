@@ -24,6 +24,7 @@
 #include "lists_dbus.h"
 #include "streamplayer_dbus.h"
 #include "airable_dbus.h"
+#include "audiopath_dbus.h"
 #include "configuration_dbus.h"
 
 #ifdef __cplusplus
@@ -35,6 +36,7 @@ tdbussplayURLFIFO *dbus_get_streamplayer_urlfifo_iface(void);
 tdbussplayPlayback *dbus_get_streamplayer_playback_iface(void);
 tdbusdcpdPlayback *dbus_get_dcpd_playback_iface(void);
 tdbusAirable *dbus_get_airable_sec_iface(void);
+tdbusaupathManager *dbus_audiopath_get_manager_iface(void);
 
 #ifdef __cplusplus
 }

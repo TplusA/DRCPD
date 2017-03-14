@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016, 2017  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -505,6 +505,41 @@ void dbussignal_airable_sec(GDBusProxy *proxy, const gchar *sender_name,
     }
     else
         unknown_signal(iface_name, signal_name, sender_name);
+}
+
+static void enter_audiopath_source_handler(GDBusMethodInvocation *invocation)
+{
+    static const char iface_name[] = "de.tahifi.AudioPath.Source";
+
+    msg_vinfo(MESSAGE_LEVEL_TRACE, "%s method invocation from '%s': %s",
+              iface_name, g_dbus_method_invocation_get_sender(invocation),
+              g_dbus_method_invocation_get_method_name(invocation));
+}
+
+gboolean dbusmethod_audiopath_source_selected(tdbusaupathSource *object,
+                                              GDBusMethodInvocation *invocation,
+                                              const char *source_id,
+                                              gpointer user_data)
+{
+    enter_audiopath_source_handler(invocation);
+
+    msg_info("Selected source \"%s\"", source_id);
+    tdbus_aupath_source_complete_selected(object, invocation);
+
+    return TRUE;
+}
+
+gboolean dbusmethod_audiopath_source_deselected(tdbusaupathSource *object,
+                                                GDBusMethodInvocation *invocation,
+                                                const char *source_id,
+                                                gpointer user_data)
+{
+    enter_audiopath_source_handler(invocation);
+
+    msg_info("Deselected source \"%s\"", source_id);
+    tdbus_aupath_source_complete_deselected(object, invocation);
+
+    return TRUE;
 }
 
 static void enter_config_read_handler(GDBusMethodInvocation *invocation)

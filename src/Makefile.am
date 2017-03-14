@@ -162,6 +162,7 @@ nodist_libdrcpd_dbus_client_la_SOURCES = \
     lists_dbus.c lists_dbus.h \
     streamplayer_dbus.c streamplayer_dbus.h \
     airable_dbus.c airable_dbus.h \
+    audiopath_dbus.c audiopath_dbus.h \
     configuration_dbus.c configuration_dbus.h \
     debug_dbus.c debug_dbus.h
 libdrcpd_dbus_client_la_CFLAGS = $(CRELAXEDWARNINGS)
@@ -183,6 +184,9 @@ BUILT_SOURCES = \
     airable_dbus.stamp \
     de_tahifi_configuration.h \
     de_tahifi_configuration.md \
+    audiopath_dbus.stamp \
+    de_tahifi_audiopath.h \
+    de_tahifi_audiopath.md \
     configuration_dbus.stamp \
     de_tahifi_debug.h \
     de_tahifi_debug.md \
@@ -224,6 +228,15 @@ airable_dbus.h: airable_dbus.stamp
 airable_dbus.stamp: $(DBUS_IFACES)/de_tahifi_airable.xml
 	$(GDBUS_CODEGEN) --generate-c-code=airable_dbus --c-namespace tdbus --interface-prefix de.tahifi. $<
 	$(DBUS_IFACES)/extract_documentation.py -i $< -o de_tahifi_airable.md -H de_tahifi_airable.h -c tdbus -s de.tahifi. -n "$(PACKAGE_NAME) (Airable HTTP session security)"
+	touch $@
+
+de_tahifi_audiopath.h: audiopath_dbus.stamp
+de_tahifi_audiopath.md: audiopath_dbus.stamp
+audiopath_dbus.c: audiopath_dbus.stamp
+audiopath_dbus.h: audiopath_dbus.stamp
+audiopath_dbus.stamp: $(DBUS_IFACES)/de_tahifi_audiopath.xml
+	$(GDBUS_CODEGEN) --generate-c-code=audiopath_dbus --c-namespace tdbus_aupath --interface-prefix de.tahifi.AudioPath. $<
+	$(DBUS_IFACES)/extract_documentation.py -i $< -o de_tahifi_audiopath.md -H de_tahifi_audiopath.h -c tdbus_aupath -s de.tahifi.AudioPath. -n 'Audio Paths'
 	touch $@
 
 de_tahifi_configuration.h: configuration_dbus.stamp

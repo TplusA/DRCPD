@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016, 2017  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -21,6 +21,7 @@
 
 #include <gio/gio.h>
 
+#include "audiopath_dbus.h"
 #include "configuration_dbus.h"
 
 /*!
@@ -57,6 +58,15 @@ void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
 void dbussignal_airable_sec(GDBusProxy *proxy, const gchar *sender_name,
                             const gchar *signal_name, GVariant *parameters,
                             gpointer user_data);
+
+gboolean dbusmethod_audiopath_source_selected(tdbusaupathSource *object,
+                                              GDBusMethodInvocation *invocation,
+                                              const char *source_id,
+                                              gpointer user_data);
+gboolean dbusmethod_audiopath_source_deselected(tdbusaupathSource *object,
+                                                GDBusMethodInvocation *invocation,
+                                                const char *source_id,
+                                                gpointer user_data);
 
 gboolean dbusmethod_config_get_all_keys(tdbusConfigurationRead *object,
                                         GDBusMethodInvocation *invocation,

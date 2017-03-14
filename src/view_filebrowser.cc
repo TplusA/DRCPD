@@ -169,8 +169,30 @@ void ViewFileBrowser::View::handle_get_item_event(List::AsyncListIface::OpResult
     }
 }
 
+static void whatever(GObject *source_object, GAsyncResult *res,
+                     gpointer user_data)
+{
+    GError *error = nullptr;
+    tdbus_aupath_manager_call_register_source_finish(TDBUS_AUPATH_MANAGER(source_object),
+                                                     res, &error);
+
+    if(error != nullptr)
+    {
+        msg_error(0, LOG_ERR,
+                  "Failed registering audio source %s: %s",
+                  static_cast<const char *>(user_data), error->message);
+        g_error_free(error);
+    }
+}
+
 bool ViewFileBrowser::View::init()
 {
+    tdbus_aupath_manager_call_register_source(dbus_audiopath_get_manager_iface(),
+                                              name_, on_screen_name_,
+                                              "strbo",
+                                              "/de/tahifi/Drcpd",
+                                              nullptr, whatever, const_cast<char *>(name_));
+
     file_list_.register_watcher(
         [this] (List::AsyncListIface::OpEvent event,
                 List::AsyncListIface::OpResult result,
