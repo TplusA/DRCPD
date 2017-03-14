@@ -77,10 +77,10 @@ static gpointer process_dbus(gpointer user_data)
     return NULL;
 }
 
-static void handle_error(GError **error)
+static bool handle_error(GError **error)
 {
     if(*error == NULL)
-        return;
+        return true;
 
     if((*error)->message != NULL)
         msg_error(0, LOG_EMERG, "Got D-Bus error: %s", (*error)->message);
@@ -89,6 +89,8 @@ static void handle_error(GError **error)
 
     g_error_free(*error);
     *error = NULL;
+
+    return false;
 }
 
 static void try_export_iface(GDBusConnection *connection,
@@ -133,6 +135,38 @@ static void bus_acquired(GDBusConnection *connection,
     try_export_iface(connection, G_DBUS_INTERFACE_SKELETON(data->debug_logging_iface));
 }
 
+static void created_debug_config_proxy(GObject *source_object, GAsyncResult *res,
+                                       gpointer user_data)
+{
+    struct dbus_data *data = user_data;
+    GError *error = NULL;
+
+    data->debug_logging_config_proxy =
+        tdbus_debug_logging_config_proxy_new_finish(res, &error);
+
+    if(handle_error(&error))
+        g_signal_connect(data->debug_logging_config_proxy, "g-signal",
+                         G_CALLBACK(msg_dbus_handle_global_debug_level_changed),
+                         NULL);
+}
+
+static void created_configuration_proxy(GObject *source_object, GAsyncResult *res,
+                                        gpointer user_data)
+{
+    struct dbus_data *data = user_data;
+    GError *error = NULL;
+
+    data->configuration_proxy =
+        tdbus_configuration_proxy_proxy_new_finish(res, &error);
+
+    tdbus_configuration_proxy_call_register_sync(data->configuration_proxy,
+                                                 "drcpd", "/de/tahifi/Drcpd",
+                                                 NULL, &error);
+
+    if(handle_error(&error))
+        msg_info("Registered with configuration proxy");
+}
+
 static void connect_signals_dcpd(GDBusConnection *connection,
                                  struct dbus_data *data, GDBusProxyFlags flags,
                                  const char *bus_name, const char *object_path)
@@ -163,17 +197,15 @@ static void connect_signals_dcpd(GDBusConnection *connection,
                                             NULL, &error);
     handle_error(&error);
 
-    data->debug_logging_config_proxy =
-        tdbus_debug_logging_config_proxy_new_sync(connection, flags,
-                                                  bus_name, object_path,
-                                                  NULL, &error);
-    handle_error(&error);
+    data->debug_logging_config_proxy = NULL;
+    tdbus_debug_logging_config_proxy_new(connection, flags,
+                                         bus_name, object_path, NULL,
+                                         created_debug_config_proxy, data);
 
-    data->configuration_proxy =
-        tdbus_configuration_proxy_proxy_new_sync(connection, flags,
-                                                 bus_name, object_path,
-                                                 NULL, &error);
-    handle_error(&error);
+    data->configuration_proxy = NULL;
+    tdbus_configuration_proxy_proxy_new(connection, flags,
+                                        bus_name, object_path, NULL,
+                                        created_configuration_proxy, data);
 }
 
 static void connect_signals_list_broker(GDBusConnection *connection,
@@ -309,11 +341,6 @@ tdbusAirable *dbus_get_airable_sec_iface(void)
     return dbus_data.airable_sec_proxy;
 }
 
-tdbusConfigurationProxy *dbus_get_configuration_proxy_iface(void)
-{
-    return dbus_data.configuration_proxy;
-}
-
 static struct dbus_process_data process_data;
 
 int dbus_setup(bool connect_to_session_bus,
@@ -371,11 +398,9 @@ int dbus_setup(bool connect_to_session_bus,
     log_assert(dbus_data.splay_urlfifo_proxy != NULL);
     log_assert(dbus_data.splay_playback_proxy != NULL);
     log_assert(dbus_data.airable_sec_proxy != NULL);
-    log_assert(dbus_data.configuration_proxy != NULL);
     log_assert(dbus_data.configuration_read_iface != NULL);
     log_assert(dbus_data.configuration_write_iface != NULL);
     log_assert(dbus_data.debug_logging_iface != NULL);
-    log_assert(dbus_data.debug_logging_config_proxy != NULL);
 
     g_signal_connect(dbus_data.dcpd_playback_proxy, "g-signal",
                      G_CALLBACK(dbussignal_dcpd_playback),
@@ -417,10 +442,6 @@ int dbus_setup(bool connect_to_session_bus,
                      G_CALLBACK(dbussignal_airable_sec),
                      dbus_signal_data_for_dbus_handlers);
 
-    g_signal_connect(dbus_data.debug_logging_config_proxy, "g-signal",
-                     G_CALLBACK(msg_dbus_handle_global_debug_level_changed),
-                     NULL);
-
     process_data.thread = g_thread_new("D-Bus I/O", process_dbus, &process_data);
 
     if(process_data.thread == NULL)
@@ -453,11 +474,15 @@ void dbus_shutdown(void)
     g_object_unref(dbus_data.splay_urlfifo_proxy);
     g_object_unref(dbus_data.splay_playback_proxy);
     g_object_unref(dbus_data.airable_sec_proxy);
-    g_object_unref(dbus_data.configuration_proxy);
     g_object_unref(dbus_data.configuration_read_iface);
     g_object_unref(dbus_data.configuration_write_iface);
     g_object_unref(dbus_data.debug_logging_iface);
-    g_object_unref(dbus_data.debug_logging_config_proxy);
+
+    if(dbus_data.debug_logging_config_proxy != NULL)
+        g_object_unref(dbus_data.debug_logging_config_proxy);
+
+    if(dbus_data.configuration_proxy != NULL)
+        g_object_unref(dbus_data.configuration_proxy);
 
     process_data.loop = NULL;
 }
