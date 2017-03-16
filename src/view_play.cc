@@ -25,6 +25,7 @@
 
 #include "view_play.hh"
 #include "view_manager.hh"
+#include "audiosource.hh"
 #include "ui_parameters_predefined.hh"
 #include "dbus_iface_deep.h"
 #include "xmlescape.hh"
@@ -45,14 +46,21 @@ void ViewPlay::View::defocus()
     is_visible_ = false;
 }
 
-void ViewPlay::View::prepare_for_playing(const ViewIface &owning_view,
+void ViewPlay::View::register_audio_source(Player::AudioSource &audio_source,
+                                           const ViewIface &associated_view)
+{
+    audio_sources_.emplace(std::move(std::string(audio_source.id_)),
+                           std::move(std::make_pair(&audio_source, &associated_view)));
+}
+
+void ViewPlay::View::prepare_for_playing(Player::AudioSource &audio_source,
                                          Playlist::CrawlerIface &crawler,
                                          const Player::LocalPermissionsIface &permissions)
 {
     const auto lock_ctrl(player_control_.lock());
     const auto lock_data(player_data_.lock());
 
-    if(player_control_.is_active_controller_for_view(owning_view))
+    if(player_control_.is_active_controller_for_audio_source(audio_source))
     {
         /* we already own the player, so we can do a "soft" jump to the newly
          * selected stream to avoid going through stopped/playing signals and
@@ -67,7 +75,7 @@ void ViewPlay::View::prepare_for_playing(const ViewIface &owning_view,
          * playing, then plug to it */
         player_control_.stop_request();
         player_control_.unplug();
-        player_control_.plug(owning_view);
+        player_control_.plug(audio_source);
         player_control_.plug(player_data_);
         player_control_.plug(crawler, permissions);
     }
@@ -75,21 +83,21 @@ void ViewPlay::View::prepare_for_playing(const ViewIface &owning_view,
     player_control_.play_request();
 }
 
-void ViewPlay::View::stop_playing(const ViewIface &owning_view)
+void ViewPlay::View::stop_playing(const Player::AudioSource &audio_source)
 {
     const auto lock_ctrl(player_control_.lock());
 
-    if(player_control_.is_active_controller_for_view(owning_view))
+    if(player_control_.is_active_controller_for_audio_source(audio_source))
         player_control_.unplug();
 }
 
-void ViewPlay::View::append_referenced_lists(const ViewIface &owning_view,
+void ViewPlay::View::append_referenced_lists(const Player::AudioSource &audio_source,
                                              std::vector<ID::List> &list_ids) const
 {
     const auto lock_ctrl(player_control_.lock());
     const auto lock_data(player_data_.lock());
 
-    if(player_control_.is_active_controller_for_view(owning_view))
+    if(player_control_.is_active_controller_for_audio_source(audio_source))
         player_data_.append_referenced_lists(list_ids);
 }
 

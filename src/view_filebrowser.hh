@@ -27,6 +27,7 @@
 #include "listnav.hh"
 #include "search_parameters.hh"
 #include "player_permissions.hh"
+#include "audiosource.hh"
 #include "timeout.hh"
 #include "dbuslist.hh"
 #include "dbus_iface.h"
@@ -113,6 +114,8 @@ class View: public ViewIface, public ViewSerializeBase
     List::Nav navigation_;
 
   private:
+    Player::AudioSource audio_source_;
+
     Playlist::DirectoryCrawler crawler_;
     Playlist::CrawlerIface::RecursiveMode default_recursive_mode_;
     Playlist::CrawlerIface::ShuffleMode default_shuffle_mode_;
@@ -148,6 +151,7 @@ class View: public ViewIface, public ViewSerializeBase
                    construct_file_item),
         item_flags_(&file_list_),
         navigation_(max_lines, List::Nav::WrapMode::FULL_WRAP, item_flags_),
+        audio_source_(name),
         crawler_(dbus_get_lists_navigation_iface(listbroker_id_),
                  list_contexts_, construct_file_item),
         default_recursive_mode_(default_recursive_mode),

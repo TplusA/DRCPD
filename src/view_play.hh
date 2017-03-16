@@ -20,13 +20,13 @@
 #define VIEW_PLAY_HH
 
 #include <memory>
+#include <map>
+#include <string>
 
 #include "view.hh"
 #include "view_serialize.hh"
 #include "view_names.hh"
 #include "player_control.hh"
-
-namespace Playback { class Player; }
 
 /*!
  * \addtogroup view_play Player view
@@ -54,6 +54,8 @@ class View: public ViewIface, public ViewSerializeBase
 
     Player::Data player_data_;
     Player::Control player_control_;
+
+    std::map<std::string, std::pair<Player::AudioSource *, const ViewIface *>> audio_sources_;
 
   public:
     View(const View &) = delete;
@@ -88,12 +90,14 @@ class View: public ViewIface, public ViewSerializeBase
     void serialize(DCP::Queue &queue, DCP::Queue::Mode mode,
                    std::ostream *debug_os) override;
 
-    void prepare_for_playing(const ViewIface &owning_view,
+    void register_audio_source(Player::AudioSource &audio_source,
+                               const ViewIface &associated_view);
+
+    void prepare_for_playing(Player::AudioSource &audio_source,
                              Playlist::CrawlerIface &crawler,
                              const Player::LocalPermissionsIface &permissions);
-    void stop_playing(const ViewIface &owning_view);
-
-    void append_referenced_lists(const ViewIface &owning_view,
+    void stop_playing(const Player::AudioSource &audio_source);
+    void append_referenced_lists(const Player::AudioSource &audio_source,
                                  std::vector<ID::List> &list_ids) const;
 
   private:

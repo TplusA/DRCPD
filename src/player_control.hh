@@ -24,11 +24,12 @@
 #include "player_data.hh"
 #include "player_permissions.hh"
 #include "playlist_crawler.hh"
-#include "view.hh"
 #include "logged_lock.hh"
 
 namespace Player
 {
+
+class AudioSource;
 
 /*!
  * Keep track of fast skip requests and user intention.
@@ -162,7 +163,7 @@ class Control
   private:
     LoggedLock::RecMutex lock_;
 
-    const ViewIface *owning_view_;
+    AudioSource *audio_source_;
     Data *player_;
     LoggedLock::RecMutex player_dummy_lock_;
     Playlist::CrawlerIface *crawler_;
@@ -245,7 +246,7 @@ class Control
     Control &operator=(const Control &) = delete;
 
     explicit Control(std::function<bool(uint32_t)> &&bitrate_limiter):
-        owning_view_(nullptr),
+        audio_source_(nullptr),
         player_(nullptr),
         crawler_(nullptr),
         permissions_(nullptr),
@@ -279,9 +280,9 @@ class Control
                                : LoggedLock::UniqueLock<LoggedLock::RecMutex>(ncthis.player_dummy_lock_));
     }
 
-    bool is_active_controller() const { return owning_view_ != nullptr; };
-    bool is_active_controller_for_view(const ViewIface &view) const { return owning_view_ == &view; }
-    void plug(const ViewIface &view);
+    bool is_active_controller() const { return audio_source_ != nullptr; };
+    bool is_active_controller_for_audio_source(const AudioSource &audio_source) const { return audio_source_ == &audio_source; }
+    void plug(AudioSource &audio_source);
     void plug(Data &player_data);
     void plug(Playlist::CrawlerIface &crawler, const LocalPermissionsIface &permissions);
     void unplug();

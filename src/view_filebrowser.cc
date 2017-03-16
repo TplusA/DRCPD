@@ -180,7 +180,8 @@ static void whatever(GObject *source_object, GAsyncResult *res,
     {
         msg_error(0, LOG_ERR,
                   "Failed registering audio source %s: %s",
-                  static_cast<const char *>(user_data), error->message);
+                  static_cast<const Player::AudioSource *>(user_data)->id_,
+                  error->message);
         g_error_free(error);
     }
 }
@@ -188,10 +189,11 @@ static void whatever(GObject *source_object, GAsyncResult *res,
 bool ViewFileBrowser::View::init()
 {
     tdbus_aupath_manager_call_register_source(dbus_audiopath_get_manager_iface(),
-                                              name_, on_screen_name_,
+                                              audio_source_.id_, on_screen_name_,
                                               "strbo",
                                               "/de/tahifi/Drcpd",
-                                              nullptr, whatever, const_cast<char *>(name_));
+                                              nullptr, whatever,
+                                              &audio_source_);
 
     file_list_.register_watcher(
         [this] (List::AsyncListIface::OpEvent event,
@@ -246,6 +248,9 @@ bool ViewFileBrowser::View::late_init()
 
     if(play_view_ == nullptr)
         return false;
+
+    auto *const pview = static_cast<ViewPlay::View *>(play_view_);
+    pview->register_audio_source(audio_source_, *this);
 
     return sync_with_list_broker();
 }
@@ -516,7 +521,7 @@ std::chrono::milliseconds ViewFileBrowser::View::keep_lists_alive_timer_callback
         list_ids.push_back(current_list_id_);
 
     const auto *const pview = static_cast<ViewPlay::View *>(play_view_);
-    pview->append_referenced_lists(*this, list_ids);
+    pview->append_referenced_lists(audio_source_, list_ids);
 
     if(list_ids.empty())
         return std::chrono::milliseconds::zero();
@@ -820,7 +825,7 @@ ViewFileBrowser::View::process_event(UI::ViewEventID event_id,
 
             if(crawler_.set_start_position(file_list_, navigation_.get_line_number_by_cursor()) &&
                crawler_.configure_and_restart(default_recursive_mode_, default_shuffle_mode_))
-                static_cast<ViewPlay::View *>(play_view_)->prepare_for_playing(*this,
+                static_cast<ViewPlay::View *>(play_view_)->prepare_for_playing(audio_source_,
                                                                                crawler_,
                                                                                permissions);
 
@@ -1107,7 +1112,7 @@ bool ViewFileBrowser::View::list_invalidate(ID::List list_id, ID::List replaceme
         if(crawler_.list_invalidate(list_id, replacement_id))
         {
             auto *const pview = static_cast<ViewPlay::View *>(play_view_);
-            pview->stop_playing(*this);
+            pview->stop_playing(audio_source_);
         }
     }
 

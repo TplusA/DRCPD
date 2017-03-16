@@ -22,7 +22,6 @@
 
 #include "player_control.hh"
 #include "player_stopped_reason.hh"
-#include "view_filebrowser_fileitem.hh"
 #include "directory_crawler.hh"
 #include "dbus_iface_deep.h"
 #include "view_play.hh"
@@ -226,13 +225,13 @@ Player::Skipper::skipped(Data &data, Playlist::CrawlerIface &crawler,
     }
 }
 
-void Player::Control::plug(const ViewIface &view)
+void Player::Control::plug(AudioSource &audio_source)
 {
-    log_assert(owning_view_ == nullptr);
+    log_assert(audio_source_ == nullptr);
     log_assert(crawler_ == nullptr);
     log_assert(permissions_ == nullptr);
 
-    owning_view_ = &view;
+    audio_source_ = &audio_source;
 }
 
 void Player::Control::plug(Player::Data &player_data)
@@ -279,7 +278,7 @@ void Player::Control::unplug()
 {
     auto locks(lock());
 
-    owning_view_ = nullptr;
+    audio_source_ = nullptr;
 
     forget_queued_and_playing(true);
 
