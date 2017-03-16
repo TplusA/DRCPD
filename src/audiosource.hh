@@ -48,6 +48,8 @@ class AudioSource
         state_(AudioSourceState::DESELECTED)
     {}
 
+    bool is_deselected() const { return state_ == AudioSourceState::DESELECTED; }
+    bool is_requested() const { return state_ == AudioSourceState::REQUESTED; }
     bool is_selected() const { return state_ == AudioSourceState::SELECTED; }
 
     void deselected_notification() { state_ = AudioSourceState::DESELECTED; }

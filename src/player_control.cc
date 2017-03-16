@@ -442,61 +442,22 @@ static void do_deselect_audio_source(Player::AudioSource &audio_source)
     send_stop_command();
 }
 
-bool Player::Control::source_selected_notification(const std::string &audio_source_id)
-{
-    auto locks(lock());
-
-    if(audio_source_ == nullptr)
-    {
-        msg_info("Dropped selected notification for audio source %s",
-                 audio_source_id.c_str());
-        return false;
-    }
-
-    if(audio_source_id == audio_source_->id_)
-    {
-        audio_source_->selected_notification();
-        msg_info("Selected audio source %s", audio_source_id.c_str());
-        return true;
-    }
-    else
-    {
-        do_deselect_audio_source(*audio_source_);
-        msg_info("Deselected audio source %s because %s was selected",
-                 audio_source_->id_, audio_source_id.c_str());
-        return false;
-    }
-}
-
-bool Player::Control::source_deselected_notification(const std::string &audio_source_id)
-{
-    auto locks(lock());
-
-    if(audio_source_ == nullptr || audio_source_id != audio_source_->id_)
-        return false;
-
-    do_deselect_audio_source(*audio_source_);
-    msg_info("Deselected audio source %s as requested", audio_source_id.c_str());
-
-    return true;
-}
-
 void Player::Control::play_request()
 {
-    if(!is_active_controller())
-    {
-        /* foreign stream, but maybe we can resume it if paused */
-        send_play_command();
-        return;
-    }
-
     if(permissions_ != nullptr && !permissions_->can_play())
     {
         msg_error(EPERM, LOG_INFO, "Ignoring play request");
         return;
     }
 
-    player_->set_intention(UserIntention::LISTENING);
+    if(!is_active_controller())
+        return;
+
+    if(!audio_source_->is_deselected())
+        player_->set_intention(UserIntention::LISTENING);
+
+    if(!audio_source_->is_selected())
+        return;
 
     switch(player_->get_current_stream_state())
     {
@@ -540,8 +501,14 @@ void Player::Control::jump_to_crawler_location()
 
 void Player::Control::stop_request()
 {
-    if(is_active_controller())
+    if(!is_active_controller())
+        return;
+
+    if(!audio_source_->is_deselected())
         player_->set_intention(UserIntention::STOPPING);
+
+    if(!audio_source_->is_selected())
+        return;
 
     send_stop_command();
 }
@@ -554,15 +521,29 @@ void Player::Control::pause_request()
         return;
     }
 
-    if(is_active_controller())
+    if(!is_active_controller())
+        return;
+
+    if(!audio_source_->is_deselected())
         player_->set_intention(UserIntention::PAUSING);
+
+    if(!audio_source_->is_selected())
+        return;
 
     send_pause_command();
 }
 
 static void enforce_intention(Player::UserIntention intention,
-                              Player::StreamState known_stream_state)
+                              Player::StreamState known_stream_state,
+                              const Player::AudioSource *audio_source_)
 {
+    if(audio_source_ == nullptr  || !audio_source_->is_selected())
+    {
+        BUG("Cannot enforce intention on %s audio source",
+            audio_source_ == nullptr ? "null" : "deselected");
+        return;
+    }
+
     switch(intention)
     {
       case Player::UserIntention::NOTHING:
@@ -615,6 +596,66 @@ static void enforce_intention(Player::UserIntention intention,
 
         break;
     }
+}
+
+bool Player::Control::source_selected_notification(const std::string &audio_source_id)
+{
+    auto locks(lock());
+
+    if(audio_source_ == nullptr)
+    {
+        msg_info("Dropped selected notification for audio source %s",
+                 audio_source_id.c_str());
+        return false;
+    }
+
+    if(audio_source_id == audio_source_->id_)
+    {
+        audio_source_->selected_notification();
+
+        switch(player_->get_intention())
+        {
+          case UserIntention::NOTHING:
+          case UserIntention::SKIPPING_PAUSED:
+          case UserIntention::SKIPPING_LIVE:
+            break;
+
+          case UserIntention::LISTENING:
+            play_request();
+            break;
+
+          case UserIntention::STOPPING:
+            stop_request();
+            break;
+
+          case UserIntention::PAUSING:
+            pause_request();
+            break;
+        }
+
+        msg_info("Selected audio source %s", audio_source_id.c_str());
+        return true;
+    }
+    else
+    {
+        do_deselect_audio_source(*audio_source_);
+        msg_info("Deselected audio source %s because %s was selected",
+                 audio_source_->id_, audio_source_id.c_str());
+        return false;
+    }
+}
+
+bool Player::Control::source_deselected_notification(const std::string &audio_source_id)
+{
+    auto locks(lock());
+
+    if(audio_source_ == nullptr || audio_source_id != audio_source_->id_)
+        return false;
+
+    do_deselect_audio_source(*audio_source_);
+    msg_info("Deselected audio source %s as requested", audio_source_id.c_str());
+
+    return true;
 }
 
 static StreamExpected is_stream_expected(const ID::OurStream our_stream_id,
@@ -775,6 +816,12 @@ bool Player::Control::skip_forward_request()
         return false;
     }
 
+    if(!is_active_controller())
+        return false;
+
+    if(!audio_source_->is_selected())
+        return false;
+
     auto crawler_lock(crawler_->lock());
 
     bool should_find_next = false;
@@ -842,7 +889,8 @@ bool Player::Control::skip_forward_request()
 
             skip_requests_.skipped(*player_, *crawler_,
                                    Player::Skipper::StopSkipBehavior::STOP);
-            enforce_intention(player_->get_intention(), streamplayer_status);
+            enforce_intention(player_->get_intention(), streamplayer_status,
+                              audio_source_);
 
             retval = true;
         }
@@ -883,6 +931,12 @@ void Player::Control::skip_backward_request()
         return;
     }
 
+    if(!is_active_controller())
+        return;
+
+    if(!audio_source_->is_selected())
+        return;
+
     auto crawler_lock(crawler_->lock());
 
     UserIntention previous_intention;
@@ -919,6 +973,12 @@ void Player::Control::skip_backward_request()
 
 void Player::Control::rewind_request()
 {
+    if(!is_active_controller())
+        return;
+
+    if(!audio_source_->is_selected())
+        return;
+
     if(permissions_ != nullptr)
     {
         if(!permissions_->can_fast_wind_backward())
@@ -1049,7 +1109,8 @@ void Player::Control::play_notification(ID::Stream stream_id,
                 BUG("No list position for stream %u", stream_id.get_raw_id());
         }
 
-        enforce_intention(player_->get_intention(), Player::StreamState::PLAYING);
+        enforce_intention(player_->get_intention(), Player::StreamState::PLAYING,
+                          audio_source_);
     }
 }
 
@@ -1543,7 +1604,8 @@ void Player::Control::pause_notification(ID::Stream stream_id)
     retry_data_.playing(stream_id);
 
     if(is_active_controller())
-        enforce_intention(player_->get_intention(), Player::StreamState::PAUSED);
+        enforce_intention(player_->get_intention(), Player::StreamState::PAUSED,
+                          audio_source_);
 }
 
 
