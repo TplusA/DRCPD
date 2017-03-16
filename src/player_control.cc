@@ -20,9 +20,12 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
+#include <cstring>
+
 #include "player_control.hh"
 #include "player_stopped_reason.hh"
 #include "directory_crawler.hh"
+#include "audiosource.hh"
 #include "dbus_iface_deep.h"
 #include "view_play.hh"
 #include "messages.h"
@@ -225,6 +228,44 @@ Player::Skipper::skipped(Data &data, Playlist::CrawlerIface &crawler,
     }
 }
 
+static void source_request_done(GObject *source_object, GAsyncResult *res,
+                                gpointer user_data)
+{
+    auto *audio_source = static_cast<Player::AudioSource *>(user_data);
+
+    GError *error = nullptr;
+    gchar *player_id = nullptr;
+    gboolean switched = FALSE;
+
+    tdbus_aupath_manager_call_request_source_finish(TDBUS_AUPATH_MANAGER(source_object),
+                                                    &player_id, &switched,
+                                                    res, &error);
+
+    if(error != nullptr)
+    {
+        msg_error(0, LOG_EMERG, "Requesting audio source %s failed: %s",
+                  audio_source->id_, error->message);
+        g_error_free(error);
+
+        /* keep audio source state the way it is and leave state switching to
+         * the \c de.tahifi.AudioPath.Source() methods */
+    }
+
+    if(player_id != nullptr)
+    {
+        msg_info("%s player %s", switched ? "Activated" : "Still using", player_id);
+        g_free(player_id);
+    }
+
+    /*
+     * Note that we do not notify the audio source about its selected state
+     * here since we are doing this in our implementation of
+     * \c de.tahifi.AudioPath.Source.Selected() already. It's a bit cleaner and
+     * doesn't force us to operate from some bogus GLib context for
+     * asynchronous result handling and to deal with locking.
+     */
+}
+
 void Player::Control::plug(AudioSource &audio_source)
 {
     log_assert(audio_source_ == nullptr);
@@ -232,6 +273,17 @@ void Player::Control::plug(AudioSource &audio_source)
     log_assert(permissions_ == nullptr);
 
     audio_source_ = &audio_source;
+
+    if(!audio_source_->is_selected())
+    {
+        msg_info("Requesting source %s", audio_source_->id_);
+        audio_source_->request();
+        tdbus_aupath_manager_call_request_source(dbus_audiopath_get_manager_iface(),
+                                                 audio_source_->id_, NULL,
+                                                 source_request_done, audio_source_);
+    }
+    else
+        msg_info("Not requesting source %s, already selected", audio_source_->id_);
 }
 
 void Player::Control::plug(Player::Data &player_data)
@@ -382,6 +434,51 @@ static void resume_paused_stream(Player::Data *player)
     if(player != nullptr &&
        player->get_current_stream_state() == Player::StreamState::PAUSED)
         send_play_command();
+}
+
+static void do_deselect_audio_source(Player::AudioSource &audio_source)
+{
+    audio_source.deselected_notification();
+    send_stop_command();
+}
+
+bool Player::Control::source_selected_notification(const std::string &audio_source_id)
+{
+    auto locks(lock());
+
+    if(audio_source_ == nullptr)
+    {
+        msg_info("Dropped selected notification for audio source %s",
+                 audio_source_id.c_str());
+        return false;
+    }
+
+    if(audio_source_id == audio_source_->id_)
+    {
+        audio_source_->selected_notification();
+        msg_info("Selected audio source %s", audio_source_id.c_str());
+        return true;
+    }
+    else
+    {
+        do_deselect_audio_source(*audio_source_);
+        msg_info("Deselected audio source %s because %s was selected",
+                 audio_source_->id_, audio_source_id.c_str());
+        return false;
+    }
+}
+
+bool Player::Control::source_deselected_notification(const std::string &audio_source_id)
+{
+    auto locks(lock());
+
+    if(audio_source_ == nullptr || audio_source_id != audio_source_->id_)
+        return false;
+
+    do_deselect_audio_source(*audio_source_);
+    msg_info("Deselected audio source %s as requested", audio_source_id.c_str());
+
+    return true;
 }
 
 void Player::Control::play_request()

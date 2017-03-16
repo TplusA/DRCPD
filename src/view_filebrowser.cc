@@ -889,6 +889,8 @@ ViewFileBrowser::View::process_event(UI::ViewEventID event_id,
       case UI::ViewEventID::NOTIFY_STREAM_STOPPED:
       case UI::ViewEventID::NOTIFY_STREAM_PAUSED:
       case UI::ViewEventID::NOTIFY_STREAM_POSITION:
+      case UI::ViewEventID::AUDIO_SOURCE_SELECTED:
+      case UI::ViewEventID::AUDIO_SOURCE_DESELECTED:
         BUG("Unexpected view event 0x%08x for file browser view",
             static_cast<unsigned int>(event_id));
 

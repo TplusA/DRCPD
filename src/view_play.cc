@@ -121,6 +121,27 @@ static void send_current_stream_info_to_dcpd(const Player::Data &player_data)
         msg_error(0, LOG_NOTICE, "Failed sending stream information to dcpd");
 }
 
+static void lookup_source_and_view(std::map<std::string, std::pair<Player::AudioSource *, const ViewIface *>> &audio_sources,
+                                   const std::string &audio_source_id,
+                                   Player::AudioSource *&audio_source,
+                                   const ViewIface *&view)
+{
+    try
+    {
+        const auto ausrc_and_view(audio_sources[audio_source_id]);
+
+        audio_source = ausrc_and_view.first;
+        view = ausrc_and_view.second;
+
+        if(view == nullptr)
+            BUG("Have no view for audio source %s", audio_source_id.c_str());
+    }
+    catch(const std::out_of_range &e)
+    {
+        BUG("Audio source %s not known", audio_source_id.c_str());
+    }
+}
+
 ViewIface::InputResult
 ViewPlay::View::process_event(UI::ViewEventID event_id,
                               std::unique_ptr<const UI::Parameters> parameters)
@@ -401,6 +422,78 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
 
             if(stream_id.get() == player_data_.get_current_stream_id())
                 send_current_stream_info_to_dcpd(player_data_);
+        }
+
+        break;
+
+      case UI::ViewEventID::AUDIO_SOURCE_SELECTED:
+        {
+            const auto params =
+                UI::Events::downcast<UI::ViewEventID::AUDIO_SOURCE_SELECTED>(parameters);
+
+            if(params == nullptr)
+                break;
+
+            const std::string &ausrc_id(params->get_specific());
+
+            if(player_control_.is_active_controller())
+            {
+                if(player_control_.source_selected_notification(ausrc_id))
+                    break;
+
+                /* source has been changed, need to switch views */
+                player_control_.unplug();
+            }
+            else
+                msg_info("Fresh activation, selection of audio source %s",
+                         ausrc_id.c_str());
+
+            Player::AudioSource *audio_source = nullptr;
+            const ViewIface *view = nullptr;
+            lookup_source_and_view(audio_sources_, ausrc_id,
+                                   audio_source, view);
+
+            if(audio_source != nullptr)
+            {
+                msg_info("Plug selected audio source %s into player", audio_source->id_);
+
+                audio_source->select_now();
+                player_control_.plug(*audio_source);
+                player_control_.plug(player_data_);
+            }
+
+            if(view != nullptr)
+                view_manager_->sync_activate_view_by_name(view->name_);
+        }
+
+        break;
+
+      case UI::ViewEventID::AUDIO_SOURCE_DESELECTED:
+        {
+            const auto params =
+                UI::Events::downcast<UI::ViewEventID::AUDIO_SOURCE_DESELECTED>(parameters);
+
+            if(params == nullptr)
+                break;
+
+            const std::string &ausrc_id(params->get_specific());
+
+            if(!player_control_.source_deselected_notification(ausrc_id))
+            {
+                Player::AudioSource *audio_source = nullptr;
+                const ViewIface *view = nullptr;
+                lookup_source_and_view(audio_sources_, ausrc_id,
+                                       audio_source, view);
+
+                if(audio_source == nullptr)
+                    msg_info("Dropped deselect notification for unknown audio source %s",
+                             ausrc_id.c_str());
+                else
+                {
+                    audio_source->deselected_notification();
+                    msg_info("Deselected unplugged audio source %s", audio_source->id_);
+                }
+            }
         }
 
         break;

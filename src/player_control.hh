@@ -287,6 +287,9 @@ class Control
     void plug(Playlist::CrawlerIface &crawler, const LocalPermissionsIface &permissions);
     void unplug();
 
+    bool source_selected_notification(const std::string &audio_source_id);
+    bool source_deselected_notification(const std::string &audio_source_id);
+
     void set_repeat_mode(RepeatMode repeat_mode);
 
     /* functions below are called as a result of user actions that are supposed

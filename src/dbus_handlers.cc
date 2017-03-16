@@ -523,7 +523,13 @@ gboolean dbusmethod_audiopath_source_selected(tdbusaupathSource *object,
 {
     enter_audiopath_source_handler(invocation);
 
-    msg_info("Selected source \"%s\"", source_id);
+    auto *data = static_cast<DBus::SignalData *>(user_data);
+
+    /* views are switched by the player as seen necessary */
+    auto params = UI::Events::mk_params<UI::EventID::AUDIO_SOURCE_SELECTED>(source_id);
+    data->event_sink_.store_event(UI::EventID::AUDIO_SOURCE_SELECTED,
+                                  std::move(params));
+
     tdbus_aupath_source_complete_selected(object, invocation);
 
     return TRUE;
@@ -536,7 +542,13 @@ gboolean dbusmethod_audiopath_source_deselected(tdbusaupathSource *object,
 {
     enter_audiopath_source_handler(invocation);
 
-    msg_info("Deselected source \"%s\"", source_id);
+    auto *data = static_cast<DBus::SignalData *>(user_data);
+
+    /* views are switched by the player as seen necessary */
+    auto params = UI::Events::mk_params<UI::EventID::AUDIO_SOURCE_DESELECTED>(source_id);
+    data->event_sink_.store_event(UI::EventID::AUDIO_SOURCE_DESELECTED,
+                                  std::move(params));
+
     tdbus_aupath_source_complete_deselected(object, invocation);
 
     return TRUE;
