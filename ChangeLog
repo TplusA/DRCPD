@@ -1,3 +1,28 @@
+2017-03-21  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 4.0 released.
+
+	* Audio routing: Register with TAPSwitch as audio source(s).
+
+	* Audio routing: The player selects the audio source before starting
+	  to play. It won't play anything before source selection has
+	  succeeded.
+
+	* Audio routing: Audio source selection by external means switches to
+	  the associated view, if any.
+
+	* Roon: Connect to playback D-Bus interface exported by TARoon and
+	  react to now-playing signals. This makes TARoon available as a
+	  non-selectable audio source just like the Smartphone App source.
+
+	* Roon: Forward playback commands to TARoon using the same mechanisms
+	  as for the StrBo streamplayer. This enables controlling play, pause,
+	  and stop for Roon.
+
+	* TA Control/Roon: Player permissions apply. There are only static
+	  permissions whereas Roon requires dynamic permissions, but it's a
+	  start.
+
 2017-03-06  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 3.2 released.
