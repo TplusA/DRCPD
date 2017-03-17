@@ -169,12 +169,9 @@ static void created_configuration_proxy(GObject *source_object, GAsyncResult *re
     data->configuration_proxy =
         tdbus_configuration_proxy_proxy_new_finish(res, &error);
 
-    tdbus_configuration_proxy_call_register_sync(data->configuration_proxy,
-                                                 "drcpd", "/de/tahifi/Drcpd",
-                                                 NULL, &error);
-
-    if(handle_error(&error))
-        msg_info("Registered with configuration proxy");
+    tdbus_configuration_proxy_call_register(data->configuration_proxy,
+                                            "drcpd", "/de/tahifi/Drcpd",
+                                            NULL, NULL, NULL);
 }
 
 static void connect_signals_dcpd(GDBusConnection *connection,
