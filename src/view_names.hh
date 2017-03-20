@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2017  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -24,6 +24,8 @@ namespace ViewNames
     static constexpr const char BROWSER_FILESYSTEM[] = "Filesystem";
     static constexpr const char BROWSER_INETRADIO[]  = "TuneIn";
     static constexpr const char BROWSER_UPNP[]       = "UPnP";
+    static constexpr const char APP[]                = "App";
+    static constexpr const char ROON[]               = "Roon";
     static constexpr const char PLAYER[]             = "Play";
     static constexpr const char CONFIGURATION[]      = "Config";
     static constexpr const char SEARCH_OPTIONS[]     = "Search";

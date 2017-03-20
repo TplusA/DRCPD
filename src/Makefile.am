@@ -104,6 +104,9 @@ libviews_la_SOURCES = \
     view_audiosource.hh view_audiosource.cc \
     view_play.hh view_play.cc metadata.hh metadata_preloaded.hh \
     view_search.hh view_search.cc \
+    view_external_source_base.hh view_external_source_base.cc \
+    view_src_app.hh \
+    view_src_roon.hh \
     view_manager.hh view_manager.cc \
     player_permissions.hh player_permissions_airable.hh \
     audiosource.hh \

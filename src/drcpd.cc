@@ -30,6 +30,8 @@
 #include "i18n.h"
 #include "view_filebrowser.hh"
 #include "view_filebrowser_airable.hh"
+#include "view_src_app.hh"
+#include "view_src_roon.hh"
 #include "view_config.hh"
 #include "view_manager.hh"
 #include "view_play.hh"
@@ -502,6 +504,8 @@ static void connect_everything(ViewManager::Manager &views,
                                       Playlist::CrawlerIface::ShuffleMode::FORWARD,
                                       "strbo.upnpcm",
                                       &views);
+    static ViewSourceApp::View app("TA Control", &views);
+    static ViewSourceRoon::View roon("Roon (beta)", &views);
     static ViewPlay::View play(N_("Stream information"),
                                views.NUMBER_OF_LINES_ON_DISPLAY,
                                config.maximum_bitrate_,
@@ -521,6 +525,12 @@ static void connect_everything(ViewManager::Manager &views,
     if(!upnp.init())
         return;
 
+    if(!app.init())
+        return;
+
+    if(!roon.init())
+        return;
+
     if(!play.init())
         return;
 
@@ -531,6 +541,8 @@ static void connect_everything(ViewManager::Manager &views,
     views.add_view(&fs);
     views.add_view(&tunein);
     views.add_view(&upnp);
+    views.add_view(&app);
+    views.add_view(&roon);
     views.add_view(&play);
     views.add_view(&search);
 
