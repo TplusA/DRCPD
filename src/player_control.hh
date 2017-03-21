@@ -280,14 +280,33 @@ class Control
                                : LoggedLock::UniqueLock<LoggedLock::RecMutex>(ncthis.player_dummy_lock_));
     }
 
-    bool is_active_controller() const { return audio_source_ != nullptr; };
-    bool is_active_controller_for_audio_source(const AudioSource &audio_source) const { return audio_source_ == &audio_source; }
+    bool is_any_audio_source_plugged() const
+    {
+        return audio_source_ != nullptr;
+    };
+
+    bool is_audio_source_plugged(const AudioSource &audio_source) const
+    {
+        return audio_source_ == &audio_source;
+    };
+
+    bool is_active_controller() const
+    {
+        return player_ != nullptr && is_any_audio_source_plugged();
+    }
+
+    bool is_active_controller_for_audio_source(const AudioSource &audio_source) const
+    {
+        return player_ != nullptr && is_audio_source_plugged(audio_source);
+    }
+
     bool is_active_controller_for_audio_source(const std::string &audio_source_id) const;
+
     void plug(AudioSource &audio_source, const std::string *blind_player_id = nullptr);
     void plug(Data &player_data);
     void plug(Playlist::CrawlerIface &crawler, const LocalPermissionsIface &permissions);
     void plug(const LocalPermissionsIface &permissions);
-    void unplug();
+    void unplug(bool is_complete_unplug);
 
     bool source_selected_notification(const std::string &audio_source_id);
     bool source_deselected_notification(const std::string *audio_source_id);

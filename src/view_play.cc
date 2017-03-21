@@ -124,7 +124,7 @@ void ViewPlay::View::prepare_for_playing(Player::AudioSource &audio_source,
         /* we do not own the player yet, so stop the player just in case it is
          * playing, then plug to it */
         player_control_.stop_request();
-        player_control_.unplug();
+        player_control_.unplug(true);
         player_control_.plug(audio_source);
         player_control_.plug(player_data_);
         player_control_.plug(crawler, permissions);
@@ -138,7 +138,7 @@ void ViewPlay::View::stop_playing(const Player::AudioSource &audio_source)
     const auto lock_ctrl(player_control_.lock());
 
     if(player_control_.is_active_controller_for_audio_source(audio_source))
-        player_control_.unplug();
+        player_control_.unplug(false);
 }
 
 void ViewPlay::View::append_referenced_lists(const Player::AudioSource &audio_source,
@@ -381,7 +381,7 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
                          error_id.empty() ? "" : " with error",
                          is_visible_ ? "send screen update" : "but view is invisible");
 
-                player_control_.unplug();
+                player_control_.unplug(false);
                 player_data_.forget_all_streams();
 
                 add_update_flags(UPDATE_FLAGS_PLAYBACK_STATE);
@@ -509,13 +509,13 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
 
             const std::string &ausrc_id(params->get_specific());
 
-            if(player_control_.is_active_controller())
+            if(player_control_.is_any_audio_source_plugged())
             {
                 if(player_control_.source_selected_notification(ausrc_id))
                     break;
 
                 /* source has been changed, need to switch views */
-                player_control_.unplug();
+                player_control_.unplug(true);
             }
             else
                 msg_info("Fresh activation, selection of audio source %s",
@@ -599,7 +599,7 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
                 audio_source == nullptr || ausrc_id.empty();
 
             player_control_.source_deselected_notification(nullptr);
-            player_control_.unplug();
+            player_control_.unplug(true);
 
             if(!audio_source_is_deselected)
             {

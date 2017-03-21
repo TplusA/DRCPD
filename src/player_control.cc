@@ -268,7 +268,9 @@ static void source_request_done(GObject *source_object, GAsyncResult *res,
 
 bool Player::Control::is_active_controller_for_audio_source(const std::string &audio_source_id) const
 {
-    return audio_source_ != nullptr && audio_source_id == audio_source_->id_;
+    return player_ != nullptr &&
+           is_any_audio_source_plugged() &&
+           audio_source_id == audio_source_->id_;
 }
 
 static void set_audio_player_dbus_proxies(const std::string &audio_player_id,
@@ -287,7 +289,7 @@ static void set_audio_player_dbus_proxies(const std::string &audio_player_id,
 void Player::Control::plug(AudioSource &audio_source,
                            const std::string *blind_player_id)
 {
-    log_assert(audio_source_ == nullptr);
+    log_assert(!is_any_audio_source_plugged());
     log_assert(crawler_ == nullptr);
     log_assert(permissions_ == nullptr);
 
@@ -355,11 +357,12 @@ void Player::Control::forget_queued_and_playing(bool also_forget_playing)
         retry_data_.reset();
 }
 
-void Player::Control::unplug()
+void Player::Control::unplug(bool is_complete_unplug)
 {
     auto locks(lock());
 
-    audio_source_ = nullptr;
+    if(is_complete_unplug)
+        audio_source_ = nullptr;
 
     forget_queued_and_playing(true);
 
@@ -376,7 +379,8 @@ void Player::Control::unplug()
         crawler_ = nullptr;
     }
 
-    permissions_ = nullptr;
+    if(is_complete_unplug)
+        permissions_ = nullptr;
 }
 
 static bool send_play_command(const Player::AudioSource *asrc)
@@ -544,6 +548,9 @@ void Player::Control::jump_to_crawler_location()
     if(!is_active_controller())
         return;
 
+    if(crawler_ == nullptr)
+        return;
+
     auto crawler_lock(crawler_->lock());
 
     crawler_->set_direction_forward();
@@ -556,10 +563,10 @@ void Player::Control::jump_to_crawler_location()
 
 void Player::Control::stop_request()
 {
-    if(!is_active_controller())
+    if(!is_any_audio_source_plugged())
         return;
 
-    if(!audio_source_->is_deselected())
+    if(is_active_controller() && !audio_source_->is_deselected())
         player_->set_intention(UserIntention::STOPPING);
 
     if(!audio_source_->is_selected())
@@ -576,10 +583,10 @@ void Player::Control::pause_request()
         return;
     }
 
-    if(!is_active_controller())
+    if(!is_any_audio_source_plugged())
         return;
 
-    if(!audio_source_->is_deselected())
+    if(is_active_controller() && !audio_source_->is_deselected())
         player_->set_intention(UserIntention::PAUSING);
 
     if(!audio_source_->is_selected())
@@ -592,7 +599,7 @@ static void enforce_intention(Player::UserIntention intention,
                               Player::StreamState known_stream_state,
                               const Player::AudioSource *audio_source_)
 {
-    if(audio_source_ == nullptr  || !audio_source_->is_selected())
+    if(audio_source_ == nullptr || !audio_source_->is_selected())
     {
         BUG("Cannot enforce intention on %s audio source",
             audio_source_ == nullptr ? "null" : "deselected");
@@ -657,7 +664,7 @@ bool Player::Control::source_selected_notification(const std::string &audio_sour
 {
     auto locks(lock());
 
-    if(audio_source_ == nullptr)
+    if(!is_any_audio_source_plugged())
     {
         msg_info("Dropped selected notification for audio source %s",
                  audio_source_id.c_str());
@@ -670,24 +677,27 @@ bool Player::Control::source_selected_notification(const std::string &audio_sour
         audio_source_->set_proxies(dbus_get_streamplayer_urlfifo_iface(),
                                    dbus_get_streamplayer_playback_iface());
 
-        switch(player_->get_intention())
+        if(player_ != nullptr)
         {
-          case UserIntention::NOTHING:
-          case UserIntention::SKIPPING_PAUSED:
-          case UserIntention::SKIPPING_LIVE:
-            break;
+            switch(player_->get_intention())
+            {
+              case UserIntention::NOTHING:
+              case UserIntention::SKIPPING_PAUSED:
+              case UserIntention::SKIPPING_LIVE:
+                break;
 
-          case UserIntention::LISTENING:
-            play_request();
-            break;
+              case UserIntention::LISTENING:
+                play_request();
+                break;
 
-          case UserIntention::STOPPING:
-            stop_request();
-            break;
+              case UserIntention::STOPPING:
+                stop_request();
+                break;
 
-          case UserIntention::PAUSING:
-            pause_request();
-            break;
+              case UserIntention::PAUSING:
+                pause_request();
+                break;
+            }
         }
 
         msg_info("Selected audio source %s", audio_source_id.c_str());
@@ -706,7 +716,7 @@ bool Player::Control::source_deselected_notification(const std::string *audio_so
 {
     auto locks(lock());
 
-    if((audio_source_ == nullptr) ||
+    if(!is_any_audio_source_plugged() ||
        (audio_source_id != nullptr && *audio_source_id != audio_source_->id_))
         return false;
 
@@ -874,7 +884,7 @@ bool Player::Control::skip_forward_request()
         return false;
     }
 
-    if(!is_active_controller())
+    if(!is_any_audio_source_plugged())
         return false;
 
     if(!audio_source_->is_selected())
@@ -989,7 +999,7 @@ void Player::Control::skip_backward_request()
         return;
     }
 
-    if(!is_active_controller())
+    if(!is_any_audio_source_plugged())
         return;
 
     if(!audio_source_->is_selected())
@@ -1140,7 +1150,7 @@ void Player::Control::play_notification(ID::Stream stream_id,
             break;
 
           case StreamExpected::UNEXPECTEDLY_NOT_OURS:
-            unplug();
+            unplug(false);
             return;
 
           case StreamExpected::EMPTY_AS_EXPECTED:
@@ -2110,7 +2120,7 @@ void Player::Control::unexpected_resolve_error(size_t idx,
 {
     BUG("Asynchronous resolution of Airable redirect failed unexpectedly "
         "for URL at index %zu, result %u", idx, static_cast<unsigned int>(result));
-    unplug();
+    unplug(false);
 }
 
 static MetaData::Set
