@@ -55,7 +55,8 @@ class View: public ViewIface, public ViewSerializeBase
     Player::Data player_data_;
     Player::Control player_control_;
 
-    std::map<std::string, std::pair<Player::AudioSource *, const ViewIface *>> audio_sources_;
+    std::map<std::string, std::pair<Player::AudioSource *, const ViewIface *>> audio_sources_with_view_;
+    std::map<std::string, Player::AudioSource *> audio_sources_blind_;
 
   public:
     View(const View &) = delete;
@@ -101,6 +102,8 @@ class View: public ViewIface, public ViewSerializeBase
                                  std::vector<ID::List> &list_ids) const;
 
   private:
+    void register_audio_source(Player::AudioSource &audio_source);
+
     /*!
      * Generate XML document from current state.
      */

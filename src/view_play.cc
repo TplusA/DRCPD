@@ -33,6 +33,13 @@
 
 bool ViewPlay::View::init()
 {
+    /* view-less audio sources */
+    static Player::AudioSource app_source("App");
+    static Player::AudioSource roon_source("Roon");
+
+    register_audio_source(app_source);
+    register_audio_source(roon_source);
+
     return true;
 }
 
@@ -49,8 +56,14 @@ void ViewPlay::View::defocus()
 void ViewPlay::View::register_audio_source(Player::AudioSource &audio_source,
                                            const ViewIface &associated_view)
 {
-    audio_sources_.emplace(std::move(std::string(audio_source.id_)),
-                           std::move(std::make_pair(&audio_source, &associated_view)));
+    audio_sources_with_view_.emplace(std::move(std::string(audio_source.id_)),
+                                     std::move(std::make_pair(&audio_source, &associated_view)));
+}
+
+void ViewPlay::View::register_audio_source(Player::AudioSource &audio_source)
+{
+    audio_sources_blind_.emplace(std::move(std::string(audio_source.id_)),
+                                 &audio_source);
 }
 
 void ViewPlay::View::prepare_for_playing(Player::AudioSource &audio_source,
@@ -450,7 +463,7 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
 
             Player::AudioSource *audio_source = nullptr;
             const ViewIface *view = nullptr;
-            lookup_source_and_view(audio_sources_, ausrc_id,
+            lookup_source_and_view(audio_sources_with_view_, ausrc_id,
                                    audio_source, view);
 
             if(audio_source != nullptr)
@@ -482,7 +495,7 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
             {
                 Player::AudioSource *audio_source = nullptr;
                 const ViewIface *view = nullptr;
-                lookup_source_and_view(audio_sources_, ausrc_id,
+                lookup_source_and_view(audio_sources_with_view_, ausrc_id,
                                        audio_source, view);
 
                 if(audio_source == nullptr)
