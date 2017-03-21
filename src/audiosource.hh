@@ -21,6 +21,9 @@
 
 #include "messages.h"
 
+struct _tdbussplayURLFIFO;
+struct _tdbussplayPlayback;
+
 namespace Player
 {
 
@@ -39,20 +42,43 @@ class AudioSource
   private:
     AudioSourceState state_;
 
+    struct _tdbussplayURLFIFO *urlfifo_proxy_;
+    struct _tdbussplayPlayback *playback_proxy_;
+
   public:
     AudioSource(const AudioSource &) = delete;
     AudioSource &operator=(const AudioSource &) = delete;
 
     explicit AudioSource(const char *id):
         id_(id),
-        state_(AudioSourceState::DESELECTED)
+        state_(AudioSourceState::DESELECTED),
+        urlfifo_proxy_(nullptr),
+        playback_proxy_(nullptr)
     {}
 
     bool is_deselected() const { return state_ == AudioSourceState::DESELECTED; }
     bool is_requested() const { return state_ == AudioSourceState::REQUESTED; }
     bool is_selected() const { return state_ == AudioSourceState::SELECTED; }
 
-    void deselected_notification() { state_ = AudioSourceState::DESELECTED; }
+    void set_proxies(struct _tdbussplayURLFIFO *urlfifo_proxy,
+                     struct _tdbussplayPlayback *playback_proxy)
+    {
+        if(!is_selected())
+            BUG("Set D-Bus proxies for not selected audio source %s", id_);
+
+        urlfifo_proxy_ = urlfifo_proxy;
+        playback_proxy_ = playback_proxy;
+    }
+
+    struct _tdbussplayURLFIFO *get_urlfifo_proxy() const { return urlfifo_proxy_; }
+    struct _tdbussplayPlayback *get_playback_proxy() const { return playback_proxy_; }
+
+    void deselected_notification()
+    {
+        state_ = AudioSourceState::DESELECTED;
+        urlfifo_proxy_ = nullptr;
+        playback_proxy_ = nullptr;
+    }
 
     void request()
     {
