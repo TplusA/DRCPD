@@ -286,6 +286,7 @@ class Control
     void plug(AudioSource &audio_source, const std::string *blind_player_id = nullptr);
     void plug(Data &player_data);
     void plug(Playlist::CrawlerIface &crawler, const LocalPermissionsIface &permissions);
+    void plug(const LocalPermissionsIface &permissions);
     void unplug();
 
     bool source_selected_notification(const std::string &audio_source_id);

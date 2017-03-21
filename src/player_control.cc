@@ -320,15 +320,22 @@ void Player::Control::plug(Player::Data &player_data)
 void Player::Control::plug(Playlist::CrawlerIface &crawler,
                            const LocalPermissionsIface &permissions)
 {
+    plug(permissions);
+
     crawler_ = &crawler;
+
+    auto crawler_lock(crawler_->lock());
+    crawler_->attached_to_player_notification();
+}
+
+void Player::Control::plug(const LocalPermissionsIface &permissions)
+{
+    crawler_ = nullptr;
     permissions_ = &permissions;
     skip_requests_.reset();
     queued_streams_.clear();
     prefetch_state_ = PrefetchState::NOT_PREFETCHING;
     retry_data_.reset();
-
-    auto crawler_lock(crawler_->lock());
-    crawler_->attached_to_player_notification();
 }
 
 void Player::Control::forget_queued_and_playing(bool also_forget_playing)
