@@ -164,6 +164,8 @@ class Control
     LoggedLock::RecMutex lock_;
 
     AudioSource *audio_source_;
+    tdbussplayURLFIFO  *urlfifo_dbus_proxy_;
+    tdbussplayPlayback *playback_dbus_proxy_;
     Data *player_;
     LoggedLock::RecMutex player_dummy_lock_;
     Playlist::CrawlerIface *crawler_;
@@ -247,6 +249,8 @@ class Control
 
     explicit Control(std::function<bool(uint32_t)> &&bitrate_limiter):
         audio_source_(nullptr),
+        urlfifo_dbus_proxy_(nullptr),
+        playback_dbus_proxy_(nullptr),
         player_(nullptr),
         crawler_(nullptr),
         permissions_(nullptr),

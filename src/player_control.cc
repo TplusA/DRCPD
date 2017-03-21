@@ -331,6 +331,8 @@ void Player::Control::unplug()
     auto locks(lock());
 
     audio_source_ = nullptr;
+    urlfifo_dbus_proxy_ = nullptr;
+    playback_dbus_proxy_ = nullptr;
 
     forget_queued_and_playing(true);
 
@@ -350,10 +352,10 @@ void Player::Control::unplug()
     permissions_ = nullptr;
 }
 
-static bool send_play_command()
+static bool send_play_command(tdbussplayPlayback *proxy)
 {
-    if(!tdbus_splay_playback_call_start_sync(dbus_get_streamplayer_playback_iface(),
-                                             NULL, NULL))
+    if(proxy != nullptr &&
+       !tdbus_splay_playback_call_start_sync(proxy, NULL, NULL))
     {
         msg_error(0, LOG_NOTICE, "Failed sending start playback message");
         return false;
@@ -362,10 +364,10 @@ static bool send_play_command()
         return true;
 }
 
-static bool send_stop_command()
+static bool send_stop_command(tdbussplayPlayback *proxy)
 {
-    if(!tdbus_splay_playback_call_stop_sync(dbus_get_streamplayer_playback_iface(),
-                                            NULL, NULL))
+    if(proxy != nullptr &&
+       !tdbus_splay_playback_call_stop_sync(proxy, NULL, NULL))
     {
         msg_error(0, LOG_NOTICE, "Failed sending stop playback message");
         return false;
@@ -374,10 +376,10 @@ static bool send_stop_command()
         return true;
 }
 
-static bool send_pause_command()
+static bool send_pause_command(tdbussplayPlayback *proxy)
 {
-    if(!tdbus_splay_playback_call_pause_sync(dbus_get_streamplayer_playback_iface(),
-                                             NULL, NULL))
+    if(proxy != nullptr &&
+       !tdbus_splay_playback_call_pause_sync(proxy, NULL, NULL))
     {
         msg_error(0, LOG_NOTICE, "Failed sending pause playback message");
         return false;
@@ -387,13 +389,15 @@ static bool send_pause_command()
 }
 
 static bool send_skip_to_next_command(ID::Stream &removed_stream_from_queue,
-                                      Player::StreamState &play_status)
+                                      Player::StreamState &play_status,
+                                      tdbussplayURLFIFO *proxy)
 {
     guint skipped_id;
     guint next_id;
     guchar raw_play_status;
 
-    if(!tdbus_splay_urlfifo_call_next_sync(dbus_get_streamplayer_urlfifo_iface(),
+    if(proxy != nullptr &&
+       !tdbus_splay_urlfifo_call_next_sync(proxy,
                                            &skipped_id, &next_id,
                                            &raw_play_status, NULL, NULL))
     {
@@ -429,17 +433,23 @@ static bool send_skip_to_next_command(ID::Stream &removed_stream_from_queue,
     return true;
 }
 
-static void resume_paused_stream(Player::Data *player)
+static void resume_paused_stream(Player::Data *player,
+                                 tdbussplayPlayback *proxy)
 {
     if(player != nullptr &&
        player->get_current_stream_state() == Player::StreamState::PAUSED)
-        send_play_command();
+        send_play_command(proxy);
 }
 
-static void do_deselect_audio_source(Player::AudioSource &audio_source)
+static void do_deselect_audio_source(Player::AudioSource &audio_source,
+                                     tdbussplayURLFIFO *&urlfifo_proxy,
+                                     tdbussplayPlayback *&playback_proxy)
 {
     audio_source.deselected_notification();
-    send_stop_command();
+    send_stop_command(playback_proxy);
+
+    urlfifo_proxy = nullptr;
+    playback_proxy = nullptr;
 }
 
 void Player::Control::play_request()
@@ -479,7 +489,7 @@ void Player::Control::play_request()
         break;
 
       case Player::StreamState::PAUSED:
-        resume_paused_stream(player_);
+        resume_paused_stream(player_, playback_dbus_proxy_);
         break;
     }
 }
@@ -510,7 +520,7 @@ void Player::Control::stop_request()
     if(!audio_source_->is_selected())
         return;
 
-    send_stop_command();
+    send_stop_command(playback_dbus_proxy_);
 }
 
 void Player::Control::pause_request()
@@ -530,12 +540,13 @@ void Player::Control::pause_request()
     if(!audio_source_->is_selected())
         return;
 
-    send_pause_command();
+    send_pause_command(playback_dbus_proxy_);
 }
 
 static void enforce_intention(Player::UserIntention intention,
                               Player::StreamState known_stream_state,
-                              const Player::AudioSource *audio_source_)
+                              const Player::AudioSource *audio_source_,
+                              tdbussplayPlayback *proxy)
 {
     if(audio_source_ == nullptr  || !audio_source_->is_selected())
     {
@@ -558,7 +569,7 @@ static void enforce_intention(Player::UserIntention intention,
           case Player::StreamState::BUFFERING:
           case Player::StreamState::PLAYING:
           case Player::StreamState::PAUSED:
-            send_stop_command();
+            send_stop_command(proxy);
             break;
         }
 
@@ -571,7 +582,7 @@ static void enforce_intention(Player::UserIntention intention,
           case Player::StreamState::STOPPED:
           case Player::StreamState::BUFFERING:
           case Player::StreamState::PLAYING:
-            send_pause_command();
+            send_pause_command(proxy);
             break;
 
           case Player::StreamState::PAUSED:
@@ -586,7 +597,7 @@ static void enforce_intention(Player::UserIntention intention,
         {
           case Player::StreamState::STOPPED:
           case Player::StreamState::PAUSED:
-            send_play_command();
+            send_play_command(proxy);
             break;
 
           case Player::StreamState::BUFFERING:
@@ -611,6 +622,9 @@ bool Player::Control::source_selected_notification(const std::string &audio_sour
 
     if(audio_source_id == audio_source_->id_)
     {
+        urlfifo_dbus_proxy_ = dbus_get_streamplayer_urlfifo_iface();
+        playback_dbus_proxy_ = dbus_get_streamplayer_playback_iface();
+
         audio_source_->selected_notification();
 
         switch(player_->get_intention())
@@ -638,7 +652,8 @@ bool Player::Control::source_selected_notification(const std::string &audio_sour
     }
     else
     {
-        do_deselect_audio_source(*audio_source_);
+        do_deselect_audio_source(*audio_source_,
+                                 urlfifo_dbus_proxy_, playback_dbus_proxy_);
         msg_info("Deselected audio source %s because %s was selected",
                  audio_source_->id_, audio_source_id.c_str());
         return false;
@@ -652,7 +667,8 @@ bool Player::Control::source_deselected_notification(const std::string &audio_so
     if(audio_source_ == nullptr || audio_source_id != audio_source_->id_)
         return false;
 
-    do_deselect_audio_source(*audio_source_);
+    do_deselect_audio_source(*audio_source_,
+                             urlfifo_dbus_proxy_, playback_dbus_proxy_);
     msg_info("Deselected audio source %s as requested", audio_source_id.c_str());
 
     return true;
@@ -846,7 +862,8 @@ bool Player::Control::skip_forward_request()
             Player::StreamState streamplayer_status;
 
             if(!send_skip_to_next_command(skipped_stream_id,
-                                          streamplayer_status))
+                                          streamplayer_status,
+                                          urlfifo_dbus_proxy_))
             {
                 player_->set_intention(previous_intention);
                 break;
@@ -890,7 +907,7 @@ bool Player::Control::skip_forward_request()
             skip_requests_.skipped(*player_, *crawler_,
                                    Player::Skipper::StopSkipBehavior::STOP);
             enforce_intention(player_->get_intention(), streamplayer_status,
-                              audio_source_);
+                              audio_source_, playback_dbus_proxy_);
 
             retval = true;
         }
@@ -991,7 +1008,8 @@ void Player::Control::rewind_request()
         }
     }
 
-    if(!tdbus_splay_playback_call_seek_sync(dbus_get_streamplayer_playback_iface(),
+    if(playback_dbus_proxy_ != nullptr &&
+       !tdbus_splay_playback_call_seek_sync(playback_dbus_proxy_,
                                             0, "ms", NULL, NULL))
         msg_error(0, LOG_NOTICE, "Failed restarting stream");
 }
@@ -1110,7 +1128,7 @@ void Player::Control::play_notification(ID::Stream stream_id,
         }
 
         enforce_intention(player_->get_intention(), Player::StreamState::PLAYING,
-                          audio_source_);
+                          audio_source_, playback_dbus_proxy_);
     }
 }
 
@@ -1269,6 +1287,9 @@ Player::Control::stop_notification(ID::Stream stream_id)
  * \param[out] queued_url
  *     Which URL was chosen for this stream.
  *
+ * \param urlfifo_proxy, playback_proxy
+ *     D-Bus proxies.
+ *
  * \returns
  *     True in case of success, false otherwise.
  */
@@ -1276,7 +1297,9 @@ static bool send_selected_file_uri_to_streamplayer(ID::OurStream stream_id,
                                                    const GVariantWrapper &stream_key,
                                                    Player::Control::QueueMode queue_mode,
                                                    Player::Control::PlayNewMode play_new_mode,
-                                                   const std::string &queued_url)
+                                                   const std::string &queued_url,
+                                                   tdbussplayURLFIFO *urlfifo_proxy,
+                                                   tdbussplayPlayback *playback_proxy)
 {
     if(queued_url.empty())
         return false;
@@ -1284,8 +1307,8 @@ static bool send_selected_file_uri_to_streamplayer(ID::OurStream stream_id,
     msg_info("Passing URI for stream %u to player: \"%s\"",
              stream_id.get().get_raw_id(), queued_url.c_str());
 
-    gboolean fifo_overflow;
-    gboolean is_playing;
+    gboolean fifo_overflow = FALSE;
+    gboolean is_playing = FALSE;
 
     gint16 keep_first_n = -1;
 
@@ -1303,7 +1326,8 @@ static bool send_selected_file_uri_to_streamplayer(ID::OurStream stream_id,
         break;
     }
 
-    if(!tdbus_splay_urlfifo_call_push_sync(dbus_get_streamplayer_urlfifo_iface(),
+    if(urlfifo_proxy != nullptr &&
+       !tdbus_splay_urlfifo_call_push_sync(urlfifo_proxy,
                                            stream_id.get().get_raw_id(),
                                            queued_url.c_str(), GVariantWrapper::get(stream_key),
                                            0, "ms", 0, "ms", keep_first_n,
@@ -1329,7 +1353,7 @@ static bool send_selected_file_uri_to_streamplayer(ID::OurStream stream_id,
         break;
 
       case Player::Control::PlayNewMode::SEND_PLAY_COMMAND_IF_IDLE:
-        if(!send_play_command())
+        if(!send_play_command(playback_proxy))
         {
             msg_error(0, LOG_NOTICE, "Failed sending start playback message");
             return false;
@@ -1338,7 +1362,7 @@ static bool send_selected_file_uri_to_streamplayer(ID::OurStream stream_id,
         break;
 
       case Player::Control::PlayNewMode::SEND_PAUSE_COMMAND_IF_IDLE:
-        if(!send_pause_command())
+        if(!send_pause_command(playback_proxy))
         {
             msg_error(0, LOG_NOTICE, "Failed sending pause playback message");
             return false;
@@ -1354,7 +1378,9 @@ static Player::StreamPreplayInfo::OpResult
 queue_stream_or_forget(Player::Data &player, ID::OurStream stream_id,
                        Player::Control::QueueMode queue_mode,
                        Player::Control::PlayNewMode play_new_mode,
-                       const Player::StreamPreplayInfo::ResolvedRedirectCallback &callback)
+                       const Player::StreamPreplayInfo::ResolvedRedirectCallback &callback,
+                       tdbussplayURLFIFO *urlfifo_proxy,
+                       tdbussplayPlayback *playback_proxy)
 {
     const GVariantWrapper *stream_key;
     const std::string *uri = nullptr;
@@ -1365,7 +1391,8 @@ queue_stream_or_forget(Player::Data &player, ID::OurStream stream_id,
 
     if(!send_selected_file_uri_to_streamplayer(stream_id, *stream_key,
                                                queue_mode, play_new_mode,
-                                               *uri))
+                                               *uri,
+                                               urlfifo_proxy, playback_proxy))
     {
         player.forget_stream(stream_id.get());
         return Player::StreamPreplayInfo::OpResult::FAILED;
@@ -1565,14 +1592,14 @@ Player::Control::stop_notification(ID::Stream stream_id,
 
           case PlayNewMode::SEND_PLAY_COMMAND_IF_IDLE:
             /* play next in queue */
-            if(send_play_command())
+            if(send_play_command(playback_dbus_proxy_))
                 return StopReaction::TAKE_NEXT;
 
             break;
 
           case PlayNewMode::SEND_PAUSE_COMMAND_IF_IDLE:
             /* pause next in queue */
-            if(send_pause_command())
+            if(send_pause_command(playback_dbus_proxy_))
                 return StopReaction::TAKE_NEXT;
 
             break;
@@ -1605,7 +1632,7 @@ void Player::Control::pause_notification(ID::Stream stream_id)
 
     if(is_active_controller())
         enforce_intention(player_->get_intention(), Player::StreamState::PAUSED,
-                          audio_source_);
+                          audio_source_, playback_dbus_proxy_);
 }
 
 
@@ -1817,7 +1844,7 @@ void Player::Control::found_item_information(Playlist::CrawlerIface &crawler,
                 prefetch_state_ = PrefetchState::NOT_PREFETCHING;
 
                 if(queuing_result == StreamPreplayInfo::OpResult::SUCCEEDED)
-                    send_play_command();
+                    send_play_command(playback_dbus_proxy_);
 
                 break;
             }
@@ -1983,7 +2010,7 @@ void Player::Control::resolved_redirect_for_found_item(size_t idx,
                                                     std::placeholders::_1, std::placeholders::_2));
 
             if(queuing_result == StreamPreplayInfo::OpResult::SUCCEEDED)
-                send_play_command();
+                send_play_command(playback_dbus_proxy_);
 
             break;
         }
@@ -2119,7 +2146,9 @@ Player::Control::process_crawler_item_tail(CrawlerContext ctx, ID::OurStream str
                                            const StreamPreplayInfo::ResolvedRedirectCallback &callback)
 {
     const auto result(queue_stream_or_forget(*player_, stream_id, queue_mode,
-                                             play_new_mode, callback));
+                                             play_new_mode, callback,
+                                             urlfifo_dbus_proxy_,
+                                             playback_dbus_proxy_));
 
     switch(result)
     {
@@ -2168,7 +2197,9 @@ Player::Control::replay(ID::OurStream stream_id, bool is_retry,
                                  play_new_mode,
                                  std::bind(&Player::Control::unexpected_resolve_error,
                                            this,
-                                           std::placeholders::_1, std::placeholders::_2)))
+                                           std::placeholders::_1, std::placeholders::_2),
+                                 urlfifo_dbus_proxy_,
+                                 playback_dbus_proxy_))
     {
       case StreamPreplayInfo::OpResult::STARTED:
         BUG("Unexpected async redirect resolution while replaying");
@@ -2197,7 +2228,9 @@ Player::Control::replay(ID::OurStream stream_id, bool is_retry,
                                       QueueMode::APPEND,
                                       PlayNewMode::KEEP,
                                       std::bind(&Player::Control::unexpected_resolve_error, this,
-                                                std::placeholders::_1, std::placeholders::_2)))
+                                                std::placeholders::_1, std::placeholders::_2),
+                                      urlfifo_dbus_proxy_,
+                                      playback_dbus_proxy_))
         {
           case Player::StreamPreplayInfo::OpResult::STARTED:
             BUG("Unexpected queuing result while replaying");
