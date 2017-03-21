@@ -507,6 +507,47 @@ void dbussignal_airable_sec(GDBusProxy *proxy, const gchar *sender_name,
         unknown_signal(iface_name, signal_name, sender_name);
 }
 
+void dbussignal_audiopath_manager(GDBusProxy *proxy, const gchar *sender_name,
+                                  const gchar *signal_name, GVariant *parameters,
+                                  gpointer user_data)
+{
+    static const char iface_name[] = "de.tahifi.AudioPath.Manager";
+
+    log_signal(iface_name, signal_name, sender_name);
+
+    auto *data = static_cast<DBus::SignalData *>(user_data);
+    log_assert(data != nullptr);
+
+    if(strcmp(signal_name, "PlayerRegistered") == 0)
+    {
+        const gchar *player_id;
+        const gchar *player_name;
+
+        g_variant_get(parameters, "(&s&s)", &player_id, &player_name);
+
+        msg_vinfo(MESSAGE_LEVEL_DEBUG,
+                  "Audio player %s (%s) registered (ignored)",
+                  player_id, player_name);
+    }
+    else if(strcmp(signal_name, "PathActivated") == 0)
+    {
+        const gchar *source_id;
+        const gchar *player_id;
+
+        g_variant_get(parameters, "(&s&s)", &source_id, &player_id);
+
+        msg_vinfo(MESSAGE_LEVEL_DIAG,
+                  "Audio path activated: %s -> %s", source_id, player_id);
+
+        auto params =
+            UI::Events::mk_params<UI::EventID::AUDIO_PATH_CHANGED>(source_id, player_id);
+        data->event_sink_.store_event(UI::EventID::AUDIO_PATH_CHANGED,
+                                      std::move(params));
+    }
+    else
+        unknown_signal(iface_name, signal_name, sender_name);
+}
+
 static void enter_audiopath_source_handler(GDBusMethodInvocation *invocation)
 {
     static const char iface_name[] = "de.tahifi.AudioPath.Source";

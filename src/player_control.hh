@@ -282,13 +282,14 @@ class Control
 
     bool is_active_controller() const { return audio_source_ != nullptr; };
     bool is_active_controller_for_audio_source(const AudioSource &audio_source) const { return audio_source_ == &audio_source; }
-    void plug(AudioSource &audio_source);
+    bool is_active_controller_for_audio_source(const std::string &audio_source_id) const;
+    void plug(AudioSource &audio_source, const std::string *blind_player_id = nullptr);
     void plug(Data &player_data);
     void plug(Playlist::CrawlerIface &crawler, const LocalPermissionsIface &permissions);
     void unplug();
 
     bool source_selected_notification(const std::string &audio_source_id);
-    bool source_deselected_notification(const std::string &audio_source_id);
+    bool source_deselected_notification(const std::string *audio_source_id);
 
     void set_repeat_mode(RepeatMode repeat_mode);
 

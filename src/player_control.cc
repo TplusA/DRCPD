@@ -266,7 +266,26 @@ static void source_request_done(GObject *source_object, GAsyncResult *res,
      */
 }
 
-void Player::Control::plug(AudioSource &audio_source)
+bool Player::Control::is_active_controller_for_audio_source(const std::string &audio_source_id) const
+{
+    return audio_source_ != nullptr && audio_source_id == audio_source_->id_;
+}
+
+static void set_audio_player_dbus_proxies(const std::string &audio_player_id,
+                                          Player::AudioSource &audio_source)
+{
+    if(audio_player_id == "strbo")
+        audio_source.set_proxies(dbus_get_streamplayer_urlfifo_iface(),
+                                 dbus_get_streamplayer_playback_iface());
+    else if(audio_player_id == "roon")
+        audio_source.set_proxies(nullptr,
+                                 dbus_get_roonplayer_playback_iface());
+    else
+        audio_source.set_proxies(nullptr, nullptr);
+}
+
+void Player::Control::plug(AudioSource &audio_source,
+                           const std::string *blind_player_id)
 {
     log_assert(audio_source_ == nullptr);
     log_assert(crawler_ == nullptr);
@@ -284,6 +303,9 @@ void Player::Control::plug(AudioSource &audio_source)
     }
     else
         msg_info("Not requesting source %s, already selected", audio_source_->id_);
+
+    if(blind_player_id != nullptr)
+        set_audio_player_dbus_proxies(*blind_player_id, *audio_source_);
 }
 
 void Player::Control::plug(Player::Data &player_data)
@@ -459,9 +481,12 @@ static void resume_paused_stream(Player::Data *player,
         send_play_command(asrc);
 }
 
-static void do_deselect_audio_source(Player::AudioSource &audio_source)
+static void do_deselect_audio_source(Player::AudioSource &audio_source,
+                                     bool send_stop)
 {
-    send_stop_command(&audio_source);
+    if(send_stop)
+        send_stop_command(&audio_source);
+
     audio_source.deselected_notification();
 }
 
@@ -663,22 +688,23 @@ bool Player::Control::source_selected_notification(const std::string &audio_sour
     }
     else
     {
-        do_deselect_audio_source(*audio_source_);
+        do_deselect_audio_source(*audio_source_, true);
         msg_info("Deselected audio source %s because %s was selected",
                  audio_source_->id_, audio_source_id.c_str());
         return false;
     }
 }
 
-bool Player::Control::source_deselected_notification(const std::string &audio_source_id)
+bool Player::Control::source_deselected_notification(const std::string *audio_source_id)
 {
     auto locks(lock());
 
-    if(audio_source_ == nullptr || audio_source_id != audio_source_->id_)
+    if((audio_source_ == nullptr) ||
+       (audio_source_id != nullptr && *audio_source_id != audio_source_->id_))
         return false;
 
-    do_deselect_audio_source(*audio_source_);
-    msg_info("Deselected audio source %s as requested", audio_source_id.c_str());
+    do_deselect_audio_source(*audio_source_, audio_source_id != nullptr);
+    msg_info("Deselected audio source %s as requested", audio_source_->id_);
 
     return true;
 }

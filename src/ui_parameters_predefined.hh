@@ -58,6 +58,12 @@ struct ParamTraits<EventID::AUDIO_SOURCE_DESELECTED>
 };
 
 template <>
+struct ParamTraits<EventID::AUDIO_PATH_CHANGED>
+{
+    using PType = SpecificParameters<std::tuple<const std::string, const std::string>>;
+};
+
+template <>
 struct ParamTraits<EventID::PLAYBACK_FAST_WIND_SET_SPEED>
 {
     using PType = SpecificParameters<const double>;

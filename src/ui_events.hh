@@ -74,8 +74,9 @@ enum class ViewEventID
     NOTIFY_STREAM_POSITION,
     AUDIO_SOURCE_SELECTED,
     AUDIO_SOURCE_DESELECTED,
+    AUDIO_PATH_CHANGED,
 
-    LAST_VIEW_EVENT_ID = AUDIO_SOURCE_DESELECTED,
+    LAST_VIEW_EVENT_ID = AUDIO_PATH_CHANGED,
 };
 
 /*!
@@ -162,6 +163,7 @@ enum class EventID
     PLAYBACK_MODE_SHUFFLE_TOGGLE = mk_event_id(ViewEventID::PLAYBACK_MODE_SHUFFLE_TOGGLE),
     AUDIO_SOURCE_SELECTED        = mk_event_id(ViewEventID::AUDIO_SOURCE_SELECTED),
     AUDIO_SOURCE_DESELECTED      = mk_event_id(ViewEventID::AUDIO_SOURCE_DESELECTED),
+    AUDIO_PATH_CHANGED           = mk_event_id(ViewEventID::AUDIO_PATH_CHANGED),
 
     /* ===================================================================
      * Active navigational commands issued by the user or some other actor

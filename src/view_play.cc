@@ -155,6 +155,21 @@ static void lookup_source_and_view(std::map<std::string, std::pair<Player::Audio
     }
 }
 
+static Player::AudioSource *
+lookup_viewless_source(std::map<std::string, Player::AudioSource *> &audio_sources,
+                       const std::string &audio_source_id)
+{
+    try
+    {
+        return audio_sources[audio_source_id];
+    }
+    catch(const std::out_of_range &e)
+    {
+        BUG("Audio source %s (view-less) not known", audio_source_id.c_str());
+        return nullptr;
+    }
+}
+
 ViewIface::InputResult
 ViewPlay::View::process_event(UI::ViewEventID event_id,
                               std::unique_ptr<const UI::Parameters> parameters)
@@ -441,6 +456,7 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
 
       case UI::ViewEventID::AUDIO_SOURCE_SELECTED:
         {
+            /* one of our own audio sources has been selected */
             const auto params =
                 UI::Events::downcast<UI::ViewEventID::AUDIO_SOURCE_SELECTED>(parameters);
 
@@ -483,6 +499,7 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
 
       case UI::ViewEventID::AUDIO_SOURCE_DESELECTED:
         {
+            /* one of our own audio sources has been deselected */
             const auto params =
                 UI::Events::downcast<UI::ViewEventID::AUDIO_SOURCE_DESELECTED>(parameters);
 
@@ -491,7 +508,7 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
 
             const std::string &ausrc_id(params->get_specific());
 
-            if(!player_control_.source_deselected_notification(ausrc_id))
+            if(!player_control_.source_deselected_notification(&ausrc_id))
             {
                 Player::AudioSource *audio_source = nullptr;
                 const ViewIface *view = nullptr;
@@ -506,6 +523,52 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
                     audio_source->deselected_notification();
                     msg_info("Deselected unplugged audio source %s", audio_source->id_);
                 }
+            }
+        }
+
+        break;
+
+      case UI::ViewEventID::AUDIO_PATH_CHANGED:
+        {
+            /* some (any!) audio path has been activated */
+            const auto params =
+                UI::Events::downcast<UI::ViewEventID::AUDIO_PATH_CHANGED>(parameters);
+
+            if(params == nullptr)
+                break;
+
+            const auto &plist = params->get_specific();
+            const std::string &ausrc_id(std::get<0>(plist));
+            const std::string &player_id(std::get<1>(plist));
+
+            if(player_control_.is_active_controller_for_audio_source(ausrc_id))
+                break;
+
+            /* this must be an audio source not owned by us (or empty string),
+             * otherwise we would already be controlling it */
+            Player::AudioSource *const audio_source =
+                lookup_viewless_source(audio_sources_blind_, ausrc_id);
+
+            const bool audio_source_is_deselected =
+                audio_source == nullptr || ausrc_id.empty();
+
+            player_control_.source_deselected_notification(nullptr);
+            player_control_.unplug();
+
+            if(!audio_source_is_deselected)
+            {
+                /* plug in audio source, pass player ID so that the D-Bus
+                 * proxies for that player can be set up */
+                msg_info("Plug blind audio source %s into player", audio_source->id_);
+
+                audio_source->select_now();
+                player_control_.plug(*audio_source, &player_id);
+                player_control_.plug(player_data_);
+            }
+            else
+            {
+                /* plain deselect and unplug: either we don't know the selected
+                 * source or the audio path has been shutdown completely */
             }
         }
 

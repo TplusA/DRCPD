@@ -34,6 +34,7 @@ extern "C" {
 tdbuslistsNavigation *dbus_get_lists_navigation_iface(dbus_listbroker_id_t id);
 tdbussplayURLFIFO *dbus_get_streamplayer_urlfifo_iface(void);
 tdbussplayPlayback *dbus_get_streamplayer_playback_iface(void);
+tdbussplayPlayback *dbus_get_roonplayer_playback_iface(void);
 tdbusdcpdPlayback *dbus_get_dcpd_playback_iface(void);
 tdbusAirable *dbus_get_airable_sec_iface(void);
 tdbusaupathManager *dbus_audiopath_get_manager_iface(void);

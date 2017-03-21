@@ -58,6 +58,9 @@ void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
 void dbussignal_airable_sec(GDBusProxy *proxy, const gchar *sender_name,
                             const gchar *signal_name, GVariant *parameters,
                             gpointer user_data);
+void dbussignal_audiopath_manager(GDBusProxy *proxy, const gchar *sender_name,
+                                  const gchar *signal_name, GVariant *parameters,
+                                  gpointer user_data);
 
 gboolean dbusmethod_audiopath_source_selected(tdbusaupathSource *object,
                                               GDBusMethodInvocation *invocation,

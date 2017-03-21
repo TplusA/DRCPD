@@ -208,6 +208,7 @@ static void log_event_dispatch(const UI::ViewEventID event_id,
         "NOTIFY_STREAM_POSITION",
         "AUDIO_SOURCE_SELECTED",
         "AUDIO_SOURCE_DESELECTED",
+        "AUDIO_PATH_CHANGED",
     };
 
     static_assert(events[events.size() - 1] != nullptr, "Table too short");
@@ -259,6 +260,7 @@ void ViewManager::Manager::dispatch_event(UI::ViewEventID event_id,
         InputBouncer::Item(UI::ViewEventID::NOTIFY_STREAM_POSITION, ViewNames::PLAYER),
         InputBouncer::Item(UI::ViewEventID::AUDIO_SOURCE_SELECTED, ViewNames::PLAYER),
         InputBouncer::Item(UI::ViewEventID::AUDIO_SOURCE_DESELECTED, ViewNames::PLAYER),
+        InputBouncer::Item(UI::ViewEventID::AUDIO_PATH_CHANGED, ViewNames::PLAYER),
         InputBouncer::Item(UI::ViewEventID::SEARCH_STORE_PARAMETERS, ViewNames::SEARCH_OPTIONS),
         InputBouncer::Item(UI::ViewEventID::NOTIFY_AIRABLE_SERVICE_LOGIN_STATUS_UPDATE, ViewNames::BROWSER_INETRADIO),
     };

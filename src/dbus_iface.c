@@ -375,6 +375,11 @@ tdbussplayPlayback *dbus_get_streamplayer_playback_iface(void)
     return dbus_data.splay_playback_proxy;
 }
 
+tdbussplayPlayback *dbus_get_roonplayer_playback_iface(void)
+{
+    return dbus_data.roonplayer_playback_proxy;
+}
+
 tdbusdcpdPlayback *dbus_get_dcpd_playback_iface(void)
 {
     return dbus_data.dcpd_playback_proxy;
@@ -496,6 +501,10 @@ int dbus_setup(bool connect_to_session_bus,
 
     g_signal_connect(dbus_data.airable_sec_proxy, "g-signal",
                      G_CALLBACK(dbussignal_airable_sec),
+                     dbus_signal_data_for_dbus_handlers);
+
+    g_signal_connect(dbus_data.audiopath_manager_proxy, "g-signal",
+                     G_CALLBACK(dbussignal_audiopath_manager),
                      dbus_signal_data_for_dbus_handlers);
 
     process_data.thread = g_thread_new("D-Bus I/O", process_dbus, &process_data);
