@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016, 2017  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -124,7 +124,12 @@ bool DCP::Transaction::commit()
                           to_ascii(sstr_.str().c_str()));
             }
 
-            *os_ << "Size: " << sstr_.str().length() << '\n' << sstr_.str();
+            /* the header should be written atomically to reduce confusion in
+             * the read code in dcpd */
+            char header[32];
+            snprintf(header, sizeof(header), "Size: %zu\n", sstr_.str().length());
+
+            *os_ << header << sstr_.str();
             os_->flush();
         }
 
