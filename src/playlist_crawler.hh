@@ -61,6 +61,7 @@ class CrawlerIface
 
     enum class RetrieveItemInfoResult
     {
+        DROPPED,
         FOUND,
         FAILED,
         CANCELED,

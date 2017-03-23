@@ -888,8 +888,27 @@ void Playlist::DirectoryCrawler::process_item_information(DBus::AsyncCall_ &asyn
     if(!current_item_info_.position_.list_id_.is_valid() ||
        !current_item_info_.is_item_info_valid_)
     {
-        BUG("Invalid item, retrieving item info failed");
-        call_callback(callback, *this, RetrieveItemInfoResult::FAILED);
+        RetrieveItemInfoResult retrieve_result = RetrieveItemInfoResult::FAILED;
+
+        switch(op_result)
+        {
+          case List::AsyncListIface::OpResult::STARTED:
+            retrieve_result = RetrieveItemInfoResult::DROPPED;
+            break;
+
+          case List::AsyncListIface::OpResult::SUCCEEDED:
+            BUG("Invalid item, retrieving item info failed");
+            break;
+
+          case List::AsyncListIface::OpResult::FAILED:
+            break;
+
+          case List::AsyncListIface::OpResult::CANCELED:
+            retrieve_result = RetrieveItemInfoResult::CANCELED;
+            break;
+        }
+
+        call_callback(callback, *this, retrieve_result);
         return;
     }
 

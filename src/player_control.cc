@@ -1622,6 +1622,13 @@ void Player::Control::found_item_information(Playlist::CrawlerIface &crawler,
 
     switch(result)
     {
+      case Playlist::CrawlerIface::RetrieveItemInfoResult::DROPPED:
+        /* this may happen during very fast skipping (or just "fast" skipping
+         * on high latency sources), meaning that we have skipped over an item
+         * before having retrieved any data for it */
+        msg_vinfo(MESSAGE_LEVEL_DIAG, "Dropped item information");
+        break;
+
       case Playlist::CrawlerIface::RetrieveItemInfoResult::FOUND:
         prefetch_state_ = PrefetchState::HAVE_LIST_ITEM_INFORMATION;
 
