@@ -872,8 +872,9 @@ void Playlist::DirectoryCrawler::process_item_information(DBus::AsyncCall_ &asyn
         return;
     }
 
+    List::AsyncListIface::OpResult op_result;
     const auto *file_item =
-        dynamic_cast<const ViewFileBrowser::FileItem *>(get_current_list_item_impl());
+        dynamic_cast<const ViewFileBrowser::FileItem *>(get_current_list_item_impl(op_result));
 
     if(file_item != nullptr)
         current_item_info_.set(list_id, line, directory_depth,
@@ -1036,11 +1037,12 @@ Playlist::DirectoryCrawler::find_next_impl(FindNextCallback callback)
     return FindNextFnResult::SEARCHING;
 }
 
-const List::Item *Playlist::DirectoryCrawler::get_current_list_item_impl()
+const List::Item *Playlist::DirectoryCrawler::get_current_list_item_impl(List::AsyncListIface::OpResult &op_result)
 {
     const List::Item *item;
+    op_result = traversal_list_.get_item_async(navigation_.get_cursor(), item);
 
-    if(traversal_list_.get_item_async(navigation_.get_cursor(), item) == List::AsyncListIface::OpResult::SUCCEEDED)
+    if(op_result == List::AsyncListIface::OpResult::SUCCEEDED)
         return item;
     else
         return nullptr;

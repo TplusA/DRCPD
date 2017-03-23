@@ -291,7 +291,7 @@ class CrawlerIface
         return false;
     }
 
-    const List::Item *get_current_list_item()
+    const List::Item *get_current_list_item(List::AsyncListIface::OpResult &op_result)
     {
         switch(crawler_state_)
         {
@@ -301,7 +301,7 @@ class CrawlerIface
             break;
 
           case CrawlerState::CRAWLING:
-            return get_current_list_item_impl();
+            return get_current_list_item_impl(op_result);
         }
 
         return nullptr;
@@ -344,7 +344,7 @@ class CrawlerIface
     virtual void switch_direction() = 0;
     virtual FindNextFnResult find_next_impl(FindNextCallback callback) = 0;
     virtual bool retrieve_item_information_impl(RetrieveItemInfoCallback callback) = 0;
-    virtual const List::Item *get_current_list_item_impl() = 0;
+    virtual const List::Item *get_current_list_item_impl(List::AsyncListIface::OpResult &op_result) = 0;
 
     /*!
      * Called when attached to #Player::Control object.

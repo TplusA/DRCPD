@@ -267,7 +267,7 @@ class DirectoryCrawler: public CrawlerIface
     void switch_direction() final override;
     FindNextFnResult find_next_impl(FindNextCallback callback) final override;
     bool retrieve_item_information_impl(RetrieveItemInfoCallback callback) final override;
-    const List::Item *get_current_list_item_impl() final override;
+    const List::Item *get_current_list_item_impl(List::AsyncListIface::OpResult &op_result) final override;
 
   private:
     bool go_to_next_list_item()
