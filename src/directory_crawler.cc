@@ -44,12 +44,11 @@ static inline const T pass_on(T &original_object)
  * but the fact that it can be called with \p callback passed via #pass_on().
  * This results in the original callback pointer to be set to \p nullptr.
  */
-template <typename CBType, typename ResultType>
-static void call_callback(CBType callback, Playlist::CrawlerIface &crawler,
-                          ResultType result)
+template <typename CBType, typename... Args>
+static void call_callback(CBType callback, Playlist::CrawlerIface &crawler, Args... args)
 {
     if(callback != nullptr)
-        callback(crawler, result);
+        callback(crawler, args...);
 }
 
 bool Playlist::DirectoryCrawler::init()
