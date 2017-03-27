@@ -989,10 +989,21 @@ List::DBusList::get_item_async(unsigned int line, const Item *&item)
     return OpResult::FAILED;
 }
 
-void List::DBusList::cancel_async()
+bool List::DBusList::cancel_all_async_calls()
 {
     LoggedLock::UniqueLock<LoggedLock::RecMutex> lock(async_dbus_data_.lock_);
-    async_dbus_data_.cancel_all();
+
+    switch(async_dbus_data_.cancel_all())
+    {
+      case DBus::CancelResult::CANCELED:
+      case DBus::CancelResult::NOT_RUNNING:
+        return true;
+
+      case DBus::CancelResult::BLOCKED_RECURSIVE_CALL:
+        break;
+    }
+
+    return false;
 }
 
 void List::DBusList::get_item_async_handle_done()

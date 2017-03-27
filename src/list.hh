@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016, 2017  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -254,7 +254,7 @@ class AsyncListIface
     /*!
      * Cancel all asynchronous operations, if any.
      */
-    virtual void cancel_async() = 0;
+    virtual bool cancel_all_async_calls() = 0;
 };
 
 };

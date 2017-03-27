@@ -191,7 +191,9 @@ void Playlist::DirectoryCrawler::mark_current_position()
 
 void Playlist::DirectoryCrawler::switch_direction()
 {
-    traversal_list_.cancel_async();
+    if(!traversal_list_.cancel_all_async_calls())
+        return;
+
     is_waiting_for_async_enter_list_completion_ = false;
     is_waiting_for_async_get_list_item_completion_ = false;
 
