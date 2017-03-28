@@ -60,14 +60,14 @@ class Skipper
     };
 
   private:
-    static constexpr const char MAX_PENDING_SKIP_REQUESTS = 5;
+    static constexpr const signed char MAX_PENDING_SKIP_REQUESTS = 5;
 
     bool is_skipping_;
 
     /*!
      * Cumulated effect of fast skip requests.
      */
-    char pending_skip_requests_;
+    signed char pending_skip_requests_;
 
   public:
     Skipper(const Skipper &) = delete;
