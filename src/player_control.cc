@@ -571,8 +571,10 @@ static StreamExpected is_stream_expected_to_start(const std::deque<ID::OurStream
         break;
 
       case StreamExpected::UNEXPECTEDLY_OURS:
-        BUG("Out of sync: playing our stream %u that we don't know about",
-            stream_id.get_raw_id());
+        if(!queued.empty())
+            BUG("Out of sync: playing our stream %u that we don't know about",
+                stream_id.get_raw_id());
+
         break;
 
       case StreamExpected::OURS_WRONG_ID:
@@ -919,9 +921,11 @@ void Player::Control::play_notification(ID::Stream stream_id,
             break;
 
           case StreamExpected::NOT_OURS:
-          case StreamExpected::UNEXPECTEDLY_OURS:
           case StreamExpected::OURS_WRONG_ID:
             break;
+
+          case StreamExpected::UNEXPECTEDLY_OURS:
+            return;
 
           case StreamExpected::UNEXPECTEDLY_NOT_OURS:
             unplug();
