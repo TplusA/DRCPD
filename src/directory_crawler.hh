@@ -40,6 +40,38 @@ namespace Playlist
 class DirectoryCrawler: public CrawlerIface
 {
   public:
+    /*!
+     * Type of function called on async enter-list failure or cancelation.
+     *
+     * This function is called for #List::AsyncListIface::OpResult::FAILED and
+     * #List::AsyncListIface::OpResult::CANCELED only, and only in case no
+     * other callback function is available.
+     *
+     * \note
+     *     Be aware that a callback function of this kind may be called from
+     *     any kind of context, including the main loop, some D-Bus thread, or
+     *     any worker thread. Do not assume anything!
+     */
+    using FailureCallbackEnterList = std::function<void(const Playlist::CrawlerIface &crawler,
+                                                        List::QueryContextEnterList::CallerID cid,
+                                                        List::AsyncListIface::OpResult result)>;
+
+    /*!
+     * Type of function called on async get-item failure or cancelation.
+     *
+     * This function is called for #List::AsyncListIface::OpResult::FAILED and
+     * #List::AsyncListIface::OpResult::CANCELED only, and only in case no
+     * other callback function is available.
+     *
+     * \note
+     *     Be aware that a callback function of this kind may be called from
+     *     any kind of context, including the main loop, some D-Bus thread, or
+     *     any worker thread. Do not assume anything!
+     */
+    using FailureCallbackGetItem = std::function<void(const Playlist::CrawlerIface &crawler,
+                                                      List::QueryContextGetItem::CallerID cid,
+                                                      List::AsyncListIface::OpResult result)>;
+
     class MarkedPosition
     {
       public:
@@ -205,6 +237,8 @@ class DirectoryCrawler: public CrawlerIface
     ItemInfo current_item_info_;
 
     FindNextCallback find_next_callback_;
+    FailureCallbackEnterList failure_callback_enter_list_;
+    FailureCallbackGetItem failure_callback_get_item_;
 
     MarkedPosition marked_position_;
 
@@ -261,6 +295,18 @@ class DirectoryCrawler: public CrawlerIface
         return current_item_info_;
     }
 
+    bool attached_to_player_notification(const FailureCallbackEnterList &enter_list_failed,
+                                         const FailureCallbackGetItem &get_item_failed)
+    {
+        if(!CrawlerIface::attached_to_player_notification())
+            return false;
+
+        failure_callback_enter_list_ = enter_list_failed;
+        failure_callback_get_item_ = get_item_failed;
+
+        return true;
+    }
+
   protected:
     bool restart() final override;
     bool is_busy_impl() const final override;
@@ -268,6 +314,13 @@ class DirectoryCrawler: public CrawlerIface
     FindNextFnResult find_next_impl(FindNextCallback callback) final override;
     bool retrieve_item_information_impl(RetrieveItemInfoCallback callback) final override;
     const List::Item *get_current_list_item_impl(List::AsyncListIface::OpResult &op_result) final override;
+
+    void detached_from_player() final override
+    {
+        find_next_callback_ = nullptr;
+        failure_callback_enter_list_ = nullptr;
+        failure_callback_get_item_ = nullptr;
+    }
 
   private:
     bool go_to_next_list_item()
@@ -279,6 +332,8 @@ class DirectoryCrawler: public CrawlerIface
     void handle_end_of_list(const FindNextCallback &callback);
     bool handle_entered_list(unsigned int line, LineRelative line_relative,
                              bool continue_if_empty);
+    void handle_entered_list_failed(List::QueryContextEnterList::CallerID cid,
+                                    List::AsyncListIface::OpResult op_result);
     List::AsyncListIface::OpResult back_to_parent(const FindNextCallback &callback);
 
     bool try_get_dbuslist_item_after_started_or_successful_hint(const FindNextCallback &callback);
@@ -303,6 +358,8 @@ class DirectoryCrawler: public CrawlerIface
 
     void handle_enter_list_event(List::AsyncListIface::OpResult result,
                                  const std::shared_ptr<List::QueryContextEnterList> &ctx);
+    void handle_get_item_failed(List::QueryContextGetItem::CallerID cid,
+                                List::AsyncListIface::OpResult op_result);
     void handle_get_item_event(List::AsyncListIface::OpResult result,
                                const std::shared_ptr<List::QueryContextGetItem> &ctx);
 };

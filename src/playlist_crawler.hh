@@ -134,13 +134,15 @@ class CrawlerIface
     bool is_crawling_forward() const { return is_crawling_forward_; }
     CrawlerState get_crawler_state() const { return crawler_state_; }
 
-    void attached_to_player_notification()
+    bool attached_to_player_notification()
     {
-        if(!is_attached_to_player_)
-        {
-            is_attached_to_player_ = true;
-            attached_to_player();
-        }
+        if(is_attached_to_player_)
+            return false;
+
+        is_attached_to_player_ = true;
+        attached_to_player();
+
+        return true;
     }
 
     void detached_from_player_notification()
