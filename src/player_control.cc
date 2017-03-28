@@ -925,6 +925,7 @@ void Player::Control::play_notification(ID::Stream stream_id,
             break;
 
           case StreamExpected::UNEXPECTEDLY_OURS:
+            retry_data_.reset();
             return;
 
           case StreamExpected::UNEXPECTEDLY_NOT_OURS:
