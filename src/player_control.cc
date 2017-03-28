@@ -1586,6 +1586,7 @@ void Player::Control::found_list_item(Playlist::CrawlerIface &crawler,
         break;
 
       case Playlist::CrawlerIface::FindNextItemResult::CANCELED:
+        skip_requests_.stop_skipping(*player_, *crawler_);
         break;
 
       case Playlist::CrawlerIface::FindNextItemResult::FAILED:
@@ -1765,7 +1766,6 @@ void Player::Control::found_item_information(Playlist::CrawlerIface &crawler,
         break;
 
       case Playlist::CrawlerIface::RetrieveItemInfoResult::CANCELED:
-        prefetch_state_ = PrefetchState::NOT_PREFETCHING;
         break;
     }
 
