@@ -212,7 +212,7 @@ void Playlist::DirectoryCrawler::switch_direction()
 
           case List::AsyncListIface::OpResult::FAILED:
           case List::AsyncListIface::OpResult::CANCELED:
-            msg_error(0, LOG_NOTICE, "Failed reseting crawler position due to direction switch");
+            msg_error(0, LOG_NOTICE, "Failed resetting crawler position due to direction switch");
             break;
         }
 
