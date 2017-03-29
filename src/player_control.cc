@@ -601,23 +601,19 @@ static StreamExpected is_stream_expected_playing(const ID::OurStream current_str
                                                  ExpectedPlayingCheckMode mode)
 {
     const char *mode_name = nullptr;
-    bool peek_at_queue = false;
 
     switch(mode)
     {
       case ExpectedPlayingCheckMode::STOPPED:
         mode_name = "Stopped";
-        peek_at_queue = false;
         break;
 
       case ExpectedPlayingCheckMode::STOPPED_WITH_ERROR:
         mode_name = "StoppedWithError";
-        peek_at_queue = true;
         break;
 
       case ExpectedPlayingCheckMode::SKIPPED:
         mode_name = "Skipped";
-        peek_at_queue = true;
         break;
     }
 
@@ -641,19 +637,22 @@ static StreamExpected is_stream_expected_playing(const ID::OurStream current_str
 
       case StreamExpected::UNEXPECTEDLY_OURS:
       case StreamExpected::OURS_WRONG_ID:
-        if(peek_at_queue && !queued.empty() && queued.front().get() == stream_id)
+        if(!queued.empty() && queued.front().get() == stream_id)
         {
             result = StreamExpected::OURS_QUEUED;
             break;
         }
 
-        if(result == StreamExpected::UNEXPECTEDLY_OURS)
-            BUG("Out of sync: %s our stream %u that we don't know about",
-                mode_name, stream_id.get_raw_id());
-        else
-            BUG("Out of sync: %s stream ID should be %u, but streamplayer says it's %u",
-                mode_name,
-                current_stream_id.get().get_raw_id(), stream_id.get_raw_id());
+        if(!queued.empty())
+        {
+            if(result == StreamExpected::UNEXPECTEDLY_OURS)
+                BUG("Out of sync: %s our stream %u that we don't know about",
+                    mode_name, stream_id.get_raw_id());
+            else
+                BUG("Out of sync: %s stream ID should be %u, but streamplayer says it's %u",
+                    mode_name,
+                    current_stream_id.get().get_raw_id(), stream_id.get_raw_id());
+        }
 
         break;
 
@@ -971,6 +970,8 @@ Player::Control::stop_notification(ID::Stream stream_id)
 
     bool stop_regardless_of_intention = false;
 
+    auto crawler_lock(crawler_->lock());
+
     switch(is_stream_expected_playing(retry_data_.get_stream_id(),
                                       queued_streams_, stream_id,
                                       ExpectedPlayingCheckMode::STOPPED))
@@ -981,10 +982,10 @@ Player::Control::stop_notification(ID::Stream stream_id)
       case StreamExpected::OURS_QUEUED:
       case StreamExpected::UNEXPECTEDLY_OURS:
       case StreamExpected::OURS_WRONG_ID:
-        /* this case is a result of some internal processing error, so we'll
-         * just accept the player's stop notification and do not attempt to
-         * fight it */
-        stop_regardless_of_intention = true;
+        /* this case is a result of very fast skipping or some internal
+         * processing error; in the latter case, we'll just accept the player's
+         * stop notification and do not attempt to fight it */
+        stop_regardless_of_intention = !crawler_->is_crawling();
         break;
 
       case StreamExpected::EMPTY_AS_EXPECTED:
@@ -995,7 +996,6 @@ Player::Control::stop_notification(ID::Stream stream_id)
         return StopReaction::STREAM_IGNORED;
     }
 
-    auto crawler_lock(crawler_->lock());
     bool skipping = false;
     const auto intention = stop_regardless_of_intention
         ? UserIntention::STOPPING

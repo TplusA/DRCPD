@@ -220,21 +220,8 @@ class CrawlerIface
 
     virtual void mark_current_position() = 0;
 
-    bool is_busy() const
-    {
-        switch(crawler_state_)
-        {
-          case CrawlerState::CRAWLING:
-            return is_busy_impl();
-
-          case CrawlerState::NOT_STARTED:
-          case CrawlerState::STOPPED_SUCCESSFULLY:
-          case CrawlerState::STOPPED_WITH_FAILURE:
-            break;
-        }
-
-        return false;
-    }
+    bool is_busy() const { return is_crawling() && is_busy_impl(); }
+    bool is_crawling() const { return crawler_state_ == CrawlerState::CRAWLING; }
 
     FindNextFnResult find_next(FindNextCallback callback)
     {
