@@ -1,3 +1,15 @@
+2017-03-29  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 3.3 released.
+
+	* Skipping: More fixes for fast sequences of skip requests.
+
+	* Stability: Fix occasional hangs and crashes caused by internal
+	  communication failures. Requires dcpd v3.2 for full effect as there
+	  was also a bug on the other side.
+
+	* Misc: Slightly faster startup.
+
 2017-03-06  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 3.2 released.
