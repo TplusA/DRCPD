@@ -472,9 +472,13 @@ const MetaData::Set &Player::Data::get_meta_data(const ID::Stream &stream_id)
     }
 }
 
-bool Player::Data::update_track_times(const std::chrono::milliseconds &position,
+bool Player::Data::update_track_times(const ID::Stream &stream_id,
+                                      const std::chrono::milliseconds &position,
                                       const std::chrono::milliseconds &duration)
 {
+    if(stream_id != current_stream_id_)
+        return false;
+
     if(stream_position_ == position && stream_duration_ == duration)
         return false;
 

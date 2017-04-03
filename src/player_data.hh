@@ -368,7 +368,8 @@ class Data
 
     void forget_all_streams();
 
-    bool update_track_times(const std::chrono::milliseconds &position,
+    bool update_track_times(const ID::Stream &stream_id,
+                            const std::chrono::milliseconds &position,
                             const std::chrono::milliseconds &duration);
     bool update_playback_speed(const ID::Stream &stream_id, double speed);
 

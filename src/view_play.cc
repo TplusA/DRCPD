@@ -352,7 +352,8 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
 
             const auto &plist = params->get_specific();
 
-            if(player_data_.update_track_times(std::get<1>(plist),
+            if(player_data_.update_track_times(std::get<0>(plist),
+                                               std::get<1>(plist),
                                                std::get<2>(plist)))
             {
                 add_update_flags(UPDATE_FLAGS_STREAM_POSITION);
