@@ -204,6 +204,7 @@ static void log_event_dispatch(const UI::ViewEventID event_id,
         "NOTIFY_STREAM_STOPPED",
         "NOTIFY_STREAM_PAUSED",
         "NOTIFY_STREAM_POSITION",
+        "NOTIFY_SPEED_CHANGED",
     };
 
     static_assert(events[events.size() - 1] != nullptr, "Table too short");

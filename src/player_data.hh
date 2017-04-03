@@ -64,6 +64,23 @@ enum class StreamState
     STREAM_STATE_LAST = PAUSED,
 };
 
+/*!
+ * Stream state as shown to the user.
+ *
+ * Do not use this enum for anything except displaying purposes.
+ */
+enum class VisibleStreamState
+{
+    STOPPED,
+    BUFFERING,
+    PLAYING,
+    PAUSED,
+    FAST_FORWARD,
+    FAST_REWIND,
+
+    LAST = FAST_REWIND,
+};
+
 using AppStream = ID::SourcedStream<STREAM_ID_SOURCE_APP>;
 
 using AsyncResolveRedirect =
@@ -222,6 +239,8 @@ class Data
     std::chrono::milliseconds stream_position_;
     std::chrono::milliseconds stream_duration_;
 
+    double playback_speed_;
+
     tdbusAirable *airable_proxy_;
 
   public:
@@ -236,6 +255,7 @@ class Data
         queued_app_streams_{AppStream::make_invalid(), AppStream::make_invalid()},
         stream_position_(-1),
         stream_duration_(-1),
+        playback_speed_(1.0),
         airable_proxy_(dbus_get_airable_sec_iface())
     {}
 
@@ -264,6 +284,7 @@ class Data
 
     ID::Stream get_current_stream_id() const { return current_stream_id_; };
     StreamState get_current_stream_state() const { return current_stream_state_; }
+    VisibleStreamState get_current_visible_stream_state() const;
 
     bool set_stream_state(StreamState state)
     {
@@ -276,6 +297,7 @@ class Data
               case StreamState::STOPPED:
                 stream_position_ = std::chrono::milliseconds(-1);
                 stream_duration_ = std::chrono::milliseconds(-1);
+                playback_speed_ = 1.0;
                 break;
 
               case StreamState::BUFFERING:
@@ -348,6 +370,7 @@ class Data
 
     bool update_track_times(const std::chrono::milliseconds &position,
                             const std::chrono::milliseconds &duration);
+    bool update_playback_speed(const ID::Stream &stream_id, double speed);
 
     void append_referenced_lists(std::vector<ID::List> &list_ids) const;
     void list_replaced_notification(ID::List old_id, ID::List new_id) const;

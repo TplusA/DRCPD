@@ -484,6 +484,58 @@ bool Player::Data::update_track_times(const std::chrono::milliseconds &position,
     return true;
 }
 
+static inline bool is_regular_speed(double s)
+{
+    return s <= 1.0 && s >= 1.0;
+}
+
+static inline bool is_playing_forward(double s)
+{
+    return s >= 0.0;
+}
+
+Player::VisibleStreamState Player::Data::get_current_visible_stream_state() const
+{
+    switch(get_current_stream_state())
+    {
+      case StreamState::STOPPED:
+        return VisibleStreamState::STOPPED;
+
+      case StreamState::BUFFERING:
+        return VisibleStreamState::BUFFERING;
+
+      case StreamState::PAUSED:
+        return VisibleStreamState::PAUSED;
+
+      case StreamState::PLAYING:
+        if(is_regular_speed(playback_speed_))
+            return VisibleStreamState::PLAYING;
+        else if(is_playing_forward(playback_speed_))
+            return VisibleStreamState::FAST_FORWARD;
+        else
+            return VisibleStreamState::FAST_REWIND;
+    }
+
+    BUG("%s(): unreachable", __func__);
+
+    return VisibleStreamState::STOPPED;
+}
+
+bool Player::Data::update_playback_speed(const ID::Stream &stream_id,
+                                         double speed)
+{
+    if(stream_id != current_stream_id_)
+        return false;
+
+    const bool retval =
+        is_regular_speed(speed) != is_regular_speed(playback_speed_) ||
+        is_playing_forward(speed) != is_playing_forward(playback_speed_);
+
+    playback_speed_ = speed;
+
+    return retval;
+}
+
 void Player::Data::append_referenced_lists(std::vector<ID::List> &list_ids) const
 {
     for(const auto &it : referenced_lists_)

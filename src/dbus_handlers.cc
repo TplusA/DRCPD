@@ -464,6 +464,21 @@ void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
         data->event_sink_.store_event(UI::EventID::VIEW_PLAYER_STREAM_POSITION,
                                       std::move(params));
     }
+    else if(strcmp(signal_name, "SpeedChanged") == 0)
+    {
+        check_parameter_assertions(parameters, 2);
+
+        guint16 raw_stream_id;
+        double speed;
+
+        g_variant_get(parameters, "(qd)", &raw_stream_id, &speed);
+
+        auto params =
+            UI::Events::mk_params<UI::EventID::VIEW_PLAYER_SPEED_CHANGED>(
+                ID::Stream::make_from_raw_id(raw_stream_id), speed);
+        data->event_sink_.store_event(UI::EventID::VIEW_PLAYER_SPEED_CHANGED,
+                                      std::move(params));
+    }
     else
         unknown_signal(iface_name, signal_name, sender_name);
 }

@@ -362,6 +362,26 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
 
         break;
 
+      case UI::ViewEventID::NOTIFY_SPEED_CHANGED:
+        {
+            const auto params =
+                UI::Events::downcast<UI::ViewEventID::NOTIFY_SPEED_CHANGED>(parameters);
+
+            if(params == nullptr)
+                break;
+
+            const auto &plist = params->get_specific();
+
+            if(player_data_.update_playback_speed(std::get<0>(plist),
+                                                  std::get<1>(plist)))
+            {
+                add_update_flags(UPDATE_FLAGS_PLAYBACK_STATE);
+                view_manager_->update_view_if_active(this, DCP::Queue::Mode::FORCE_ASYNC);
+            }
+        }
+
+        break;
+
       case UI::ViewEventID::STORE_STREAM_META_DATA:
         {
             const auto params =
@@ -494,8 +514,8 @@ bool ViewPlay::View::write_xml(std::ostream &os, const DCP::Queue::Data &data)
 {
     const auto lock(player_data_.lock());
     const auto &md(player_data_.get_current_meta_data());
-    const bool is_buffering =
-        (player_data_.get_current_stream_state() == Player::StreamState::BUFFERING);
+    const Player::VisibleStreamState stream_state(player_data_.get_current_visible_stream_state());
+    const bool is_buffering = (stream_state == Player::VisibleStreamState::BUFFERING);
 
     const uint32_t update_flags =
         data.is_full_serialize_ ? UINT32_MAX : data.view_update_flags_;
@@ -540,19 +560,21 @@ bool ViewPlay::View::write_xml(std::ostream &os, const DCP::Queue::Data &data)
 
     if((update_flags & UPDATE_FLAGS_PLAYBACK_STATE) != 0)
     {
-        /* matches enum #Player::StreamState */
+        /* matches enum #Player::VisibleStreamState */
         static const char *play_icon[] =
         {
             "",
             "",
             "play",
             "pause",
+            "ffmode",
+            "frmode",
         };
 
-        static_assert(sizeof(play_icon) / sizeof(play_icon[0]) == static_cast<size_t>(Player::StreamState::STREAM_STATE_LAST) + 1, "Array has wrong size");
+        static_assert(sizeof(play_icon) / sizeof(play_icon[0]) == static_cast<size_t>(Player::VisibleStreamState::LAST) + 1, "Array has wrong size");
 
         os << "<icon id=\"play\">"
-           << play_icon[static_cast<size_t>(player_data_.get_current_stream_state())]
+           << play_icon[static_cast<size_t>(stream_state)]
            << "</icon>";
     }
 
@@ -570,26 +592,29 @@ void ViewPlay::View::serialize(DCP::Queue &queue, DCP::Queue::Mode mode,
     if(!debug_os)
         return;
 
-    /* matches enum #Player::StreamState */
+    /* matches enum #Player::VisibleStreamState */
     static const char *stream_state_string[] =
     {
         "not playing",
         "buffering",
         "playing",
         "paused",
+        "fast forward",
+        "fast rewind",
     };
 
-    static_assert(sizeof(stream_state_string) / sizeof(stream_state_string[0]) == static_cast<size_t>(Player::StreamState::STREAM_STATE_LAST) + 1, "Array has wrong size");
+    static_assert(sizeof(stream_state_string) / sizeof(stream_state_string[0]) == static_cast<size_t>(Player::VisibleStreamState::LAST) + 1, "Array has wrong size");
 
     const auto lock(player_data_.lock());
     const auto &md(player_data_.get_current_meta_data());
+    const Player::VisibleStreamState stream_state(player_data_.get_current_visible_stream_state());
 
     *debug_os << "URL: \""
         << md.values_[MetaData::Set::INTERNAL_DRCPD_URL]
         << "\" ("
-        << stream_state_string[static_cast<size_t>(player_data_.get_current_stream_state())]
+        << stream_state_string[static_cast<size_t>(stream_state)]
         << ")\n";
-    *debug_os << "Stream state: " << static_cast<size_t>(player_data_.get_current_stream_state()) << '\n';
+    *debug_os << "Stream state: " << static_cast<size_t>(stream_state) << '\n';
 
     for(size_t i = 0; i < md.values_.size(); ++i)
         *debug_os << "  " << i << ": \"" << md.values_[i] << "\"\n";
