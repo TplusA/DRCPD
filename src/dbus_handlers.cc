@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016, 2017  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -76,13 +76,7 @@ void dbussignal_dcpd_playback(GDBusProxy *proxy, const gchar *sender_name,
         data->event_sink_.store_event(UI::EventID::PLAYBACK_NEXT);
     else if(strcmp(signal_name, "Previous") == 0)
         data->event_sink_.store_event(UI::EventID::PLAYBACK_PREVIOUS);
-    else if(strcmp(signal_name, "FastForward") == 0)
-        data->event_sink_.store_event(UI::EventID::PLAYBACK_FAST_WIND_FORWARD);
-    else if(strcmp(signal_name, "FastRewind") == 0)
-        data->event_sink_.store_event(UI::EventID::PLAYBACK_FAST_WIND_REVERSE);
-    else if(strcmp(signal_name, "FastWindStop") == 0)
-        data->event_sink_.store_event(UI::EventID::PLAYBACK_FAST_WIND_STOP);
-    else if(strcmp(signal_name, "FastWindSetFactor") == 0)
+    else if(strcmp(signal_name, "SetSpeed") == 0)
     {
         check_parameter_assertions(parameters, 1);
 
@@ -92,6 +86,19 @@ void dbussignal_dcpd_playback(GDBusProxy *proxy, const gchar *sender_name,
         auto params =
             UI::Events::mk_params<UI::EventID::PLAYBACK_FAST_WIND_SET_SPEED>(speed);
         data->event_sink_.store_event(UI::EventID::PLAYBACK_FAST_WIND_SET_SPEED,
+                                      std::move(params));
+    }
+    else if(strcmp(signal_name, "Seek") == 0)
+    {
+        check_parameter_assertions(parameters, 2);
+
+        int64_t pos = 0;
+        const char *units = nullptr;
+        g_variant_get(parameters, "(x&s)", &pos, &units);
+
+        auto params =
+            UI::Events::mk_params<UI::EventID::PLAYBACK_SEEK_STREAM_POS>(pos, units);
+        data->event_sink_.store_event(UI::EventID::PLAYBACK_SEEK_STREAM_POS,
                                       std::move(params));
     }
     else if(strcmp(signal_name, "RepeatModeToggle") == 0)

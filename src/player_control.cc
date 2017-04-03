@@ -862,48 +862,34 @@ static inline bool is_fast_winding_allowed(const Player::LocalPermissionsIface *
 
 void Player::Control::fast_wind_set_speed_request(double speed_factor)
 {
-    if(!is_fast_winding_allowed(permissions_))
+    if(speed_factor > 0.0 && !is_fast_winding_allowed(permissions_))
     {
         msg_error(EPERM, LOG_INFO,
                   "Ignoring fast wind set factor request");
         return;
     }
 
-    BUG("%s(): not implemented", __func__);
-    fast_wind_data_.speed_factor_ = speed_factor;
+    tdbus_splay_playback_call_set_speed(dbus_get_streamplayer_playback_iface(),
+                                        speed_factor, NULL, NULL, NULL);
 }
 
-void Player::Control::fast_wind_set_direction_request(bool is_forward)
+void Player::Control::seek_stream_request(int64_t value, const std::string &units)
 {
-    if(!is_fast_winding_allowed(permissions_, is_forward))
+    if(!is_fast_winding_allowed(permissions_))
     {
-        msg_error(EPERM, LOG_INFO,
-                  "Ignoring fast wind set direction %u request", is_forward);
+        msg_error(EPERM, LOG_INFO, "Ignoring stream seek request");
         return;
     }
 
-    BUG("%s(): not implemented", __func__);
-    fast_wind_data_.is_forward_mode_ = is_forward;
-}
-
-void Player::Control::fast_wind_start_request() const
-{
-    if(!is_fast_winding_allowed(permissions_, fast_wind_data_.is_forward_mode_))
+    if(value < 0)
     {
-        msg_error(EPERM, LOG_INFO,
-                  "Ignoring fast wind start request in direction %u",
-                  fast_wind_data_.is_forward_mode_);
+        msg_error(EINVAL, LOG_ERR, "Invalid seek position %" PRId64, value);
         return;
     }
 
-    BUG("%s(): not implemented", __func__);
+    tdbus_splay_playback_call_seek(dbus_get_streamplayer_playback_iface(),
+                                   value, units.c_str(), NULL, NULL, NULL);
 }
-
-void Player::Control::fast_wind_stop_request() const
-{
-    BUG("%s(): not implemented", __func__);
-}
-
 
 void Player::Control::play_notification(ID::Stream stream_id,
                                         bool is_new_stream)

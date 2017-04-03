@@ -850,9 +850,7 @@ ViewFileBrowser::View::process_event(UI::ViewEventID event_id,
       case UI::ViewEventID::PLAYBACK_PREVIOUS:
       case UI::ViewEventID::PLAYBACK_NEXT:
       case UI::ViewEventID::PLAYBACK_FAST_WIND_SET_SPEED:
-      case UI::ViewEventID::PLAYBACK_FAST_WIND_FORWARD:
-      case UI::ViewEventID::PLAYBACK_FAST_WIND_REVERSE:
-      case UI::ViewEventID::PLAYBACK_FAST_WIND_STOP:
+      case UI::ViewEventID::PLAYBACK_SEEK_STREAM_POS:
       case UI::ViewEventID::PLAYBACK_MODE_REPEAT_TOGGLE:
       case UI::ViewEventID::PLAYBACK_MODE_SHUFFLE_TOGGLE:
       case UI::ViewEventID::STORE_STREAM_META_DATA:

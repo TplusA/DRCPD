@@ -203,6 +203,22 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
 
         break;
 
+      case UI::ViewEventID::PLAYBACK_SEEK_STREAM_POS:
+        {
+            const auto params =
+                UI::Events::downcast<UI::ViewEventID::PLAYBACK_SEEK_STREAM_POS>(parameters);
+
+            if(params == nullptr)
+                break;
+
+            const auto &plist = params->get_specific();
+
+            player_control_.seek_stream_request(std::get<0>(plist),
+                                                std::get<1>(plist));
+        }
+
+        break;
+
       case UI::ViewEventID::NOTIFY_NOW_PLAYING:
         {
             const auto params =
@@ -397,9 +413,6 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
 
         break;
 
-      case UI::ViewEventID::PLAYBACK_FAST_WIND_FORWARD:
-      case UI::ViewEventID::PLAYBACK_FAST_WIND_REVERSE:
-      case UI::ViewEventID::PLAYBACK_FAST_WIND_STOP:
       case UI::ViewEventID::PLAYBACK_MODE_REPEAT_TOGGLE:
       case UI::ViewEventID::PLAYBACK_MODE_SHUFFLE_TOGGLE:
         msg_vinfo(MESSAGE_LEVEL_IMPORTANT,

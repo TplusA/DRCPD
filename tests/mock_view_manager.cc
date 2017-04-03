@@ -284,9 +284,10 @@ static void check_ui_parameters_equality(std::unique_ptr<const UI::Parameters> e
     using Checker = std::function<bool(const std::unique_ptr<const UI::Parameters> &,
                                        const std::unique_ptr<const UI::Parameters> &)>;
 
-    static const std::array<const Checker, 14> checkers
+    static const std::array<const Checker, 15> checkers
     {
         check_equality<UI::EventID::PLAYBACK_FAST_WIND_SET_SPEED>,
+        check_equality<UI::EventID::PLAYBACK_SEEK_STREAM_POS>,
         check_equality<UI::EventID::NAV_SCROLL_LINES>,
         check_equality<UI::EventID::NAV_SCROLL_PAGES>,
         check_equality<UI::EventID::VIEW_OPEN>,

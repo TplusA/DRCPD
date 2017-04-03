@@ -222,24 +222,6 @@ class Control
 
     Retry retry_data_;
 
-    struct FastWindData
-    {
-        bool is_fast_winding_;
-        bool is_forward_mode_;
-        double speed_factor_;
-
-        FastWindData(const FastWindData &) = delete;
-        FastWindData &operator=(const FastWindData &) = delete;
-
-        explicit FastWindData():
-            is_fast_winding_(false),
-            is_forward_mode_(true),
-            speed_factor_(1.0L)
-        {}
-    };
-
-    FastWindData fast_wind_data_;
-
   public:
     Control(const Control &) = delete;
     Control &operator=(const Control &) = delete;
@@ -299,6 +281,7 @@ class Control
     void skip_backward_request();
     void rewind_request();
     void fast_wind_set_speed_request(double speed_factor);
+    void seek_stream_request(int64_t value, const std::string &units);
     void fast_wind_set_direction_request(bool is_forward);
     void fast_wind_start_request() const;
     void fast_wind_stop_request() const;
