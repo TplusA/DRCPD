@@ -1,3 +1,22 @@
+2017-04-11  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 3.4 released.
+
+	* Playback: Support fast forward, fast reverse and seeking. Fast
+	  winding modes are reported to the SPI slave so that they can be
+	  displayed.
+
+	* Playback: The play view is also left now after playing a list whose
+	  last file is not playable, or which contains no playable files at
+	  all.
+
+	* Playback: Handle list items with no associated URL correctly (by not
+	  attempting to play them).
+
+	* Skipping: A few minor fixes for fast sequences of skip requests.
+
+	* Skipping: Fix skipping over text files in both directions.
+
 2017-03-29  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 3.3 released.
