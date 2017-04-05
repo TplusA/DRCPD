@@ -96,6 +96,11 @@ class Skipper
         return stop_skipping(data, crawler, StopSkipBehavior::STOP);
     }
 
+    bool has_pending_skip_requests() const
+    {
+        return is_skipping_ && pending_skip_requests_ != 0;
+    }
+
   private:
     static bool set_intention_for_skipping(Data &data);
     static void set_intention_from_skipping(Data &data);
@@ -297,30 +302,39 @@ class Control
     void need_next_item_hint(bool queue_is_full);
 
   private:
-    enum class CrawlerContext
-    {
-        IMMEDIATE_PLAY,
-        PREFETCH,
-        SKIP,
-    };
+    void async_list_entry_for_playing(Playlist::CrawlerIface &crawler,
+                                      Playlist::CrawlerIface::FindNextItemResult result);
+    void async_list_entry_to_skip(Playlist::CrawlerIface &crawler,
+                                  Playlist::CrawlerIface::FindNextItemResult result);
+    void async_list_entry_prefetched(Playlist::CrawlerIface &crawler,
+                                     Playlist::CrawlerIface::FindNextItemResult result);
 
-    void found_list_item(Playlist::CrawlerIface &crawler,
-                         Playlist::CrawlerIface::FindNextItemResult result,
-                         CrawlerContext ctx);
-    void found_item_information(Playlist::CrawlerIface &crawler,
-                                Playlist::CrawlerIface::RetrieveItemInfoResult result,
-                                CrawlerContext ctx);
-    void resolved_redirect_for_found_item(size_t idx,
-                                          StreamPreplayInfo::ResolvedRedirectResult result,
-                                          CrawlerContext ctx, ID::OurStream for_stream,
-                                          QueueMode queue_mode, PlayNewMode play_new_mode);
+    void async_stream_details_for_playing(Playlist::CrawlerIface &crawler,
+                                          Playlist::CrawlerIface::RetrieveItemInfoResult result);
+    void async_stream_details_prefetched(Playlist::CrawlerIface &crawler,
+                                         Playlist::CrawlerIface::RetrieveItemInfoResult result);
+
+    void async_redirect_resolved_for_playing(size_t idx,
+                                             StreamPreplayInfo::ResolvedRedirectResult result,
+                                             ID::OurStream for_stream,
+                                             QueueMode queue_mode, PlayNewMode play_new_mode);
+    void async_redirect_resolved_prefetched(size_t idx,
+                                            StreamPreplayInfo::ResolvedRedirectResult result,
+                                            ID::OurStream for_stream,
+                                            QueueMode queue_mode, PlayNewMode play_new_mode);
+
     void unexpected_resolve_error(size_t idx,
                                   Player::StreamPreplayInfo::ResolvedRedirectResult result);;
 
+    using ProcessCrawlerItemAsyncRedirectResolved =
+        void (Control::*)(size_t, StreamPreplayInfo::ResolvedRedirectResult,
+                          ID::OurStream, QueueMode, PlayNewMode);
+
     StreamPreplayInfo::OpResult
-    process_crawler_item(CrawlerContext ctx, QueueMode queue_mode, PlayNewMode play_new_mode);
+    process_crawler_item(ProcessCrawlerItemAsyncRedirectResolved callback,
+                         QueueMode queue_mode, PlayNewMode play_new_mode);
     StreamPreplayInfo::OpResult
-    process_crawler_item_tail(CrawlerContext ctx, ID::OurStream stream_id,
+    process_crawler_item_tail(ID::OurStream stream_id,
                               QueueMode queue_mode, PlayNewMode play_new_mode,
                               const StreamPreplayInfo::ResolvedRedirectCallback &callback);
 
