@@ -99,10 +99,29 @@ bool Player::Skipper::stop_skipping(Player::Data &data, Playlist::CrawlerIface &
     return crawler.set_direction_forward();
 }
 
+static inline bool should_reject_skip_request(const Player::Data &data)
+{
+    switch(data.get_current_stream_state())
+    {
+      case Player::StreamState::STOPPED:
+        return true;
+
+      case Player::StreamState::BUFFERING:
+      case Player::StreamState::PLAYING:
+      case Player::StreamState::PAUSED:
+        break;
+    }
+
+    return false;
+}
+
 Player::Skipper::SkipState
 Player::Skipper::forward_request(Player::Data &data, Playlist::CrawlerIface &crawler,
                                  Player::UserIntention &previous_intention)
 {
+    if(should_reject_skip_request(data))
+        return REJECTED;
+
     previous_intention = data.get_intention();
 
     if(pending_skip_requests_ >= MAX_PENDING_SKIP_REQUESTS)
@@ -140,6 +159,9 @@ Player::Skipper::SkipState
 Player::Skipper::backward_request(Player::Data &data, Playlist::CrawlerIface &crawler,
                                   Player::UserIntention &previous_intention)
 {
+    if(should_reject_skip_request(data))
+        return REJECTED;
+
     previous_intention = data.get_intention();
 
     if(pending_skip_requests_ <= -MAX_PENDING_SKIP_REQUESTS)
