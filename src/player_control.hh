@@ -52,13 +52,6 @@ class Skipper
         SKIPPING_BACKWARD,
     };
 
-    enum class StopSkipBehavior
-    {
-        STOP,
-        KEEP_SKIPPING_FORWARD,
-        KEEP_SKIPPING_IN_CURRENT_DIRECTION,
-    };
-
   private:
     static constexpr const signed char MAX_PENDING_SKIP_REQUESTS = 5;
 
@@ -88,13 +81,26 @@ class Skipper
                               UserIntention &previous_intention);
     SkipState backward_request(Data &data, Playlist::CrawlerIface &crawler,
                                UserIntention &previous_intention);
-    SkippedResult skipped(Data &data, Playlist::CrawlerIface &crawler,
-                          StopSkipBehavior how);
 
-    bool stop_skipping(Data &data, Playlist::CrawlerIface &crawler)
-    {
-        return stop_skipping(data, crawler, StopSkipBehavior::STOP);
-    }
+    /*!
+     * Take actions after successfully skipping an item.
+     */
+    SkippedResult skipped(Data &data, Playlist::CrawlerIface &crawler,
+                          bool keep_skipping);
+
+    /*!
+     * Fall back to non-skipping mode.
+     *
+     * Clear all pending skip requests and change the crawler direction to
+     * forward mode if possible. This function also sets the user intention to
+     * a non-skipping one.
+     *
+     * \returns
+     *     True if the crawler direction has been changed from reverse to
+     *     forward mode, false if the crawler already went in forward
+     *     direction.
+     */
+    bool stop_skipping(Data &data, Playlist::CrawlerIface &crawler);
 
     bool has_pending_skip_requests() const
     {
@@ -104,9 +110,6 @@ class Skipper
   private:
     static bool set_intention_for_skipping(Data &data);
     static void set_intention_from_skipping(Data &data);
-
-    bool stop_skipping(Data &data, Playlist::CrawlerIface &crawler,
-                       StopSkipBehavior how);
 };
 
 class Control
