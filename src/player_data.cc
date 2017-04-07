@@ -444,7 +444,10 @@ bool Player::Data::forget_stream(const ID::Stream &stream_id)
     unref_list_id(referenced_lists_, list_id);
 
     if(stream_id == current_stream_id_)
+    {
         current_stream_id_ = ID::Stream::make_invalid();
+        playback_speed_ = 1.0;
+    }
     else
         remove_stream_from_queued_app_streams(queued_app_streams_,
                                               AppStream::make_from_generic_id(stream_id));
@@ -457,6 +460,7 @@ void Player::Data::forget_all_streams()
     meta_data_db_.clear();
     preplay_info_.clear();
     queued_app_streams_.fill(AppStream::make_invalid());
+    playback_speed_ = 1.0;
 }
 
 const MetaData::Set &Player::Data::get_meta_data(const ID::Stream &stream_id)
