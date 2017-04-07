@@ -252,7 +252,8 @@ class DirectoryCrawler: public CrawlerIface
                               const List::ContextMap &list_contexts,
                               List::DBusList::NewItemFn new_item_fn):
         dbus_proxy_(dbus_listnav_proxy),
-        traversal_list_(dbus_listnav_proxy, list_contexts,
+        traversal_list_("crawler traversal",
+                        dbus_listnav_proxy, list_contexts,
                         PREFETCHED_ITEMS_COUNT, new_item_fn),
         item_flags_(&traversal_list_),
         navigation_(PREFETCHED_ITEMS_COUNT,

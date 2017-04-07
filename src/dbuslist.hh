@@ -607,6 +607,7 @@ class DBusList: public ListIface, public AsyncListIface
         std::function<void(OpEvent, OpResult, const std::shared_ptr<QueryContext_> &)>;
 
   private:
+    const std::string list_iface_name_;
     tdbuslistsNavigation *const dbus_proxy_;
 
     struct AsyncDBusData
@@ -721,8 +722,9 @@ class DBusList: public ListIface, public AsyncListIface
         CacheData(const CacheData &) = delete;
         CacheData &operator=(const CacheData &) = delete;
 
-        explicit CacheData():
+        explicit CacheData(const std::string &parent_list_iface_name, const char *which):
             first_item_line_(0),
+            items_(std::move(parent_list_iface_name + " segment " + which)),
             valid_segment_(0, 0)
         {}
 
@@ -771,14 +773,18 @@ class DBusList: public ListIface, public AsyncListIface
     DBusList(const DBusList &) = delete;
     DBusList &operator=(const DBusList &) = delete;
 
-    explicit DBusList(tdbuslistsNavigation *nav_proxy,
+    explicit DBusList(std::string &&list_iface_name,
+                      tdbuslistsNavigation *nav_proxy,
                       const List::ContextMap &list_contexts,
                       unsigned int prefetch, NewItemFn new_item_fn):
+        list_iface_name_(std::move(list_iface_name)),
         dbus_proxy_(nav_proxy),
         list_contexts_(list_contexts),
         number_of_prefetched_items_(prefetch),
         new_item_fn_(new_item_fn),
         number_of_items_(0),
+        window_(list_iface_name_, "window"),
+        window_stash_(list_iface_name_, "stash"),
         window_stash_is_in_use_(false)
     {}
 
@@ -815,6 +821,9 @@ class DBusList: public ListIface, public AsyncListIface
         window_.move_from(window_stash_);
         window_stash_is_in_use_ = false;
     }
+
+    const std::string &get_list_iface_name() const override { return list_iface_name_; }
+    const std::string &get_async_list_iface_name() const override { return list_iface_name_; }
 
     unsigned int get_number_of_items() const override;
     bool empty() const override;

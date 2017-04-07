@@ -159,6 +159,8 @@ class ListIface
 
     virtual ~ListIface() {}
 
+    virtual const std::string &get_list_iface_name() const = 0;
+
     virtual unsigned int get_number_of_items() const = 0;
     virtual bool empty() const = 0;
     virtual void enter_list(ID::List list_id, unsigned int line) = 0;
@@ -199,6 +201,8 @@ class AsyncListIface
     AsyncListIface &operator=(const AsyncListIface &) = delete;
 
     virtual ~AsyncListIface() {}
+
+    virtual const std::string &get_async_list_iface_name() const = 0;
 
     /*!
      * Enter list asynchronously.
