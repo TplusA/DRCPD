@@ -80,7 +80,17 @@ void ViewPlay::View::stop_playing(const ViewIface &owning_view)
     const auto lock_ctrl(player_control_.lock());
 
     if(player_control_.is_active_controller_for_view(owning_view))
-        player_control_.unplug();
+        do_stop_playing();
+}
+
+void ViewPlay::View::do_stop_playing()
+{
+    player_control_.unplug();
+    player_data_.forget_all_streams();
+
+    add_update_flags(UPDATE_FLAGS_PLAYBACK_STATE);
+    view_manager_->update_view_if_active(this, DCP::Queue::Mode::FORCE_ASYNC);
+    view_manager_->hide_view_if_active(this);
 }
 
 void ViewPlay::View::append_referenced_lists(const ViewIface &owning_view,
@@ -296,12 +306,7 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
                          error_id.empty() ? "" : " with error",
                          is_visible_ ? "send screen update" : "but view is invisible");
 
-                player_control_.unplug();
-                player_data_.forget_all_streams();
-
-                add_update_flags(UPDATE_FLAGS_PLAYBACK_STATE);
-                view_manager_->update_view_if_active(this, DCP::Queue::Mode::FORCE_ASYNC);
-                view_manager_->hide_view_if_active(this);
+                do_stop_playing();
 
                 break;
 

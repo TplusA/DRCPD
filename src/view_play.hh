@@ -101,6 +101,7 @@ class View: public ViewIface, public ViewSerializeBase
      * Generate XML document from current state.
      */
     bool write_xml(std::ostream &os, const DCP::Queue::Data &data) override;
+    void do_stop_playing();
 };
 
 };
