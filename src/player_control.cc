@@ -1753,6 +1753,7 @@ void Player::Control::async_stream_details_for_playing(Playlist::CrawlerIface &c
 
         break;
 
+      case Playlist::CrawlerIface::RetrieveItemInfoResult::FOUND__NO_URL:
       case Playlist::CrawlerIface::RetrieveItemInfoResult::FAILED:
         /* skip this one, maybe the next one will work */
         prefetch_state_ = PrefetchState::NOT_PREFETCHING;
@@ -1822,6 +1823,7 @@ void Player::Control::async_stream_details_prefetched(Playlist::CrawlerIface &cr
 
         break;
 
+      case Playlist::CrawlerIface::RetrieveItemInfoResult::FOUND__NO_URL:
       case Playlist::CrawlerIface::RetrieveItemInfoResult::FAILED:
         prefetch_state_ = PrefetchState::NOT_PREFETCHING;
         crawler.set_direction_forward();

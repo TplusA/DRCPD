@@ -934,10 +934,13 @@ void Playlist::DirectoryCrawler::process_item_information(DBus::AsyncCall_ &asyn
         return;
     }
 
-    if(!Traits::fill_item_info_from_result(current_item_info_, result))
+    if(Traits::fill_item_info_from_result(current_item_info_, result))
+        call_callback(callback, *this, RetrieveItemInfoResult::FOUND);
+    else
+    {
         msg_info("No URI for item %u in list %u", line, list_id.get_raw_id());
-
-    call_callback(callback, *this, RetrieveItemInfoResult::FOUND);
+        call_callback(callback, *this, RetrieveItemInfoResult::FOUND__NO_URL);
+    }
 }
 
 void Playlist::DirectoryCrawler::handle_end_of_list(const FindNextCallback &callback)

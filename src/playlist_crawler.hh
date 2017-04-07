@@ -63,6 +63,7 @@ class CrawlerIface
     {
         DROPPED,
         FOUND,
+        FOUND__NO_URL,
         FAILED,
         CANCELED,
     };
