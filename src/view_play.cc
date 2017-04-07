@@ -67,7 +67,7 @@ void ViewPlay::View::prepare_for_playing(const ViewIface &owning_view,
          * playing, then plug to it */
         player_control_.stop_request();
         player_control_.unplug();
-        player_control_.plug(owning_view);
+        player_control_.plug(owning_view, [this] () { do_stop_playing(); });
         player_control_.plug(player_data_);
         player_control_.plug(crawler, permissions);
     }

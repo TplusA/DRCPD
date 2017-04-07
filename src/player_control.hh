@@ -184,6 +184,7 @@ class Control
     PrefetchState prefetch_state_;
 
     const std::function<bool(uint32_t)> bitrate_limiter_;
+    std::function<void(void)> stop_playing_notification_;
 
     class Retry
     {
@@ -271,7 +272,7 @@ class Control
 
     bool is_active_controller() const { return owning_view_ != nullptr; };
     bool is_active_controller_for_view(const ViewIface &view) const { return owning_view_ == &view; }
-    void plug(const ViewIface &view);
+    void plug(const ViewIface &view, const std::function<void(void)> &stop_playing_notification);
     void plug(Data &player_data);
     void plug(Playlist::CrawlerIface &crawler, const LocalPermissionsIface &permissions);
     void unplug();

@@ -234,13 +234,17 @@ Player::Skipper::skipped(Data &data, Playlist::CrawlerIface &crawler,
     }
 }
 
-void Player::Control::plug(const ViewIface &view)
+void Player::Control::plug(const ViewIface &view,
+                           const std::function<void(void)> &stop_playing_notification)
 {
     log_assert(owning_view_ == nullptr);
+    log_assert(stop_playing_notification_ == nullptr);
     log_assert(crawler_ == nullptr);
     log_assert(permissions_ == nullptr);
+    log_assert(stop_playing_notification != nullptr);
 
     owning_view_ = &view;
+    stop_playing_notification_ = stop_playing_notification;
 }
 
 void Player::Control::plug(Player::Data &player_data)
@@ -288,6 +292,7 @@ void Player::Control::unplug()
     auto locks(lock());
 
     owning_view_ = nullptr;
+    stop_playing_notification_ = nullptr;
 
     forget_queued_and_playing(true);
 
@@ -1536,6 +1541,9 @@ void Player::Control::async_list_entry_for_playing(Playlist::CrawlerIface &crawl
 
     prefetch_state_ = PrefetchState::NOT_PREFETCHING;
     skip_requests_.stop_skipping(*player_, *crawler_);
+
+    if(stop_playing_notification_ != nullptr)
+        stop_playing_notification_();
 }
 
 void Player::Control::async_list_entry_to_skip(Playlist::CrawlerIface &crawler,
