@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016, 2017  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -51,9 +51,11 @@ class MockViewManager: public ViewManager::VMIface, public UI::EventStoreIface
     void expect_input_bounce(ViewIface::InputResult retval, UI::ViewEventID event_id, std::unique_ptr<const UI::Parameters> parameters, UI::ViewEventID xform_event_id = UI::ViewEventID::NOP, const char *view_name = nullptr);
     void expect_get_view_by_name(const char *view_name);
     void expect_get_view_by_dbus_proxy(const void *dbus_proxy);
-    void expect_sync_activate_view_by_name(const char *view_name);
+    void expect_sync_activate_view_by_name(const char *view_name,
+                                           bool enforce_reactivation);
     void expect_sync_toggle_views_by_name(const char *view_name_a,
-                                          const char *view_name_b);
+                                          const char *view_name_b,
+                                          bool enforce_reactivation);
 
     void store_event(UI::EventID event_id,
                      std::unique_ptr<const UI::Parameters> parameters = nullptr) override;
@@ -65,9 +67,11 @@ class MockViewManager: public ViewManager::VMIface, public UI::EventStoreIface
     void serialization_result(DCP::Transaction::Result result) override;
     ViewIface::InputResult input_bounce(const ViewManager::InputBouncer &bouncer, UI::ViewEventID event_id, std::unique_ptr<const UI::Parameters> parameters) override;
     ViewIface *get_view_by_name(const char *view_name) override;
-    void sync_activate_view_by_name(const char *view_name) override;
+    void sync_activate_view_by_name(const char *view_name,
+                                    bool enforce_reactivation) override;
     void sync_toggle_views_by_name(const char *view_name_a,
-                                   const char *view_name_b) override;
+                                   const char *view_name_b,
+                                   bool enforce_reactivation) override;
     bool is_active_view(const ViewIface *view) const override;
     void serialize_view_if_active(const ViewIface *view, DCP::Queue::Mode mode) const override;
     void serialize_view_forced(const ViewIface *view, DCP::Queue::Mode mode) const override;

@@ -264,7 +264,7 @@ void cut_setup(void)
 
     mock_messages->ignore_all_ = true;
     mock_view->ignore_all_ = true;
-    vm->sync_activate_view_by_name(standard_mock_view_name);
+    vm->sync_activate_view_by_name(standard_mock_view_name, true);
     vm->serialization_result(DCP::Transaction::OK);
     mock_view->ignore_all_ = false;
     mock_messages->ignore_all_ = false;
@@ -519,7 +519,7 @@ void cut_setup(void)
     all_mock_views.fill(nullptr);
     populate_view_manager(*vm,  all_mock_views);
     all_mock_views[0]->ignore_all_ = true;
-    vm->sync_activate_view_by_name("First");
+    vm->sync_activate_view_by_name("First", true);
     vm->serialization_result(DCP::Transaction::OK);
     all_mock_views[0]->ignore_all_ = false;
     mock_messages->ignore_all_ = false;

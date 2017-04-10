@@ -804,7 +804,7 @@ ViewFileBrowser::View::process_event(UI::ViewEventID event_id,
                                                                                permissions);
 
             if(crawler_.is_attached_to_player())
-                view_manager_->sync_activate_view_by_name(ViewNames::PLAYER);
+                view_manager_->sync_activate_view_by_name(ViewNames::PLAYER, true);
 
         }
 

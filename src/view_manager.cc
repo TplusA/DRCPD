@@ -145,7 +145,7 @@ void ViewManager::Manager::handle_input_result(ViewIface::InputResult result,
 
       case ViewIface::InputResult::SHOULD_HIDE:
         if(&view == active_view_ && !view.is_browse_view_)
-            activate_view(last_browse_view_);
+            activate_view(last_browse_view_, true);
 
         break;
     }
@@ -292,7 +292,7 @@ void ViewManager::Manager::dispatch_event(UI::VManEventID event_id,
             if(params == nullptr)
                 break;
 
-            sync_activate_view_by_name(params->get_specific().c_str());
+            sync_activate_view_by_name(params->get_specific().c_str(), true);
         }
 
         break;
@@ -306,7 +306,7 @@ void ViewManager::Manager::dispatch_event(UI::VManEventID event_id,
 
             const auto &names(params->get_specific());
             sync_toggle_views_by_name(std::get<0>(names).c_str(),
-                                      std::get<1>(names).c_str());
+                                      std::get<1>(names).c_str(), true);
         }
 
         break;
@@ -333,7 +333,7 @@ void ViewManager::Manager::dispatch_event(UI::VManEventID event_id,
         break;
 
       case UI::VManEventID::NOTIFY_NOW_PLAYING:
-        sync_activate_view_by_name(ViewNames::PLAYER);
+        sync_activate_view_by_name(ViewNames::PLAYER, false);
         break;
     }
 }
@@ -392,9 +392,13 @@ static ViewIface *lookup_view_by_dbus_proxy(ViewManager::Manager::ViewsContainer
     return nullptr;
 }
 
-void ViewManager::Manager::activate_view(ViewIface *view)
+void ViewManager::Manager::activate_view(ViewIface *view,
+                                         bool enforce_reactivation)
 {
     if(view == nullptr)
+        return;
+
+    if(!enforce_reactivation && view == active_view_)
         return;
 
     active_view_->defocus();
@@ -420,14 +424,17 @@ ViewIface *ViewManager::Manager::get_view_by_dbus_proxy(const void *dbus_proxy)
     return lookup_view_by_dbus_proxy(all_views_, dbus_proxy);
 }
 
-void ViewManager::Manager::sync_activate_view_by_name(const char *view_name)
+void ViewManager::Manager::sync_activate_view_by_name(const char *view_name,
+                                                      bool enforce_reactivation)
 {
     msg_info("Requested to activate view \"%s\"", view_name);
-    activate_view(lookup_view_by_name(all_views_, view_name));
+    activate_view(lookup_view_by_name(all_views_, view_name),
+                  enforce_reactivation);
 }
 
 void ViewManager::Manager::sync_toggle_views_by_name(const char *view_name_a,
-                                                     const char *view_name_b)
+                                                     const char *view_name_b,
+                                                     bool enforce_reactivation)
 {
     msg_info("Requested to toggle between views \"%s\" and \"%s\"",
              view_name_a, view_name_b );
@@ -446,7 +453,7 @@ void ViewManager::Manager::sync_toggle_views_by_name(const char *view_name_a,
     else
         next_view = view_a;
 
-    activate_view(next_view);
+    activate_view(next_view, enforce_reactivation);
 }
 
 bool ViewManager::Manager::is_active_view(const ViewIface *view) const
