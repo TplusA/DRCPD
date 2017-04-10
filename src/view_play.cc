@@ -266,9 +266,14 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
             player_data_.set_stream_state(stream_id, Player::StreamState::PLAYING);
             player_control_.play_notification(stream_id, switched_stream);
 
-            msg_info("Play view: stream started, %s",
+            msg_info("Play view: stream %s, %s",
+                     switched_stream ? "started" : "updated",
                      is_visible_ ? "send screen update" : "but view is invisible");
-            view_manager_->serialize_view_if_active(this, DCP::Queue::Mode::FORCE_ASYNC);
+
+            if(switched_stream)
+                view_manager_->serialize_view_if_active(this, DCP::Queue::Mode::FORCE_ASYNC);
+            else
+                view_manager_->update_view_if_active(this, DCP::Queue::Mode::FORCE_ASYNC);
 
             if(!queue_is_full)
                 player_control_.need_next_item_hint(false);
