@@ -78,20 +78,24 @@ class DirectoryCrawler: public CrawlerIface
         ID::List list_id_;
         unsigned int line_;
         unsigned int directory_depth_;
+        Direction arived_direction_;
 
         MarkedPosition(const MarkedPosition &) = delete;
         MarkedPosition &operator=(const MarkedPosition &) = default;
 
         explicit MarkedPosition():
             line_(0),
-            directory_depth_(0)
+            directory_depth_(0),
+            arived_direction_(Direction::NONE)
         {}
 
-        void set(ID::List list_id, unsigned int line, unsigned directory_depth)
+        void set(ID::List list_id, unsigned int line, unsigned directory_depth,
+                 Direction arived_direction)
         {
             list_id_ = list_id;
             line_ = line;
             directory_depth_ = directory_depth;
+            arived_direction_ = arived_direction;
         }
     };
 
@@ -117,7 +121,7 @@ class DirectoryCrawler: public CrawlerIface
 
         void clear()
         {
-            position_.set(ID::List(), 0, 0);
+            position_.set(ID::List(), 0, 0, Direction::NONE);
             is_item_info_valid_ = false;
             file_item_text_.clear();
             file_item_meta_data_.clear_individual_copy();
@@ -127,22 +131,24 @@ class DirectoryCrawler: public CrawlerIface
         }
 
         void set(ID::List list_id, unsigned int line,
-                 unsigned int directory_depth,
+                 unsigned int directory_depth, Direction arived_direction,
                  GVariantWrapper &&stream_key)
         {
-            set_common(list_id, line, directory_depth, std::move(stream_key));
+            set_common(list_id, line, directory_depth, arived_direction,
+                       std::move(stream_key));
             is_item_info_valid_ = false;
             file_item_text_.clear();
             file_item_meta_data_.clear_individual_copy();
         }
 
         void set(ID::List list_id, unsigned int line,
-                 unsigned int directory_depth,
+                 unsigned int directory_depth, Direction arived_direction,
                  const std::string &file_item_text,
                  const MetaData::PreloadedSet &file_item_meta_data,
                  GVariantWrapper &&stream_key)
         {
-            set_common(list_id, line, directory_depth, std::move(stream_key));
+            set_common(list_id, line, directory_depth, arived_direction,
+                       std::move(stream_key));
             file_item_text_ = file_item_text;
             file_item_meta_data_.copy_from(file_item_meta_data);
             is_item_info_valid_ = true;
@@ -150,10 +156,10 @@ class DirectoryCrawler: public CrawlerIface
 
       private:
         void set_common(ID::List list_id, unsigned int line,
-                        unsigned int directory_depth,
+                        unsigned int directory_depth, Direction arived_direction,
                         GVariantWrapper &&stream_key)
         {
-            position_.set(list_id, line, directory_depth);
+            position_.set(list_id, line, directory_depth, arived_direction);
             stream_key_ = std::move(stream_key);
             stream_uris_.clear();
             airable_links_.clear();
@@ -272,10 +278,13 @@ class DirectoryCrawler: public CrawlerIface
 
     void mark_current_position() final override;
 
-    void mark_position(ID::List list_id, unsigned int line, unsigned int directory_depth)
+    bool set_direction_from_marked_position() final override;
+
+    void mark_position(ID::List list_id, unsigned int line, unsigned int directory_depth,
+                       Direction arived_direction)
     {
         log_assert(list_id.is_valid());
-        marked_position_.set(list_id, line, directory_depth);
+        marked_position_.set(list_id, line, directory_depth, arived_direction);
     }
 
     bool list_invalidate(ID::List list_id, ID::List replacement_id);

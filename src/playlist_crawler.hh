@@ -75,6 +75,13 @@ class CrawlerIface
         END_OF_LIST,
     };
 
+    enum class Direction
+    {
+        NONE,
+        FORWARD,
+        BACKWARD,
+    };
+
   protected:
     explicit CrawlerIface():
         recursive_mode_(RecursiveMode::FLAT),
@@ -117,6 +124,15 @@ class CrawlerIface
 
     RecursiveMode get_recursive_mode() const { return recursive_mode_; }
     ShuffleMode get_shuffle_mode() const { return shuffle_mode_; }
+
+    Direction get_active_direction() const
+    {
+        return (crawler_state_ == CrawlerState::CRAWLING
+                ? (is_crawling_forward_
+                   ? Direction::FORWARD
+                   : Direction::BACKWARD)
+                : Direction::NONE);
+    }
 
     virtual bool init() { return true; }
 
@@ -220,6 +236,7 @@ class CrawlerIface
     }
 
     virtual void mark_current_position() = 0;
+    virtual bool set_direction_from_marked_position() = 0;
 
     bool is_busy() const { return is_crawling() && is_busy_impl(); }
     bool is_crawling() const { return crawler_state_ == CrawlerState::CRAWLING; }

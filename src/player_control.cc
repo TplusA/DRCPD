@@ -947,7 +947,10 @@ void Player::Control::play_notification(ID::Stream stream_id,
                 player_->get_stream_preplay_info(ID::OurStream::make_from_generic_id(stream_id));
 
             if(info != nullptr)
-                crawler->mark_position(info->list_id_, info->line_, info->directory_depth_);
+                crawler->mark_position(info->list_id_, info->line_, info->directory_depth_,
+                                       info->is_crawler_direction_reverse_
+                                       ? Playlist::CrawlerIface::Direction::BACKWARD
+                                       : Playlist::CrawlerIface::Direction::FORWARD);
             else
                 BUG("No list position for stream %u", stream_id.get_raw_id());
         }
@@ -1421,7 +1424,7 @@ Player::Control::stop_notification(ID::Stream stream_id,
     }
 
     if(!skipping)
-        crawler_->set_direction_forward();
+        crawler_->set_direction_from_marked_position();
 
     switch(crawler_->find_next(std::bind(&Player::Control::async_list_entry_for_playing,
                                          this,
@@ -2020,7 +2023,8 @@ Player::Control::process_crawler_item(ProcessCrawlerItemAsyncRedirectResolved ca
                                         std::move(item_info.stream_uris_),
                                         std::move(item_info.airable_links_),
                                         item_info.position_.list_id_, item_info.position_.line_,
-                                        item_info.position_.directory_depth_));
+                                        item_info.position_.directory_depth_,
+                                        crawler_->get_active_direction() == Playlist::CrawlerIface::Direction::BACKWARD));
 
     if(!stream_id.get().is_valid())
         return StreamPreplayInfo::OpResult::FAILED;

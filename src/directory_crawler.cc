@@ -190,7 +190,22 @@ set_dbuslist_hint(List::DBusList &list, List::Nav &nav, bool forward,
 void Playlist::DirectoryCrawler::mark_current_position()
 {
     mark_position(traversal_list_.get_list_id(), navigation_.get_cursor(),
-                  directory_depth_);
+                  directory_depth_, get_active_direction());
+}
+
+bool Playlist::DirectoryCrawler::set_direction_from_marked_position()
+{
+    switch(marked_position_.arived_direction_)
+    {
+      case Direction::NONE:
+      case Direction::FORWARD:
+        break;
+
+      case Direction::BACKWARD:
+        return set_direction_backward();
+    }
+
+    return set_direction_forward();
 }
 
 void Playlist::DirectoryCrawler::switch_direction()
@@ -900,11 +915,13 @@ void Playlist::DirectoryCrawler::process_item_information(DBus::AsyncCall_ &asyn
 
     if(file_item != nullptr)
         current_item_info_.set(list_id, line, directory_depth,
+                               get_active_direction(),
                                file_item->get_text(),
                                file_item->get_preloaded_meta_data(),
                                std::move(std::get<2>(const_cast<typename AsyncT::PromiseReturnType &>(result))));
     else
         current_item_info_.set(list_id, line, directory_depth,
+                               get_active_direction(),
                                std::move(std::get<2>(const_cast<typename AsyncT::PromiseReturnType &>(result))));
 
     if(!current_item_info_.position_.list_id_.is_valid() ||

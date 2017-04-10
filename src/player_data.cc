@@ -194,13 +194,15 @@ bool Player::StreamPreplayInfoCollection::store(ID::OurStream stream_id,
                                                 std::vector<std::string> &&uris,
                                                 Airable::SortedLinks &&airable_links,
                                                 ID::List list_id, unsigned int line,
-                                                unsigned int directory_depth)
+                                                unsigned int directory_depth,
+                                                bool is_crawler_direction_reverse)
 {
     const auto result =
         stream_ppinfos_.emplace(stream_id,
                                 StreamPreplayInfo(stream_key, std::move(uris),
                                                   std::move(airable_links),
-                                                  list_id, line, directory_depth));
+                                                  list_id, line, directory_depth,
+                                                  is_crawler_direction_reverse));
 
     return (result.first != stream_ppinfos_.end() && result.second);
 }
@@ -252,7 +254,8 @@ ID::OurStream Player::Data::store_stream_preplay_information(const GVariantWrapp
                                                              std::vector<std::string> &&uris,
                                                              Airable::SortedLinks &&airable_links,
                                                              ID::List list_id, unsigned int line,
-                                                             unsigned int directory_depth)
+                                                             unsigned int directory_depth,
+                                                             bool is_crawler_direction_reverse)
 {
     log_assert(list_id.is_valid());
 
@@ -269,7 +272,8 @@ ID::OurStream Player::Data::store_stream_preplay_information(const GVariantWrapp
 
         if(preplay_info_.store(id, stream_key,
                                std::move(uris), std::move(airable_links),
-                               list_id, line, directory_depth))
+                               list_id, line, directory_depth,
+                               is_crawler_direction_reverse))
         {
             ref_list_id(referenced_lists_, list_id);
             return id;
