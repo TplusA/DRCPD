@@ -947,8 +947,6 @@ void Playlist::DirectoryCrawler::process_item_information(DBus::AsyncCall_ &asyn
 
 void Playlist::DirectoryCrawler::handle_end_of_list(const FindNextCallback &callback)
 {
-    current_item_info_.clear();
-
     call_callback(callback, *this, is_crawling_forward()
                                    ? FindNextItemResult::END_OF_LIST
                                    : FindNextItemResult::START_OF_LIST);
