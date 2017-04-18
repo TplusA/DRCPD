@@ -2012,7 +2012,7 @@ Player::Control::process_crawler_item(ProcessCrawlerItemAsyncRedirectResolved ca
     log_assert(crawler != nullptr);
 
     auto &item_info(crawler->get_current_list_item_info_non_const());
-    log_assert(item_info.position_.list_id_.is_valid());
+    log_assert(item_info.position_.get_list_id().is_valid());
     log_assert(item_info.is_item_info_valid_);
 
     item_info.airable_links_.finalize(bitrate_limiter_);
@@ -2022,8 +2022,9 @@ Player::Control::process_crawler_item(ProcessCrawlerItemAsyncRedirectResolved ca
                                         std::move(item_info.stream_key_),
                                         std::move(item_info.stream_uris_),
                                         std::move(item_info.airable_links_),
-                                        item_info.position_.list_id_, item_info.position_.line_,
-                                        item_info.position_.directory_depth_,
+                                        item_info.position_.get_list_id(),
+                                        item_info.position_.get_line(),
+                                        item_info.position_.get_directory_depth(),
                                         crawler_->get_active_direction() == Playlist::CrawlerIface::Direction::BACKWARD));
 
     if(!stream_id.get().is_valid())

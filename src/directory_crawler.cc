@@ -78,12 +78,8 @@ bool Playlist::DirectoryCrawler::init()
 bool Playlist::DirectoryCrawler::set_start_position(const List::DBusList &start_list,
                                                     int start_line_number)
 {
-    user_start_position_.list_id_ = start_list.get_list_id();
-    user_start_position_.line_ = start_line_number;
-
+    user_start_position_.set(start_list.get_list_id(), start_line_number);
     marked_position_ = user_start_position_;
-    marked_position_.directory_depth_ = 1;
-
     return true;
 }
 
@@ -103,12 +99,11 @@ bool Playlist::DirectoryCrawler::restart()
     is_waiting_for_async_get_list_item_completion_ = false;
     current_item_info_.clear();
     marked_position_ = user_start_position_;
-    marked_position_.directory_depth_ = 1;
 
     static constexpr auto cid(List::QueryContextEnterList::CallerID::CRAWLER_RESTART);
     const auto result =
-        traversal_list_.enter_list_async(user_start_position_.list_id_,
-                                         user_start_position_.line_, cid);
+        traversal_list_.enter_list_async(user_start_position_.get_list_id(),
+                                         user_start_position_.get_line(), cid);
 
     switch(result)
     {
@@ -130,24 +125,14 @@ bool Playlist::DirectoryCrawler::list_invalidate(ID::List list_id, ID::List repl
 {
     log_assert(list_id.is_valid());
 
-    if(!user_start_position_.list_id_.is_valid())
+    /* nothing to do in passive mode */
+    if(!user_start_position_.get_list_id().is_valid())
         return false;
 
-    if(user_start_position_.list_id_ == list_id)
-    {
-        if(replacement_id.is_valid())
-            user_start_position_.list_id_ = replacement_id;
-        else
-            return true;
-    }
-
-    if(user_start_position_.list_id_ == list_id)
-        return true;
-
-    if(traversal_list_.get_list_id() == list_id)
-        return true;
-
-    return false;
+    /* do it and check validity in active mode */
+    return user_start_position_.list_invalidate(list_id, replacement_id)
+        ? !replacement_id.is_valid()
+        : traversal_list_.get_list_id() == list_id;
 }
 
 bool Playlist::DirectoryCrawler::retrieve_item_information_impl(RetrieveItemInfoCallback callback)
@@ -195,7 +180,7 @@ void Playlist::DirectoryCrawler::mark_current_position()
 
 bool Playlist::DirectoryCrawler::set_direction_from_marked_position()
 {
-    switch(marked_position_.arived_direction_)
+    switch(marked_position_.get_arived_direction())
     {
       case Direction::NONE:
       case Direction::FORWARD:
@@ -216,15 +201,15 @@ void Playlist::DirectoryCrawler::switch_direction()
     is_waiting_for_async_enter_list_completion_ = false;
     is_waiting_for_async_get_list_item_completion_ = false;
 
-    if(!marked_position_.list_id_.is_valid())
+    if(!marked_position_.get_list_id().is_valid())
         return;
 
-    if(traversal_list_.get_list_id() != marked_position_.list_id_)
+    if(traversal_list_.get_list_id() != marked_position_.get_list_id())
     {
         static constexpr auto cid(List::QueryContextEnterList::CallerID::CRAWLER_RESET_POSITION);
         const auto result =
-            traversal_list_.enter_list_async(marked_position_.list_id_,
-                                             marked_position_.line_, cid);
+            traversal_list_.enter_list_async(marked_position_.get_list_id(),
+                                             marked_position_.get_line(), cid);
 
         switch(result)
         {
@@ -242,9 +227,9 @@ void Playlist::DirectoryCrawler::switch_direction()
         return;
     }
 
-    if(navigation_.get_cursor() != marked_position_.line_)
+    if(navigation_.get_cursor() != marked_position_.get_line())
     {
-        navigation_.set_cursor_by_line_number(marked_position_.line_);
+        navigation_.set_cursor_by_line_number(marked_position_.get_line());
         set_dbuslist_hint(traversal_list_, navigation_, is_crawling_forward(),
                           List::QueryContextGetItem::CallerID::CRAWLER_FIND_MARKED);
     }
@@ -924,7 +909,7 @@ void Playlist::DirectoryCrawler::process_item_information(DBus::AsyncCall_ &asyn
                                get_active_direction(),
                                std::move(std::get<2>(const_cast<typename AsyncT::PromiseReturnType &>(result))));
 
-    if(!current_item_info_.position_.list_id_.is_valid() ||
+    if(!current_item_info_.position_.get_list_id().is_valid() ||
        !current_item_info_.is_item_info_valid_)
     {
         RetrieveItemInfoResult retrieve_result = RetrieveItemInfoResult::FAILED;
@@ -1162,10 +1147,10 @@ void Playlist::DirectoryCrawler::handle_enter_list_event(List::AsyncListIface::O
             break;
 
           case List::AsyncListIface::OpResult::SUCCEEDED:
-            log_assert(marked_position_.list_id_ == traversal_list_.get_list_id());
-            log_assert(marked_position_.line_ == ctx->parameters_.line_);
+            log_assert(marked_position_.get_list_id() == traversal_list_.get_list_id());
+            log_assert(marked_position_.get_line() == ctx->parameters_.line_);
 
-            directory_depth_ = marked_position_.directory_depth_ - 1;
+            directory_depth_ = marked_position_.get_directory_depth() - 1;
 
             if(!handle_entered_list(ctx->parameters_.line_, LineRelative::START_OF_LIST, false))
                 is_resetting_to_marked_position_ = false;

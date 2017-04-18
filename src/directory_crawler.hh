@@ -74,12 +74,13 @@ class DirectoryCrawler: public CrawlerIface
 
     class MarkedPosition
     {
-      public:
+      private:
         ID::List list_id_;
         unsigned int line_;
         unsigned int directory_depth_;
         Direction arived_direction_;
 
+      public:
         MarkedPosition(const MarkedPosition &) = delete;
         MarkedPosition &operator=(const MarkedPosition &) = default;
 
@@ -89,7 +90,15 @@ class DirectoryCrawler: public CrawlerIface
             arived_direction_(Direction::NONE)
         {}
 
-        void set(ID::List list_id, unsigned int line, unsigned directory_depth,
+        void set(ID::List list_id, unsigned int line)
+        {
+            list_id_ = list_id;
+            line_ = line;
+            directory_depth_ = 1;
+            arived_direction_ = Direction::NONE;
+        }
+
+        void set(ID::List list_id, unsigned int line, unsigned int directory_depth,
                  Direction arived_direction)
         {
             list_id_ = list_id;
@@ -97,6 +106,22 @@ class DirectoryCrawler: public CrawlerIface
             directory_depth_ = directory_depth;
             arived_direction_ = arived_direction;
         }
+
+        bool list_invalidate(ID::List list_id, ID::List replacement_id)
+        {
+            if(list_id_ == list_id)
+            {
+                list_id_ = replacement_id;
+                return true;
+            }
+            else
+                return false;
+        }
+
+        const ID::List &get_list_id() const { return list_id_; }
+        unsigned int get_line() const { return line_; }
+        unsigned int get_directory_depth() const { return directory_depth_; }
+        Direction get_arived_direction() const { return arived_direction_; }
     };
 
     class ItemInfo
