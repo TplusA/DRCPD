@@ -1606,9 +1606,23 @@ void Player::Control::async_list_entry_to_skip(Playlist::CrawlerIface &crawler,
 
         break;
 
+      case Playlist::CrawlerIface::FindNextItemResult::START_OF_LIST:
+        if(!crawler_->resume_crawler())
+            break;
+
+        skip_requests_.stop_skipping(*player_, *crawler_);
+        prefetch_state_ = PrefetchState::PREFETCHING_LIST_ITEM_INFORMATION;
+
+        if(crawler.retrieve_item_information(std::bind(&Player::Control::async_stream_details_for_playing,
+                                                       this,
+                                                       std::placeholders::_1,
+                                                       std::placeholders::_2)))
+            return;
+
+        break;
+
       case Playlist::CrawlerIface::FindNextItemResult::FAILED:
       case Playlist::CrawlerIface::FindNextItemResult::CANCELED:
-      case Playlist::CrawlerIface::FindNextItemResult::START_OF_LIST:
       case Playlist::CrawlerIface::FindNextItemResult::END_OF_LIST:
         break;
     }
