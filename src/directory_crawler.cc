@@ -483,7 +483,8 @@ bool Playlist::DirectoryCrawler::handle_entered_list(unsigned int line,
               case FindNextFnResult::SEARCHING:
                 return true;
 
-              case FindNextFnResult::STOPPED:
+              case FindNextFnResult::STOPPED_AT_START_OF_LIST:
+              case FindNextFnResult::STOPPED_AT_END_OF_LIST:
               case FindNextFnResult::FAILED:
                 break;
             }
@@ -513,7 +514,8 @@ bool Playlist::DirectoryCrawler::handle_entered_list(unsigned int line,
           case FindNextFnResult::SEARCHING:
             return true;
 
-          case FindNextFnResult::STOPPED:
+          case FindNextFnResult::STOPPED_AT_START_OF_LIST:
+          case FindNextFnResult::STOPPED_AT_END_OF_LIST:
           case FindNextFnResult::FAILED:
             if(is_resetting)
             {
@@ -945,11 +947,18 @@ void Playlist::DirectoryCrawler::process_item_information(DBus::AsyncCall_ &asyn
     }
 }
 
-void Playlist::DirectoryCrawler::handle_end_of_list(const FindNextCallback &callback)
+Playlist::CrawlerIface::FindNextFnResult
+Playlist::DirectoryCrawler::handle_end_of_list(const FindNextCallback &callback)
 {
+    const auto retval(is_crawling_forward()
+                      ? FindNextFnResult::STOPPED_AT_END_OF_LIST
+                      : FindNextFnResult::STOPPED_AT_START_OF_LIST);
+
     call_callback(callback, *this, is_crawling_forward()
                                    ? FindNextItemResult::END_OF_LIST
                                    : FindNextItemResult::START_OF_LIST);
+
+    return retval;
 }
 
 List::AsyncListIface::OpResult
@@ -1027,19 +1036,13 @@ Playlist::DirectoryCrawler::find_next_impl(FindNextCallback callback)
         if(!is_first_item_in_list_processed_)
         {
             if(navigation_.get_total_number_of_visible_items() == 0)
-            {
-                handle_end_of_list(callback);
-                return FindNextFnResult::STOPPED;
-            }
+                return handle_end_of_list(callback);
         }
         else if(!is_waiting_for_async_get_list_item_completion_ &&
                 !go_to_next_list_item())
         {
             if(directory_depth_ <= 1)
-            {
-                handle_end_of_list(callback);
-                return FindNextFnResult::STOPPED;
-            }
+                return handle_end_of_list(callback);
 
             switch(back_to_parent(callback))
             {

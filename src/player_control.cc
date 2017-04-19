@@ -775,7 +775,8 @@ bool Player::Control::skip_forward_request()
                                              std::placeholders::_2)))
         {
           case Playlist::CrawlerIface::FindNextFnResult::SEARCHING:
-          case Playlist::CrawlerIface::FindNextFnResult::STOPPED:
+          case Playlist::CrawlerIface::FindNextFnResult::STOPPED_AT_START_OF_LIST:
+          case Playlist::CrawlerIface::FindNextFnResult::STOPPED_AT_END_OF_LIST:
             break;
 
           case Playlist::CrawlerIface::FindNextFnResult::FAILED:
@@ -818,7 +819,8 @@ void Player::Control::skip_backward_request()
                                              std::placeholders::_2)))
         {
           case Playlist::CrawlerIface::FindNextFnResult::SEARCHING:
-          case Playlist::CrawlerIface::FindNextFnResult::STOPPED:
+          case Playlist::CrawlerIface::FindNextFnResult::STOPPED_AT_START_OF_LIST:
+          case Playlist::CrawlerIface::FindNextFnResult::STOPPED_AT_END_OF_LIST:
             break;
 
           case Playlist::CrawlerIface::FindNextFnResult::FAILED:
@@ -1077,7 +1079,8 @@ Player::Control::stop_notification(ID::Stream stream_id)
       case Playlist::CrawlerIface::FindNextFnResult::SEARCHING:
         return StopReaction::QUEUED;
 
-      case Playlist::CrawlerIface::FindNextFnResult::STOPPED:
+      case Playlist::CrawlerIface::FindNextFnResult::STOPPED_AT_START_OF_LIST:
+      case Playlist::CrawlerIface::FindNextFnResult::STOPPED_AT_END_OF_LIST:
       case Playlist::CrawlerIface::FindNextFnResult::FAILED:
         break;
     }
@@ -1434,7 +1437,8 @@ Player::Control::stop_notification(ID::Stream stream_id,
       case Playlist::CrawlerIface::FindNextFnResult::SEARCHING:
         return StopReaction::QUEUED;
 
-      case Playlist::CrawlerIface::FindNextFnResult::STOPPED:
+      case Playlist::CrawlerIface::FindNextFnResult::STOPPED_AT_START_OF_LIST:
+      case Playlist::CrawlerIface::FindNextFnResult::STOPPED_AT_END_OF_LIST:
       case Playlist::CrawlerIface::FindNextFnResult::FAILED:
         break;
     }
@@ -1497,7 +1501,8 @@ void Player::Control::need_next_item_hint(bool queue_is_full)
       case Playlist::CrawlerIface::FindNextFnResult::SEARCHING:
         break;
 
-      case Playlist::CrawlerIface::FindNextFnResult::STOPPED:
+      case Playlist::CrawlerIface::FindNextFnResult::STOPPED_AT_START_OF_LIST:
+      case Playlist::CrawlerIface::FindNextFnResult::STOPPED_AT_END_OF_LIST:
       case Playlist::CrawlerIface::FindNextFnResult::FAILED:
         prefetch_state_ = PrefetchState::NOT_PREFETCHING;
         break;
@@ -1578,7 +1583,8 @@ void Player::Control::async_list_entry_to_skip(Playlist::CrawlerIface &crawler,
               case Playlist::CrawlerIface::FindNextFnResult::SEARCHING:
                 break;
 
-              case Playlist::CrawlerIface::FindNextFnResult::STOPPED:
+              case Playlist::CrawlerIface::FindNextFnResult::STOPPED_AT_START_OF_LIST:
+              case Playlist::CrawlerIface::FindNextFnResult::STOPPED_AT_END_OF_LIST:
               case Playlist::CrawlerIface::FindNextFnResult::FAILED:
                 skip_requests_.stop_skipping(*player_, *crawler_);
                 break;
@@ -1691,7 +1697,8 @@ void Player::Control::async_stream_details_for_playing(Playlist::CrawlerIface &c
                   case Playlist::CrawlerIface::FindNextFnResult::SEARCHING:
                     return;
 
-                  case Playlist::CrawlerIface::FindNextFnResult::STOPPED:
+                  case Playlist::CrawlerIface::FindNextFnResult::STOPPED_AT_START_OF_LIST:
+                  case Playlist::CrawlerIface::FindNextFnResult::STOPPED_AT_END_OF_LIST:
                   case Playlist::CrawlerIface::FindNextFnResult::FAILED:
                     break;
                 }
@@ -1732,7 +1739,8 @@ void Player::Control::async_stream_details_for_playing(Playlist::CrawlerIface &c
                   case Playlist::CrawlerIface::FindNextFnResult::SEARCHING:
                     return;
 
-                  case Playlist::CrawlerIface::FindNextFnResult::STOPPED:
+                  case Playlist::CrawlerIface::FindNextFnResult::STOPPED_AT_START_OF_LIST:
+                  case Playlist::CrawlerIface::FindNextFnResult::STOPPED_AT_END_OF_LIST:
                   case Playlist::CrawlerIface::FindNextFnResult::FAILED:
                     break;
                 }

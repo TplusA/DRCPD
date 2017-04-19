@@ -364,7 +364,7 @@ class DirectoryCrawler: public CrawlerIface
     }
 
     RecurseResult try_descend(const FindNextCallback &callback);
-    void handle_end_of_list(const FindNextCallback &callback);
+    FindNextFnResult handle_end_of_list(const FindNextCallback &callback);
     bool handle_entered_list(unsigned int line, LineRelative line_relative,
                              bool continue_if_empty);
     void handle_entered_list_failed(List::QueryContextEnterList::CallerID cid,

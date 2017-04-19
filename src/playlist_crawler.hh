@@ -46,7 +46,8 @@ class CrawlerIface
     enum class FindNextFnResult
     {
         SEARCHING,
-        STOPPED,
+        STOPPED_AT_START_OF_LIST,
+        STOPPED_AT_END_OF_LIST,
         FAILED,
     };
 
@@ -256,7 +257,8 @@ class CrawlerIface
                     start_crawler();
                     break;
 
-                  case FindNextFnResult::STOPPED:
+                  case FindNextFnResult::STOPPED_AT_START_OF_LIST:
+                  case FindNextFnResult::STOPPED_AT_END_OF_LIST:
                     stop_crawler();
                     break;
 
@@ -269,7 +271,7 @@ class CrawlerIface
             }
 
           case CrawlerState::STOPPED_SUCCESSFULLY:
-            return FindNextFnResult::STOPPED;
+            return FindNextFnResult::STOPPED_AT_END_OF_LIST;
 
           case CrawlerState::STOPPED_WITH_FAILURE:
             break;
