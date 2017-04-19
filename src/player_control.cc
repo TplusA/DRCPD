@@ -1568,7 +1568,6 @@ void Player::Control::async_list_entry_to_skip(Playlist::CrawlerIface &crawler,
     switch(result)
     {
       case Playlist::CrawlerIface::FindNextItemResult::FOUND:
-        crawler.mark_current_position();
         prefetch_state_ = PrefetchState::HAVE_NEXT_LIST_ITEM;
 
         switch(skip_requests_.skipped(*player_, *crawler_, true))
