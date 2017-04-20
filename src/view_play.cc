@@ -273,7 +273,10 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
             if(switched_stream)
                 view_manager_->serialize_view_if_active(this, DCP::Queue::Mode::FORCE_ASYNC);
             else
+            {
+                add_update_flags(UPDATE_FLAGS_PLAYBACK_STATE);
                 view_manager_->update_view_if_active(this, DCP::Queue::Mode::FORCE_ASYNC);
+            }
 
             if(!queue_is_full)
                 player_control_.need_next_item_hint(false);
