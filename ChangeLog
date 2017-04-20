@@ -1,3 +1,15 @@
+2017-04-20  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 3.5 released.
+
+	* Playback: Play icon is shown after resuming from pause. Regression
+	  was introduced in v3.4.
+
+	* Playback: Attempting to skip before first playable item during
+	  playback does not confuse the player anymore.
+
+	* Stability: Fix crash during fast skipping.
+
 2017-04-11  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 3.4 released.
