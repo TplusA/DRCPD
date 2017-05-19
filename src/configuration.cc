@@ -20,333 +20,161 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-#include <array>
-#include <functional>
 #include <sstream>
-#include <cstring>
-#include <cerrno>
 #include <limits>
+#include <climits>
+#include <cstring>
 #include <glib.h>
 
 #include "configuration.hh"
-#include "configuration_drcpd.hh"
-#include "messages.h"
-#include "inifile.h"
 
-constexpr char Configuration::DrcpdValues::OWNER_NAME[];
-
-template <Configuration::DrcpdValues::KeyID ID>
-using SetterType =
-    std::function<bool(const typename Configuration::ConfigValueTraits<ID>::ValueType &)>;
-
-template <typename ValuesT>
-class ConfigKey
+void Configuration::default_serialize(char *dest, size_t dest_size,
+                                      const char *src, size_t src_length)
 {
-  public:
-    const typename ValuesT::KeyID id_;
-    const std::string name_;
+    if(dest == nullptr || dest_size == 0)
+        return;
 
-    using Serializer = std::function<void(char *, size_t , const ValuesT &)>;
+    if(src_length == 0 && src != nullptr)
+        src_length = strlen(src);
 
-    const Serializer serialize_;
+    if(src == nullptr || src_length == 0)
+    {
+        *dest = '\0';
+        return;
+    }
 
-    ConfigKey(const ConfigKey &) = delete;
-    ConfigKey(ConfigKey &&) = default;
-    ConfigKey &operator=(const ConfigKey &) = delete;
+    const size_t len = std::min(dest_size - 1, src_length);
+    std::copy(src, src + len, dest);
+    dest[len] = '\0';
+}
 
-    explicit ConfigKey(typename ValuesT::KeyID id, const char *name,
-                       Serializer &&serializer):
-        id_(id),
-        name_(name),
-        serialize_(serializer)
-    {}
-};
-
-
-template <Configuration::DrcpdValues::KeyID ID>
-static inline void serialize(char *buffer, size_t buffer_size,
-                             const Configuration::DrcpdValues &v)
+void Configuration::default_serialize(char *dest, size_t dest_size, const std::string &src)
 {
-    Configuration::SerializeValueTraits<ID>::serialize(buffer, buffer_size, v);
-};
+    if(dest == nullptr || dest_size == 0)
+        return;
 
-template <Configuration::DrcpdValues::KeyID ID>
-static inline void deserialize(Configuration::DrcpdValues &v, const char *value)
+    const size_t len = std::min(dest_size - 1, src.length());
+    std::copy(src.begin(), src.begin() + len, dest);
+    dest[len] = '\0';
+}
+
+void Configuration::default_deserialize(std::string &dest, const char *src)
 {
-    Configuration::SerializeValueTraits<ID>::deserialize(v, value);
-};
+    std::copy(src, src + strlen(src), dest.begin());
+}
 
-template <Configuration::DrcpdValues::KeyID ID>
-static inline Configuration::VariantType *box(const Configuration::DrcpdValues &v)
+void Configuration::default_serialize(char *dest, size_t dest_size, const GVariantWrapper &gv)
 {
-    return reinterpret_cast<Configuration::VariantType *>(Configuration::BoxValueTraits<ID>::box(v.*Configuration::ConfigValueTraits<ID>::field));
-};
+    log_assert(gv != nullptr);
 
-template <Configuration::DrcpdValues::KeyID ID>
-static inline Configuration::InsertResult
-unbox(const SetterType<ID> &setter, Configuration::VariantType *value)
+    auto *value = GVariantWrapper::get(gv);
+
+    if(g_variant_is_of_type(value, G_VARIANT_TYPE_UINT16))
+        default_serialize(dest, dest_size, g_variant_get_uint16(value));
+    else if(g_variant_is_of_type(value, G_VARIANT_TYPE_UINT32))
+        default_serialize(dest, dest_size, g_variant_get_uint32(value));
+    else if(g_variant_is_of_type(value, G_VARIANT_TYPE_UINT64))
+        default_serialize(dest, dest_size, g_variant_get_uint64(value));
+    else if(g_variant_is_of_type(value, G_VARIANT_TYPE_STRING))
+    {
+        gsize len = 0;
+        const char *temp = g_variant_get_string(value, &len);
+        default_serialize(dest, dest_size, temp, len);
+    }
+    else
+    {
+        BUG("Cannot serialize unsupported GVariant type \"%s\"",
+            g_variant_get_type_string(value));
+        *dest = '\0';
+    }
+}
+
+GVariantWrapper Configuration::default_deserialize(const char *src, const struct _GVariantType *gvtype)
 {
-    return Configuration::BoxValueTraits<ID>::unbox(setter,
-                                                    reinterpret_cast<GVariant *>(value));
-};
+    GVariant *value = nullptr;
 
-static const std::array<const ConfigKey<Configuration::DrcpdValues>, 1> all_keys
-{
-#define ENTRY(ID, SER_ID, KEY)  ConfigKey<Configuration::DrcpdValues>(ID, ":" KEY, serialize<SER_ID>)
+    if(g_variant_type_equal(gvtype, G_VARIANT_TYPE_UINT16))
+    {
+        uint16_t temp;
+        if(default_deserialize(temp, src))
+            value = g_variant_new_uint16(temp);
+    }
+    else if(g_variant_type_equal(gvtype, G_VARIANT_TYPE_UINT32))
+    {
+        uint32_t temp;
+        if(default_deserialize(temp, src))
+            value = g_variant_new_uint32(temp);
+    }
+    else if(g_variant_type_equal(gvtype, G_VARIANT_TYPE_UINT64))
+    {
+        uint64_t temp;
+        if(default_deserialize(temp, src))
+            value = g_variant_new_uint64(temp);
+    }
+    else if(g_variant_type_equal(gvtype, G_VARIANT_TYPE_STRING))
+        value = g_variant_new_string(src);
+    else
+    {
+        char *ts = g_variant_type_dup_string(gvtype);
+        BUG("Cannot deserialize unsupported GVariant type \"%s\"", ts);
+        g_free(ts);
+    }
 
-    ENTRY(Configuration::DrcpdValues::KeyID::MAXIMUM_BITRATE,
-          Configuration::DrcpdValues::KeyID::MAXIMUM_BITRATE,
-          "maximum_stream_bit_rate"),
-
-#undef ENTRY
-};
-
+    return GVariantWrapper(value);
+}
 
 template <typename T>
-static bool parse_uint(const char *in, T &result)
+static inline void serialize_uint(char *dest, size_t dest_size, const T value)
 {
-    char *endptr = NULL;
-    unsigned long temp = strtoul(in, &endptr, 10);
+    std::ostringstream ss;
 
-    if(*endptr != '\0' || (result == ULONG_MAX && errno == ERANGE))
+    ss << value;
+    Configuration::default_serialize(dest, dest_size, ss.str());
+}
+
+template <typename T>
+static inline bool deserialize_uint(T &value, const char *src)
+{
+    char *endptr = nullptr;
+    unsigned long long temp = strtoull(src, &endptr, 10);
+
+    if(*endptr != '\0' || (temp == ULLONG_MAX && errno == ERANGE))
         return false;
 
     if(temp > std::numeric_limits<T>::max())
         return false;
 
-    result = temp;
+    value = temp;
 
     return true;
 }
 
-template <typename T>
-static void serialize_uint(char *buffer, size_t buffer_size, const T value)
+void Configuration::default_serialize(char *dest, size_t dest_size, uint16_t value)
 {
-    std::ostringstream ss;
-
-    ss << value;
-    strcpy(buffer, ss.str().c_str());
+    serialize_uint(dest, dest_size, value);
 }
 
-static const char configuration_section_name[] = "drcpd";
-static const char value_unlimited[] = "unlimited";
-
-namespace Configuration
+bool Configuration::default_deserialize(uint16_t &value, const char *src)
 {
-
-template <>
-struct SerializeValueTraits<DrcpdValues::KeyID::MAXIMUM_BITRATE>
-{
-    using Traits = ConfigValueTraits<DrcpdValues::KeyID::MAXIMUM_BITRATE>;
-
-    static void serialize(char *buffer, size_t buffer_size, const DrcpdValues &v)
-    {
-        return serialize(buffer, buffer_size, v.*Traits::field);
-    }
-
-    static void serialize(char *buffer, size_t buffer_size, const uint32_t &value)
-    {
-        if(value == 0)
-            strcpy(buffer, value_unlimited);
-        else
-            serialize_uint(buffer, buffer_size, value);
-    }
-
-    static bool deserialize(DrcpdValues &v, const char *value)
-    {
-        if(strcmp(value, value_unlimited) == 0)
-        {
-            v.*Traits::field = 0;
-            return true;
-        }
-        else
-            return parse_uint<Traits::ValueType>(value, v.*Traits::field);
-    }
-};
-
-template <>
-struct BoxValueTraits<DrcpdValues::KeyID::MAXIMUM_BITRATE>
-{
-    static GVariant *box(const uint32_t value)
-    {
-        if(value > 0)
-            return g_variant_new_uint32(value);
-        else
-        {
-            char buffer[32];
-            SerializeValueTraits<DrcpdValues::KeyID::MAXIMUM_BITRATE>::serialize(buffer, sizeof(buffer), value);
-            return g_variant_new_take_string(g_strdup(buffer));
-        }
-    }
-
-    static InsertResult
-    unbox(const SetterType<DrcpdValues::KeyID::MAXIMUM_BITRATE> &setter, GVariant *value)
-    {
-        if(g_variant_is_of_type(value, G_VARIANT_TYPE_UINT32))
-        {
-            uint32_t temp = g_variant_get_uint32(value);
-
-            if(temp == 0)
-                return InsertResult::VALUE_INVALID;
-
-            if(!setter(temp))
-                return InsertResult::UNCHANGED;
-
-            return InsertResult::UPDATED;
-        }
-
-        if(g_variant_is_of_type(value, G_VARIANT_TYPE_STRING))
-        {
-            if(strcmp(g_variant_get_string(value, NULL), value_unlimited) != 0)
-                return InsertResult::VALUE_INVALID;
-
-            if(!setter(0))
-                return InsertResult::UNCHANGED;
-
-            return InsertResult::UPDATED;
-        }
-
-        return InsertResult::VALUE_TYPE_INVALID;
-    }
-};
-
-template <>
-std::vector<const char *> ConfigManager<DrcpdValues>::keys()
-{
-    std::vector<const char *> result;
-
-    for(const auto &k : all_keys)
-        result.push_back(k.name_.c_str());
-
-    return result;
+    return deserialize_uint(value, src);
 }
 
-template <>
-bool ConfigManager<DrcpdValues>::try_load(const char *file, DrcpdValues &values)
+void Configuration::default_serialize(char *dest, size_t dest_size, uint32_t value)
 {
-    struct ini_file ini;
-
-    if(inifile_parse_from_file(&ini, file) != 0)
-        return false;
-
-    auto *section =
-        inifile_find_section(&ini, configuration_section_name,
-                             sizeof(configuration_section_name) - 1);
-
-    if(section == nullptr)
-    {
-        inifile_free(&ini);
-        return false;
-    }
-
-    for(const auto &k : all_keys)
-    {
-        auto *kv = inifile_section_lookup_kv_pair(section, k.name_.c_str() + 1,
-                                                  k.name_.length() - 1);
-
-        if(kv == nullptr)
-            continue;
-
-        switch(k.id_)
-        {
-          case DrcpdValues::KeyID::MAXIMUM_BITRATE:
-            deserialize<DrcpdValues::KeyID::MAXIMUM_BITRATE>(values, kv->value);
-            break;
-        }
-    }
-
-    inifile_free(&ini);
-
-    return true;
+    serialize_uint(dest, dest_size, value);
 }
 
-template <>
-bool ConfigManager<DrcpdValues>::try_store(const char *file, const DrcpdValues &values)
+bool Configuration::default_deserialize(uint32_t &value, const char *src)
 {
-    struct ini_file ini;
-    inifile_new(&ini);
-
-    auto *section =
-        inifile_new_section(&ini, configuration_section_name,
-                            sizeof(configuration_section_name) - 1);
-
-    if(section == nullptr)
-    {
-        inifile_free(&ini);
-        return false;
-    }
-
-    char buffer[128];
-
-    for(const auto &k : all_keys)
-    {
-        k.serialize_(buffer, sizeof(buffer), values);
-        inifile_section_store_value(section,
-                                    k.name_.c_str() + 1, k.name_.length() - 1,
-                                    buffer, 0);
-    }
-
-    inifile_write_to_file(&ini, file);
-    inifile_free(&ini);
-
-    return true;
+    return deserialize_uint(value, src);
 }
 
-template <>
-Configuration::VariantType *ConfigManager<DrcpdValues>::lookup_boxed(const char *key) const
+void Configuration::default_serialize(char *dest, size_t dest_size, uint64_t value)
 {
-    if(!to_local_key(key))
-        return nullptr;
-
-    const size_t requested_key_length(strlen(key));
-
-    for(const auto &k : all_keys)
-    {
-        if(k.name_.length() == requested_key_length &&
-           strcmp(k.name_.c_str(), key) == 0)
-        {
-            switch(k.id_)
-            {
-              case Configuration::DrcpdValues::KeyID::MAXIMUM_BITRATE:
-                return box<Configuration::DrcpdValues::KeyID::MAXIMUM_BITRATE>(settings_.values());
-            }
-        }
-    }
-
-    return nullptr;
+    serialize_uint(dest, dest_size, value);
 }
 
-} /* namespace Configuration */
-
-//! \cond Doxygen_Suppress
-// Doxygen 1.8.9.1 throws a warning about this.
-Configuration::InsertResult
-Configuration::UpdateSettings<Configuration::DrcpdValues>::insert_boxed(const char *key,
-                                                                        Configuration::VariantType *value)
+bool Configuration::default_deserialize(uint64_t &value, const char *src)
 {
-    if(!ConfigManager<DrcpdValues>::to_local_key(key))
-        return InsertResult::KEY_UNKNOWN;
-
-    const size_t requested_key_length(strlen(key));
-
-    for(const auto &k : all_keys)
-    {
-        if(k.name_.length() == requested_key_length &&
-           strcmp(k.name_.c_str(), key) == 0)
-        {
-            switch(k.id_)
-            {
-              case DrcpdValues::KeyID::MAXIMUM_BITRATE:
-                return unbox<DrcpdValues::KeyID::MAXIMUM_BITRATE>(
-                            [this] (const uint32_t &new_value) -> bool
-                            {
-                                return maximum_stream_bit_rate(new_value);
-                            },
-                            value);
-            }
-        }
-    }
-
-    return InsertResult::KEY_UNKNOWN;
+    return deserialize_uint(value, src);
 }
-//! \endcond

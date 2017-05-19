@@ -19,10 +19,21 @@
 #ifndef CONFIGURATION_SETTINGS_HH
 #define CONFIGURATION_SETTINGS_HH
 
+#include <array>
+
 #include "configuration_base.hh"
+#include "messages.h"
 
 namespace Configuration
 {
+
+#define CONFIGURATION_UPDATE_TRAITS(T, TABTYPE, ID, MEMBER) \
+    template <> \
+    struct T<TABTYPE::KeyID::ID> \
+    { \
+        using ValueType = decltype(TABTYPE::MEMBER); \
+        static constexpr ValueType TABTYPE::*field = &TABTYPE::MEMBER; \
+    }
 
 template <typename ValuesT>
 class Settings

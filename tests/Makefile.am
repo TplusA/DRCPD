@@ -80,6 +80,7 @@ test_dbus_handlers_la_SOURCES = \
 test_dbus_handlers_la_LIBADD = \
     $(top_builddir)/src/libviews.la \
     $(top_builddir)/src/liblist.la \
+    $(top_builddir)/src/libconfiguration.la \
     $(top_builddir)/src/libcontextmap.la \
     $(top_builddir)/src/libdbus_handlers.la
 test_dbus_handlers_la_CFLAGS = $(DRCPD_DEPENDENCIES_CFLAGS) $(AM_CFLAGS)
@@ -94,6 +95,7 @@ test_view_manager_la_LIBADD = \
     $(top_builddir)/src/libviews.la \
     $(top_builddir)/src/libdcp_transaction.la \
     $(top_builddir)/src/liblist.la \
+    $(top_builddir)/src/libconfiguration.la \
     $(top_builddir)/src/libcontextmap.la
 test_view_manager_la_CFLAGS = $(DRCPD_DEPENDENCIES_CFLAGS) $(AM_CFLAGS)
 test_view_manager_la_CXXFLAGS = $(DRCPD_DEPENDENCIES_CFLAGS) $(AM_CXXFLAGS)

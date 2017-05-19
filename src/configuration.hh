@@ -19,11 +19,17 @@
 #ifndef CONFIGURATION_HH
 #define CONFIGURATION_HH
 
+#include <string>
 #include <vector>
 #include <functional>
 
 #include "configuration_changed.hh"
+#include "gvariantwrapper.hh"
+#include "inifile.h"
 #include "messages.h"
+
+/* for GVariant serialization/deserialization */
+struct _GVariantType;
 
 namespace Configuration
 {
@@ -84,7 +90,16 @@ class ConfigManager: public ConfigChanged<ValuesT>
     static const char *get_database_name() { return ValuesT::DATABASE_NAME; }
     const ValuesT &values() const { return settings_.values(); }
 
-    static std::vector<const char *> keys();
+    static std::vector<const char *> keys()
+    {
+        std::vector<const char *> result;
+
+        for(const auto &k : ValuesT::all_keys)
+            result.push_back(k.name_.c_str());
+
+        return result;
+    }
+
     VariantType *lookup_boxed(const char *key) const;
 
     static bool to_local_key(const char *&key)
@@ -131,8 +146,67 @@ class ConfigManager: public ConfigChanged<ValuesT>
     }
 
   private:
-    static bool try_load(const char *file, ValuesT &values);
-    static bool try_store(const char *file, const ValuesT &values);
+    static bool try_load(const char *file, ValuesT &values)
+    {
+        struct ini_file ini;
+
+        if(inifile_parse_from_file(&ini, file) != 0)
+            return false;
+
+        auto *section =
+            inifile_find_section(&ini, ValuesT::CONFIGURATION_SECTION_NAME,
+                                 sizeof(ValuesT::CONFIGURATION_SECTION_NAME) - 1);
+
+        if(section == nullptr)
+        {
+            inifile_free(&ini);
+            return false;
+        }
+
+        for(const auto &k : ValuesT::all_keys)
+        {
+            auto *kv = inifile_section_lookup_kv_pair(section, k.name_.c_str() + 1,
+                                                      k.name_.length() - 1);
+
+            if(kv != nullptr)
+                k.write(values, kv->value);
+        }
+
+        inifile_free(&ini);
+
+        return true;
+    }
+
+    static bool try_store(const char *file, const ValuesT &values)
+    {
+        struct ini_file ini;
+        inifile_new(&ini);
+
+        auto *section =
+            inifile_new_section(&ini, ValuesT::CONFIGURATION_SECTION_NAME,
+                                sizeof(ValuesT::CONFIGURATION_SECTION_NAME) - 1);
+
+        if(section == nullptr)
+        {
+            inifile_free(&ini);
+            return false;
+        }
+
+        char buffer[128];
+
+        for(const auto &k : ValuesT::all_keys)
+        {
+            k.read(buffer, sizeof(buffer), values);
+            inifile_section_store_value(section,
+                                        k.name_.c_str() + 1, k.name_.length() - 1,
+                                        buffer, 0);
+        }
+
+        inifile_write_to_file(&ini, file);
+        inifile_free(&ini);
+
+        return true;
+    }
 
     bool store()
     {
@@ -141,6 +215,31 @@ class ConfigManager: public ConfigChanged<ValuesT>
     }
 
     static VariantType *box_value(const ValuesT &values, typename ValuesT::KeyID key_id);
+};
+
+void default_serialize(char *dest, size_t dest_size, const char *src, size_t src_length = 0);
+void default_serialize(char *dest, size_t dest_size, const std::string &src);
+void default_serialize(char *dest, size_t dest_size, uint16_t value);
+void default_serialize(char *dest, size_t dest_size, uint32_t value);
+void default_serialize(char *dest, size_t dest_size, uint64_t value);
+void default_serialize(char *dest, size_t dest_size, const GVariantWrapper &gv);
+
+void default_deserialize(std::string &dest, const char *src);
+bool default_deserialize(uint16_t &value, const char *src);
+bool default_deserialize(uint32_t &value, const char *src);
+bool default_deserialize(uint64_t &value, const char *src);
+GVariantWrapper default_deserialize(const char *src, const struct _GVariantType *gvtype);
+
+template <typename ValuesT, typename Traits>
+static void serialize_value(char *dest, size_t dest_size, const ValuesT &v)
+{
+    ::Configuration::default_serialize(dest, dest_size, v.*Traits::field);
+};
+
+template <typename ValuesT, typename Traits>
+static void deserialize_value(ValuesT &v, const char *value)
+{
+    ::Configuration::default_deserialize(v.*Traits::field, value);
 };
 
 }
