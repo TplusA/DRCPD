@@ -221,7 +221,8 @@ class Manager: public VMIface, public UI::EventStoreIface
     }
 
   private:
-    void configuration_changed_notification(const std::array<bool, Configuration::DrcpdValues::NUMBER_OF_KEYS> &changed);
+    void configuration_changed_notification(const char *origin,
+                                            const std::array<bool, Configuration::DrcpdValues::NUMBER_OF_KEYS> &changed);
 
     ViewIface *get_view_by_dbus_proxy(const void *dbus_proxy);
     void activate_view(ViewIface *view, bool enforce_reactivation);

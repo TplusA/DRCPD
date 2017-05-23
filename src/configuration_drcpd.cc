@@ -21,11 +21,7 @@
 #endif /* HAVE_CONFIG_H */
 
 #include <array>
-#include <functional>
-#include <sstream>
-#include <cstring>
-#include <cerrno>
-#include <limits>
+#include <string>
 #include <glib.h>
 
 #include "configuration.hh"
@@ -36,42 +32,77 @@
 constexpr char Configuration::DrcpdValues::OWNER_NAME[];
 constexpr char Configuration::DrcpdValues::CONFIGURATION_SECTION_NAME[];
 
-template <Configuration::DrcpdValues::KeyID ID>
-using SetterType =
-    std::function<bool(const typename Configuration::UpdateValueTraits<ID>::ValueType &)>;
+static const std::string value_unlimited{"unlimited"};
 
-template <Configuration::DrcpdValues::KeyID ID>
-static inline void serialize(char *buffer, size_t buffer_size,
-                             const Configuration::DrcpdValues &v)
+static void serialize_bitrate(char *dest, size_t dest_size, const Configuration::DrcpdValues &v)
 {
-    Configuration::SerializeValueTraits<ID>::serialize(buffer, buffer_size, v);
-};
+    if(v.maximum_bitrate_ > 0)
+        Configuration::default_serialize(dest, dest_size, v.maximum_bitrate_);
+    else
+        Configuration::default_serialize(dest, dest_size, value_unlimited);
+}
 
-template <Configuration::DrcpdValues::KeyID ID>
-static inline void deserialize(Configuration::DrcpdValues &v, const char *value)
+static bool deserialize_bitrate(Configuration::DrcpdValues &v, const char *src)
 {
-    Configuration::SerializeValueTraits<ID>::deserialize(v, value);
-};
+    if(src == value_unlimited)
+    {
+        v.maximum_bitrate_ = 0;
+        return true;
+    }
+    else
+        return Configuration::default_deserialize(v.maximum_bitrate_, src);
+}
 
-template <Configuration::DrcpdValues::KeyID ID>
-static inline Configuration::VariantType *box(const Configuration::DrcpdValues &v)
+static GVariantWrapper box_bitrate(const Configuration::DrcpdValues &src)
 {
-    return reinterpret_cast<Configuration::VariantType *>(Configuration::BoxValueTraits<ID>::box(v.*Configuration::UpdateValueTraits<ID>::field));
-};
+    if(src.maximum_bitrate_ > 0)
+        return Configuration::default_box(src.maximum_bitrate_);
+    else
+        return Configuration::default_box(value_unlimited);
+}
 
-template <Configuration::DrcpdValues::KeyID ID>
-static inline Configuration::InsertResult
-unbox(const SetterType<ID> &setter, Configuration::VariantType *value)
+static Configuration::InsertResult
+unbox_bitrate(Configuration::UpdateSettings<Configuration::DrcpdValues> &dest,
+              GVariantWrapper &&src)
 {
-    return Configuration::BoxValueTraits<ID>::unbox(setter,
-                                                    reinterpret_cast<GVariant *>(value));
-};
+    if(g_variant_is_of_type(GVariantWrapper::get(src), G_VARIANT_TYPE_UINT32))
+    {
+        uint32_t temp;
+        Configuration::default_unbox(temp, std::move(src));
+
+        if(temp == 0)
+            return Configuration::InsertResult::VALUE_INVALID;
+
+        if(!dest.maximum_stream_bit_rate(temp))
+            return Configuration::InsertResult::UNCHANGED;
+
+        return Configuration::InsertResult::UPDATED;
+    }
+
+    if(g_variant_is_of_type(GVariantWrapper::get(src), G_VARIANT_TYPE_STRING))
+    {
+        if(g_variant_get_string(GVariantWrapper::get(src), nullptr) != value_unlimited)
+            return Configuration::InsertResult::VALUE_INVALID;
+
+        if(!dest.maximum_stream_bit_rate(0))
+            return Configuration::InsertResult::UNCHANGED;
+
+        return Configuration::InsertResult::UPDATED;
+    }
+
+    return Configuration::InsertResult::VALUE_TYPE_INVALID;
+}
 
 const std::array<const Configuration::ConfigKey, Configuration::DrcpdValues::NUMBER_OF_KEYS>
 Configuration::DrcpdValues::all_keys
 {
 #define ENTRY(ID, SER_ID, KEY) \
-    Configuration::ConfigKey(ID, ":" KEY, serialize<SER_ID>, deserialize<SER_ID>)
+    Configuration::ConfigKey(ID, \
+                             ":" KEY, \
+                             serialize_bitrate, \
+                             deserialize_bitrate, \
+                             box_bitrate, \
+                             unbox_bitrate)
 
     ENTRY(Configuration::DrcpdValues::KeyID::MAXIMUM_BITRATE,
           Configuration::DrcpdValues::KeyID::MAXIMUM_BITRATE,
@@ -80,119 +111,11 @@ Configuration::DrcpdValues::all_keys
 #undef ENTRY
 };
 
-
-static const char value_unlimited[] = "unlimited";
-
-namespace Configuration
-{
-
-template <>
-struct SerializeValueTraits<DrcpdValues::KeyID::MAXIMUM_BITRATE>
-{
-    using Traits = UpdateValueTraits<DrcpdValues::KeyID::MAXIMUM_BITRATE>;
-
-    static void serialize(char *buffer, size_t buffer_size, const DrcpdValues &v)
-    {
-        return serialize(buffer, buffer_size, v.*Traits::field);
-    }
-
-    static void serialize(char *buffer, size_t buffer_size, const uint32_t &value)
-    {
-        if(value == 0)
-            strcpy(buffer, value_unlimited);
-        else
-            default_serialize(buffer, buffer_size, value);
-    }
-
-    static bool deserialize(DrcpdValues &v, const char *value)
-    {
-        if(strcmp(value, value_unlimited) == 0)
-        {
-            v.*Traits::field = 0;
-            return true;
-        }
-        else
-            return default_deserialize(v.*Traits::field, value);
-    }
-};
-
-template <>
-struct BoxValueTraits<DrcpdValues::KeyID::MAXIMUM_BITRATE>
-{
-    static GVariant *box(const uint32_t value)
-    {
-        if(value > 0)
-            return g_variant_new_uint32(value);
-        else
-        {
-            char buffer[32];
-            SerializeValueTraits<DrcpdValues::KeyID::MAXIMUM_BITRATE>::serialize(buffer, sizeof(buffer), value);
-            return g_variant_new_take_string(g_strdup(buffer));
-        }
-    }
-
-    static InsertResult
-    unbox(const SetterType<DrcpdValues::KeyID::MAXIMUM_BITRATE> &setter, GVariant *value)
-    {
-        if(g_variant_is_of_type(value, G_VARIANT_TYPE_UINT32))
-        {
-            uint32_t temp = g_variant_get_uint32(value);
-
-            if(temp == 0)
-                return InsertResult::VALUE_INVALID;
-
-            if(!setter(temp))
-                return InsertResult::UNCHANGED;
-
-            return InsertResult::UPDATED;
-        }
-
-        if(g_variant_is_of_type(value, G_VARIANT_TYPE_STRING))
-        {
-            if(strcmp(g_variant_get_string(value, NULL), value_unlimited) != 0)
-                return InsertResult::VALUE_INVALID;
-
-            if(!setter(0))
-                return InsertResult::UNCHANGED;
-
-            return InsertResult::UPDATED;
-        }
-
-        return InsertResult::VALUE_TYPE_INVALID;
-    }
-};
-
-template <>
-Configuration::VariantType *ConfigManager<DrcpdValues>::lookup_boxed(const char *key) const
-{
-    if(!to_local_key(key))
-        return nullptr;
-
-    const size_t requested_key_length(strlen(key));
-
-    for(const auto &k : DrcpdValues::all_keys)
-    {
-        if(k.name_.length() == requested_key_length &&
-           strcmp(k.name_.c_str(), key) == 0)
-        {
-            switch(k.id_)
-            {
-              case Configuration::DrcpdValues::KeyID::MAXIMUM_BITRATE:
-                return box<Configuration::DrcpdValues::KeyID::MAXIMUM_BITRATE>(settings_.values());
-            }
-        }
-    }
-
-    return nullptr;
-}
-
-} /* namespace Configuration */
-
 //! \cond Doxygen_Suppress
 // Doxygen 1.8.9.1 throws a warning about this.
 Configuration::InsertResult
 Configuration::UpdateSettings<Configuration::DrcpdValues>::insert_boxed(const char *key,
-                                                                        Configuration::VariantType *value)
+                                                                        GVariantWrapper &&value)
 {
     if(!ConfigManager<DrcpdValues>::to_local_key(key))
         return InsertResult::KEY_UNKNOWN;
@@ -204,16 +127,7 @@ Configuration::UpdateSettings<Configuration::DrcpdValues>::insert_boxed(const ch
         if(k.name_.length() == requested_key_length &&
            strcmp(k.name_.c_str(), key) == 0)
         {
-            switch(k.id_)
-            {
-              case DrcpdValues::KeyID::MAXIMUM_BITRATE:
-                return unbox<DrcpdValues::KeyID::MAXIMUM_BITRATE>(
-                            [this] (const uint32_t &new_value) -> bool
-                            {
-                                return maximum_stream_bit_rate(new_value);
-                            },
-                            value);
-            }
+            return k.unbox(*this, std::move(value));
         }
     }
 

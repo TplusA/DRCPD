@@ -56,20 +56,21 @@ struct DrcpdValues
 
 class ConfigKey: public ConfigKeyBase<DrcpdValues>
 {
-  public:
-    using Serializer = std::function<void(char *, size_t, const DrcpdValues &)>;
-    using Deserializer = std::function<void(DrcpdValues &, const char *)>;
-
   private:
     const Serializer serialize_;
     const Deserializer deserialize_;
+    const Boxer boxer_;
+    const Unboxer unboxer_;
 
   public:
     explicit ConfigKey(DrcpdValues::KeyID id, const char *name,
-                       Serializer &&serializer, Deserializer &&deserializer):
-        ConfigKeyBase(id, name),
+                       Serializer &&serializer, Deserializer &&deserializer,
+                       Boxer &&boxer, Unboxer &&unboxer):
+        ConfigKeyBase(id, name, find_varname_offset_in_keyname(name)),
         serialize_(std::move(serializer)),
-        deserialize_(std::move(deserializer))
+        deserialize_(std::move(deserializer)),
+        boxer_(std::move(boxer)),
+        unboxer_(std::move(unboxer))
     {}
 
     void read(char *dest, size_t dest_size, const DrcpdValues &src) const final override
@@ -77,30 +78,25 @@ class ConfigKey: public ConfigKeyBase<DrcpdValues>
         serialize_(dest, dest_size, src);
     }
 
-    void write(DrcpdValues &dest, const char *src) const final override
+    bool write(DrcpdValues &dest, const char *src) const final override
     {
-        deserialize_(dest, src);
+        return deserialize_(dest, src);
+    }
+
+    GVariantWrapper box(const DrcpdValues &src) const final override
+    {
+        return boxer_(src);
+    }
+
+    InsertResult unbox(UpdateSettings<DrcpdValues> &dest, GVariantWrapper &&src) const final override
+    {
+        return unboxer_(dest, std::move(src));
     }
 };
 
 template <DrcpdValues::KeyID ID> struct UpdateValueTraits;
 
 CONFIGURATION_UPDATE_TRAITS(UpdateValueTraits, DrcpdValues, MAXIMUM_BITRATE, maximum_bitrate_);
-
-template <DrcpdValues::KeyID ID> struct SerializeValueTraits;
-template <DrcpdValues::KeyID ID> struct BoxValueTraits;
-
-enum class InsertResult
-{
-    UPDATED,
-    UNCHANGED,
-    KEY_UNKNOWN,
-    VALUE_TYPE_INVALID,  //<! Type of given value is invalid/not supported
-    VALUE_INVALID,       //<! Value has correct type, but value is invalid
-    PERMISSION_DENIED,
-
-    LAST_CODE = PERMISSION_DENIED,
-};
 
 template <>
 class UpdateSettings<DrcpdValues>
@@ -116,7 +112,7 @@ class UpdateSettings<DrcpdValues>
         settings_(settings)
     {}
 
-    InsertResult insert_boxed(const char *key, VariantType *value);
+    InsertResult insert_boxed(const char *key, GVariantWrapper &&value);
 
     bool maximum_stream_bit_rate(uint32_t bitrate)
     {

@@ -74,7 +74,7 @@ bool ViewManager::Manager::invoke_late_init_functions()
 
     config_manager_.set_updated_notification_callback(
         std::bind(&ViewManager::Manager::configuration_changed_notification,
-                  this, std::placeholders::_1));
+                  this, std::placeholders::_1, std::placeholders::_2));
 
     return ok;
 }
@@ -520,7 +520,8 @@ void ViewManager::Manager::busy_state_notification(bool is_busy)
                  debug_stream_);
 }
 
-void ViewManager::Manager::configuration_changed_notification(const std::array<bool, Configuration::DrcpdValues::NUMBER_OF_KEYS> &changed)
+void ViewManager::Manager::configuration_changed_notification(const char *origin,
+                                                              const std::array<bool, Configuration::DrcpdValues::NUMBER_OF_KEYS> &changed)
 {
     auto params = UI::Events::mk_params<UI::EventID::CONFIGURATION_UPDATED>();
     auto &vec(params->get_specific_non_const());
