@@ -887,10 +887,7 @@ bool ViewFileBrowser::View::write_xml(std::ostream &os,
       case List::AsyncListIface::OpResult::STARTED:
       case List::AsyncListIface::OpResult::SUCCEEDED:
       case List::AsyncListIface::OpResult::CANCELED:
-        break;
-
       case List::AsyncListIface::OpResult::FAILED:
-        BUG("Failed hinting asynchronous list operation");
         break;
     }
 
@@ -1012,10 +1009,7 @@ void ViewFileBrowser::View::serialize(DCP::Queue &queue, DCP::Queue::Mode mode,
       case List::AsyncListIface::OpResult::STARTED:
       case List::AsyncListIface::OpResult::SUCCEEDED:
       case List::AsyncListIface::OpResult::CANCELED:
-        break;
-
       case List::AsyncListIface::OpResult::FAILED:
-        BUG("Failed hinting asynchronous list operation for debug output");
         break;
     }
 
