@@ -1,3 +1,12 @@
+2017-06-08  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 3.7 released.
+
+	* Misc: Better log messages in case of D-Bus method call failures.
+
+	* Misc: Improvements of introspection while debugging locking
+	  problems.
+
 2017-06-02  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 3.6 released.
