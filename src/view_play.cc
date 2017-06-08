@@ -27,6 +27,7 @@
 #include "view_manager.hh"
 #include "ui_parameters_predefined.hh"
 #include "dbus_iface_deep.h"
+#include "dbus_common.h"
 #include "xmlescape.hh"
 #include "messages.h"
 
@@ -115,11 +116,15 @@ static void send_current_stream_info_to_dcpd(const Player::Data &player_data)
         return;
     }
 
-    if(!tdbus_dcpd_playback_call_set_stream_info_sync(
+    GError *error = NULL;
+
+    tdbus_dcpd_playback_call_set_stream_info_sync(
             dbus_get_dcpd_playback_iface(), stream_id.get_raw_id(),
             md.values_[MetaData::Set::ID::INTERNAL_DRCPD_TITLE].c_str(),
             md.values_[MetaData::Set::ID::INTERNAL_DRCPD_URL].c_str(),
-            NULL, NULL))
+            NULL, &error);
+
+    if(dbus_common_handle_error(&error, "Set stream info") < 0)
         msg_error(0, LOG_NOTICE, "Failed sending stream information to dcpd");
 }
 

@@ -21,6 +21,7 @@
 #endif /* HAVE_CONFIG_H */
 
 #include "dbuslist.hh"
+#include "dbus_common.h"
 #include "de_tahifi_lists_errors.hh"
 #include "de_tahifi_lists_context.h"
 #include "context_map.hh"
@@ -59,11 +60,14 @@ static unsigned int query_list_size_sync(tdbuslistsNavigation *proxy,
     guchar error_code;
     guint first_item;
     guint size;
+    GError *gerror = NULL;
 
-    if(!tdbus_lists_navigation_call_check_range_sync(proxy,
-                                                     list_id.get_raw_id(), 0, 0,
-                                                     &error_code, &first_item,
-                                                     &size, NULL, NULL))
+    tdbus_lists_navigation_call_check_range_sync(proxy,
+                                                 list_id.get_raw_id(), 0, 0,
+                                                 &error_code, &first_item,
+                                                 &size, NULL, &gerror);
+
+    if(dbus_common_handle_error(&gerror, "Check range") < 0)
     {
         msg_error(0, LOG_NOTICE,
                   "Failed obtaining size of list %u (sync) [%s]",
@@ -148,18 +152,22 @@ static bool fetch_window_sync(tdbuslistsNavigation *proxy,
 
     if((list_flags & List::ContextInfo::HAS_EXTERNAL_META_DATA) != 0)
     {
+        GError *error = NULL;
         success =
             tdbus_lists_navigation_call_get_range_with_meta_data_sync(
                 proxy, list_id.get_raw_id(), line, count,
                 &error_code, &first_item, out_list, NULL, NULL);
+        dbus_common_handle_error(&error, "Get range with meta data");
         have_meta_data = true;
     }
     else
     {
+        GError *error = NULL;
         success =
             tdbus_lists_navigation_call_get_range_sync(
                 proxy, list_id.get_raw_id(), line, count,
                 &error_code, &first_item, out_list, NULL, NULL);
+        dbus_common_handle_error(&error, "Get range");
         have_meta_data = false;
     }
 

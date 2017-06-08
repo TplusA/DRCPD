@@ -25,6 +25,7 @@
 #include "view_filebrowser_fileitem.hh"
 #include "directory_crawler.hh"
 #include "dbus_iface_deep.h"
+#include "dbus_common.h"
 #include "view_play.hh"
 #include "messages.h"
 
@@ -314,8 +315,12 @@ void Player::Control::unplug()
 
 static bool send_play_command()
 {
-    if(!tdbus_splay_playback_call_start_sync(dbus_get_streamplayer_playback_iface(),
-                                             NULL, NULL))
+    GError *error = NULL;
+
+    tdbus_splay_playback_call_start_sync(dbus_get_streamplayer_playback_iface(),
+                                         NULL, &error);
+
+    if(dbus_common_handle_error(&error, "Start playback") < 0)
     {
         msg_error(0, LOG_NOTICE, "Failed sending start playback message");
         return false;
@@ -326,8 +331,12 @@ static bool send_play_command()
 
 static bool send_stop_command()
 {
-    if(!tdbus_splay_playback_call_stop_sync(dbus_get_streamplayer_playback_iface(),
-                                            NULL, NULL))
+    GError *error = NULL;
+
+    tdbus_splay_playback_call_stop_sync(dbus_get_streamplayer_playback_iface(),
+                                        NULL, &error);
+
+    if(dbus_common_handle_error(&error, "Stop playback") < 0)
     {
         msg_error(0, LOG_NOTICE, "Failed sending stop playback message");
         return false;
@@ -338,8 +347,12 @@ static bool send_stop_command()
 
 static bool send_pause_command()
 {
-    if(!tdbus_splay_playback_call_pause_sync(dbus_get_streamplayer_playback_iface(),
-                                             NULL, NULL))
+    GError *error = NULL;
+
+    tdbus_splay_playback_call_pause_sync(dbus_get_streamplayer_playback_iface(),
+                                         NULL, &error);
+
+    if(dbus_common_handle_error(&error, "Pause playback") < 0)
     {
         msg_error(0, LOG_NOTICE, "Failed sending pause playback message");
         return false;
@@ -354,10 +367,13 @@ static bool send_skip_to_next_command(ID::Stream &removed_stream_from_queue,
     guint skipped_id;
     guint next_id;
     guchar raw_play_status;
+    GError *error = NULL;
 
-    if(!tdbus_splay_urlfifo_call_next_sync(dbus_get_streamplayer_urlfifo_iface(),
-                                           &skipped_id, &next_id,
-                                           &raw_play_status, NULL, NULL))
+    tdbus_splay_urlfifo_call_next_sync(dbus_get_streamplayer_urlfifo_iface(),
+                                       &skipped_id, &next_id,
+                                       &raw_play_status, NULL, &error);
+
+    if(dbus_common_handle_error(&error, "Skip to next") < 0)
     {
         msg_error(0, LOG_NOTICE, "Failed sending skip track message");
         return false;
@@ -847,8 +863,12 @@ void Player::Control::rewind_request()
         }
     }
 
-    if(!tdbus_splay_playback_call_seek_sync(dbus_get_streamplayer_playback_iface(),
-                                            0, "ms", NULL, NULL))
+    GError *error = NULL;
+
+    tdbus_splay_playback_call_seek_sync(dbus_get_streamplayer_playback_iface(),
+                                        0, "ms", NULL, &error);
+
+    if(dbus_common_handle_error(&error, "Seek in stream") < 0)
         msg_error(0, LOG_NOTICE, "Failed restarting stream");
 }
 
@@ -1150,12 +1170,16 @@ static bool send_selected_file_uri_to_streamplayer(ID::OurStream stream_id,
         break;
     }
 
-    if(!tdbus_splay_urlfifo_call_push_sync(dbus_get_streamplayer_urlfifo_iface(),
-                                           stream_id.get().get_raw_id(),
-                                           queued_url.c_str(), GVariantWrapper::get(stream_key),
-                                           0, "ms", 0, "ms", keep_first_n,
-                                           &fifo_overflow, &is_playing,
-                                           NULL, NULL))
+    GError *error = NULL;
+
+    tdbus_splay_urlfifo_call_push_sync(dbus_get_streamplayer_urlfifo_iface(),
+                                       stream_id.get().get_raw_id(),
+                                       queued_url.c_str(), GVariantWrapper::get(stream_key),
+                                       0, "ms", 0, "ms", keep_first_n,
+                                       &fifo_overflow, &is_playing,
+                                       NULL, &error);
+
+    if(dbus_common_handle_error(&error, "Push stream") < 0)
     {
         msg_error(0, LOG_NOTICE, "Failed queuing URI to streamplayer");
         return false;

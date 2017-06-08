@@ -33,6 +33,7 @@
 #include "ui_parameters_predefined.hh"
 #include "de_tahifi_lists_context.h"
 #include "xmlescape.hh"
+#include "dbus_common.h"
 #include "messages.h"
 
 List::Item *ViewFileBrowser::construct_file_item(const char *name,
@@ -316,10 +317,13 @@ bool ViewFileBrowser::View::sync_with_list_broker(bool is_first_call)
     GVariant *empty_list = g_variant_new("au", NULL);
     guint64 expiry_ms;
     GVariant *dummy = NULL;
+    GError *error = NULL;
 
-    if(!tdbus_lists_navigation_call_keep_alive_sync(file_list_.get_dbus_proxy(),
-                                                    empty_list, &expiry_ms,
-                                                    &dummy, NULL, NULL))
+    tdbus_lists_navigation_call_keep_alive_sync(file_list_.get_dbus_proxy(),
+                                                empty_list, &expiry_ms,
+                                                &dummy, NULL, &error);
+
+    if(dbus_common_handle_error(&error, "Keep alive on sync") < 0)
     {
         msg_error(0, LOG_ERR, "Failed querying gc expiry time (%s)", name_);
         expiry_ms = 0;
@@ -329,9 +333,11 @@ bool ViewFileBrowser::View::sync_with_list_broker(bool is_first_call)
 
     GVariant *out_contexts;
 
-    if(!tdbus_lists_navigation_call_get_list_contexts_sync(file_list_.get_dbus_proxy(),
-                                                           &out_contexts,
-                                                           NULL, NULL))
+    tdbus_lists_navigation_call_get_list_contexts_sync(file_list_.get_dbus_proxy(),
+                                                       &out_contexts, NULL,
+                                                       &error);
+
+    if(dbus_common_handle_error(&error, "Get list contexts") < 0)
     {
         msg_error(0, LOG_ERR, "Failed querying list contexts (%s)", name_);
         list_contexts_.clear();
@@ -509,11 +515,14 @@ std::chrono::milliseconds ViewFileBrowser::View::keep_lists_alive_timer_callback
     GVariant *keep_list = g_variant_builder_end(&builder);
     GVariant *unknown_ids_list = NULL;
     guint64 expiry_ms;
+    GError *error = NULL;
 
-    if(!tdbus_lists_navigation_call_keep_alive_sync(file_list_.get_dbus_proxy(),
-                                                    keep_list, &expiry_ms,
-                                                    &unknown_ids_list,
-                                                    NULL, NULL))
+    tdbus_lists_navigation_call_keep_alive_sync(file_list_.get_dbus_proxy(),
+                                                keep_list, &expiry_ms,
+                                                &unknown_ids_list,
+                                                NULL, &error);
+
+    if(dbus_common_handle_error(&error, "Periodic keep alive") < 0)
     {
         msg_error(0, LOG_ERR, "Failed sending keep alive");
         expiry_ms = 0;
