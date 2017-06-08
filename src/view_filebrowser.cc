@@ -1202,7 +1202,8 @@ mk_get_list_id(tdbuslistsNavigation *proxy,
         },
         std::move(result_available_fn),
         [] (ViewFileBrowser::View::AsyncCalls::GetListId::PromiseReturnType &values) {},
-        [] () { return true; });
+        [] () { return true; },
+        "AsyncCalls::GetListId", MESSAGE_LEVEL_DEBUG);
 }
 
 bool ViewFileBrowser::View::point_to_root_directory()
@@ -1409,7 +1410,8 @@ bool ViewFileBrowser::View::point_to_parent_link()
                   std::ref(async_calls_), std::ref(file_list_),
                   current_list_id_),
         [] (ViewFileBrowser::View::AsyncCalls::GetParentId::PromiseReturnType &values) {},
-        [] () { return true; });
+        [] () { return true; },
+        "AsyncCalls::GetParentId", MESSAGE_LEVEL_DEBUG);
 
     if(async_calls_.get_parent_id_ == nullptr)
     {

@@ -58,7 +58,8 @@ mk_async_resolve_redirect(tdbusAirable *proxy,
             if(std::get<1>(values) != nullptr)
                 g_free(std::get<1>(values));
         },
-        [] () { return true; });
+        [] () { return true; },
+        "AsyncResolveRedirect", MESSAGE_LEVEL_DEBUG);
 }
 
 Player::StreamPreplayInfo::OpResult

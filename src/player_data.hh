@@ -263,7 +263,9 @@ class Data
         stream_duration_(-1),
         playback_speed_(1.0),
         airable_proxy_(dbus_get_airable_sec_iface())
-    {}
+    {
+        LoggedLock::configure(lock_, "Player::Data", MESSAGE_LEVEL_DEBUG);
+    }
 
     /*!
      * Lock this player data.

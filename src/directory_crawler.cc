@@ -380,7 +380,8 @@ mk_async_get_uris(tdbuslistsNavigation *proxy,
 
             g_free(strings);
         },
-        [] () { return true; });
+        [] () { return true; },
+        "AsyncGetURIs", MESSAGE_LEVEL_DEBUG);
 }
 
 /*!
@@ -421,7 +422,8 @@ mk_async_get_stream_links(tdbuslistsNavigation *proxy,
         },
         std::move(result_available_fn),
         [] (Playlist::DirectoryCrawler::AsyncGetStreamLinks::PromiseReturnType &values) {},
-        [] () { return true; });
+        [] () { return true; },
+        "AsyncGetStreamLinks", MESSAGE_LEVEL_DEBUG);
 }
 
 static void update_navigation(List::Nav &nav, List::NavItemFilterIface &item_filter,

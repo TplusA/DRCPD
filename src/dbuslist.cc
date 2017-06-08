@@ -470,7 +470,8 @@ bool List::QueryContextEnterList::run_async(DBus::AsyncResultAvailableFunction &
                   std::placeholders::_5, parameters_.list_id_),
         std::move(result_available),
         [] (AsyncListNavCheckRange::PromiseReturnType &values) {},
-        [] () { return true; });
+        [] () { return true; },
+        "AsyncListNavCheckRange", MESSAGE_LEVEL_DEBUG);
 
     if(async_call_ == nullptr)
     {
@@ -1164,7 +1165,8 @@ bool List::QueryContextGetItem::run_async(DBus::AsyncResultAvailableFunction &&r
             if(std::get<2>(values) != nullptr)
                 g_variant_unref(std::get<2>(values));
         },
-        [] () { return true; });
+        [] () { return true; },
+        "AsyncListNavGetRange", MESSAGE_LEVEL_DEBUG);
 
     if(async_call_ == nullptr)
     {

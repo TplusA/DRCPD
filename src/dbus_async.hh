@@ -61,12 +61,15 @@ class AsyncCall_: public std::enable_shared_from_this<AsyncCall_>
     GCancellable *cancellable_;
     bool is_canceled_for_restart_;
 
-    explicit AsyncCall_():
+    explicit AsyncCall_(const char *lock_name,
+                        MessageVerboseLevel lock_log_level):
         is_canceling_(false),
         call_state_(AsyncResult::INITIALIZED),
         cancellable_(g_cancellable_new()),
         is_canceled_for_restart_(false)
-    {}
+    {
+        LoggedLock::configure(lock_, lock_name, lock_log_level);
+    }
 
   public:
     AsyncCall_(const AsyncCall_ &) = delete;
@@ -279,12 +282,19 @@ class AsyncCall: public DBus::AsyncCall_
      *     Periodically called function that should return \c true if the
      *     result of the asynchronous call should still be waited for, \c false
      *     if the operation shall be canceled.
+     *
+     * \param lock_name, lock_log_level
+     *     Configuration for internal logged lock. Only used in case logging of
+     *     locks is activated at compile time.
      */
     explicit AsyncCall(ProxyType *proxy, ToProxyFunction &&to_proxy,
                        PutResultFunction &&put_result,
                        AsyncResultAvailableFunction &&result_available,
                        DestroyResultFunction &&destroy_result,
-                       std::function<bool(void)> &&may_continue):
+                       std::function<bool(void)> &&may_continue,
+                       const char *lock_name,
+                       MessageVerboseLevel lock_log_level):
+        AsyncCall_(lock_name, lock_log_level),
         proxy_(proxy),
         to_proxy_fn_(to_proxy),
         put_result_fn_(put_result),
