@@ -77,7 +77,7 @@ class View: public ViewIface, public ViewSerializeBase
 
         explicit AsyncCalls()
         {
-            LoggedLock::set_name(lock_, "FileBrowserAsyncCall");
+            LoggedLock::configure(lock_, "FileBrowserAsyncCall", MESSAGE_LEVEL_DEBUG);
         }
 
         std::unique_lock<LoggedLock::RecMutex> acquire_lock()

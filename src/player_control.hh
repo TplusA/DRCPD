@@ -243,9 +243,9 @@ class Control
         prefetch_state_(PrefetchState::NOT_PREFETCHING),
         bitrate_limiter_(bitrate_limiter)
     {
-        LoggedLock::set_name(lock_, "Player::Control");
-        LoggedLock::set_name(player_dummy_lock_, "Player::Data dummy");
-        LoggedLock::set_name(crawler_dummy_lock_, "Player::Control dummy");
+        LoggedLock::configure(lock_, "Player::Control", MESSAGE_LEVEL_DEBUG);
+        LoggedLock::configure(player_dummy_lock_, "Player::Data dummy", MESSAGE_LEVEL_DEBUG);
+        LoggedLock::configure(crawler_dummy_lock_, "Player::Control dummy", MESSAGE_LEVEL_DEBUG);
     }
 
     /*!

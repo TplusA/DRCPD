@@ -625,8 +625,8 @@ class DBusList: public ListIface, public AsyncListIface
         AsyncDBusData():
             is_canceling_(false)
         {
-            LoggedLock::set_name(lock_, "DBusListAsyncData");
-            LoggedLock::set_name(query_done_, "DBusListAsyncDone");
+            LoggedLock::configure(lock_, "DBusListAsyncData", MESSAGE_LEVEL_DEBUG);
+            LoggedLock::configure(query_done_, "DBusListAsyncDone", MESSAGE_LEVEL_DEBUG);
         }
 
         DBus::CancelResult cancel_enter_list_query() { return cancel_query_sync(enter_list_query_); }

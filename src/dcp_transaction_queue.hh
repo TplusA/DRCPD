@@ -94,7 +94,7 @@ class Queue: public QueueIntrospectionIface
 
         QueueWithLock()
         {
-            LoggedLock::set_name(lock_, "DCPQueue");
+            LoggedLock::configure(lock_, "DCPQueue", MESSAGE_LEVEL_DEBUG);
         }
     };
 
@@ -107,7 +107,7 @@ class Queue: public QueueIntrospectionIface
         Active():
             dcpd_(transaction_observer)
         {
-            LoggedLock::set_name(lock_, "DCPQueueActiveTX");
+            LoggedLock::configure(lock_, "DCPQueueActiveTX", MESSAGE_LEVEL_DEBUG);
         }
     };
 

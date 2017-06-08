@@ -91,7 +91,7 @@ class CrawlerIface
         is_attached_to_player_(false),
         is_crawling_forward_(true)
     {
-        LoggedLock::set_name(lock_, "CrawlerIface");
+        LoggedLock::configure(lock_, "CrawlerIface", MESSAGE_LEVEL_DEBUG);
     }
 
     RecursiveMode recursive_mode_;

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2017  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -55,7 +55,7 @@ class GlobalBusyState
         last_read_busy_state_(false),
         last_notified_busy_state_(false)
     {
-        LoggedLock::set_name(lock_, "GlobalBusyState");
+        LoggedLock::configure(lock_, "GlobalBusyState", MESSAGE_LEVEL_DEBUG);
     }
 
     /*

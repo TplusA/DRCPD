@@ -135,7 +135,7 @@ class EventQueue
     explicit EventQueue(const std::function<void()> &trigger_processing_fn):
         trigger_processing_fn_(trigger_processing_fn)
     {
-        LoggedLock::set_name(lock_, "UIEventQueue");
+        LoggedLock::configure(lock_, "UIEventQueue", MESSAGE_LEVEL_DEBUG);
     }
 
     void post(std::unique_ptr<Events::BaseEvent> event)
