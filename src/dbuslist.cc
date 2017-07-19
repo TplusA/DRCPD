@@ -92,6 +92,21 @@ static unsigned int query_list_size_sync(tdbuslistsNavigation *proxy,
                   list_id.get_raw_id(), list_iface_name.c_str());
         break;
 
+      case ListError::Code::INVALID_URI:
+        msg_error(EINVAL, LOG_NOTICE, "Invalid URI for list ID %u, cannot query size [%s]",
+                  list_id.get_raw_id(), list_iface_name.c_str());
+        break;
+
+      case ListError::Code::BUSY_500:
+      case ListError::Code::BUSY_1000:
+      case ListError::Code::BUSY_1500:
+      case ListError::Code::BUSY_3000:
+      case ListError::Code::BUSY_5000:
+      case ListError::Code::BUSY:
+        BUG("List broker is busy, should retry getting list size later");
+
+        /* fall-through */
+
       case ListError::Code::INTERRUPTED:
       case ListError::Code::PHYSICAL_MEDIA_IO:
       case ListError::Code::NET_IO:
@@ -627,6 +642,22 @@ void List::QueryContextEnterList::put_result(DBus::AsyncResult &async_ready,
                   "Invalid list ID %u, cannot put async result",
                   list_id.get_raw_id());
         break;
+
+      case ListError::Code::INVALID_URI:
+        msg_error(EINVAL, LOG_NOTICE,
+                  "Invalid URI for list ID %u, cannot put async result",
+                  list_id.get_raw_id());
+        break;
+
+      case ListError::Code::BUSY_500:
+      case ListError::Code::BUSY_1000:
+      case ListError::Code::BUSY_1500:
+      case ListError::Code::BUSY_3000:
+      case ListError::Code::BUSY_5000:
+      case ListError::Code::BUSY:
+        BUG("List broker is busy, should retry checking range later");
+
+        /* fall-through */
 
       case ListError::Code::INTERRUPTED:
       case ListError::Code::PHYSICAL_MEDIA_IO:

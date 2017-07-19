@@ -580,8 +580,19 @@ Playlist::DirectoryCrawler::try_descend(const FindNextCallback &callback)
           case ListError::Code::OK:
           case ListError::Code::INTERNAL:
           case ListError::Code::INVALID_ID:
+          case ListError::Code::INVALID_URI:
           case ListError::Code::INCONSISTENT:
             break;
+
+          case ListError::Code::BUSY_500:
+          case ListError::Code::BUSY_1000:
+          case ListError::Code::BUSY_1500:
+          case ListError::Code::BUSY_3000:
+          case ListError::Code::BUSY_5000:
+          case ListError::Code::BUSY:
+            BUG("List broker is busy, should retry later");
+
+            /* fall-through */
 
           case ListError::Code::INTERRUPTED:
           case ListError::Code::PHYSICAL_MEDIA_IO:
