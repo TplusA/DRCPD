@@ -46,7 +46,8 @@ class CrawlerIface
     enum class FindNextFnResult
     {
         SEARCHING,
-        STOPPED,
+        STOPPED_AT_START_OF_LIST,
+        STOPPED_AT_END_OF_LIST,
         FAILED,
     };
 
@@ -61,7 +62,9 @@ class CrawlerIface
 
     enum class RetrieveItemInfoResult
     {
+        DROPPED,
         FOUND,
+        FOUND__NO_URL,
         FAILED,
         CANCELED,
     };
@@ -73,6 +76,13 @@ class CrawlerIface
         END_OF_LIST,
     };
 
+    enum class Direction
+    {
+        NONE,
+        FORWARD,
+        BACKWARD,
+    };
+
   protected:
     explicit CrawlerIface():
         recursive_mode_(RecursiveMode::FLAT),
@@ -81,7 +91,7 @@ class CrawlerIface
         is_attached_to_player_(false),
         is_crawling_forward_(true)
     {
-        LoggedLock::set_name(lock_, "CrawlerIface");
+        LoggedLock::configure(lock_, "CrawlerIface", MESSAGE_LEVEL_DEBUG);
     }
 
     RecursiveMode recursive_mode_;
@@ -116,6 +126,15 @@ class CrawlerIface
     RecursiveMode get_recursive_mode() const { return recursive_mode_; }
     ShuffleMode get_shuffle_mode() const { return shuffle_mode_; }
 
+    Direction get_active_direction() const
+    {
+        return (crawler_state_ == CrawlerState::CRAWLING
+                ? (is_crawling_forward_
+                   ? Direction::FORWARD
+                   : Direction::BACKWARD)
+                : Direction::NONE);
+    }
+
     virtual bool init() { return true; }
 
     bool configure_and_restart(RecursiveMode recursive_mode,
@@ -133,13 +152,15 @@ class CrawlerIface
     bool is_crawling_forward() const { return is_crawling_forward_; }
     CrawlerState get_crawler_state() const { return crawler_state_; }
 
-    void attached_to_player_notification()
+    bool attached_to_player_notification()
     {
-        if(!is_attached_to_player_)
-        {
-            is_attached_to_player_ = true;
-            attached_to_player();
-        }
+        if(is_attached_to_player_)
+            return false;
+
+        is_attached_to_player_ = true;
+        attached_to_player();
+
+        return true;
     }
 
     void detached_from_player_notification()
@@ -216,22 +237,10 @@ class CrawlerIface
     }
 
     virtual void mark_current_position() = 0;
+    virtual bool set_direction_from_marked_position() = 0;
 
-    bool is_busy() const
-    {
-        switch(crawler_state_)
-        {
-          case CrawlerState::CRAWLING:
-            return is_busy_impl();
-
-          case CrawlerState::NOT_STARTED:
-          case CrawlerState::STOPPED_SUCCESSFULLY:
-          case CrawlerState::STOPPED_WITH_FAILURE:
-            break;
-        }
-
-        return false;
-    }
+    bool is_busy() const { return is_crawling() && is_busy_impl(); }
+    bool is_crawling() const { return crawler_state_ == CrawlerState::CRAWLING; }
 
     FindNextFnResult find_next(FindNextCallback callback)
     {
@@ -248,7 +257,8 @@ class CrawlerIface
                     start_crawler();
                     break;
 
-                  case FindNextFnResult::STOPPED:
+                  case FindNextFnResult::STOPPED_AT_START_OF_LIST:
+                  case FindNextFnResult::STOPPED_AT_END_OF_LIST:
                     stop_crawler();
                     break;
 
@@ -261,7 +271,7 @@ class CrawlerIface
             }
 
           case CrawlerState::STOPPED_SUCCESSFULLY:
-            return FindNextFnResult::STOPPED;
+            return FindNextFnResult::STOPPED_AT_END_OF_LIST;
 
           case CrawlerState::STOPPED_WITH_FAILURE:
             break;
@@ -291,7 +301,7 @@ class CrawlerIface
         return false;
     }
 
-    const List::Item *get_current_list_item()
+    const List::Item *get_current_list_item(List::AsyncListIface::OpResult &op_result)
     {
         switch(crawler_state_)
         {
@@ -301,7 +311,7 @@ class CrawlerIface
             break;
 
           case CrawlerState::CRAWLING:
-            return get_current_list_item_impl();
+            return get_current_list_item_impl(op_result);
         }
 
         return nullptr;
@@ -344,7 +354,7 @@ class CrawlerIface
     virtual void switch_direction() = 0;
     virtual FindNextFnResult find_next_impl(FindNextCallback callback) = 0;
     virtual bool retrieve_item_information_impl(RetrieveItemInfoCallback callback) = 0;
-    virtual const List::Item *get_current_list_item_impl() = 0;
+    virtual const List::Item *get_current_list_item_impl(List::AsyncListIface::OpResult &op_result) = 0;
 
     /*!
      * Called when attached to #Player::Control object.

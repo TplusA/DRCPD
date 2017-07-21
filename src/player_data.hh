@@ -64,6 +64,23 @@ enum class StreamState
     STREAM_STATE_LAST = PAUSED,
 };
 
+/*!
+ * Stream state as shown to the user.
+ *
+ * Do not use this enum for anything except displaying purposes.
+ */
+enum class VisibleStreamState
+{
+    STOPPED,
+    BUFFERING,
+    PLAYING,
+    PAUSED,
+    FAST_FORWARD,
+    FAST_REWIND,
+
+    LAST = FAST_REWIND,
+};
+
 using AppStream = ID::SourcedStream<STREAM_ID_SOURCE_APP>;
 
 using AsyncResolveRedirect =
@@ -84,6 +101,9 @@ class StreamPreplayInfo
 
     /* for recovering the list crawler state */
     const unsigned int directory_depth_;
+
+    /* for pointing crawler in correct direction in case of playback failure */
+    const bool is_crawler_direction_reverse_;
 
     enum class OpResult
     {
@@ -121,10 +141,12 @@ class StreamPreplayInfo
                                std::vector<std::string> &&uris,
                                Airable::SortedLinks &&airable_links,
                                ID::List list_id, unsigned int line,
-                               unsigned int directory_depth):
+                               unsigned int directory_depth,
+                               bool is_crawler_direction_reverse):
         list_id_(list_id),
         line_(line),
         directory_depth_(directory_depth),
+        is_crawler_direction_reverse_(is_crawler_direction_reverse),
         stream_key_(stream_key),
         uris_(std::move(uris)),
         airable_links_(std::move(airable_links)),
@@ -186,7 +208,8 @@ class StreamPreplayInfoCollection
     bool store(ID::OurStream stream_id, const GVariantWrapper &stream_key,
                std::vector<std::string> &&uris,
                Airable::SortedLinks &&airable_links,
-               ID::List list_id, unsigned int line, unsigned int directory_depth);
+               ID::List list_id, unsigned int line, unsigned int directory_depth,
+               bool is_crawler_direction_reverse);
     void forget_stream(const ID::OurStream stream_id);
 
     StreamPreplayInfo *get_info_for_update(const ID::OurStream stream_id);
@@ -222,6 +245,8 @@ class Data
     std::chrono::milliseconds stream_position_;
     std::chrono::milliseconds stream_duration_;
 
+    double playback_speed_;
+
     tdbusAirable *airable_proxy_;
 
   public:
@@ -236,8 +261,11 @@ class Data
         queued_app_streams_{AppStream::make_invalid(), AppStream::make_invalid()},
         stream_position_(-1),
         stream_duration_(-1),
+        playback_speed_(1.0),
         airable_proxy_(dbus_get_airable_sec_iface())
-    {}
+    {
+        LoggedLock::configure(lock_, "Player::Data", MESSAGE_LEVEL_DEBUG);
+    }
 
     /*!
      * Lock this player data.
@@ -264,6 +292,7 @@ class Data
 
     ID::Stream get_current_stream_id() const { return current_stream_id_; };
     StreamState get_current_stream_state() const { return current_stream_state_; }
+    VisibleStreamState get_current_visible_stream_state() const;
 
     bool set_stream_state(StreamState state)
     {
@@ -276,6 +305,7 @@ class Data
               case StreamState::STOPPED:
                 stream_position_ = std::chrono::milliseconds(-1);
                 stream_duration_ = std::chrono::milliseconds(-1);
+                playback_speed_ = 1.0;
                 break;
 
               case StreamState::BUFFERING:
@@ -305,7 +335,8 @@ class Data
                                                    std::vector<std::string> &&uris,
                                                    Airable::SortedLinks &&airable_links,
                                                    ID::List list_id, unsigned int line,
-                                                   unsigned int directory_depth);
+                                                   unsigned int directory_depth,
+                                                   bool is_crawler_direction_reverse);
     Player::StreamPreplayInfo::OpResult
     get_first_stream_uri(const ID::OurStream stream_id,
                          const GVariantWrapper *&stream_key,
@@ -346,8 +377,10 @@ class Data
 
     void forget_all_streams();
 
-    bool update_track_times(const std::chrono::milliseconds &position,
+    bool update_track_times(const ID::Stream &stream_id,
+                            const std::chrono::milliseconds &position,
                             const std::chrono::milliseconds &duration);
+    bool update_playback_speed(const ID::Stream &stream_id, double speed);
 
     void append_referenced_lists(std::vector<ID::List> &list_ids) const;
     void list_replaced_notification(ID::List old_id, ID::List new_id) const;

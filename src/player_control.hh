@@ -53,22 +53,15 @@ class Skipper
         SKIPPING_BACKWARD,
     };
 
-    enum class StopSkipBehavior
-    {
-        STOP,
-        KEEP_SKIPPING_FORWARD,
-        KEEP_SKIPPING_IN_CURRENT_DIRECTION,
-    };
-
   private:
-    static constexpr const char MAX_PENDING_SKIP_REQUESTS = 5;
+    static constexpr const signed char MAX_PENDING_SKIP_REQUESTS = 5;
 
     bool is_skipping_;
 
     /*!
      * Cumulated effect of fast skip requests.
      */
-    char pending_skip_requests_;
+    signed char pending_skip_requests_;
 
   public:
     Skipper(const Skipper &) = delete;
@@ -89,20 +82,35 @@ class Skipper
                               UserIntention &previous_intention);
     SkipState backward_request(Data &data, Playlist::CrawlerIface &crawler,
                                UserIntention &previous_intention);
-    SkippedResult skipped(Data &data, Playlist::CrawlerIface &crawler,
-                          StopSkipBehavior how);
 
-    bool stop_skipping(Data &data, Playlist::CrawlerIface &crawler)
+    /*!
+     * Take actions after successfully skipping an item.
+     */
+    SkippedResult skipped(Data &data, Playlist::CrawlerIface &crawler,
+                          bool keep_skipping);
+
+    /*!
+     * Fall back to non-skipping mode.
+     *
+     * Clear all pending skip requests and change the crawler direction to
+     * forward mode if possible. This function also sets the user intention to
+     * a non-skipping one.
+     *
+     * \returns
+     *     True if the crawler direction has been changed from reverse to
+     *     forward mode, false if the crawler already went in forward
+     *     direction.
+     */
+    bool stop_skipping(Data &data, Playlist::CrawlerIface &crawler);
+
+    bool has_pending_skip_requests() const
     {
-        return stop_skipping(data, crawler, StopSkipBehavior::STOP);
+        return is_skipping_ && pending_skip_requests_ != 0;
     }
 
   private:
     static bool set_intention_for_skipping(Data &data);
     static void set_intention_from_skipping(Data &data);
-
-    bool stop_skipping(Data &data, Playlist::CrawlerIface &crawler,
-                       StopSkipBehavior how);
 };
 
 class Control
@@ -177,6 +185,7 @@ class Control
     PrefetchState prefetch_state_;
 
     const std::function<bool(uint32_t)> bitrate_limiter_;
+    std::function<void(void)> stop_playing_notification_;
 
     class Retry
     {
@@ -223,24 +232,6 @@ class Control
 
     Retry retry_data_;
 
-    struct FastWindData
-    {
-        bool is_fast_winding_;
-        bool is_forward_mode_;
-        double speed_factor_;
-
-        FastWindData(const FastWindData &) = delete;
-        FastWindData &operator=(const FastWindData &) = delete;
-
-        explicit FastWindData():
-            is_fast_winding_(false),
-            is_forward_mode_(true),
-            speed_factor_(1.0L)
-        {}
-    };
-
-    FastWindData fast_wind_data_;
-
   public:
     Control(const Control &) = delete;
     Control &operator=(const Control &) = delete;
@@ -253,9 +244,9 @@ class Control
         prefetch_state_(PrefetchState::NOT_PREFETCHING),
         bitrate_limiter_(bitrate_limiter)
     {
-        LoggedLock::set_name(lock_, "Player::Control");
-        LoggedLock::set_name(player_dummy_lock_, "Player::Data dummy");
-        LoggedLock::set_name(crawler_dummy_lock_, "Player::Control dummy");
+        LoggedLock::configure(lock_, "Player::Control", MESSAGE_LEVEL_DEBUG);
+        LoggedLock::configure(player_dummy_lock_, "Player::Data dummy", MESSAGE_LEVEL_DEBUG);
+        LoggedLock::configure(crawler_dummy_lock_, "Player::Control dummy", MESSAGE_LEVEL_DEBUG);
     }
 
     /*!
@@ -302,7 +293,9 @@ class Control
 
     bool is_active_controller_for_audio_source(const std::string &audio_source_id) const;
 
-    void plug(AudioSource &audio_source, const std::string *blind_player_id = nullptr);
+    void plug(AudioSource &audio_source,
+              const std::function<void(void)> &stop_playing_notification,
+              const std::string *blind_player_id = nullptr);
     void plug(Data &player_data);
     void plug(Playlist::CrawlerIface &crawler, const LocalPermissionsIface &permissions);
     void plug(const LocalPermissionsIface &permissions);
@@ -324,6 +317,7 @@ class Control
     void skip_backward_request();
     void rewind_request();
     void fast_wind_set_speed_request(double speed_factor);
+    void seek_stream_request(int64_t value, const std::string &units);
     void fast_wind_set_direction_request(bool is_forward);
     void fast_wind_start_request() const;
     void fast_wind_stop_request() const;
@@ -339,30 +333,39 @@ class Control
     void need_next_item_hint(bool queue_is_full);
 
   private:
-    enum class CrawlerContext
-    {
-        IMMEDIATE_PLAY,
-        PREFETCH,
-        SKIP,
-    };
+    void async_list_entry_for_playing(Playlist::CrawlerIface &crawler,
+                                      Playlist::CrawlerIface::FindNextItemResult result);
+    void async_list_entry_to_skip(Playlist::CrawlerIface &crawler,
+                                  Playlist::CrawlerIface::FindNextItemResult result);
+    void async_list_entry_prefetched(Playlist::CrawlerIface &crawler,
+                                     Playlist::CrawlerIface::FindNextItemResult result);
 
-    void found_list_item(Playlist::CrawlerIface &crawler,
-                         Playlist::CrawlerIface::FindNextItemResult result,
-                         CrawlerContext ctx);
-    void found_item_information(Playlist::CrawlerIface &crawler,
-                                Playlist::CrawlerIface::RetrieveItemInfoResult result,
-                                CrawlerContext ctx);
-    void resolved_redirect_for_found_item(size_t idx,
-                                          StreamPreplayInfo::ResolvedRedirectResult result,
-                                          CrawlerContext ctx, ID::OurStream for_stream,
-                                          QueueMode queue_mode, PlayNewMode play_new_mode);
+    void async_stream_details_for_playing(Playlist::CrawlerIface &crawler,
+                                          Playlist::CrawlerIface::RetrieveItemInfoResult result);
+    void async_stream_details_prefetched(Playlist::CrawlerIface &crawler,
+                                         Playlist::CrawlerIface::RetrieveItemInfoResult result);
+
+    void async_redirect_resolved_for_playing(size_t idx,
+                                             StreamPreplayInfo::ResolvedRedirectResult result,
+                                             ID::OurStream for_stream,
+                                             QueueMode queue_mode, PlayNewMode play_new_mode);
+    void async_redirect_resolved_prefetched(size_t idx,
+                                            StreamPreplayInfo::ResolvedRedirectResult result,
+                                            ID::OurStream for_stream,
+                                            QueueMode queue_mode, PlayNewMode play_new_mode);
+
     void unexpected_resolve_error(size_t idx,
                                   Player::StreamPreplayInfo::ResolvedRedirectResult result);;
 
+    using ProcessCrawlerItemAsyncRedirectResolved =
+        void (Control::*)(size_t, StreamPreplayInfo::ResolvedRedirectResult,
+                          ID::OurStream, QueueMode, PlayNewMode);
+
     StreamPreplayInfo::OpResult
-    process_crawler_item(CrawlerContext ctx, QueueMode queue_mode, PlayNewMode play_new_mode);
+    process_crawler_item(ProcessCrawlerItemAsyncRedirectResolved callback,
+                         QueueMode queue_mode, PlayNewMode play_new_mode);
     StreamPreplayInfo::OpResult
-    process_crawler_item_tail(CrawlerContext ctx, ID::OurStream stream_id,
+    process_crawler_item_tail(ID::OurStream stream_id,
                               QueueMode queue_mode, PlayNewMode play_new_mode,
                               const StreamPreplayInfo::ResolvedRedirectCallback &callback);
 

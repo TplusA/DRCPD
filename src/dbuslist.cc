@@ -21,6 +21,7 @@
 #endif /* HAVE_CONFIG_H */
 
 #include "dbuslist.hh"
+#include "dbus_common.h"
 #include "de_tahifi_lists_errors.hh"
 #include "de_tahifi_lists_context.h"
 #include "context_map.hh"
@@ -52,20 +53,25 @@ bool List::DBusList::empty() const
 }
 
 static unsigned int query_list_size_sync(tdbuslistsNavigation *proxy,
-                                         ID::List list_id)
+                                         ID::List list_id,
+                                         const std::string &list_iface_name)
     throw(List::DBusListException)
 {
     guchar error_code;
     guint first_item;
     guint size;
+    GError *gerror = NULL;
 
-    if(!tdbus_lists_navigation_call_check_range_sync(proxy,
-                                                     list_id.get_raw_id(), 0, 0,
-                                                     &error_code, &first_item,
-                                                     &size, NULL, NULL))
+    tdbus_lists_navigation_call_check_range_sync(proxy,
+                                                 list_id.get_raw_id(), 0, 0,
+                                                 &error_code, &first_item,
+                                                 &size, NULL, &gerror);
+
+    if(dbus_common_handle_error(&gerror, "Check range") < 0)
     {
         msg_error(0, LOG_NOTICE,
-                  "Failed obtaining size of list %u (sync)", list_id.get_raw_id());
+                  "Failed obtaining size of list %u (sync) [%s]",
+                  list_id.get_raw_id(), list_iface_name.c_str());
 
         throw List::DBusListException(ListError::Code::INTERNAL, true);
     }
@@ -82,9 +88,24 @@ static unsigned int query_list_size_sync(tdbuslistsNavigation *proxy,
         break;
 
       case ListError::Code::INVALID_ID:
-        msg_error(EINVAL, LOG_NOTICE, "Invalid list ID %u, cannot query size",
-                  list_id.get_raw_id());
+        msg_error(EINVAL, LOG_NOTICE, "Invalid list ID %u, cannot query size [%s]",
+                  list_id.get_raw_id(), list_iface_name.c_str());
         break;
+
+      case ListError::Code::INVALID_URI:
+        msg_error(EINVAL, LOG_NOTICE, "Invalid URI for list ID %u, cannot query size [%s]",
+                  list_id.get_raw_id(), list_iface_name.c_str());
+        break;
+
+      case ListError::Code::BUSY_500:
+      case ListError::Code::BUSY_1000:
+      case ListError::Code::BUSY_1500:
+      case ListError::Code::BUSY_3000:
+      case ListError::Code::BUSY_5000:
+      case ListError::Code::BUSY:
+        BUG("List broker is busy, should retry getting list size later");
+
+        /* fall-through */
 
       case ListError::Code::INTERRUPTED:
       case ListError::Code::PHYSICAL_MEDIA_IO:
@@ -95,14 +116,14 @@ static unsigned int query_list_size_sync(tdbuslistsNavigation *proxy,
       case ListError::Code::PERMISSION_DENIED:
       case ListError::Code::NOT_SUPPORTED:
         msg_error(0, LOG_NOTICE,
-                  "Error while obtaining size of list ID %u: %s",
-                  list_id.get_raw_id(), error.to_string());
+                  "Error while obtaining size of list ID %u: %s [%s]",
+                  list_id.get_raw_id(), error.to_string(), list_iface_name.c_str());
         break;
     }
 
     if(error.get() == ListError::Code::INTERNAL)
-        BUG("Unknown error code %u while obtaining size of list ID %u",
-            error_code, list_id.get_raw_id());
+        BUG("Unknown error code %u while obtaining size of list ID %u [%s]",
+            error_code, list_id.get_raw_id(), list_iface_name.c_str());
 
     throw List::DBusListException(error);
 }
@@ -119,7 +140,8 @@ void List::DBusList::enter_list(ID::List list_id, unsigned int line)
     }
 
     if(list_id != window_.list_id_)
-        number_of_items_ = query_list_size_sync(dbus_proxy_, list_id);
+        number_of_items_ = query_list_size_sync(dbus_proxy_, list_id,
+                                                list_iface_name_);
     else if(line == window_.first_item_line_)
         return;
 
@@ -127,13 +149,14 @@ void List::DBusList::enter_list(ID::List list_id, unsigned int line)
 }
 
 static bool fetch_window_sync(tdbuslistsNavigation *proxy,
+                              const std::string &list_iface_name,
                               const List::ContextMap &list_contexts,
                               ID::List list_id, unsigned int line,
                               unsigned int count, GVariant **out_list)
     throw(List::DBusListException)
 {
-    msg_info("Fetch %u lines of list %u: starting at %u (sync)",
-             count, list_id.get_raw_id(), line);
+    msg_info("Fetch %u lines of list %u: starting at %u (sync) [%s]",
+             count, list_id.get_raw_id(), line, list_iface_name.c_str());
 
     guchar error_code;
     guint first_item;
@@ -144,25 +167,30 @@ static bool fetch_window_sync(tdbuslistsNavigation *proxy,
 
     if((list_flags & List::ContextInfo::HAS_EXTERNAL_META_DATA) != 0)
     {
+        GError *error = NULL;
         success =
             tdbus_lists_navigation_call_get_range_with_meta_data_sync(
                 proxy, list_id.get_raw_id(), line, count,
                 &error_code, &first_item, out_list, NULL, NULL);
+        dbus_common_handle_error(&error, "Get range with meta data");
         have_meta_data = true;
     }
     else
     {
+        GError *error = NULL;
         success =
             tdbus_lists_navigation_call_get_range_sync(
                 proxy, list_id.get_raw_id(), line, count,
                 &error_code, &first_item, out_list, NULL, NULL);
+        dbus_common_handle_error(&error, "Get range");
         have_meta_data = false;
     }
 
     if(!success)
     {
         msg_error(0, LOG_NOTICE,
-                  "Failed obtaining contents of list %u", list_id.get_raw_id());
+                  "Failed obtaining contents of list %u [%s]",
+                  list_id.get_raw_id(), list_iface_name.c_str());
 
         throw List::DBusListException(ListError::Code::INTERNAL, true);
     }
@@ -172,8 +200,9 @@ static bool fetch_window_sync(tdbuslistsNavigation *proxy,
     if(error_code != ListError::Code::OK)
     {
         /* method error, stop trying */
-        msg_error(0, LOG_INFO, "Error reading list %u: %s",
-                  list_id.get_raw_id(), error.to_string());
+        msg_error(0, LOG_INFO, "Error reading list %u: %s [%s]",
+                  list_id.get_raw_id(), error.to_string(),
+                  list_iface_name.c_str());
 
         if(*out_list != nullptr)
             g_variant_unref(*out_list);
@@ -211,6 +240,7 @@ static void fill_cache_list_generic(List::RamList &items,
 
 static void fill_cache_list_with_meta_data(List::RamList &items,
                                            List::DBusList::NewItemFn new_item_fn,
+                                           const std::string &list_iface_name,
                                            unsigned int cache_list_index,
                                            bool replace_mode,
                                            GVariant *dbus_data)
@@ -231,8 +261,8 @@ static void fill_cache_list_with_meta_data(List::RamList &items,
         if(primary_name_index > sizeof(names) / sizeof(names[0]) &&
            primary_name_index != UINT8_MAX)
         {
-            BUG("Got unexpected index of primary name (%u)",
-                primary_name_index);
+            BUG("Got unexpected index of primary name (%u) [%s]",
+                primary_name_index, list_iface_name.c_str());
             primary_name_index = 0;
         }
 
@@ -395,7 +425,8 @@ void List::DBusList::enter_list_async_handle_done()
     catch(const List::DBusListException &e)
     {
         async_result = DBus::AsyncResult::FAILED;
-        msg_error(0, LOG_ERR, "List error %u: %s", e.get(), e.what());
+        msg_error(0, LOG_ERR, "List error %u: %s [%s]",
+                  e.get(), e.what(), list_iface_name_.c_str());
     }
 
     OpResult op_result;
@@ -416,7 +447,8 @@ void List::DBusList::enter_list_async_handle_done()
                      : OpResult::FAILED);
 
         msg_error(0, LOG_NOTICE,
-                  "Failed obtaining size of list %u (async)", list_id.get_raw_id());
+                  "Failed obtaining size of list %u (async) [%s]",
+                  list_id.get_raw_id(), list_iface_name_.c_str());
     }
 
     async_dbus_data_.enter_list_query_.reset();
@@ -461,7 +493,8 @@ bool List::QueryContextEnterList::run_async(DBus::AsyncResultAvailableFunction &
                   std::placeholders::_5, parameters_.list_id_),
         std::move(result_available),
         [] (AsyncListNavCheckRange::PromiseReturnType &values) {},
-        [] () { return true; });
+        [] () { return true; },
+        "AsyncListNavCheckRange", MESSAGE_LEVEL_DEBUG);
 
     if(async_call_ == nullptr)
     {
@@ -610,6 +643,22 @@ void List::QueryContextEnterList::put_result(DBus::AsyncResult &async_ready,
                   list_id.get_raw_id());
         break;
 
+      case ListError::Code::INVALID_URI:
+        msg_error(EINVAL, LOG_NOTICE,
+                  "Invalid URI for list ID %u, cannot put async result",
+                  list_id.get_raw_id());
+        break;
+
+      case ListError::Code::BUSY_500:
+      case ListError::Code::BUSY_1000:
+      case ListError::Code::BUSY_1500:
+      case ListError::Code::BUSY_3000:
+      case ListError::Code::BUSY_5000:
+      case ListError::Code::BUSY:
+        BUG("List broker is busy, should retry checking range later");
+
+        /* fall-through */
+
       case ListError::Code::INTERRUPTED:
       case ListError::Code::PHYSICAL_MEDIA_IO:
       case ListError::Code::NET_IO:
@@ -716,7 +765,8 @@ List::DBusList::get_cache_segment_state(const CacheSegment &segment,
         else if(cached_state == CacheSegmentState::CACHED_BOTTOM_EMPTY_TOP)
             cached_state = CacheSegmentState::CACHED_BOTTOM_LOADING_CENTER_EMPTY_TOP;
         else if(cached_state != CacheSegmentState::CACHED_CENTER)
-            BUG("Unexpected cached state %u", static_cast<unsigned int>(cached_state));
+            BUG("Unexpected cached state %u [%s]",
+                static_cast<unsigned int>(cached_state), list_iface_name_.c_str());
 
         break;
 
@@ -728,7 +778,8 @@ List::DBusList::get_cache_segment_state(const CacheSegment &segment,
       case CacheSegmentState::CACHED_TOP_LOADING_CENTER_EMPTY_BOTTOM:
       case CacheSegmentState::CACHED_BOTTOM_LOADING_CENTER_EMPTY_TOP:
       case CacheSegmentState::CACHED_CENTER:
-        BUG("Unexpected loading state %u", static_cast<unsigned int>(loading_state));
+        BUG("Unexpected loading state %u [%s]",
+            static_cast<unsigned int>(loading_state), list_iface_name_.c_str());
         break;
     }
 
@@ -765,7 +816,8 @@ const List::Item *List::DBusList::get_item(unsigned int line) const
     GVariant *out_list;
 
     const bool have_meta_data =
-        fetch_window_sync(dbus_proxy_, list_contexts_, window_.list_id_,
+        fetch_window_sync(dbus_proxy_, list_iface_name_, list_contexts_,
+                          window_.list_id_,
                           fetch_head, fetch_count, &out_list);
 
     log_assert(g_variant_n_children(out_list) == fetch_count);
@@ -777,7 +829,8 @@ const List::Item *List::DBusList::get_item(unsigned int line) const
 
     if(have_meta_data)
         fill_cache_list_with_meta_data(nonconst_this->window_.items_,
-                                       new_item_fn_, cache_list_replace_index,
+                                       new_item_fn_, list_iface_name_,
+                                       cache_list_replace_index,
                                        !window_.items_.empty(), out_list);
     else
         fill_cache_list_generic(nonconst_this->window_.items_,
@@ -870,7 +923,8 @@ List::DBusList::get_item_async_set_hint(unsigned int line, unsigned int count,
 {
     if(!window_.list_id_.is_valid())
     {
-        BUG("Cannot hint async operation for invalid list");
+        BUG("Cannot hint async operation for invalid list [%s]",
+            list_iface_name_.c_str());
         return OpResult::FAILED;
     }
 
@@ -886,9 +940,11 @@ List::DBusList::get_item_async_set_hint(unsigned int line, unsigned int count,
     if(count == 0 || count > number_of_prefetched_items_)
     {
         if(count == 0)
-            BUG("Hint async operation with no items");
+            BUG("Hint async operation with no items [%s]",
+                list_iface_name_.c_str());
         else
-            BUG("Hint async operation with more items than prefetched");
+            BUG("Hint async operation with more items than prefetched [%s]",
+                list_iface_name_.c_str());
 
         return OpResult::FAILED;
     }
@@ -989,10 +1045,21 @@ List::DBusList::get_item_async(unsigned int line, const Item *&item)
     return OpResult::FAILED;
 }
 
-void List::DBusList::cancel_async()
+bool List::DBusList::cancel_all_async_calls()
 {
     LoggedLock::UniqueLock<LoggedLock::RecMutex> lock(async_dbus_data_.lock_);
-    async_dbus_data_.cancel_all();
+
+    switch(async_dbus_data_.cancel_all())
+    {
+      case DBus::CancelResult::CANCELED:
+      case DBus::CancelResult::NOT_RUNNING:
+        return true;
+
+      case DBus::CancelResult::BLOCKED_RECURSIVE_CALL:
+        break;
+    }
+
+    return false;
 }
 
 void List::DBusList::get_item_async_handle_done()
@@ -1007,7 +1074,8 @@ void List::DBusList::get_item_async_handle_done()
     catch(const List::DBusListException &e)
     {
         async_result = DBus::AsyncResult::FAILED;
-        msg_error(0, LOG_ERR, "List error %u: %s", e.get(), e.what());
+        msg_error(0, LOG_ERR, "List error %u: %s [%s]",
+                  e.get(), e.what(), list_iface_name_.c_str());
     }
 
     OpResult op_result;
@@ -1019,7 +1087,7 @@ void List::DBusList::get_item_async_handle_done()
         const auto &result(q->async_call_->get_result(async_result));
 
         if(q->parameters_.have_meta_data_)
-            fill_cache_list_with_meta_data(window_.items_, new_item_fn_,
+            fill_cache_list_with_meta_data(window_.items_, new_item_fn_, list_iface_name_,
                                            q->parameters_.cache_list_replace_index_,
                                            !window_.items_.empty(),
                                            std::get<2>(result));
@@ -1039,11 +1107,12 @@ void List::DBusList::get_item_async_handle_done()
                      : OpResult::FAILED);
 
         msg_error(0, LOG_NOTICE,
-                  "%s obtaining lines %u through %u of list %u",
+                  "%s obtaining lines %u through %u of list %u [%s]",
                   op_result == OpResult::FAILED ? "Failed" : "Canceled",
                   q->parameters_.loading_segment_.line_,
                   q->parameters_.loading_segment_.line_ + q->parameters_.loading_segment_.count_ - 1,
-                  q->parameters_.list_id_.get_raw_id());
+                  q->parameters_.list_id_.get_raw_id(),
+                  list_iface_name_.c_str());
     }
 
     async_dbus_data_.get_item_query_.reset();
@@ -1135,7 +1204,8 @@ bool List::QueryContextGetItem::run_async(DBus::AsyncResultAvailableFunction &&r
             if(std::get<2>(values) != nullptr)
                 g_variant_unref(std::get<2>(values));
         },
-        [] () { return true; });
+        [] () { return true; },
+        "AsyncListNavGetRange", MESSAGE_LEVEL_DEBUG);
 
     if(async_call_ == nullptr)
     {
@@ -1273,10 +1343,13 @@ void List::DBusList::async_done_notification(DBus::AsyncCall_ &async_call)
     else
     {
         if(dynamic_cast<QueryContextEnterList::AsyncListNavCheckRange *>(&async_call) != nullptr)
-            BUG("Unexpected async enter-line done notification");
+            BUG("Unexpected async enter-line done notification [%s]",
+                list_iface_name_.c_str());
         else if(dynamic_cast<QueryContextGetItem::AsyncListNavGetRange *>(&async_call) != nullptr)
-            BUG("Unexpected async get-item done notification");
+            BUG("Unexpected async get-item done notification [%s]",
+                list_iface_name_.c_str());
         else
-            BUG("Unexpected UNKNOWN async done notification");
+            BUG("Unexpected UNKNOWN async done notification [%s]",
+                list_iface_name_.c_str());
     }
 }

@@ -28,6 +28,7 @@
 #include "audiosource.hh"
 #include "ui_parameters_predefined.hh"
 #include "dbus_iface_deep.h"
+#include "dbus_common.h"
 #include "xmlescape.hh"
 #include "messages.h"
 
@@ -103,6 +104,14 @@ void ViewPlay::View::register_audio_source(Player::AudioSource &audio_source,
                                  std::move(std::make_pair(&audio_source, &permissions)));
 }
 
+void ViewPlay::View::plug_audio_source(Player::AudioSource &audio_source,
+                                       const std::string *blind_player_id)
+{
+    player_control_.plug(audio_source,
+                         [this] () { do_stop_playing(); },
+                         blind_player_id);
+}
+
 void ViewPlay::View::prepare_for_playing(Player::AudioSource &audio_source,
                                          Playlist::CrawlerIface &crawler,
                                          const Player::LocalPermissionsIface &permissions)
@@ -125,7 +134,7 @@ void ViewPlay::View::prepare_for_playing(Player::AudioSource &audio_source,
          * playing, then plug to it */
         player_control_.stop_request();
         player_control_.unplug(true);
-        player_control_.plug(audio_source);
+        plug_audio_source(audio_source);
         player_control_.plug(player_data_);
         player_control_.plug(crawler, permissions);
     }
@@ -139,6 +148,16 @@ void ViewPlay::View::stop_playing(const Player::AudioSource &audio_source)
 
     if(player_control_.is_active_controller_for_audio_source(audio_source))
         player_control_.unplug(false);
+}
+
+void ViewPlay::View::do_stop_playing()
+{
+    player_control_.unplug(false);
+    player_data_.forget_all_streams();
+
+    add_update_flags(UPDATE_FLAGS_PLAYBACK_STATE);
+    view_manager_->update_view_if_active(this, DCP::Queue::Mode::FORCE_ASYNC);
+    view_manager_->hide_view_if_active(this);
 }
 
 void ViewPlay::View::append_referenced_lists(const Player::AudioSource &audio_source,
@@ -163,11 +182,15 @@ static void send_current_stream_info_to_dcpd(const Player::Data &player_data)
         return;
     }
 
-    if(!tdbus_dcpd_playback_call_set_stream_info_sync(
+    GError *error = NULL;
+
+    tdbus_dcpd_playback_call_set_stream_info_sync(
             dbus_get_dcpd_playback_iface(), stream_id.get_raw_id(),
             md.values_[MetaData::Set::ID::INTERNAL_DRCPD_TITLE].c_str(),
             md.values_[MetaData::Set::ID::INTERNAL_DRCPD_URL].c_str(),
-            NULL, NULL))
+            NULL, &error);
+
+    if(dbus_common_handle_error(&error, "Set stream info") < 0)
         msg_error(0, LOG_NOTICE, "Failed sending stream information to dcpd");
 }
 
@@ -304,6 +327,22 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
 
         break;
 
+      case UI::ViewEventID::PLAYBACK_SEEK_STREAM_POS:
+        {
+            const auto params =
+                UI::Events::downcast<UI::ViewEventID::PLAYBACK_SEEK_STREAM_POS>(parameters);
+
+            if(params == nullptr)
+                break;
+
+            const auto &plist = params->get_specific();
+
+            player_control_.seek_stream_request(std::get<0>(plist),
+                                                std::get<1>(plist));
+        }
+
+        break;
+
       case UI::ViewEventID::NOTIFY_NOW_PLAYING:
         {
             const auto params =
@@ -341,9 +380,17 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
             player_data_.set_stream_state(stream_id, Player::StreamState::PLAYING);
             player_control_.play_notification(stream_id, switched_stream);
 
-            msg_info("Play view: stream started, %s",
+            msg_info("Play view: stream %s, %s",
+                     switched_stream ? "started" : "updated",
                      is_visible_ ? "send screen update" : "but view is invisible");
-            view_manager_->serialize_view_if_active(this, DCP::Queue::Mode::FORCE_ASYNC);
+
+            if(switched_stream)
+                view_manager_->serialize_view_if_active(this, DCP::Queue::Mode::FORCE_ASYNC);
+            else
+            {
+                add_update_flags(UPDATE_FLAGS_PLAYBACK_STATE);
+                view_manager_->update_view_if_active(this, DCP::Queue::Mode::FORCE_ASYNC);
+            }
 
             if(!queue_is_full)
                 player_control_.need_next_item_hint(false);
@@ -381,12 +428,7 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
                          error_id.empty() ? "" : " with error",
                          is_visible_ ? "send screen update" : "but view is invisible");
 
-                player_control_.unplug(false);
-                player_data_.forget_all_streams();
-
-                add_update_flags(UPDATE_FLAGS_PLAYBACK_STATE);
-                view_manager_->update_view_if_active(this, DCP::Queue::Mode::FORCE_ASYNC);
-                view_manager_->hide_view_if_active(this);
+                do_stop_playing();
 
                 break;
 
@@ -437,10 +479,31 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
 
             const auto &plist = params->get_specific();
 
-            if(player_data_.update_track_times(std::get<1>(plist),
+            if(player_data_.update_track_times(std::get<0>(plist),
+                                               std::get<1>(plist),
                                                std::get<2>(plist)))
             {
                 add_update_flags(UPDATE_FLAGS_STREAM_POSITION);
+                view_manager_->update_view_if_active(this, DCP::Queue::Mode::FORCE_ASYNC);
+            }
+        }
+
+        break;
+
+      case UI::ViewEventID::NOTIFY_SPEED_CHANGED:
+        {
+            const auto params =
+                UI::Events::downcast<UI::ViewEventID::NOTIFY_SPEED_CHANGED>(parameters);
+
+            if(params == nullptr)
+                break;
+
+            const auto &plist = params->get_specific();
+
+            if(player_data_.update_playback_speed(std::get<0>(plist),
+                                                  std::get<1>(plist)))
+            {
+                add_update_flags(UPDATE_FLAGS_PLAYBACK_STATE);
                 view_manager_->update_view_if_active(this, DCP::Queue::Mode::FORCE_ASYNC);
             }
         }
@@ -531,12 +594,12 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
                 msg_info("Plug selected audio source %s into player", audio_source->id_);
 
                 audio_source->select_now();
-                player_control_.plug(*audio_source);
+                plug_audio_source(*audio_source);
                 player_control_.plug(player_data_);
             }
 
             if(view != nullptr)
-                view_manager_->sync_activate_view_by_name(view->name_);
+                view_manager_->sync_activate_view_by_name(view->name_, true);
         }
 
         break;
@@ -610,7 +673,7 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
                 log_assert(permissions != nullptr);
 
                 audio_source->select_now();
-                player_control_.plug(*audio_source, &player_id);
+                plug_audio_source(*audio_source, &player_id);
                 player_control_.plug(player_data_);
                 player_control_.plug(*permissions);
             }
@@ -623,9 +686,6 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
 
         break;
 
-      case UI::ViewEventID::PLAYBACK_FAST_WIND_FORWARD:
-      case UI::ViewEventID::PLAYBACK_FAST_WIND_REVERSE:
-      case UI::ViewEventID::PLAYBACK_FAST_WIND_STOP:
       case UI::ViewEventID::PLAYBACK_MODE_REPEAT_TOGGLE:
       case UI::ViewEventID::PLAYBACK_MODE_SHUFFLE_TOGGLE:
         msg_vinfo(MESSAGE_LEVEL_IMPORTANT,
@@ -707,8 +767,8 @@ bool ViewPlay::View::write_xml(std::ostream &os, const DCP::Queue::Data &data)
 {
     const auto lock(player_data_.lock());
     const auto &md(player_data_.get_current_meta_data());
-    const bool is_buffering =
-        (player_data_.get_current_stream_state() == Player::StreamState::BUFFERING);
+    const Player::VisibleStreamState stream_state(player_data_.get_current_visible_stream_state());
+    const bool is_buffering = (stream_state == Player::VisibleStreamState::BUFFERING);
 
     const uint32_t update_flags =
         data.is_full_serialize_ ? UINT32_MAX : data.view_update_flags_;
@@ -753,19 +813,21 @@ bool ViewPlay::View::write_xml(std::ostream &os, const DCP::Queue::Data &data)
 
     if((update_flags & UPDATE_FLAGS_PLAYBACK_STATE) != 0)
     {
-        /* matches enum #Player::StreamState */
+        /* matches enum #Player::VisibleStreamState */
         static const char *play_icon[] =
         {
             "",
             "",
             "play",
             "pause",
+            "ffmode",
+            "frmode",
         };
 
-        static_assert(sizeof(play_icon) / sizeof(play_icon[0]) == static_cast<size_t>(Player::StreamState::STREAM_STATE_LAST) + 1, "Array has wrong size");
+        static_assert(sizeof(play_icon) / sizeof(play_icon[0]) == static_cast<size_t>(Player::VisibleStreamState::LAST) + 1, "Array has wrong size");
 
         os << "<icon id=\"play\">"
-           << play_icon[static_cast<size_t>(player_data_.get_current_stream_state())]
+           << play_icon[static_cast<size_t>(stream_state)]
            << "</icon>";
     }
 
@@ -783,26 +845,29 @@ void ViewPlay::View::serialize(DCP::Queue &queue, DCP::Queue::Mode mode,
     if(!debug_os)
         return;
 
-    /* matches enum #Player::StreamState */
+    /* matches enum #Player::VisibleStreamState */
     static const char *stream_state_string[] =
     {
         "not playing",
         "buffering",
         "playing",
         "paused",
+        "fast forward",
+        "fast rewind",
     };
 
-    static_assert(sizeof(stream_state_string) / sizeof(stream_state_string[0]) == static_cast<size_t>(Player::StreamState::STREAM_STATE_LAST) + 1, "Array has wrong size");
+    static_assert(sizeof(stream_state_string) / sizeof(stream_state_string[0]) == static_cast<size_t>(Player::VisibleStreamState::LAST) + 1, "Array has wrong size");
 
     const auto lock(player_data_.lock());
     const auto &md(player_data_.get_current_meta_data());
+    const Player::VisibleStreamState stream_state(player_data_.get_current_visible_stream_state());
 
     *debug_os << "URL: \""
         << md.values_[MetaData::Set::INTERNAL_DRCPD_URL]
         << "\" ("
-        << stream_state_string[static_cast<size_t>(player_data_.get_current_stream_state())]
+        << stream_state_string[static_cast<size_t>(stream_state)]
         << ")\n";
-    *debug_os << "Stream state: " << static_cast<size_t>(player_data_.get_current_stream_state()) << '\n';
+    *debug_os << "Stream state: " << static_cast<size_t>(stream_state) << '\n';
 
     for(size_t i = 0; i < md.values_.size(); ++i)
         *debug_os << "  " << i << ": \"" << md.values_[i] << "\"\n";

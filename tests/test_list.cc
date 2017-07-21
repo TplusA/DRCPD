@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016, 2017  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -56,7 +56,7 @@ static List::RamList *list;
 
 void cut_setup(void)
 {
-    list = new List::RamList();
+    list = new List::RamList("ram_list_tests");
     cut_assert_not_null(list);
 }
 

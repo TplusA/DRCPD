@@ -44,12 +44,13 @@ static inline const T pass_on(T &original_object)
  * but the fact that it can be called with \p callback passed via #pass_on().
  * This results in the original callback pointer to be set to \p nullptr.
  */
-template <typename CBType, typename ResultType>
-static void call_callback(CBType callback, Playlist::CrawlerIface &crawler,
-                          ResultType result)
+template <typename CBType, typename... Args>
+static typename CBType::result_type
+call_callback(CBType callback, Playlist::CrawlerIface &crawler, Args... args)
 {
-    if(callback != nullptr)
-        callback(crawler, result);
+    return (callback != nullptr)
+        ? callback(crawler, args...)
+        : static_cast<typename CBType::result_type>(0);
 }
 
 bool Playlist::DirectoryCrawler::init()
@@ -79,12 +80,8 @@ bool Playlist::DirectoryCrawler::init()
 bool Playlist::DirectoryCrawler::set_start_position(const List::DBusList &start_list,
                                                     int start_line_number)
 {
-    user_start_position_.list_id_ = start_list.get_list_id();
-    user_start_position_.line_ = start_line_number;
-
+    user_start_position_.set(start_list.get_list_id(), start_line_number);
     marked_position_ = user_start_position_;
-    marked_position_.directory_depth_ = 1;
-
     return true;
 }
 
@@ -104,11 +101,13 @@ bool Playlist::DirectoryCrawler::restart()
     is_waiting_for_async_get_list_item_completion_ = false;
     current_item_info_.clear();
     marked_position_ = user_start_position_;
-    marked_position_.directory_depth_ = 1;
 
-    switch(traversal_list_.enter_list_async(user_start_position_.list_id_,
-                                            user_start_position_.line_,
-                                            List::QueryContextEnterList::CallerID::CRAWLER_RESTART))
+    static constexpr auto cid(List::QueryContextEnterList::CallerID::CRAWLER_RESTART);
+    const auto result =
+        traversal_list_.enter_list_async(user_start_position_.get_list_id(),
+                                         user_start_position_.get_line(), cid);
+
+    switch(result)
     {
       case List::AsyncListIface::OpResult::STARTED:
       case List::AsyncListIface::OpResult::SUCCEEDED:
@@ -117,6 +116,7 @@ bool Playlist::DirectoryCrawler::restart()
       case List::AsyncListIface::OpResult::FAILED:
       case List::AsyncListIface::OpResult::CANCELED:
         msg_error(0, LOG_NOTICE, "Failed entering list for playback");
+        call_callback(failure_callback_enter_list_, *this, cid, result);
         break;
     }
 
@@ -127,24 +127,14 @@ bool Playlist::DirectoryCrawler::list_invalidate(ID::List list_id, ID::List repl
 {
     log_assert(list_id.is_valid());
 
-    if(!user_start_position_.list_id_.is_valid())
+    /* nothing to do in passive mode */
+    if(!user_start_position_.get_list_id().is_valid())
         return false;
 
-    if(user_start_position_.list_id_ == list_id)
-    {
-        if(replacement_id.is_valid())
-            user_start_position_.list_id_ = replacement_id;
-        else
-            return true;
-    }
-
-    if(user_start_position_.list_id_ == list_id)
-        return true;
-
-    if(traversal_list_.get_list_id() == list_id)
-        return true;
-
-    return false;
+    /* do it and check validity in active mode */
+    return user_start_position_.list_invalidate(list_id, replacement_id)
+        ? !replacement_id.is_valid()
+        : traversal_list_.get_list_id() == list_id;
 }
 
 bool Playlist::DirectoryCrawler::retrieve_item_information_impl(RetrieveItemInfoCallback callback)
@@ -187,23 +177,43 @@ set_dbuslist_hint(List::DBusList &list, List::Nav &nav, bool forward,
 void Playlist::DirectoryCrawler::mark_current_position()
 {
     mark_position(traversal_list_.get_list_id(), navigation_.get_cursor(),
-                  directory_depth_);
+                  directory_depth_, get_active_direction());
+}
+
+bool Playlist::DirectoryCrawler::set_direction_from_marked_position()
+{
+    switch(marked_position_.get_arived_direction())
+    {
+      case Direction::NONE:
+      case Direction::FORWARD:
+        break;
+
+      case Direction::BACKWARD:
+        return set_direction_backward();
+    }
+
+    return set_direction_forward();
 }
 
 void Playlist::DirectoryCrawler::switch_direction()
 {
-    traversal_list_.cancel_async();
+    if(!traversal_list_.cancel_all_async_calls())
+        return;
+
     is_waiting_for_async_enter_list_completion_ = false;
     is_waiting_for_async_get_list_item_completion_ = false;
 
-    if(!marked_position_.list_id_.is_valid())
+    if(!marked_position_.get_list_id().is_valid())
         return;
 
-    if(traversal_list_.get_list_id() != marked_position_.list_id_)
+    if(traversal_list_.get_list_id() != marked_position_.get_list_id())
     {
-        switch(traversal_list_.enter_list_async(marked_position_.list_id_,
-                                                marked_position_.line_,
-                                                List::QueryContextEnterList::CallerID::CRAWLER_RESET_POSITION))
+        static constexpr auto cid(List::QueryContextEnterList::CallerID::CRAWLER_RESET_POSITION);
+        const auto result =
+            traversal_list_.enter_list_async(marked_position_.get_list_id(),
+                                             marked_position_.get_line(), cid);
+
+        switch(result)
         {
           case List::AsyncListIface::OpResult::STARTED:
           case List::AsyncListIface::OpResult::SUCCEEDED:
@@ -211,16 +221,17 @@ void Playlist::DirectoryCrawler::switch_direction()
 
           case List::AsyncListIface::OpResult::FAILED:
           case List::AsyncListIface::OpResult::CANCELED:
-            msg_error(0, LOG_NOTICE, "Failed reseting crawler position due to direction switch");
+            msg_error(0, LOG_NOTICE, "Failed resetting crawler position due to direction switch");
+            call_callback(failure_callback_enter_list_, *this, cid, result);
             break;
         }
 
         return;
     }
 
-    if(navigation_.get_cursor() != marked_position_.line_)
+    if(navigation_.get_cursor() != marked_position_.get_line())
     {
-        navigation_.set_cursor_by_line_number(marked_position_.line_);
+        navigation_.set_cursor_by_line_number(marked_position_.get_line());
         set_dbuslist_hint(traversal_list_, navigation_, is_crawling_forward(),
                           List::QueryContextGetItem::CallerID::CRAWLER_FIND_MARKED);
     }
@@ -369,7 +380,8 @@ mk_async_get_uris(tdbuslistsNavigation *proxy,
 
             g_free(strings);
         },
-        [] () { return true; });
+        [] () { return true; },
+        "AsyncGetURIs", MESSAGE_LEVEL_DEBUG);
 }
 
 /*!
@@ -410,7 +422,8 @@ mk_async_get_stream_links(tdbuslistsNavigation *proxy,
         },
         std::move(result_available_fn),
         [] (Playlist::DirectoryCrawler::AsyncGetStreamLinks::PromiseReturnType &values) {},
-        [] () { return true; });
+        [] () { return true; },
+        "AsyncGetStreamLinks", MESSAGE_LEVEL_DEBUG);
 }
 
 static void update_navigation(List::Nav &nav, List::NavItemFilterIface &item_filter,
@@ -474,7 +487,8 @@ bool Playlist::DirectoryCrawler::handle_entered_list(unsigned int line,
               case FindNextFnResult::SEARCHING:
                 return true;
 
-              case FindNextFnResult::STOPPED:
+              case FindNextFnResult::STOPPED_AT_START_OF_LIST:
+              case FindNextFnResult::STOPPED_AT_END_OF_LIST:
               case FindNextFnResult::FAILED:
                 break;
             }
@@ -504,7 +518,8 @@ bool Playlist::DirectoryCrawler::handle_entered_list(unsigned int line,
           case FindNextFnResult::SEARCHING:
             return true;
 
-          case FindNextFnResult::STOPPED:
+          case FindNextFnResult::STOPPED_AT_START_OF_LIST:
+          case FindNextFnResult::STOPPED_AT_END_OF_LIST:
           case FindNextFnResult::FAILED:
             if(is_resetting)
             {
@@ -517,6 +532,16 @@ bool Playlist::DirectoryCrawler::handle_entered_list(unsigned int line,
     }
 
     return false;
+}
+
+void Playlist::DirectoryCrawler::handle_entered_list_failed(List::QueryContextEnterList::CallerID cid,
+                                                            List::AsyncListIface::OpResult op_result)
+{
+    if(find_next_callback_ == nullptr)
+        call_callback(failure_callback_enter_list_, *this, cid, op_result);
+    else
+        call_callback(pass_on(find_next_callback_), *this,
+                      map_opresult_to_find_next_result(op_result));
 }
 
 Playlist::DirectoryCrawler::RecurseResult
@@ -555,8 +580,19 @@ Playlist::DirectoryCrawler::try_descend(const FindNextCallback &callback)
           case ListError::Code::OK:
           case ListError::Code::INTERNAL:
           case ListError::Code::INVALID_ID:
+          case ListError::Code::INVALID_URI:
           case ListError::Code::INCONSISTENT:
             break;
+
+          case ListError::Code::BUSY_500:
+          case ListError::Code::BUSY_1000:
+          case ListError::Code::BUSY_1500:
+          case ListError::Code::BUSY_3000:
+          case ListError::Code::BUSY_5000:
+          case ListError::Code::BUSY:
+            BUG("List broker is busy, should retry later");
+
+            /* fall-through */
 
           case ListError::Code::INTERRUPTED:
           case ListError::Code::PHYSICAL_MEDIA_IO:
@@ -576,8 +612,10 @@ Playlist::DirectoryCrawler::try_descend(const FindNextCallback &callback)
 
     find_next_callback_ = callback;
 
-    switch(traversal_list_.enter_list_async(list_id, 0,
-                                            List::QueryContextEnterList::CallerID::CRAWLER_DESCEND))
+    static constexpr auto cid(List::QueryContextEnterList::CallerID::CRAWLER_DESCEND);
+    const auto result = traversal_list_.enter_list_async(list_id, 0, cid);
+
+    switch(result)
     {
       case List::AsyncListIface::OpResult::STARTED:
         return RecurseResult::ASYNC_IN_PROGRESS;
@@ -589,6 +627,7 @@ Playlist::DirectoryCrawler::try_descend(const FindNextCallback &callback)
       case List::AsyncListIface::OpResult::FAILED:
       case List::AsyncListIface::OpResult::CANCELED:
         msg_error(0, LOG_NOTICE, "Failed entering child list");
+        handle_entered_list_failed(cid, result);
         break;
     }
 
@@ -872,39 +911,69 @@ void Playlist::DirectoryCrawler::process_item_information(DBus::AsyncCall_ &asyn
         return;
     }
 
+    List::AsyncListIface::OpResult op_result;
     const auto *file_item =
-        dynamic_cast<const ViewFileBrowser::FileItem *>(get_current_list_item_impl());
+        dynamic_cast<const ViewFileBrowser::FileItem *>(get_current_list_item_impl(op_result));
 
     if(file_item != nullptr)
         current_item_info_.set(list_id, line, directory_depth,
+                               get_active_direction(),
                                file_item->get_text(),
                                file_item->get_preloaded_meta_data(),
                                std::move(std::get<2>(const_cast<typename AsyncT::PromiseReturnType &>(result))));
     else
         current_item_info_.set(list_id, line, directory_depth,
+                               get_active_direction(),
                                std::move(std::get<2>(const_cast<typename AsyncT::PromiseReturnType &>(result))));
 
-    if(!current_item_info_.position_.list_id_.is_valid() ||
+    if(!current_item_info_.position_.get_list_id().is_valid() ||
        !current_item_info_.is_item_info_valid_)
     {
-        BUG("Invalid item, retrieving item info failed");
-        call_callback(callback, *this, RetrieveItemInfoResult::FAILED);
+        RetrieveItemInfoResult retrieve_result = RetrieveItemInfoResult::FAILED;
+
+        switch(op_result)
+        {
+          case List::AsyncListIface::OpResult::STARTED:
+            retrieve_result = RetrieveItemInfoResult::DROPPED;
+            break;
+
+          case List::AsyncListIface::OpResult::SUCCEEDED:
+            BUG("Invalid item, retrieving item info failed");
+            break;
+
+          case List::AsyncListIface::OpResult::FAILED:
+            break;
+
+          case List::AsyncListIface::OpResult::CANCELED:
+            retrieve_result = RetrieveItemInfoResult::CANCELED;
+            break;
+        }
+
+        call_callback(callback, *this, retrieve_result);
         return;
     }
 
-    if(!Traits::fill_item_info_from_result(current_item_info_, result))
+    if(Traits::fill_item_info_from_result(current_item_info_, result))
+        call_callback(callback, *this, RetrieveItemInfoResult::FOUND);
+    else
+    {
         msg_info("No URI for item %u in list %u", line, list_id.get_raw_id());
-
-    call_callback(callback, *this, RetrieveItemInfoResult::FOUND);
+        call_callback(callback, *this, RetrieveItemInfoResult::FOUND__NO_URL);
+    }
 }
 
-void Playlist::DirectoryCrawler::handle_end_of_list(const FindNextCallback &callback)
+Playlist::CrawlerIface::FindNextFnResult
+Playlist::DirectoryCrawler::handle_end_of_list(const FindNextCallback &callback)
 {
-    current_item_info_.clear();
+    const auto retval(is_crawling_forward()
+                      ? FindNextFnResult::STOPPED_AT_END_OF_LIST
+                      : FindNextFnResult::STOPPED_AT_START_OF_LIST);
 
     call_callback(callback, *this, is_crawling_forward()
                                    ? FindNextItemResult::END_OF_LIST
                                    : FindNextItemResult::START_OF_LIST);
+
+    return retval;
 }
 
 List::AsyncListIface::OpResult
@@ -982,19 +1051,13 @@ Playlist::DirectoryCrawler::find_next_impl(FindNextCallback callback)
         if(!is_first_item_in_list_processed_)
         {
             if(navigation_.get_total_number_of_visible_items() == 0)
-            {
-                handle_end_of_list(callback);
-                return FindNextFnResult::STOPPED;
-            }
+                return handle_end_of_list(callback);
         }
         else if(!is_waiting_for_async_get_list_item_completion_ &&
                 !go_to_next_list_item())
         {
             if(directory_depth_ <= 1)
-            {
-                handle_end_of_list(callback);
-                return FindNextFnResult::STOPPED;
-            }
+                return handle_end_of_list(callback);
 
             switch(back_to_parent(callback))
             {
@@ -1005,7 +1068,11 @@ Playlist::DirectoryCrawler::find_next_impl(FindNextCallback callback)
                 break;
 
               case List::AsyncListIface::OpResult::FAILED:
+                call_callback(callback, *this, FindNextItemResult::FAILED);
+                return FindNextFnResult::FAILED;
+
               case List::AsyncListIface::OpResult::CANCELED:
+                call_callback(callback, *this, FindNextItemResult::CANCELED);
                 return FindNextFnResult::FAILED;
             }
         }
@@ -1029,6 +1096,7 @@ Playlist::DirectoryCrawler::find_next_impl(FindNextCallback callback)
 
           case List::AsyncListIface::OpResult::CANCELED:
             BUG("Unexpected canceled result");
+            call_callback(callback, *this, FindNextItemResult::CANCELED);
             return FindNextFnResult::FAILED;
         }
     }
@@ -1036,11 +1104,12 @@ Playlist::DirectoryCrawler::find_next_impl(FindNextCallback callback)
     return FindNextFnResult::SEARCHING;
 }
 
-const List::Item *Playlist::DirectoryCrawler::get_current_list_item_impl()
+const List::Item *Playlist::DirectoryCrawler::get_current_list_item_impl(List::AsyncListIface::OpResult &op_result)
 {
     const List::Item *item;
+    op_result = traversal_list_.get_item_async(navigation_.get_cursor(), item);
 
-    if(traversal_list_.get_item_async(navigation_.get_cursor(), item) == List::AsyncListIface::OpResult::SUCCEEDED)
+    if(op_result == List::AsyncListIface::OpResult::SUCCEEDED)
         return item;
     else
         return nullptr;
@@ -1054,7 +1123,9 @@ void Playlist::DirectoryCrawler::handle_enter_list_event(List::AsyncListIface::O
     is_waiting_for_async_enter_list_completion_ =
         (result == List::AsyncListIface::OpResult::STARTED);
 
-    switch(ctx->get_caller_id())
+    const auto cid(ctx->get_caller_id());
+
+    switch(cid)
     {
       case List::QueryContextEnterList::CallerID::SYNC_WRAPPER:
       case List::QueryContextEnterList::CallerID::ENTER_ROOT:
@@ -1077,6 +1148,7 @@ void Playlist::DirectoryCrawler::handle_enter_list_event(List::AsyncListIface::O
 
           case List::AsyncListIface::OpResult::FAILED:
           case List::AsyncListIface::OpResult::CANCELED:
+            handle_entered_list_failed(cid, result);
             fail_crawler();
             break;
         }
@@ -1091,10 +1163,10 @@ void Playlist::DirectoryCrawler::handle_enter_list_event(List::AsyncListIface::O
             break;
 
           case List::AsyncListIface::OpResult::SUCCEEDED:
-            log_assert(marked_position_.list_id_ == traversal_list_.get_list_id());
-            log_assert(marked_position_.line_ == ctx->parameters_.line_);
+            log_assert(marked_position_.get_list_id() == traversal_list_.get_list_id());
+            log_assert(marked_position_.get_line() == ctx->parameters_.line_);
 
-            directory_depth_ = marked_position_.directory_depth_ - 1;
+            directory_depth_ = marked_position_.get_directory_depth() - 1;
 
             if(!handle_entered_list(ctx->parameters_.line_, LineRelative::START_OF_LIST, false))
                 is_resetting_to_marked_position_ = false;
@@ -1104,6 +1176,7 @@ void Playlist::DirectoryCrawler::handle_enter_list_event(List::AsyncListIface::O
           case List::AsyncListIface::OpResult::FAILED:
           case List::AsyncListIface::OpResult::CANCELED:
             is_resetting_to_marked_position_ = false;
+            handle_entered_list_failed(cid, result);
             fail_crawler();
             break;
         }
@@ -1125,6 +1198,7 @@ void Playlist::DirectoryCrawler::handle_enter_list_event(List::AsyncListIface::O
             break;
 
           case List::AsyncListIface::OpResult::CANCELED:
+            handle_entered_list_failed(cid, result);
             break;
         }
 
@@ -1153,15 +1227,29 @@ void Playlist::DirectoryCrawler::handle_enter_list_event(List::AsyncListIface::O
             break;
 
           case List::AsyncListIface::OpResult::FAILED:
+            handle_entered_list_failed(cid, result);
             fail_crawler();
             break;
 
           case List::AsyncListIface::OpResult::CANCELED:
+            handle_entered_list_failed(cid, result);
             break;
         }
 
         break;
     }
+}
+
+void Playlist::DirectoryCrawler::handle_get_item_failed(List::QueryContextGetItem::CallerID cid,
+                                                        List::AsyncListIface::OpResult op_result)
+{
+    if(find_next_callback_ == nullptr &&
+       op_result != List::AsyncListIface::OpResult::STARTED &&
+       op_result != List::AsyncListIface::OpResult::SUCCEEDED)
+        call_callback(failure_callback_get_item_, *this, cid, op_result);
+    else
+        call_callback(pass_on(find_next_callback_), *this,
+                      map_opresult_to_find_next_result(op_result));
 }
 
 void Playlist::DirectoryCrawler::handle_get_item_event(List::AsyncListIface::OpResult result,
@@ -1172,7 +1260,9 @@ void Playlist::DirectoryCrawler::handle_get_item_event(List::AsyncListIface::OpR
     is_waiting_for_async_get_list_item_completion_ =
         (result == List::AsyncListIface::OpResult::STARTED);
 
-    switch(ctx->get_caller_id())
+    const auto cid(ctx->get_caller_id());
+
+    switch(cid)
     {
       case List::QueryContextGetItem::CallerID::SERIALIZE:
       case List::QueryContextGetItem::CallerID::SERIALIZE_DEBUG:
@@ -1197,11 +1287,7 @@ void Playlist::DirectoryCrawler::handle_get_item_event(List::AsyncListIface::OpR
           case List::AsyncListIface::OpResult::FAILED:
           case List::AsyncListIface::OpResult::CANCELED:
             is_resetting_to_marked_position_ = false;
-
-            if(find_next_callback_ != nullptr)
-                call_callback(pass_on(find_next_callback_), *this,
-                              map_opresult_to_find_next_result(result));
-
+            handle_get_item_failed(cid, result);
             break;
         }
 
@@ -1217,7 +1303,9 @@ void Playlist::DirectoryCrawler::handle_get_item_event(List::AsyncListIface::OpR
           case List::AsyncListIface::OpResult::SUCCEEDED:
           case List::AsyncListIface::OpResult::FAILED:
           case List::AsyncListIface::OpResult::CANCELED:
-            if(find_next_callback_ != nullptr)
+            if(find_next_callback_ == nullptr)
+                handle_get_item_failed(cid, result);
+            else
             {
                 is_first_item_in_list_processed_ = true;
 

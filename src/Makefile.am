@@ -26,6 +26,7 @@ drcpd_SOURCES = \
     timeout.cc timeout.hh \
     os.c os.h named_pipe.c named_pipe.h fdstreambuf.hh \
     dbus_iface.c dbus_iface.h dbus_iface_deep.h dbus_handlers.hh \
+    dbus_common.c dbus_common.h \
     dbus_async.hh \
     list.hh ramlist.hh dbuslist.hh dbuslist_exception.hh listnav.hh \
     view.hh view_serialize.hh view_names.hh view_nop.hh \
@@ -39,7 +40,7 @@ drcpd_SOURCES = \
     search_algo.hh \
     actor_id.h \
     configuration.hh configuration_base.hh configuration_changed.hh \
-    configuration_drcpd.hh configuration_settings.hh inifile.h \
+    configuration_settings.hh inifile.h configuration_drcpd.hh \
     ui_parameters.hh ui_parameters_predefined.hh search_parameters.hh \
     player_control.hh player_control.cc \
     player_data.hh player_data.cc \
@@ -88,7 +89,7 @@ liblist_la_CXXFLAGS = $(AM_CXXFLAGS)
 
 libconfiguration_la_SOURCES = \
     configuration.hh configuration_base.hh configuration_changed.hh \
-    configuration_drcpd.hh configuration.cc \
+    configuration_drcpd.hh configuration_drcpd.cc configuration.cc \
     inifile.h inifile.c
 libconfiguration_la_CFLAGS = $(AM_CFLAGS)
 libconfiguration_la_CXXFLAGS = $(AM_CXXFLAGS)

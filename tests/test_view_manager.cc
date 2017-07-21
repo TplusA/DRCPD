@@ -264,7 +264,7 @@ void cut_setup(void)
 
     mock_messages->ignore_all_ = true;
     mock_view->ignore_all_ = true;
-    vm->sync_activate_view_by_name(standard_mock_view_name);
+    vm->sync_activate_view_by_name(standard_mock_view_name, true);
     vm->serialization_result(DCP::Transaction::OK);
     mock_view->ignore_all_ = false;
     mock_messages->ignore_all_ = false;
@@ -338,7 +338,7 @@ void test_move_cursor_up_by_multiple_lines(void)
     vm->store_event(UI::EventID::NAV_SCROLL_LINES, std::move(lines));
 
     mock_messages->expect_msg_vinfo_formatted(MESSAGE_LEVEL_DEBUG,
-                                              "Dispatch NAV_SCROLL_LINES (13) to view Mock (direct)");
+                                              "Dispatch NAV_SCROLL_LINES (11) to view Mock (direct)");
 
     lines = UI::Events::mk_params<UI::EventID::NAV_SCROLL_LINES>(-2);
     mock_view->expect_process_event_with_callback(ViewIface::InputResult::UPDATE_NEEDED,
@@ -369,7 +369,7 @@ void test_move_cursor_down_by_multiple_lines(void)
     vm->store_event(UI::EventID::NAV_SCROLL_LINES, std::move(lines));
 
     mock_messages->expect_msg_vinfo_formatted(MESSAGE_LEVEL_DEBUG,
-                                              "Dispatch NAV_SCROLL_LINES (13) to view Mock (direct)");
+                                              "Dispatch NAV_SCROLL_LINES (11) to view Mock (direct)");
 
     lines = UI::Events::mk_params<UI::EventID::NAV_SCROLL_LINES>(3);
     mock_view->expect_process_event_with_callback(ViewIface::InputResult::UPDATE_NEEDED,
@@ -399,7 +399,7 @@ void test_move_cursor_up_by_multiple_pages(void)
     vm->store_event(UI::EventID::NAV_SCROLL_PAGES, std::move(pages));
 
     mock_messages->expect_msg_vinfo_formatted(MESSAGE_LEVEL_DEBUG,
-                                              "Dispatch NAV_SCROLL_PAGES (14) to view Mock (direct)");
+                                              "Dispatch NAV_SCROLL_PAGES (12) to view Mock (direct)");
 
     pages = UI::Events::mk_params<UI::EventID::NAV_SCROLL_PAGES>(-4);
     mock_view->expect_process_event_with_callback(ViewIface::InputResult::UPDATE_NEEDED,
@@ -430,7 +430,7 @@ void test_move_cursor_down_by_multiple_pages(void)
     vm->store_event(UI::EventID::NAV_SCROLL_PAGES, std::move(pages));
 
     mock_messages->expect_msg_vinfo_formatted(MESSAGE_LEVEL_DEBUG,
-                                              "Dispatch NAV_SCROLL_PAGES (14) to view Mock (direct)");
+                                              "Dispatch NAV_SCROLL_PAGES (12) to view Mock (direct)");
 
     pages = UI::Events::mk_params<UI::EventID::NAV_SCROLL_PAGES>(2);
     mock_view->expect_process_event_with_callback(ViewIface::InputResult::UPDATE_NEEDED,
@@ -519,7 +519,7 @@ void cut_setup(void)
     all_mock_views.fill(nullptr);
     populate_view_manager(*vm,  all_mock_views);
     all_mock_views[0]->ignore_all_ = true;
-    vm->sync_activate_view_by_name("First");
+    vm->sync_activate_view_by_name("First", true);
     vm->serialization_result(DCP::Transaction::OK);
     all_mock_views[0]->ignore_all_ = false;
     mock_messages->ignore_all_ = false;

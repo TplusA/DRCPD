@@ -26,6 +26,7 @@
 #include "dbus_iface.h"
 #include "dbus_iface_deep.h"
 #include "dbus_handlers.h"
+#include "dbus_common.h"
 #include "messages.h"
 #include "messages_dbus.h"
 
@@ -82,22 +83,6 @@ static gpointer process_dbus(gpointer user_data)
     return NULL;
 }
 
-static bool handle_error(GError **error)
-{
-    if(*error == NULL)
-        return true;
-
-    if((*error)->message != NULL)
-        msg_error(0, LOG_EMERG, "Got D-Bus error: %s", (*error)->message);
-    else
-        msg_error(0, LOG_EMERG, "Got D-Bus error without any message");
-
-    g_error_free(*error);
-    *error = NULL;
-
-    return false;
-}
-
 static void try_export_iface(GDBusConnection *connection,
                              GDBusInterfaceSkeleton *iface)
 {
@@ -105,7 +90,7 @@ static void try_export_iface(GDBusConnection *connection,
 
     g_dbus_interface_skeleton_export(iface, connection, "/de/tahifi/Drcpd", &error);
 
-    handle_error(&error);
+    dbus_common_handle_error(&error, "Export interface");
 }
 
 static void bus_acquired(GDBusConnection *connection,
@@ -156,7 +141,7 @@ static void created_debug_config_proxy(GObject *source_object, GAsyncResult *res
     data->debug_logging_config_proxy =
         tdbus_debug_logging_config_proxy_new_finish(res, &error);
 
-    if(handle_error(&error))
+    if(dbus_common_handle_error(&error, "Create debug logging proxy") == 0)
         g_signal_connect(data->debug_logging_config_proxy, "g-signal",
                          G_CALLBACK(msg_dbus_handle_global_debug_level_changed),
                          NULL);
@@ -171,9 +156,10 @@ static void created_configuration_proxy(GObject *source_object, GAsyncResult *re
     data->configuration_proxy =
         tdbus_configuration_proxy_proxy_new_finish(res, &error);
 
-    tdbus_configuration_proxy_call_register(data->configuration_proxy,
-                                            "drcpd", "/de/tahifi/Drcpd",
-                                            NULL, NULL, NULL);
+    if(dbus_common_handle_error(&error, "Create configuration proxy") == 0)
+        tdbus_configuration_proxy_call_register(data->configuration_proxy,
+                                                "drcpd", "/de/tahifi/Drcpd",
+                                                NULL, NULL, NULL);
 }
 
 static void connect_signals_dcpd(GDBusConnection *connection,
@@ -186,25 +172,25 @@ static void connect_signals_dcpd(GDBusConnection *connection,
         tdbus_dcpd_playback_proxy_new_sync(connection, flags,
                                            bus_name, object_path,
                                            NULL, &error);
-    handle_error(&error);
+    dbus_common_handle_error(&error, "Create playback proxy");
 
     data->dcpd_views_proxy =
         tdbus_dcpd_views_proxy_new_sync(connection, flags,
                                         bus_name, object_path,
                                         NULL, &error);
-    handle_error(&error);
+    dbus_common_handle_error(&error, "Create views proxy");
 
     data->dcpd_list_navigation_proxy =
         tdbus_dcpd_list_navigation_proxy_new_sync(connection, flags,
                                                   bus_name, object_path,
                                                   NULL, &error);
-    handle_error(&error);
+    dbus_common_handle_error(&error, "Create own navigation proxy");
 
     data->dcpd_list_item_proxy =
         tdbus_dcpd_list_item_proxy_new_sync(connection, flags,
                                             bus_name, object_path,
                                             NULL, &error);
-    handle_error(&error);
+    dbus_common_handle_error(&error, "Create list item proxy");
 
     data->debug_logging_config_proxy = NULL;
     tdbus_debug_logging_config_proxy_new(connection, flags,
@@ -229,7 +215,7 @@ static void connect_signals_list_broker(GDBusConnection *connection,
         tdbus_lists_navigation_proxy_new_sync(connection, flags,
                                               bus_name, object_path,
                                               NULL, &error);
-    handle_error(&error);
+    dbus_common_handle_error(&error, "Create list broker navigation proxy");
 }
 
 static void connect_signals_streamplayer(GDBusConnection *connection,
@@ -244,13 +230,13 @@ static void connect_signals_streamplayer(GDBusConnection *connection,
         tdbus_splay_urlfifo_proxy_new_sync(connection, flags,
                                            bus_name, object_path,
                                            NULL, &error);
-    handle_error(&error);
+    dbus_common_handle_error(&error, "Create URL FIFO proxy");
 
     data->splay_playback_proxy =
         tdbus_splay_playback_proxy_new_sync(connection, flags,
                                             bus_name, object_path,
                                             NULL, &error);
-    handle_error(&error);
+    dbus_common_handle_error(&error, "Create stream player proxy");
 }
 
 static void connect_signals_roonplayer(GDBusConnection *connection,
@@ -265,7 +251,7 @@ static void connect_signals_roonplayer(GDBusConnection *connection,
         tdbus_splay_playback_proxy_new_sync(connection, flags,
                                             bus_name, object_path,
                                             NULL, &error);
-    handle_error(&error);
+    dbus_common_handle_error(&error, "Create Roon player proxy");
 }
 
 static void connect_signals_airable(GDBusConnection *connection,
@@ -280,7 +266,7 @@ static void connect_signals_airable(GDBusConnection *connection,
         tdbus_airable_proxy_new_sync(connection, flags,
                                      bus_name, object_path,
                                      NULL, &error);
-    handle_error(&error);
+    dbus_common_handle_error(&error, "Create Airable proxy");
 }
 
 static void connect_signals_audiopath(GDBusConnection *connection,
@@ -295,7 +281,7 @@ static void connect_signals_audiopath(GDBusConnection *connection,
         tdbus_aupath_manager_proxy_new_sync(connection, flags,
                                             bus_name, object_path,
                                             NULL, &error);
-    handle_error(&error);
+    dbus_common_handle_error(&error, "Create audio path manager proxy");
 }
 
 static void name_acquired(GDBusConnection *connection,

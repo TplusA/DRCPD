@@ -155,52 +155,13 @@ void test_dcpd_playback_previous(void)
 }
 
 /*!\test
- * Check if de.tahifi.Dcpd.Playback.FastForward is handled correctly.
- */
-void test_dcpd_playback_fast_forward(void)
-{
-    DBus::SignalData dbus_signal_data(mk_dbus_signal_data());
-    mock_messages->expect_msg_vinfo_formatted(MESSAGE_LEVEL_TRACE,
-                                              "Signal de.tahifi.Dcpd.Playback.FastForward from :1.123");
-    mock_view_manager->expect_store_event(UI::EventID::PLAYBACK_FAST_WIND_FORWARD);
-    dbussignal_dcpd_playback(dummy_gdbus_proxy, dummy_sender_name,
-                             "FastForward", nullptr, &dbus_signal_data);
-}
-
-/*!\test
- * Check if de.tahifi.Dcpd.Playback.FastRewind is handled correctly.
- */
-void test_dcpd_playback_fast_rewind(void)
-{
-    DBus::SignalData dbus_signal_data(mk_dbus_signal_data());
-    mock_messages->expect_msg_vinfo_formatted(MESSAGE_LEVEL_TRACE,
-                                              "Signal de.tahifi.Dcpd.Playback.FastRewind from :1.123");
-    mock_view_manager->expect_store_event(UI::EventID::PLAYBACK_FAST_WIND_REVERSE);
-    dbussignal_dcpd_playback(dummy_gdbus_proxy, dummy_sender_name,
-                             "FastRewind", nullptr, &dbus_signal_data);
-}
-
-/*!\test
- * Check if de.tahifi.Dcpd.Playback.FastWindStop is handled correctly.
- */
-void test_dcpd_playback_fast_wind_stop(void)
-{
-    DBus::SignalData dbus_signal_data(mk_dbus_signal_data());
-    mock_messages->expect_msg_vinfo_formatted(MESSAGE_LEVEL_TRACE,
-                                              "Signal de.tahifi.Dcpd.Playback.FastWindStop from :1.123");
-    mock_view_manager->expect_store_event(UI::EventID::PLAYBACK_FAST_WIND_STOP);
-    dbussignal_dcpd_playback(dummy_gdbus_proxy, dummy_sender_name,
-                             "FastWindStop", nullptr, &dbus_signal_data);
-}
-
-/*!\test
- * Check if de.tahifi.Dcpd.Playback.FastWindSetFactor is handled correctly.
+ * Check if de.tahifi.Dcpd.Playback.SetSpeed is handled correctly.
  */
 void test_dcpd_playback_fast_wind_set_factor(void)
 {
     DBus::SignalData dbus_signal_data(mk_dbus_signal_data());
     mock_messages->expect_msg_vinfo_formatted(MESSAGE_LEVEL_TRACE,
-                                              "Signal de.tahifi.Dcpd.Playback.FastWindSetFactor from :1.123");
+                                              "Signal de.tahifi.Dcpd.Playback.SetSpeed from :1.123");
 
     auto speed_factor = UI::Events::mk_params<UI::EventID::PLAYBACK_FAST_WIND_SET_SPEED>(6.2);
     mock_view_manager->expect_store_event(UI::EventID::PLAYBACK_FAST_WIND_SET_SPEED,
@@ -212,9 +173,34 @@ void test_dcpd_playback_fast_wind_set_factor(void)
     GVariant *factor = g_variant_builder_end(&builder);
 
     dbussignal_dcpd_playback(dummy_gdbus_proxy, dummy_sender_name,
-                             "FastWindSetFactor", factor, &dbus_signal_data);
+                             "SetSpeed", factor, &dbus_signal_data);
 
     g_variant_unref(factor);
+}
+
+/*!\test
+ * Check if de.tahifi.Dcpd.Playback.Seek is handled correctly.
+ */
+void test_dcpd_playback_seek_position(void)
+{
+    DBus::SignalData dbus_signal_data(mk_dbus_signal_data());
+    mock_messages->expect_msg_vinfo_formatted(MESSAGE_LEVEL_TRACE,
+                                              "Signal de.tahifi.Dcpd.Playback.Seek from :1.123");
+
+    auto params = UI::Events::mk_params<UI::EventID::PLAYBACK_SEEK_STREAM_POS>(123456, "ms");
+    mock_view_manager->expect_store_event(UI::EventID::PLAYBACK_SEEK_STREAM_POS,
+                                          std::move(params));
+
+    GVariantBuilder builder;
+    g_variant_builder_init(&builder, G_VARIANT_TYPE("(xs)"));
+    g_variant_builder_add(&builder, "x", 123456);
+    g_variant_builder_add(&builder, "s", "ms");
+    GVariant *pos = g_variant_builder_end(&builder);
+
+    dbussignal_dcpd_playback(dummy_gdbus_proxy, dummy_sender_name,
+                             "Seek", pos, &dbus_signal_data);
+
+    g_variant_unref(pos);
 }
 
 /*!\test

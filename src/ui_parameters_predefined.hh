@@ -70,6 +70,12 @@ struct ParamTraits<EventID::PLAYBACK_FAST_WIND_SET_SPEED>
 };
 
 template <>
+struct ParamTraits<EventID::PLAYBACK_SEEK_STREAM_POS>
+{
+    using PType = SpecificParameters<std::tuple<const int64_t, const std::string>>;
+};
+
+template <>
 struct ParamTraits<EventID::NAV_SCROLL_LINES>
 {
     using PType = SpecificParameters<const int>;
@@ -139,6 +145,12 @@ struct ParamTraits<EventID::VIEW_PLAYER_STREAM_POSITION>
     using PType = SpecificParameters<std::tuple<const ID::Stream,
                                                 std::chrono::milliseconds,
                                                 std::chrono::milliseconds>>;
+};
+
+template <>
+struct ParamTraits<EventID::VIEW_PLAYER_SPEED_CHANGED>
+{
+    using PType = SpecificParameters<std::tuple<const ID::Stream, const double>>;
 };
 
 template <>

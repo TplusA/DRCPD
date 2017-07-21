@@ -1,3 +1,70 @@
+2017-07-19  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 3.8 released.
+
+	* Misc: Adapted to internal interfaces for changes made in list
+	  brokers v2.4.
+
+2017-06-08  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 3.7 released.
+
+	* Misc: Better log messages in case of D-Bus method call failures.
+
+	* Misc: Improvements of introspection while debugging locking
+	  problems.
+
+2017-06-02  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 3.6 released.
+
+	* Misc: Migration to new D-Bus configuration management code.
+
+	* Misc: Avoid bug warnings.
+
+2017-04-20  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 3.5 released.
+
+	* Playback: Play icon is shown after resuming from pause. Regression
+	  was introduced in v3.4.
+
+	* Playback: Attempting to skip before first playable item during
+	  playback does not confuse the player anymore.
+
+	* Stability: Fix crash during fast skipping.
+
+2017-04-11  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 3.4 released.
+
+	* Playback: Support fast forward, fast reverse and seeking. Fast
+	  winding modes are reported to the SPI slave so that they can be
+	  displayed.
+
+	* Playback: The play view is also left now after playing a list whose
+	  last file is not playable, or which contains no playable files at
+	  all.
+
+	* Playback: Handle list items with no associated URL correctly (by not
+	  attempting to play them).
+
+	* Skipping: A few minor fixes for fast sequences of skip requests.
+
+	* Skipping: Fix skipping over text files in both directions.
+
+2017-03-29  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 3.3 released.
+
+	* Skipping: More fixes for fast sequences of skip requests.
+
+	* Stability: Fix occasional hangs and crashes caused by internal
+	  communication failures. Requires dcpd v3.2 for full effect as there
+	  was also a bug on the other side.
+
+	* Misc: Slightly faster startup.
+
 2017-03-21  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 4.0 released.

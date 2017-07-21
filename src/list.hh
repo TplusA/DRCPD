@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016, 2017  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -159,6 +159,8 @@ class ListIface
 
     virtual ~ListIface() {}
 
+    virtual const std::string &get_list_iface_name() const = 0;
+
     virtual unsigned int get_number_of_items() const = 0;
     virtual bool empty() const = 0;
     virtual void enter_list(ID::List list_id, unsigned int line) = 0;
@@ -199,6 +201,8 @@ class AsyncListIface
     AsyncListIface &operator=(const AsyncListIface &) = delete;
 
     virtual ~AsyncListIface() {}
+
+    virtual const std::string &get_async_list_iface_name() const = 0;
 
     /*!
      * Enter list asynchronously.
@@ -254,7 +258,7 @@ class AsyncListIface
     /*!
      * Cancel all asynchronous operations, if any.
      */
-    virtual void cancel_async() = 0;
+    virtual bool cancel_all_async_calls() = 0;
 };
 
 };

@@ -40,27 +40,88 @@ namespace Playlist
 class DirectoryCrawler: public CrawlerIface
 {
   public:
+    /*!
+     * Type of function called on async enter-list failure or cancelation.
+     *
+     * This function is called for #List::AsyncListIface::OpResult::FAILED and
+     * #List::AsyncListIface::OpResult::CANCELED only, and only in case no
+     * other callback function is available.
+     *
+     * \note
+     *     Be aware that a callback function of this kind may be called from
+     *     any kind of context, including the main loop, some D-Bus thread, or
+     *     any worker thread. Do not assume anything!
+     */
+    using FailureCallbackEnterList = std::function<void(const Playlist::CrawlerIface &crawler,
+                                                        List::QueryContextEnterList::CallerID cid,
+                                                        List::AsyncListIface::OpResult result)>;
+
+    /*!
+     * Type of function called on async get-item failure or cancelation.
+     *
+     * This function is called for #List::AsyncListIface::OpResult::FAILED and
+     * #List::AsyncListIface::OpResult::CANCELED only, and only in case no
+     * other callback function is available.
+     *
+     * \note
+     *     Be aware that a callback function of this kind may be called from
+     *     any kind of context, including the main loop, some D-Bus thread, or
+     *     any worker thread. Do not assume anything!
+     */
+    using FailureCallbackGetItem = std::function<void(const Playlist::CrawlerIface &crawler,
+                                                      List::QueryContextGetItem::CallerID cid,
+                                                      List::AsyncListIface::OpResult result)>;
+
     class MarkedPosition
     {
-      public:
+      private:
         ID::List list_id_;
         unsigned int line_;
         unsigned int directory_depth_;
+        Direction arived_direction_;
 
+      public:
         MarkedPosition(const MarkedPosition &) = delete;
         MarkedPosition &operator=(const MarkedPosition &) = default;
 
         explicit MarkedPosition():
             line_(0),
-            directory_depth_(0)
+            directory_depth_(0),
+            arived_direction_(Direction::NONE)
         {}
 
-        void set(ID::List list_id, unsigned int line, unsigned directory_depth)
+        void set(ID::List list_id, unsigned int line)
+        {
+            list_id_ = list_id;
+            line_ = line;
+            directory_depth_ = 1;
+            arived_direction_ = Direction::NONE;
+        }
+
+        void set(ID::List list_id, unsigned int line, unsigned int directory_depth,
+                 Direction arived_direction)
         {
             list_id_ = list_id;
             line_ = line;
             directory_depth_ = directory_depth;
+            arived_direction_ = arived_direction;
         }
+
+        bool list_invalidate(ID::List list_id, ID::List replacement_id)
+        {
+            if(list_id_ == list_id)
+            {
+                list_id_ = replacement_id;
+                return true;
+            }
+            else
+                return false;
+        }
+
+        const ID::List &get_list_id() const { return list_id_; }
+        unsigned int get_line() const { return line_; }
+        unsigned int get_directory_depth() const { return directory_depth_; }
+        Direction get_arived_direction() const { return arived_direction_; }
     };
 
     class ItemInfo
@@ -85,7 +146,7 @@ class DirectoryCrawler: public CrawlerIface
 
         void clear()
         {
-            position_.set(ID::List(), 0, 0);
+            position_.set(ID::List(), 0, 0, Direction::NONE);
             is_item_info_valid_ = false;
             file_item_text_.clear();
             file_item_meta_data_.clear_individual_copy();
@@ -95,22 +156,24 @@ class DirectoryCrawler: public CrawlerIface
         }
 
         void set(ID::List list_id, unsigned int line,
-                 unsigned int directory_depth,
+                 unsigned int directory_depth, Direction arived_direction,
                  GVariantWrapper &&stream_key)
         {
-            set_common(list_id, line, directory_depth, std::move(stream_key));
+            set_common(list_id, line, directory_depth, arived_direction,
+                       std::move(stream_key));
             is_item_info_valid_ = false;
             file_item_text_.clear();
             file_item_meta_data_.clear_individual_copy();
         }
 
         void set(ID::List list_id, unsigned int line,
-                 unsigned int directory_depth,
+                 unsigned int directory_depth, Direction arived_direction,
                  const std::string &file_item_text,
                  const MetaData::PreloadedSet &file_item_meta_data,
                  GVariantWrapper &&stream_key)
         {
-            set_common(list_id, line, directory_depth, std::move(stream_key));
+            set_common(list_id, line, directory_depth, arived_direction,
+                       std::move(stream_key));
             file_item_text_ = file_item_text;
             file_item_meta_data_.copy_from(file_item_meta_data);
             is_item_info_valid_ = true;
@@ -118,10 +181,10 @@ class DirectoryCrawler: public CrawlerIface
 
       private:
         void set_common(ID::List list_id, unsigned int line,
-                        unsigned int directory_depth,
+                        unsigned int directory_depth, Direction arived_direction,
                         GVariantWrapper &&stream_key)
         {
-            position_.set(list_id, line, directory_depth);
+            position_.set(list_id, line, directory_depth, arived_direction);
             stream_key_ = std::move(stream_key);
             stream_uris_.clear();
             airable_links_.clear();
@@ -205,6 +268,8 @@ class DirectoryCrawler: public CrawlerIface
     ItemInfo current_item_info_;
 
     FindNextCallback find_next_callback_;
+    FailureCallbackEnterList failure_callback_enter_list_;
+    FailureCallbackGetItem failure_callback_get_item_;
 
     MarkedPosition marked_position_;
 
@@ -218,7 +283,8 @@ class DirectoryCrawler: public CrawlerIface
                               const List::ContextMap &list_contexts,
                               List::DBusList::NewItemFn new_item_fn):
         dbus_proxy_(dbus_listnav_proxy),
-        traversal_list_(dbus_listnav_proxy, list_contexts,
+        traversal_list_("crawler traversal",
+                        dbus_listnav_proxy, list_contexts,
                         PREFETCHED_ITEMS_COUNT, new_item_fn),
         item_flags_(&traversal_list_),
         navigation_(PREFETCHED_ITEMS_COUNT,
@@ -237,10 +303,13 @@ class DirectoryCrawler: public CrawlerIface
 
     void mark_current_position() final override;
 
-    void mark_position(ID::List list_id, unsigned int line, unsigned int directory_depth)
+    bool set_direction_from_marked_position() final override;
+
+    void mark_position(ID::List list_id, unsigned int line, unsigned int directory_depth,
+                       Direction arived_direction)
     {
         log_assert(list_id.is_valid());
-        marked_position_.set(list_id, line, directory_depth);
+        marked_position_.set(list_id, line, directory_depth, arived_direction);
     }
 
     bool list_invalidate(ID::List list_id, ID::List replacement_id);
@@ -261,13 +330,32 @@ class DirectoryCrawler: public CrawlerIface
         return current_item_info_;
     }
 
+    bool attached_to_player_notification(const FailureCallbackEnterList &enter_list_failed,
+                                         const FailureCallbackGetItem &get_item_failed)
+    {
+        if(!CrawlerIface::attached_to_player_notification())
+            return false;
+
+        failure_callback_enter_list_ = enter_list_failed;
+        failure_callback_get_item_ = get_item_failed;
+
+        return true;
+    }
+
   protected:
     bool restart() final override;
     bool is_busy_impl() const final override;
     void switch_direction() final override;
     FindNextFnResult find_next_impl(FindNextCallback callback) final override;
     bool retrieve_item_information_impl(RetrieveItemInfoCallback callback) final override;
-    const List::Item *get_current_list_item_impl() final override;
+    const List::Item *get_current_list_item_impl(List::AsyncListIface::OpResult &op_result) final override;
+
+    void detached_from_player() final override
+    {
+        find_next_callback_ = nullptr;
+        failure_callback_enter_list_ = nullptr;
+        failure_callback_get_item_ = nullptr;
+    }
 
   private:
     bool go_to_next_list_item()
@@ -276,9 +364,11 @@ class DirectoryCrawler: public CrawlerIface
     }
 
     RecurseResult try_descend(const FindNextCallback &callback);
-    void handle_end_of_list(const FindNextCallback &callback);
+    FindNextFnResult handle_end_of_list(const FindNextCallback &callback);
     bool handle_entered_list(unsigned int line, LineRelative line_relative,
                              bool continue_if_empty);
+    void handle_entered_list_failed(List::QueryContextEnterList::CallerID cid,
+                                    List::AsyncListIface::OpResult op_result);
     List::AsyncListIface::OpResult back_to_parent(const FindNextCallback &callback);
 
     bool try_get_dbuslist_item_after_started_or_successful_hint(const FindNextCallback &callback);
@@ -303,6 +393,8 @@ class DirectoryCrawler: public CrawlerIface
 
     void handle_enter_list_event(List::AsyncListIface::OpResult result,
                                  const std::shared_ptr<List::QueryContextEnterList> &ctx);
+    void handle_get_item_failed(List::QueryContextGetItem::CallerID cid,
+                                List::AsyncListIface::OpResult op_result);
     void handle_get_item_event(List::AsyncListIface::OpResult result,
                                const std::shared_ptr<List::QueryContextGetItem> &ctx);
 };

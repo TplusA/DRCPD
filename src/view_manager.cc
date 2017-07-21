@@ -74,7 +74,7 @@ bool ViewManager::Manager::invoke_late_init_functions()
 
     config_manager_.set_updated_notification_callback(
         std::bind(&ViewManager::Manager::configuration_changed_notification,
-                  this, std::placeholders::_1));
+                  this, std::placeholders::_1, std::placeholders::_2));
 
     return ok;
 }
@@ -145,7 +145,7 @@ void ViewManager::Manager::handle_input_result(ViewIface::InputResult result,
 
       case ViewIface::InputResult::SHOULD_HIDE:
         if(&view == active_view_ && !view.is_browse_view_)
-            activate_view(last_browse_view_);
+            activate_view(last_browse_view_, true);
 
         break;
     }
@@ -188,9 +188,7 @@ static void log_event_dispatch(const UI::ViewEventID event_id,
         "PLAYBACK_PREVIOUS",
         "PLAYBACK_NEXT",
         "PLAYBACK_FAST_WIND_SET_SPEED",
-        "PLAYBACK_FAST_WIND_FORWARD",
-        "PLAYBACK_FAST_WIND_REVERSE",
-        "PLAYBACK_FAST_WIND_STOP",
+        "PLAYBACK_SEEK_STREAM_POS",
         "PLAYBACK_MODE_REPEAT_TOGGLE",
         "PLAYBACK_MODE_SHUFFLE_TOGGLE",
         "NAV_SELECT_ITEM",
@@ -206,6 +204,7 @@ static void log_event_dispatch(const UI::ViewEventID event_id,
         "NOTIFY_STREAM_STOPPED",
         "NOTIFY_STREAM_PAUSED",
         "NOTIFY_STREAM_POSITION",
+        "NOTIFY_SPEED_CHANGED",
         "AUDIO_SOURCE_SELECTED",
         "AUDIO_SOURCE_DESELECTED",
         "AUDIO_PATH_CHANGED",
@@ -247,9 +246,7 @@ void ViewManager::Manager::dispatch_event(UI::ViewEventID event_id,
         InputBouncer::Item(UI::ViewEventID::PLAYBACK_PREVIOUS, ViewNames::PLAYER),
         InputBouncer::Item(UI::ViewEventID::PLAYBACK_NEXT, ViewNames::PLAYER),
         InputBouncer::Item(UI::ViewEventID::PLAYBACK_FAST_WIND_SET_SPEED, ViewNames::PLAYER),
-        InputBouncer::Item(UI::ViewEventID::PLAYBACK_FAST_WIND_FORWARD, ViewNames::PLAYER),
-        InputBouncer::Item(UI::ViewEventID::PLAYBACK_FAST_WIND_REVERSE, ViewNames::PLAYER),
-        InputBouncer::Item(UI::ViewEventID::PLAYBACK_FAST_WIND_STOP, ViewNames::PLAYER),
+        InputBouncer::Item(UI::ViewEventID::PLAYBACK_SEEK_STREAM_POS, ViewNames::PLAYER),
         InputBouncer::Item(UI::ViewEventID::PLAYBACK_MODE_REPEAT_TOGGLE, ViewNames::PLAYER),
         InputBouncer::Item(UI::ViewEventID::PLAYBACK_MODE_SHUFFLE_TOGGLE, ViewNames::PLAYER),
         InputBouncer::Item(UI::ViewEventID::STORE_STREAM_META_DATA, ViewNames::PLAYER),
@@ -301,7 +298,7 @@ void ViewManager::Manager::dispatch_event(UI::VManEventID event_id,
             if(params == nullptr)
                 break;
 
-            sync_activate_view_by_name(params->get_specific().c_str());
+            sync_activate_view_by_name(params->get_specific().c_str(), true);
         }
 
         break;
@@ -315,7 +312,7 @@ void ViewManager::Manager::dispatch_event(UI::VManEventID event_id,
 
             const auto &names(params->get_specific());
             sync_toggle_views_by_name(std::get<0>(names).c_str(),
-                                      std::get<1>(names).c_str());
+                                      std::get<1>(names).c_str(), true);
         }
 
         break;
@@ -342,7 +339,7 @@ void ViewManager::Manager::dispatch_event(UI::VManEventID event_id,
         break;
 
       case UI::VManEventID::NOTIFY_NOW_PLAYING:
-        sync_activate_view_by_name(ViewNames::PLAYER);
+        sync_activate_view_by_name(ViewNames::PLAYER, false);
         break;
     }
 }
@@ -401,9 +398,13 @@ static ViewIface *lookup_view_by_dbus_proxy(ViewManager::Manager::ViewsContainer
     return nullptr;
 }
 
-void ViewManager::Manager::activate_view(ViewIface *view)
+void ViewManager::Manager::activate_view(ViewIface *view,
+                                         bool enforce_reactivation)
 {
     if(view == nullptr)
+        return;
+
+    if(!enforce_reactivation && view == active_view_)
         return;
 
     active_view_->defocus();
@@ -429,14 +430,17 @@ ViewIface *ViewManager::Manager::get_view_by_dbus_proxy(const void *dbus_proxy)
     return lookup_view_by_dbus_proxy(all_views_, dbus_proxy);
 }
 
-void ViewManager::Manager::sync_activate_view_by_name(const char *view_name)
+void ViewManager::Manager::sync_activate_view_by_name(const char *view_name,
+                                                      bool enforce_reactivation)
 {
     msg_info("Requested to activate view \"%s\"", view_name);
-    activate_view(lookup_view_by_name(all_views_, view_name));
+    activate_view(lookup_view_by_name(all_views_, view_name),
+                  enforce_reactivation);
 }
 
 void ViewManager::Manager::sync_toggle_views_by_name(const char *view_name_a,
-                                                     const char *view_name_b)
+                                                     const char *view_name_b,
+                                                     bool enforce_reactivation)
 {
     msg_info("Requested to toggle between views \"%s\" and \"%s\"",
              view_name_a, view_name_b );
@@ -455,7 +459,7 @@ void ViewManager::Manager::sync_toggle_views_by_name(const char *view_name_a,
     else
         next_view = view_a;
 
-    activate_view(next_view);
+    activate_view(next_view, enforce_reactivation);
 }
 
 bool ViewManager::Manager::is_active_view(const ViewIface *view) const
@@ -522,7 +526,8 @@ void ViewManager::Manager::busy_state_notification(bool is_busy)
                  debug_stream_);
 }
 
-void ViewManager::Manager::configuration_changed_notification(const std::array<bool, Configuration::DrcpdValues::NUMBER_OF_KEYS> &changed)
+void ViewManager::Manager::configuration_changed_notification(const char *origin,
+                                                              const std::array<bool, Configuration::DrcpdValues::NUMBER_OF_KEYS> &changed)
 {
     auto params = UI::Events::mk_params<UI::EventID::CONFIGURATION_UPDATED>();
     auto &vec(params->get_specific_non_const());

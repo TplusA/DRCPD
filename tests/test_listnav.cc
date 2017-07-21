@@ -311,7 +311,7 @@ namespace list_navigation_tests
 
 void cut_setup()
 {
-    list = new List::RamList();
+    list = new List::RamList("list_navigation_tests");
     cppcut_assert_not_null(list);
     for(auto t : list_texts)
         List::append(list, List::TextItem(t, false, 0));
@@ -851,7 +851,7 @@ void test_const_iterator_steps_through_visible_lines_on_big_display()
 
 void test_const_iterator_on_empty_list()
 {
-    List::RamList empty_list;
+    List::RamList empty_list(__func__);
 
     cppcut_assert_equal(0U, empty_list.get_number_of_items());
 
@@ -946,7 +946,7 @@ void test_set_cursor_by_invalid_line_number()
  */
 void test_set_cursor_in_empty_list()
 {
-    List::RamList empty_list;
+    List::RamList empty_list(__func__);
     List::NavItemNoFilter no_filter(&empty_list);
     List::Nav nav(4, List::Nav::WrapMode::NO_WRAP, no_filter);
 
@@ -1064,7 +1064,7 @@ void test_get_line_number_by_cursor()
  */
 void test_get_line_number_in_empty_list()
 {
-    List::RamList empty_list;
+    List::RamList empty_list(__func__);
     List::NavItemNoFilter no_filter(&empty_list);
     List::Nav nav(2, List::Nav::WrapMode::NO_WRAP, no_filter);
 
@@ -1131,7 +1131,7 @@ void test_distance_from_top_and_bottom_in_half_filled_screen()
  */
 void test_distance_from_top_and_bottom_in_empty_list()
 {
-    List::RamList empty_list;
+    List::RamList empty_list(__func__);
 
     cppcut_assert_equal(0U, empty_list.get_number_of_items());
 
@@ -1150,7 +1150,7 @@ namespace list_navigation_tests_with_unselectable_items
 
 void cut_setup()
 {
-    list = new List::RamList();
+    list = new List::RamList("list_navigation_tests_with_unselectable_items");
     cppcut_assert_not_null(list);
 
     int count = 0;
@@ -1196,7 +1196,7 @@ void test_navigation_init_with_first_lines_unselectable()
  */
 void test_navigation_init_with_first_lines_unselectable_with_late_list_population()
 {
-    List::RamList local_list;
+    List::RamList local_list(__func__);
     NavItemFlags flags(&local_list);
     List::Nav nav(10, List::Nav::WrapMode::NO_WRAP, flags);
 
@@ -1221,7 +1221,7 @@ void test_navigation_init_with_first_lines_unselectable_with_late_list_populatio
  */
 void test_navigation_init_with_empty_list()
 {
-    List::RamList empty_list;
+    List::RamList empty_list(__func__);
     NavItemFlags flags(&empty_list);
     List::Nav nav(5, List::Nav::WrapMode::NO_WRAP, flags);
 
@@ -1350,7 +1350,7 @@ namespace list_navigation_tests_with_invisible_items
 
 void cut_setup()
 {
-    list = new List::RamList();
+    list = new List::RamList("list_navigation_tests_with_invisible_items");
     cppcut_assert_not_null(list);
 
     int count = 0;
@@ -1595,7 +1595,7 @@ void test_set_cursor_by_invalid_line_number()
  */
 void test_set_cursor_in_filtered_list()
 {
-    List::RamList short_list;
+    List::RamList short_list(__func__);
 
     List::append(&short_list, List::TextItem(list_texts[0], false, NavItemFlags::item_is_on_top));
     List::append(&short_list, List::TextItem(list_texts[1], false, NavItemFlags::item_is_on_top));
@@ -1796,7 +1796,7 @@ void test_get_line_number_by_cursor()
  */
 void test_get_line_number_in_filtered_list()
 {
-    List::RamList short_list;
+    List::RamList short_list(__func__);
 
     List::append(&short_list, List::TextItem(list_texts[0], false, NavItemFlags::item_is_on_top));
     List::append(&short_list, List::TextItem(list_texts[1], false, NavItemFlags::item_is_on_top));
@@ -1872,7 +1872,7 @@ void test_distance_from_top_and_bottom_in_half_filled_screen()
  */
 void test_distance_from_top_and_bottom_in_filtered_list()
 {
-    List::RamList short_list;
+    List::RamList short_list(__func__);
 
     List::append(&short_list, List::TextItem(list_texts[0], false, NavItemFlags::item_is_on_top));
     List::append(&short_list, List::TextItem(list_texts[1], false, NavItemFlags::item_is_on_top));

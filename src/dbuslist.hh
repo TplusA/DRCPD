@@ -103,7 +103,7 @@ class QueryContext_
      *     True if there is an operation in progress (and it was attempted to
      *     be canceled), false if there is no operation in progress.
      */
-    virtual bool cancel(bool will_be_restarted) = 0;
+    virtual DBus::CancelResult cancel(bool will_be_restarted) = 0;
 
   protected:
     /*!
@@ -117,7 +117,7 @@ class QueryContext_
      *     Regular code should favor #List::QueryContext_::cancel() over this
      *     function.
      */
-    virtual void cancel_sync() {}
+    virtual DBus::CancelResult cancel_sync() { return DBus::CancelResult::CANCELED; }
 };
 
 /*!
@@ -185,21 +185,27 @@ class QueryContextEnterList: public QueryContext_
     restart_if_necessary(std::shared_ptr<QueryContextEnterList> &ctx,
                          ID::List invalidated_list_id, ID::List replacement_id);
 
-    bool cancel(bool will_be_restarted = false) final override
+    DBus::CancelResult cancel(bool will_be_restarted = false) final override
     {
         if(async_call_ != nullptr)
-        {
-            async_call_->cancel(will_be_restarted);
-            return true;
-        }
+            return async_call_->cancel(will_be_restarted);
         else
-            return false;
+            return DBus::CancelResult::NOT_RUNNING;
     }
 
-    void cancel_sync() final override
+    DBus::CancelResult cancel_sync() final override
     {
-        if(!cancel())
-            return;
+        const DBus::CancelResult ret = cancel();
+
+        switch(ret)
+        {
+          case DBus::CancelResult::CANCELED:
+            break;
+
+          case DBus::CancelResult::BLOCKED_RECURSIVE_CALL:
+          case DBus::CancelResult::NOT_RUNNING:
+            return ret;
+        }
 
         try
         {
@@ -221,6 +227,8 @@ class QueryContextEnterList: public QueryContext_
         {
             BUG("Got unknown exception while synchronizing enter-list cancel");
         }
+
+        return ret;
     }
 
   private:
@@ -497,21 +505,27 @@ class QueryContextGetItem: public QueryContext_
     restart_if_necessary(std::shared_ptr<QueryContextGetItem> &ctx,
                          ID::List invalidated_list_id, ID::List replacement_id);
 
-    bool cancel(bool will_be_restarted = false) final override
+    DBus::CancelResult cancel(bool will_be_restarted = false) final override
     {
         if(async_call_ != nullptr)
-        {
-            async_call_->cancel(will_be_restarted);
-            return true;
-        }
+            return async_call_->cancel(will_be_restarted);
         else
-            return false;
+            return DBus::CancelResult::NOT_RUNNING;
     }
 
-    void cancel_sync() final override
+    DBus::CancelResult cancel_sync() final override
     {
-        if(!cancel())
-            return;
+        const DBus::CancelResult ret = cancel();
+
+        switch(ret)
+        {
+          case DBus::CancelResult::CANCELED:
+            break;
+
+          case DBus::CancelResult::BLOCKED_RECURSIVE_CALL:
+          case DBus::CancelResult::NOT_RUNNING:
+            return ret;
+        }
 
         try
         {
@@ -533,6 +547,8 @@ class QueryContextGetItem: public QueryContext_
         {
             BUG("Got unknown exception while synchronizing enter-list cancel");
         }
+
+        return ret;
     }
 
     CacheSegmentState get_cache_segment_state(const CacheSegment &segment,
@@ -591,6 +607,7 @@ class DBusList: public ListIface, public AsyncListIface
         std::function<void(OpEvent, OpResult, const std::shared_ptr<QueryContext_> &)>;
 
   private:
+    const std::string list_iface_name_;
     tdbuslistsNavigation *const dbus_proxy_;
 
     struct AsyncDBusData
@@ -603,32 +620,64 @@ class DBusList: public ListIface, public AsyncListIface
         std::shared_ptr<QueryContextEnterList> enter_list_query_;
         std::shared_ptr<QueryContextGetItem> get_item_query_;
 
-        AsyncDBusData()
+        bool is_canceling_;
+
+        AsyncDBusData():
+            is_canceling_(false)
         {
-            LoggedLock::set_name(lock_, "DBusListAsyncData");
-            LoggedLock::set_name(query_done_, "DBusListAsyncDone");
+            LoggedLock::configure(lock_, "DBusListAsyncData", MESSAGE_LEVEL_DEBUG);
+            LoggedLock::configure(query_done_, "DBusListAsyncDone", MESSAGE_LEVEL_DEBUG);
         }
 
-        void cancel_enter_list_query() { cancel_query_sync(enter_list_query_); }
-        void cancel_get_item_query()   { cancel_query_sync(get_item_query_); }
+        DBus::CancelResult cancel_enter_list_query() { return cancel_query_sync(enter_list_query_); }
+        DBus::CancelResult cancel_get_item_query()   { return cancel_query_sync(get_item_query_); }
 
-        void cancel_all()
+        DBus::CancelResult cancel_all()
         {
-            cancel_enter_list_query();
-            cancel_get_item_query();
+            if(is_canceling_)
+                return DBus::CancelResult::BLOCKED_RECURSIVE_CALL;
+
+            is_canceling_ = true;
+
+            DBus::CancelResult ret_enter_list = cancel_enter_list_query();
+            DBus::CancelResult ret_get_item = cancel_get_item_query();
+
+            is_canceling_ = false;
+
+            if(ret_enter_list == DBus::CancelResult::CANCELED ||
+               ret_get_item == DBus::CancelResult::CANCELED)
+                return DBus::CancelResult::CANCELED;
+
+            if(ret_enter_list == DBus::CancelResult::NOT_RUNNING &&
+               ret_get_item == DBus::CancelResult::NOT_RUNNING)
+                return DBus::CancelResult::NOT_RUNNING;
+
+            return DBus::CancelResult::BLOCKED_RECURSIVE_CALL;
         }
 
       private:
         template <typename QueryContextType>
-        static void cancel_query_sync(std::shared_ptr<QueryContextType> &ctx)
+        static DBus::CancelResult cancel_query_sync(std::shared_ptr<QueryContextType> &ctx)
         {
             auto local_ref(ctx);
 
-            if(local_ref != nullptr)
+            if(local_ref == nullptr)
+                return DBus::CancelResult::NOT_RUNNING;
+
+            const auto ret = local_ref->cancel_sync();
+
+            switch(ret)
             {
-                local_ref->cancel_sync();
+              case DBus::CancelResult::NOT_RUNNING:
+              case DBus::CancelResult::BLOCKED_RECURSIVE_CALL:
+                break;
+
+              case DBus::CancelResult::CANCELED:
                 ctx.reset();
+                break;
             }
+
+            return ret;
         }
     };
 
@@ -673,8 +722,9 @@ class DBusList: public ListIface, public AsyncListIface
         CacheData(const CacheData &) = delete;
         CacheData &operator=(const CacheData &) = delete;
 
-        explicit CacheData():
+        explicit CacheData(const std::string &parent_list_iface_name, const char *which):
             first_item_line_(0),
+            items_(std::move(parent_list_iface_name + " segment " + which)),
             valid_segment_(0, 0)
         {}
 
@@ -723,14 +773,18 @@ class DBusList: public ListIface, public AsyncListIface
     DBusList(const DBusList &) = delete;
     DBusList &operator=(const DBusList &) = delete;
 
-    explicit DBusList(tdbuslistsNavigation *nav_proxy,
+    explicit DBusList(std::string &&list_iface_name,
+                      tdbuslistsNavigation *nav_proxy,
                       const List::ContextMap &list_contexts,
                       unsigned int prefetch, NewItemFn new_item_fn):
+        list_iface_name_(std::move(list_iface_name)),
         dbus_proxy_(nav_proxy),
         list_contexts_(list_contexts),
         number_of_prefetched_items_(prefetch),
         new_item_fn_(new_item_fn),
         number_of_items_(0),
+        window_(list_iface_name_, "window"),
+        window_stash_(list_iface_name_, "stash"),
         window_stash_is_in_use_(false)
     {}
 
@@ -768,6 +822,9 @@ class DBusList: public ListIface, public AsyncListIface
         window_stash_is_in_use_ = false;
     }
 
+    const std::string &get_list_iface_name() const override { return list_iface_name_; }
+    const std::string &get_async_list_iface_name() const override { return list_iface_name_; }
+
     unsigned int get_number_of_items() const override;
     bool empty() const override;
 
@@ -788,7 +845,7 @@ class DBusList: public ListIface, public AsyncListIface
 
     OpResult get_item_async(unsigned int line, const Item *&item) override;
 
-    void cancel_async() final override;
+    bool cancel_all_async_calls() final override;
 
     ID::List get_list_id() const override { return window_.list_id_; }
     void list_invalidate(ID::List list_id, ID::List replacement_id);

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016, 2017  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -20,6 +20,7 @@
 #define VIEW_FILEBROWSER_UTILS_HH
 
 #include "dbuslist.hh"
+#include "dbus_common.h"
 #include "de_tahifi_lists_errors.hh"
 #include "listnav.hh"
 #include "search_parameters.hh"
@@ -89,11 +90,15 @@ class Utils
 
         if(search_parameters == nullptr)
         {
-            if(!tdbus_lists_navigation_call_get_list_id_sync(file_list.get_dbus_proxy(),
-                                                             current_list_id.get_raw_id(),
-                                                             navigation.get_cursor(),
-                                                             &error_code,
-                                                             &list_id, NULL, NULL))
+            GError *error = NULL;
+
+            tdbus_lists_navigation_call_get_list_id_sync(file_list.get_dbus_proxy(),
+                                                         current_list_id.get_raw_id(),
+                                                         navigation.get_cursor(),
+                                                         &error_code,
+                                                         &list_id, NULL, &error);
+
+            if(dbus_common_handle_error(&error, "Get list ID") < 0)
             {
                 msg_vinfo(MESSAGE_LEVEL_IMPORTANT,
                           "Failed obtaining ID for item %u in list %u",
@@ -104,11 +109,15 @@ class Utils
         }
         else
         {
-            if(!tdbus_lists_navigation_call_get_parameterized_list_id_sync(
+            GError *error = NULL;
+
+            tdbus_lists_navigation_call_get_parameterized_list_id_sync(
                     file_list.get_dbus_proxy(), current_list_id.get_raw_id(),
                     navigation.get_cursor(),
                     search_parameters->get_query().c_str(),
-                    &error_code, &list_id, NULL, NULL))
+                    &error_code, &list_id, NULL, &error);
+
+            if(dbus_common_handle_error(&error, "Get parametrized list ID") < 0)
             {
                 msg_vinfo(MESSAGE_LEVEL_IMPORTANT,
                           "Failed obtaining ID for search form in list %u",
@@ -144,11 +153,14 @@ class Utils
         Busy::set(Busy::Source::GETTING_PARENT_LINK);
 
         guint list_id;
+        GError *error = NULL;
 
-        if(!tdbus_lists_navigation_call_get_parent_link_sync(file_list.get_dbus_proxy(),
-                                                             current_list_id.get_raw_id(),
-                                                             &list_id, &item_id,
-                                                             NULL, NULL))
+        tdbus_lists_navigation_call_get_parent_link_sync(file_list.get_dbus_proxy(),
+                                                         current_list_id.get_raw_id(),
+                                                         &list_id, &item_id,
+                                                         NULL, &error);
+
+        if(dbus_common_handle_error(&error, "Get parent link") < 0)
         {
             Busy::clear(Busy::Source::GETTING_PARENT_LINK);
 

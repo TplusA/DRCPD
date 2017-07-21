@@ -33,6 +33,7 @@
 #include "ui_parameters_predefined.hh"
 #include "de_tahifi_lists_context.h"
 #include "xmlescape.hh"
+#include "dbus_common.h"
 #include "messages.h"
 
 List::Item *ViewFileBrowser::construct_file_item(const char *name,
@@ -343,10 +344,13 @@ bool ViewFileBrowser::View::sync_with_list_broker(bool is_first_call)
     GVariant *empty_list = g_variant_new("au", NULL);
     guint64 expiry_ms;
     GVariant *dummy = NULL;
+    GError *error = NULL;
 
-    if(!tdbus_lists_navigation_call_keep_alive_sync(file_list_.get_dbus_proxy(),
-                                                    empty_list, &expiry_ms,
-                                                    &dummy, NULL, NULL))
+    tdbus_lists_navigation_call_keep_alive_sync(file_list_.get_dbus_proxy(),
+                                                empty_list, &expiry_ms,
+                                                &dummy, NULL, &error);
+
+    if(dbus_common_handle_error(&error, "Keep alive on sync") < 0)
     {
         msg_error(0, LOG_ERR, "Failed querying gc expiry time (%s)", name_);
         expiry_ms = 0;
@@ -356,9 +360,11 @@ bool ViewFileBrowser::View::sync_with_list_broker(bool is_first_call)
 
     GVariant *out_contexts;
 
-    if(!tdbus_lists_navigation_call_get_list_contexts_sync(file_list_.get_dbus_proxy(),
-                                                           &out_contexts,
-                                                           NULL, NULL))
+    tdbus_lists_navigation_call_get_list_contexts_sync(file_list_.get_dbus_proxy(),
+                                                       &out_contexts, NULL,
+                                                       &error);
+
+    if(dbus_common_handle_error(&error, "Get list contexts") < 0)
     {
         msg_error(0, LOG_ERR, "Failed querying list contexts (%s)", name_);
         list_contexts_.clear();
@@ -436,7 +442,8 @@ bool ViewFileBrowser::View::is_fetching_directory()
 bool ViewFileBrowser::View::point_to_item(const ViewIface &view,
                                           const SearchParameters &search_parameters)
 {
-    List::DBusList search_list(dbus_get_lists_navigation_iface(listbroker_id_),
+    List::DBusList search_list(std::move(std::string(name_) + " search"),
+                               dbus_get_lists_navigation_iface(listbroker_id_),
                                list_contexts_, 1, construct_file_item);
 
     try
@@ -535,11 +542,14 @@ std::chrono::milliseconds ViewFileBrowser::View::keep_lists_alive_timer_callback
     GVariant *keep_list = g_variant_builder_end(&builder);
     GVariant *unknown_ids_list = NULL;
     guint64 expiry_ms;
+    GError *error = NULL;
 
-    if(!tdbus_lists_navigation_call_keep_alive_sync(file_list_.get_dbus_proxy(),
-                                                    keep_list, &expiry_ms,
-                                                    &unknown_ids_list,
-                                                    NULL, NULL))
+    tdbus_lists_navigation_call_keep_alive_sync(file_list_.get_dbus_proxy(),
+                                                keep_list, &expiry_ms,
+                                                &unknown_ids_list,
+                                                NULL, &error);
+
+    if(dbus_common_handle_error(&error, "Periodic keep alive") < 0)
     {
         msg_error(0, LOG_ERR, "Failed sending keep alive");
         expiry_ms = 0;
@@ -830,7 +840,7 @@ ViewFileBrowser::View::process_event(UI::ViewEventID event_id,
                                                                                permissions);
 
             if(crawler_.is_attached_to_player())
-                view_manager_->sync_activate_view_by_name(ViewNames::PLAYER);
+                view_manager_->sync_activate_view_by_name(ViewNames::PLAYER, true);
 
         }
 
@@ -877,9 +887,7 @@ ViewFileBrowser::View::process_event(UI::ViewEventID event_id,
       case UI::ViewEventID::PLAYBACK_PREVIOUS:
       case UI::ViewEventID::PLAYBACK_NEXT:
       case UI::ViewEventID::PLAYBACK_FAST_WIND_SET_SPEED:
-      case UI::ViewEventID::PLAYBACK_FAST_WIND_FORWARD:
-      case UI::ViewEventID::PLAYBACK_FAST_WIND_REVERSE:
-      case UI::ViewEventID::PLAYBACK_FAST_WIND_STOP:
+      case UI::ViewEventID::PLAYBACK_SEEK_STREAM_POS:
       case UI::ViewEventID::PLAYBACK_MODE_REPEAT_TOGGLE:
       case UI::ViewEventID::PLAYBACK_MODE_SHUFFLE_TOGGLE:
       case UI::ViewEventID::STORE_STREAM_META_DATA:
@@ -889,6 +897,7 @@ ViewFileBrowser::View::process_event(UI::ViewEventID event_id,
       case UI::ViewEventID::NOTIFY_STREAM_STOPPED:
       case UI::ViewEventID::NOTIFY_STREAM_PAUSED:
       case UI::ViewEventID::NOTIFY_STREAM_POSITION:
+      case UI::ViewEventID::NOTIFY_SPEED_CHANGED:
       case UI::ViewEventID::AUDIO_SOURCE_SELECTED:
       case UI::ViewEventID::AUDIO_SOURCE_DESELECTED:
       case UI::ViewEventID::AUDIO_PATH_CHANGED:
@@ -917,10 +926,7 @@ bool ViewFileBrowser::View::write_xml(std::ostream &os,
       case List::AsyncListIface::OpResult::STARTED:
       case List::AsyncListIface::OpResult::SUCCEEDED:
       case List::AsyncListIface::OpResult::CANCELED:
-        break;
-
       case List::AsyncListIface::OpResult::FAILED:
-        BUG("Failed hinting asynchronous list operation");
         break;
     }
 
@@ -1042,10 +1048,7 @@ void ViewFileBrowser::View::serialize(DCP::Queue &queue, DCP::Queue::Mode mode,
       case List::AsyncListIface::OpResult::STARTED:
       case List::AsyncListIface::OpResult::SUCCEEDED:
       case List::AsyncListIface::OpResult::CANCELED:
-        break;
-
       case List::AsyncListIface::OpResult::FAILED:
-        BUG("Failed hinting asynchronous list operation for debug output");
         break;
     }
 
@@ -1238,7 +1241,8 @@ mk_get_list_id(tdbuslistsNavigation *proxy,
         },
         std::move(result_available_fn),
         [] (ViewFileBrowser::View::AsyncCalls::GetListId::PromiseReturnType &values) {},
-        [] () { return true; });
+        [] () { return true; },
+        "AsyncCalls::GetListId", MESSAGE_LEVEL_DEBUG);
 }
 
 bool ViewFileBrowser::View::point_to_root_directory()
@@ -1445,7 +1449,8 @@ bool ViewFileBrowser::View::point_to_parent_link()
                   std::ref(async_calls_), std::ref(file_list_),
                   current_list_id_),
         [] (ViewFileBrowser::View::AsyncCalls::GetParentId::PromiseReturnType &values) {},
-        [] () { return true; });
+        [] () { return true; },
+        "AsyncCalls::GetParentId", MESSAGE_LEVEL_DEBUG);
 
     if(async_calls_.get_parent_id_ == nullptr)
     {

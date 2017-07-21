@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2017  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -77,6 +77,31 @@ class SpecificParameters: public Parameters
      * the object, and the data the pointer returned by this function points to
      * should be initialized by the caller of this function.
      */
+    T *get_pointer_to_raw_data() { return &value_; }
+};
+
+enum class EventID;
+
+/*
+ * Like #UI::SpecificParameters, but with event ID encoded into the type.
+ */
+template <EventID EvID, typename T>
+class SpecificParametersForID: public Parameters
+{
+  private:
+    T value_;
+
+  public:
+    using value_type = T;
+
+    SpecificParametersForID(const SpecificParametersForID &) = delete;
+    SpecificParametersForID &operator=(const SpecificParametersForID &) = delete;
+    SpecificParametersForID(SpecificParametersForID &&) = default;
+
+    explicit SpecificParametersForID(T &&value): value_(std::move(value)) {}
+
+    const T &get_specific() const { return value_; }
+    T &get_specific_non_const() { return value_; }
     T *get_pointer_to_raw_data() { return &value_; }
 };
 

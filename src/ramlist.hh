@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2017  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -18,6 +18,8 @@
 
 #ifndef RAMLIST_HH
 #define RAMLIST_HH
+
+#include <string>
 
 #include "list.hh"
 
@@ -39,6 +41,7 @@ namespace List
 class RamList: public ListIface
 {
   private:
+    const std::string list_iface_name_;
     std::vector<Item *> items_;
 
     Item *get_nonconst_item(unsigned int line);
@@ -47,8 +50,13 @@ class RamList: public ListIface
     RamList(const RamList &) = delete;
     RamList &operator=(const RamList &) = delete;
 
-    explicit RamList() {}
+    explicit RamList(std::string &&list_iface_name):
+        list_iface_name_(std::move(list_iface_name))
+    {}
+
     ~RamList();
+
+    const std::string &get_list_iface_name() const override { return list_iface_name_; }
 
     unsigned int get_number_of_items() const override;
     bool empty() const override { return get_number_of_items() == 0; }

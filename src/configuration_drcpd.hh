@@ -26,10 +26,13 @@
 namespace Configuration
 {
 
+class ConfigKey;
+
 struct DrcpdValues
 {
     static constexpr char OWNER_NAME[] = "drcpd";
     static constexpr char *const DATABASE_NAME = nullptr;
+    static constexpr char CONFIGURATION_SECTION_NAME[] = "drcpd";
 
     enum class KeyID
     {
@@ -40,6 +43,8 @@ struct DrcpdValues
 
     static constexpr size_t NUMBER_OF_KEYS = static_cast<size_t>(KeyID::LAST_ID) + 1;
 
+    static const std::array<const ConfigKey, NUMBER_OF_KEYS> all_keys;
+
     uint32_t maximum_bitrate_;
 
     DrcpdValues() {}
@@ -49,33 +54,49 @@ struct DrcpdValues
     {}
 };
 
-template <DrcpdValues::KeyID ID> struct ConfigValueTraits;
-template <DrcpdValues::KeyID ID> struct SerializeValueTraits;
-template <DrcpdValues::KeyID ID> struct BoxValueTraits;
+class ConfigKey: public ConfigKeyBase<DrcpdValues>
+{
+  private:
+    const Serializer serialize_;
+    const Deserializer deserialize_;
+    const Boxer boxer_;
+    const Unboxer unboxer_;
 
-#define DECLARE_CONFIG_VALUE_TRAITS(ID, MEMBER) \
-    template <> \
-    struct ConfigValueTraits<ID> \
-    { \
-        using ValueType = decltype(DrcpdValues::MEMBER); \
-        static constexpr ValueType DrcpdValues::*field = &DrcpdValues::MEMBER; \
+  public:
+    explicit ConfigKey(DrcpdValues::KeyID id, const char *name,
+                       Serializer &&serializer, Deserializer &&deserializer,
+                       Boxer &&boxer, Unboxer &&unboxer):
+        ConfigKeyBase(id, name, find_varname_offset_in_keyname(name)),
+        serialize_(std::move(serializer)),
+        deserialize_(std::move(deserializer)),
+        boxer_(std::move(boxer)),
+        unboxer_(std::move(unboxer))
+    {}
+
+    void read(char *dest, size_t dest_size, const DrcpdValues &src) const final override
+    {
+        serialize_(dest, dest_size, src);
     }
 
-DECLARE_CONFIG_VALUE_TRAITS(DrcpdValues::KeyID::MAXIMUM_BITRATE, maximum_bitrate_);
+    bool write(DrcpdValues &dest, const char *src) const final override
+    {
+        return deserialize_(dest, src);
+    }
 
-#undef DECLARE_CONFIG_VALUE_TRAITS
+    GVariantWrapper box(const DrcpdValues &src) const final override
+    {
+        return boxer_(src);
+    }
 
-enum class InsertResult
-{
-    UPDATED,
-    UNCHANGED,
-    KEY_UNKNOWN,
-    VALUE_TYPE_INVALID,  //<! Type of given value is invalid/not supported
-    VALUE_INVALID,       //<! Value has correct type, but value is invalid
-    PERMISSION_DENIED,
-
-    LAST_CODE = PERMISSION_DENIED,
+    InsertResult unbox(UpdateSettings<DrcpdValues> &dest, GVariantWrapper &&src) const final override
+    {
+        return unboxer_(dest, std::move(src));
+    }
 };
+
+template <DrcpdValues::KeyID ID> struct UpdateValueTraits;
+
+CONFIGURATION_UPDATE_TRAITS(UpdateValueTraits, DrcpdValues, MAXIMUM_BITRATE, maximum_bitrate_);
 
 template <>
 class UpdateSettings<DrcpdValues>
@@ -91,12 +112,12 @@ class UpdateSettings<DrcpdValues>
         settings_(settings)
     {}
 
-    InsertResult insert_boxed(const char *key, VariantType *value);
+    InsertResult insert_boxed(const char *key, GVariantWrapper &&value);
 
     bool maximum_stream_bit_rate(uint32_t bitrate)
     {
         return settings_.update<DrcpdValues::KeyID::MAXIMUM_BITRATE,
-                                ConfigValueTraits<DrcpdValues::KeyID::MAXIMUM_BITRATE>>(bitrate);
+                                UpdateValueTraits<DrcpdValues::KeyID::MAXIMUM_BITRATE>>(bitrate);
     }
 };
 

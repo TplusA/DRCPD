@@ -127,12 +127,14 @@ class VMIface
     /*
      * TODO: Maybe remove entirely and replace by events
      */
-    virtual void sync_activate_view_by_name(const char *view_name) = 0;
+    virtual void sync_activate_view_by_name(const char *view_name,
+                                            bool enforce_reactivation) = 0;
     /*
      * TODO: Maybe remove entirely and replace by events
      */
     virtual void sync_toggle_views_by_name(const char *view_name_a,
-                                           const char *view_name_b) = 0;
+                                           const char *view_name_b,
+                                           bool enforce_reactivation) = 0;
     virtual bool is_active_view(const ViewIface *view) const = 0;
     virtual void serialize_view_if_active(const ViewIface *view, DCP::Queue::Mode mode) const = 0;
     virtual void serialize_view_forced(const ViewIface *view, DCP::Queue::Mode mode) const = 0;
@@ -190,12 +192,14 @@ class Manager: public VMIface, public UI::EventStoreIface
     /*
      * TODO: Maybe remove entirely and replace by events
      */
-    void sync_activate_view_by_name(const char *view_name) override;
+    void sync_activate_view_by_name(const char *view_name,
+                                    bool enforce_reactivation) override;
     /*
      * TODO: Maybe remove entirely and replace by events
      */
     void sync_toggle_views_by_name(const char *view_name_a,
-                                   const char *view_name_b) override;
+                                   const char *view_name_b,
+                                   bool enforce_reactivation) override;
     bool is_active_view(const ViewIface *view) const override;
     void serialize_view_if_active(const ViewIface *view, DCP::Queue::Mode mode) const override;
     void serialize_view_forced(const ViewIface *view, DCP::Queue::Mode mode) const override;
@@ -217,10 +221,11 @@ class Manager: public VMIface, public UI::EventStoreIface
     }
 
   private:
-    void configuration_changed_notification(const std::array<bool, Configuration::DrcpdValues::NUMBER_OF_KEYS> &changed);
+    void configuration_changed_notification(const char *origin,
+                                            const std::array<bool, Configuration::DrcpdValues::NUMBER_OF_KEYS> &changed);
 
     ViewIface *get_view_by_dbus_proxy(const void *dbus_proxy);
-    void activate_view(ViewIface *view);
+    void activate_view(ViewIface *view, bool enforce_reactivation);
     void handle_input_result(ViewIface::InputResult result, ViewIface &view);
 
     bool do_input_bounce(const InputBouncer &bouncer, UI::ViewEventID event_id,

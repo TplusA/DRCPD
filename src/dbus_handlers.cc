@@ -76,13 +76,7 @@ void dbussignal_dcpd_playback(GDBusProxy *proxy, const gchar *sender_name,
         data->event_sink_.store_event(UI::EventID::PLAYBACK_NEXT);
     else if(strcmp(signal_name, "Previous") == 0)
         data->event_sink_.store_event(UI::EventID::PLAYBACK_PREVIOUS);
-    else if(strcmp(signal_name, "FastForward") == 0)
-        data->event_sink_.store_event(UI::EventID::PLAYBACK_FAST_WIND_FORWARD);
-    else if(strcmp(signal_name, "FastRewind") == 0)
-        data->event_sink_.store_event(UI::EventID::PLAYBACK_FAST_WIND_REVERSE);
-    else if(strcmp(signal_name, "FastWindStop") == 0)
-        data->event_sink_.store_event(UI::EventID::PLAYBACK_FAST_WIND_STOP);
-    else if(strcmp(signal_name, "FastWindSetFactor") == 0)
+    else if(strcmp(signal_name, "SetSpeed") == 0)
     {
         check_parameter_assertions(parameters, 1);
 
@@ -92,6 +86,19 @@ void dbussignal_dcpd_playback(GDBusProxy *proxy, const gchar *sender_name,
         auto params =
             UI::Events::mk_params<UI::EventID::PLAYBACK_FAST_WIND_SET_SPEED>(speed);
         data->event_sink_.store_event(UI::EventID::PLAYBACK_FAST_WIND_SET_SPEED,
+                                      std::move(params));
+    }
+    else if(strcmp(signal_name, "Seek") == 0)
+    {
+        check_parameter_assertions(parameters, 2);
+
+        int64_t pos = 0;
+        const char *units = nullptr;
+        g_variant_get(parameters, "(x&s)", &pos, &units);
+
+        auto params =
+            UI::Events::mk_params<UI::EventID::PLAYBACK_SEEK_STREAM_POS>(pos, units);
+        data->event_sink_.store_event(UI::EventID::PLAYBACK_SEEK_STREAM_POS,
                                       std::move(params));
     }
     else if(strcmp(signal_name, "RepeatModeToggle") == 0)
@@ -457,6 +464,21 @@ void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
         data->event_sink_.store_event(UI::EventID::VIEW_PLAYER_STREAM_POSITION,
                                       std::move(params));
     }
+    else if(strcmp(signal_name, "SpeedChanged") == 0)
+    {
+        check_parameter_assertions(parameters, 2);
+
+        guint16 raw_stream_id;
+        double speed;
+
+        g_variant_get(parameters, "(qd)", &raw_stream_id, &speed);
+
+        auto params =
+            UI::Events::mk_params<UI::EventID::VIEW_PLAYER_SPEED_CHANGED>(
+                ID::Stream::make_from_raw_id(raw_stream_id), speed);
+        data->event_sink_.store_event(UI::EventID::VIEW_PLAYER_SPEED_CHANGED,
+                                      std::move(params));
+    }
     else
         unknown_signal(iface_name, signal_name, sender_name);
 }
@@ -613,13 +635,11 @@ gboolean dbusmethod_config_get_all_keys(tdbusConfigurationRead *object,
     auto *data = static_cast<DBus::SignalData *>(user_data);
     log_assert(data != nullptr);
 
-    static const char configuration_owner[] = "drcpd";
-
     auto keys(data->config_mgr_.keys());
     keys.push_back(nullptr);
 
     tdbus_configuration_read_complete_get_all_keys(object, invocation,
-                                                   configuration_owner,
+                                                   Configuration::DrcpdValues::OWNER_NAME,
                                                    keys.data());
 
     return TRUE;
@@ -634,11 +654,11 @@ gboolean dbusmethod_config_get_value(tdbusConfigurationRead *object,
     auto *data = static_cast<DBus::SignalData *>(user_data);
     log_assert(data != nullptr);
 
-    auto *value = reinterpret_cast<GVariant *>(data->config_mgr_.lookup_boxed(key));
+    auto value = data->config_mgr_.lookup_boxed(key);
 
     if(value != nullptr)
         tdbus_configuration_read_complete_get_value(object, invocation,
-                                                    g_variant_new_variant(value));
+                                                    g_variant_new_variant(GVariantWrapper::move(value)));
     else
         g_dbus_method_invocation_return_error(invocation, G_DBUS_ERROR,
                                               G_DBUS_ERROR_INVALID_ARGS,
@@ -662,10 +682,10 @@ gboolean dbusmethod_config_get_all_values(tdbusConfigurationRead *object,
 
     for(const auto &k : data->config_mgr_.keys())
     {
-        auto *value = reinterpret_cast<GVariant *>(data->config_mgr_.lookup_boxed(k));
+        auto value = data->config_mgr_.lookup_boxed(k);
 
         if(value != nullptr)
-            g_variant_dict_insert_value(&dict, k, value);
+            g_variant_dict_insert_value(&dict, k, GVariantWrapper::move(value));
     }
 
     tdbus_configuration_read_complete_get_all_values(object, invocation,
@@ -687,12 +707,10 @@ static Configuration::InsertResult
 insert_packed_value(Configuration::ConfigChanged<Configuration::DrcpdValues>::UpdateScope &scope,
                     const char *key, GVariant *value)
 {
-    GVariant *unpacked_value = g_variant_get_child_value(value, 0);
+    GVariantWrapper unpacked_value(g_variant_get_child_value(value, 0),
+                                   GVariantWrapper::Transfer::JUST_MOVE);
 
-    auto result =
-        scope().insert_boxed(key, reinterpret_cast<Configuration::VariantType *>(unpacked_value));
-
-    g_variant_unref(unpacked_value);
+    auto result = scope().insert_boxed(key, std::move(unpacked_value));
 
     return result;
 }
@@ -707,7 +725,7 @@ gboolean dbusmethod_config_set_value(tdbusConfigurationWrite *object,
     auto *data = static_cast<DBus::SignalData *>(user_data);
     log_assert(data != nullptr);
 
-    auto scope(data->config_mgr_.get_update_scope());
+    auto scope(data->config_mgr_.get_update_scope(origin));
 
     switch(insert_packed_value(scope, key, value))
     {
@@ -781,11 +799,11 @@ gboolean dbusmethod_config_set_multiple_values(tdbusConfigurationWrite *object,
     const gchar *key;
     GVariant *value;
 
-    auto scope(data->config_mgr_.get_update_scope());
+    auto scope(data->config_mgr_.get_update_scope(origin));
 
     while(g_variant_iter_loop(&values_iter, "{sv}", &key, &value))
     {
-        auto err = scope().insert_boxed(key, reinterpret_cast<Configuration::VariantType *>(value));
+        auto err = scope().insert_boxed(key, std::move(GVariantWrapper(value)));
 
         switch(err)
         {

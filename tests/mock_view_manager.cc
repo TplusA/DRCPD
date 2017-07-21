@@ -105,6 +105,7 @@ class MockViewManager::Expectation
         std::unique_ptr<const UI::Parameters> expected_parameters_;
         std::string arg_view_name_;
         std::string arg_view_name_b_;
+        bool arg_enforce_view_reactivation_;
         DCP::Transaction::Result arg_dcp_result_;
 
         Data(const Data &) = delete;
@@ -119,6 +120,7 @@ class MockViewManager::Expectation
             bounce_xform_event_id_(UI::ViewEventID::NOP),
             check_parameters_fn_(nullptr),
             expected_parameters_(nullptr),
+            arg_enforce_view_reactivation_(false),
             arg_dcp_result_(DCP::Transaction::Result::OK)
         {}
     };
@@ -150,18 +152,21 @@ class MockViewManager::Expectation
         data_.expected_parameters_ = std::move(expected_parameters);
     }
 
-    explicit Expectation(MemberFn id, const char *view_name):
+    explicit Expectation(MemberFn id, const char *view_name, bool enforce_reactivation):
         d(id)
     {
         data_.arg_view_name_ = view_name;
+        data_.arg_enforce_view_reactivation_ = enforce_reactivation;
     }
 
     explicit Expectation(MemberFn id,
-                         const char *view_name_a, const char *view_name_b):
+                         const char *view_name_a, const char *view_name_b,
+                         bool enforce_reactivation):
         d(id)
     {
         data_.arg_view_name_ = view_name_a;
         data_.arg_view_name_b_ = view_name_b;
+        data_.arg_enforce_view_reactivation_ = enforce_reactivation;
     }
 
     explicit Expectation(MemberFn id, ViewIface::InputResult retval,
@@ -284,9 +289,10 @@ static void check_ui_parameters_equality(std::unique_ptr<const UI::Parameters> e
     using Checker = std::function<bool(const std::unique_ptr<const UI::Parameters> &,
                                        const std::unique_ptr<const UI::Parameters> &)>;
 
-    static const std::array<const Checker, 14> checkers
+    static const std::array<const Checker, 15> checkers
     {
         check_equality<UI::EventID::PLAYBACK_FAST_WIND_SET_SPEED>,
+        check_equality<UI::EventID::PLAYBACK_SEEK_STREAM_POS>,
         check_equality<UI::EventID::NAV_SCROLL_LINES>,
         check_equality<UI::EventID::NAV_SCROLL_PAGES>,
         check_equality<UI::EventID::VIEW_OPEN>,
@@ -344,16 +350,19 @@ void MockViewManager::expect_get_view_by_dbus_proxy(const void *dbus_proxy)
     expectations_->add(Expectation(MemberFn::get_view_by_dbus_proxy));
 }
 
-void MockViewManager::expect_sync_activate_view_by_name(const char *view_name)
+void MockViewManager::expect_sync_activate_view_by_name(const char *view_name,
+                                                        bool enforce_reactivation)
 {
-    expectations_->add(Expectation(MemberFn::activate_view_by_name, view_name));
+    expectations_->add(Expectation(MemberFn::activate_view_by_name,
+                                   view_name, enforce_reactivation));
 }
 
 void MockViewManager::expect_sync_toggle_views_by_name(const char *view_name_a,
-                                                       const char *view_name_b)
+                                                       const char *view_name_b,
+                                                       bool enforce_reactivation)
 {
     expectations_->add(Expectation(MemberFn::toggle_views_by_name,
-                                   view_name_a, view_name_b));
+                                   view_name_a, view_name_b, enforce_reactivation));
 }
 
 
@@ -444,22 +453,26 @@ ViewIface *MockViewManager::get_view_by_name(const char *view_name)
     return nullptr;
 }
 
-void MockViewManager::sync_activate_view_by_name(const char *view_name)
+void MockViewManager::sync_activate_view_by_name(const char *view_name,
+                                                 bool enforce_reactivation)
 {
     const auto &expect(expectations_->get_next_expectation(__func__));
 
     cppcut_assert_equal(expect.d.function_id_, MemberFn::activate_view_by_name);
     cppcut_assert_equal(expect.d.arg_view_name_, std::string(view_name));
+    cppcut_assert_equal(expect.d.arg_enforce_view_reactivation_, enforce_reactivation);
 }
 
 void MockViewManager::sync_toggle_views_by_name(const char *view_name_a,
-                                                const char *view_name_b)
+                                                const char *view_name_b,
+                                                bool enforce_reactivation)
 {
     const auto &expect(expectations_->get_next_expectation(__func__));
 
     cppcut_assert_equal(expect.d.function_id_, MemberFn::toggle_views_by_name);
     cppcut_assert_equal(expect.d.arg_view_name_, std::string(view_name_a));
     cppcut_assert_equal(expect.d.arg_view_name_b_, std::string(view_name_b));
+    cppcut_assert_equal(expect.d.arg_enforce_view_reactivation_, enforce_reactivation);
 }
 
 bool MockViewManager::is_active_view(const ViewIface *view) const

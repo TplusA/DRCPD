@@ -223,6 +223,7 @@ class View: public ViewIface, public ViewSerializeBase
     explicit View(const char *on_screen_name, unsigned int max_lines):
         ViewIface(ViewNames::CONFIGURATION, false, nullptr),
         ViewSerializeBase(on_screen_name, "config", 73U),
+        editable_menu_items_(std::move(std::string("config"))),
         item_flags_(&editable_menu_items_),
         navigation_(max_lines, List::Nav::WrapMode::FULL_WRAP, item_flags_)
     {}

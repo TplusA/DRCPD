@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2017  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -22,6 +22,8 @@
 #include <mutex>
 #include <condition_variable>
 
+#include "messages.h"
+
 #define LOGGED_LOCKS_ENABLED            0
 #define LOGGED_LOCKS_ABORT_ON_BUG       1
 
@@ -30,7 +32,6 @@
  * Using pthreads directly is not portable. Whatever.
  */
 #include <pthread.h>
-#include "messages.h"
 
 #if LOGGED_LOCKS_ABORT_ON_BUG
 #include <stdlib.h>
@@ -59,6 +60,7 @@ class Mutex
     std::mutex lock_;
     const char *name_;
     pthread_t owner_;
+    MessageVerboseLevel log_level_;
 
   public:
     Mutex(const Mutex &) = delete;
@@ -66,7 +68,8 @@ class Mutex
 
     explicit Mutex():
         name_("(unnamed)"),
-        owner_(0)
+        owner_(0),
+        log_level_(MESSAGE_LEVEL_NORMAL)
     {}
 
     void about_to_lock(bool is_direct) const
@@ -78,24 +81,24 @@ class Mutex
 
     void lock()
     {
-        msg_info("<%08lx> Mutex %s: lock", pthread_self(), name_);
+        msg_vinfo(log_level_, "<%08lx> Mutex %s: lock", pthread_self(), name_);
 
         about_to_lock(true);
         lock_.lock();
         set_owner();
-        msg_info("<%08lx> Mutex %s: locked", pthread_self(), name_);
+        msg_vinfo(log_level_, "<%08lx> Mutex %s: locked", pthread_self(), name_);
     }
 
     void unlock()
     {
-        msg_info("<%08lx> Mutex %s: unlock", pthread_self(), name_);
+        msg_vinfo(log_level_, "<%08lx> Mutex %s: unlock", pthread_self(), name_);
         clear_owner();
         lock_.unlock();
     }
 
     std::mutex &get_raw_mutex()
     {
-        msg_info("<%08lx> Mutex %s: get raw mutex", pthread_self(), name_);
+        msg_vinfo(log_level_, "<%08lx> Mutex %s: get raw mutex", pthread_self(), name_);
         return lock_;
     }
 
@@ -122,8 +125,15 @@ class Mutex
 
     pthread_t get_owner() const { return owner_; }
 
-    void set_name(const char *name) { name_ = name; }
+    void configure(const char *name, MessageVerboseLevel log_level)
+    {
+        name_ = name;
+        log_level_ = log_level;
+    }
+
     const char *get_name() const { return name_; }
+
+    MessageVerboseLevel get_log_level() const { return log_level_; }
 };
 
 class RecMutex
@@ -133,6 +143,7 @@ class RecMutex
     size_t lock_count_;
     const char *name_;
     pthread_t owner_;
+    MessageVerboseLevel log_level_;
 
   public:
     RecMutex(const RecMutex &) = delete;
@@ -141,30 +152,32 @@ class RecMutex
     explicit RecMutex():
         lock_count_(0),
         name_("(unnamed)"),
-        owner_(0)
+        owner_(0),
+        log_level_(MESSAGE_LEVEL_NORMAL)
     {}
 
     void about_to_lock(bool is_direct) const
     {
         if(owner_ == pthread_self())
-            msg_info("<%08lx> RecMutex %s: re-lock, lock count %zu (%sdirect)",
-                     pthread_self(), name_, lock_count_,
-                     is_direct ? "" : "in");
+            msg_vinfo(log_level_,
+                      "<%08lx> RecMutex %s: re-lock, lock count %zu (%sdirect)",
+                      pthread_self(), name_, lock_count_,
+                      is_direct ? "" : "in");
     }
 
     void lock()
     {
-        msg_info("<%08lx> RecMutex %s: lock", pthread_self(), name_);
+        msg_vinfo(log_level_, "<%08lx> RecMutex %s: lock", pthread_self(), name_);
 
         about_to_lock(true);
         lock_.lock();
         ref_owner();
-        msg_info("<%08lx> RecMutex %s: locked", pthread_self(), name_);
+        msg_vinfo(log_level_, "<%08lx> RecMutex %s: locked", pthread_self(), name_);
     }
 
     bool try_lock()
     {
-        msg_info("<%08lx> RecMutex %s: try lock", pthread_self(), name_);
+        msg_vinfo(log_level_, "<%08lx> RecMutex %s: try lock", pthread_self(), name_);
 
         const bool is_locked = lock_.try_lock();
 
@@ -176,11 +189,11 @@ class RecMutex
                                 name_, pthread_self());
 
             ref_owner();
-            msg_info("<%08lx> RecMutex %s: locked", pthread_self(), name_);
+            msg_vinfo(log_level_, "<%08lx> RecMutex %s: locked", pthread_self(), name_);
         }
         else
         {
-            msg_info("<%08lx> RecMutex %s: locking failed", pthread_self(), name_);
+            msg_vinfo(log_level_, "<%08lx> RecMutex %s: locking failed", pthread_self(), name_);
 
             if(lock_count_ == 0 || owner_ == pthread_self())
                 LOGGED_LOCK_BUG("RecMutex %s: lock attempt by <%08lx> "
@@ -194,15 +207,15 @@ class RecMutex
 
     void unlock()
     {
-        msg_info("<%08lx> RecMutex %s: unlock, lock count %zu",
-                 pthread_self(), name_, lock_count_);
+        msg_vinfo(log_level_, "<%08lx> RecMutex %s: unlock, lock count %zu",
+                  pthread_self(), name_, lock_count_);
         unref_owner();
         lock_.unlock();
     }
 
     std::recursive_mutex &get_raw_mutex()
     {
-        msg_info("<%08lx> RecMutex %s: get raw mutex", pthread_self(), name_);
+        msg_vinfo(log_level_, "<%08lx> RecMutex %s: get raw mutex", pthread_self(), name_);
         return lock_;
     }
 
@@ -251,8 +264,15 @@ class RecMutex
 
     pthread_t get_owner() const { return owner_; }
 
-    void set_name(const char *name) { name_ = name; }
+    void configure(const char *name, MessageVerboseLevel log_level)
+    {
+        name_ = name;
+        log_level_ = log_level;
+    }
+
     const char *get_name() const { return name_; }
+
+    MessageVerboseLevel get_log_level() const { return log_level_; }
 };
 
 template <typename MutexType> struct MutexTraits;
@@ -299,11 +319,13 @@ class UniqueLock
         lock_(logged_mutex_.get_raw_mutex(), std::defer_lock),
         lock_name_(logged_mutex_.get_name())
     {
-        msg_info("<%08lx> UniqueLock %p: ctor, attempt to lock mutex %s",
-                 pthread_self(), this, lock_name_);
+        msg_vinfo(logged_mutex_.get_log_level(),
+                  "<%08lx> UniqueLock %p: ctor, attempt to lock mutex %s",
+                  pthread_self(), this, lock_name_);
         lock();
-        msg_info("<%08lx> UniqueLock %p: ctor, locked mutex %s",
-                 pthread_self(), this, lock_name_);
+        msg_vinfo(logged_mutex_.get_log_level(),
+                  "<%08lx> UniqueLock %p: ctor, locked mutex %s",
+                  pthread_self(), this, lock_name_);
     }
 
     explicit UniqueLock(MutexType &mutex, std::defer_lock_t t):
@@ -311,14 +333,16 @@ class UniqueLock
         lock_(logged_mutex_.get_raw_mutex(), t),
         lock_name_(logged_mutex_.get_name())
     {
-        msg_info("<%08lx> UniqueLock %p: ctor with unlocked mutex %s",
-                 pthread_self(), this, lock_name_);
+        msg_vinfo(logged_mutex_.get_log_level(),
+                  "<%08lx> UniqueLock %p: ctor with unlocked mutex %s",
+                  pthread_self(), this, lock_name_);
     }
 
     ~UniqueLock()
     {
-        msg_info("<%08lx> UniqueLock %p: dtor with mutex %s owned by <%08lx>",
-                 pthread_self(), this, lock_name_, get_mutex_owner());
+        msg_vinfo(logged_mutex_.get_log_level(),
+                  "<%08lx> UniqueLock %p: dtor with mutex %s owned by <%08lx>",
+                  pthread_self(), this, lock_name_, get_mutex_owner());
 
         if(lock_.owns_lock())
             MTraits::destroy_owned(logged_mutex_);
@@ -326,27 +350,31 @@ class UniqueLock
 
     void lock()
     {
-        msg_info("<%08lx> UniqueLock %p: lock mutex %s",
-                 pthread_self(), this, lock_name_);
+        msg_vinfo(logged_mutex_.get_log_level(),
+                  "<%08lx> UniqueLock %p: lock mutex %s",
+                  pthread_self(), this, lock_name_);
         logged_mutex_.about_to_lock(false);
         lock_.lock();
         MTraits::set_owner(logged_mutex_);
-        msg_info("<%08lx> UniqueLock %p: locked mutex %s",
-                 pthread_self(), this, lock_name_);
+        msg_vinfo(logged_mutex_.get_log_level(),
+                  "<%08lx> UniqueLock %p: locked mutex %s",
+                  pthread_self(), this, lock_name_);
     }
 
     void unlock()
     {
-        msg_info("<%08lx> UniqueLock %p: unlock mutex %s",
-                 pthread_self(), this, lock_name_);
+        msg_vinfo(logged_mutex_.get_log_level(),
+                  "<%08lx> UniqueLock %p: unlock mutex %s",
+                  pthread_self(), this, lock_name_);
         MTraits::clear_owner(logged_mutex_);
         lock_.unlock();
     }
 
     std::unique_lock<std::mutex> &get_raw_unique_lock()
     {
-        msg_info("<%08lx> UniqueLock %p: get raw for mutex %s",
-                 pthread_self(), this, lock_name_);
+        msg_vinfo(logged_mutex_.get_log_level(),
+                  "<%08lx> UniqueLock %p: get raw for mutex %s",
+                  pthread_self(), this, lock_name_);
         return lock_;
     }
 
@@ -362,13 +390,15 @@ class ConditionVariable
   private:
     std::condition_variable var_;
     const char *name_;
+    MessageVerboseLevel log_level_;
 
   public:
     ConditionVariable(const ConditionVariable &) = delete;
     ConditionVariable &operator=(const ConditionVariable &) = delete;
 
     explicit ConditionVariable():
-        name_("(unnamed)")
+        name_("(unnamed)"),
+        log_level_(MESSAGE_LEVEL_NORMAL)
     {}
 
     template <class Predicate>
@@ -379,35 +409,41 @@ class ConditionVariable
                             "owned by <%08lx>",
                             name_, pthread_self(), lock.get_mutex_owner());
 
-        msg_info("<%08lx> Cond %s: wait for %s",
-                 pthread_self(), name_, lock.get_mutex_name());
+        msg_vinfo(log_level_, "<%08lx> Cond %s: wait for %s",
+                  pthread_self(), name_, lock.get_mutex_name());
         lock.clear_mutex_owner();
         var_.wait(lock.get_raw_unique_lock(), pred);
         lock.set_mutex_owner();
-        msg_info("<%08lx> Cond %s: waited for %s",
-                 pthread_self(), name_, lock.get_mutex_name());
+        msg_vinfo(log_level_, "<%08lx> Cond %s: waited for %s",
+                  pthread_self(), name_, lock.get_mutex_name());
     }
 
     void notify_all()
     {
-        msg_info("<%08lx> Cond %s: notify all", pthread_self(), name_);
+        msg_vinfo(log_level_, "<%08lx> Cond %s: notify all", pthread_self(), name_);
         var_.notify_all();
     }
 
     void notify_one()
     {
-        msg_info("<%08lx> Cond %s: notify one", pthread_self(), name_);
+        msg_vinfo(log_level_, "<%08lx> Cond %s: notify one", pthread_self(), name_);
         var_.notify_one();
     }
 
-    void set_name(const char *name) { name_ = name; }
+    void configure(const char *name, MessageVerboseLevel log_level)
+    {
+        name_ = name;
+        log_level_ = log_level;
+    }
+
     const char *get_name() const { return name_; }
 };
 
 template <typename T>
-static inline void set_name(T &object, const char *name)
+static inline void configure(T &object,
+                             const char *name, MessageVerboseLevel log_level)
 {
-    object.set_name(name);
+    object.configure(name, log_level);
 }
 
 #else /* /!LOGGED_LOCKS_ENABLED */
@@ -418,7 +454,11 @@ template <typename MutexType> using UniqueLock = std::unique_lock<MutexType>;
 using ConditionVariable = std::condition_variable;
 
 template <typename T>
-static inline void set_name(T &object, const char *name) {}
+static inline void configure(T &object,
+                             const char *name, MessageVerboseLevel log_level)
+{
+    /* nothing */
+}
 
 #endif /* LOGGED_LOCKS_ENABLED */
 

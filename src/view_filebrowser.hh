@@ -78,7 +78,7 @@ class View: public ViewIface, public ViewSerializeBase
 
         explicit AsyncCalls()
         {
-            LoggedLock::set_name(lock_, "FileBrowserAsyncCall");
+            LoggedLock::configure(lock_, "FileBrowserAsyncCall", MESSAGE_LEVEL_DEBUG);
         }
 
         std::unique_lock<LoggedLock::RecMutex> acquire_lock()
@@ -146,7 +146,8 @@ class View: public ViewIface, public ViewSerializeBase
         ViewSerializeBase(on_screen_name, "browse", 102U),
         listbroker_id_(listbroker_id),
         current_list_id_(0),
-        file_list_(dbus_get_lists_navigation_iface(listbroker_id_),
+        file_list_(std::move(std::string(name) + " view"),
+                   dbus_get_lists_navigation_iface(listbroker_id_),
                    list_contexts_, max_lines,
                    construct_file_item),
         item_flags_(&file_list_),

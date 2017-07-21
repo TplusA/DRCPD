@@ -42,22 +42,34 @@ enum class AsyncResult
     FAILED,
 };
 
+enum class CancelResult
+{
+    CANCELED,
+    BLOCKED_RECURSIVE_CALL,
+    NOT_RUNNING,
+};
+
 class AsyncCall_: public std::enable_shared_from_this<AsyncCall_>
 {
   private:
     std::shared_ptr<AsyncCall_> pointer_to_self_;
     LoggedLock::RecMutex lock_;
+    bool is_canceling_;
 
   protected:
     AsyncResult call_state_;
     GCancellable *cancellable_;
     bool is_canceled_for_restart_;
 
-    explicit AsyncCall_():
+    explicit AsyncCall_(const char *lock_name,
+                        MessageVerboseLevel lock_log_level):
+        is_canceling_(false),
         call_state_(AsyncResult::INITIALIZED),
         cancellable_(g_cancellable_new()),
         is_canceled_for_restart_(false)
-    {}
+    {
+        LoggedLock::configure(lock_, lock_name, lock_log_level);
+    }
 
   public:
     AsyncCall_(const AsyncCall_ &) = delete;
@@ -71,7 +83,19 @@ class AsyncCall_: public std::enable_shared_from_this<AsyncCall_>
         log_assert(pointer_to_self_ == nullptr);
     }
 
-    virtual void cancel(bool will_be_restarted) = 0;
+    CancelResult cancel(bool will_be_restarted)
+    {
+        if(is_canceling_)
+            return CancelResult::BLOCKED_RECURSIVE_CALL;
+
+        is_canceling_ = true;
+        const CancelResult ret = do_cancel(will_be_restarted)
+            ? CancelResult::CANCELED
+            : CancelResult::NOT_RUNNING;
+        is_canceling_ = false;
+
+        return ret;
+    }
 
     bool is_active() const
     {
@@ -162,6 +186,8 @@ class AsyncCall_: public std::enable_shared_from_this<AsyncCall_>
     {
         return LoggedLock::UniqueLock<LoggedLock::RecMutex>(const_cast<AsyncCall_ *>(this)->lock_);
     }
+
+    virtual bool do_cancel(bool will_be_restarted) = 0;
 
     void async_op_started() { pointer_to_self_ = shared_from_this(); }
 
@@ -256,12 +282,19 @@ class AsyncCall: public DBus::AsyncCall_
      *     Periodically called function that should return \c true if the
      *     result of the asynchronous call should still be waited for, \c false
      *     if the operation shall be canceled.
+     *
+     * \param lock_name, lock_log_level
+     *     Configuration for internal logged lock. Only used in case logging of
+     *     locks is activated at compile time.
      */
     explicit AsyncCall(ProxyType *proxy, ToProxyFunction &&to_proxy,
                        PutResultFunction &&put_result,
                        AsyncResultAvailableFunction &&result_available,
                        DestroyResultFunction &&destroy_result,
-                       std::function<bool(void)> &&may_continue):
+                       std::function<bool(void)> &&may_continue,
+                       const char *lock_name,
+                       MessageVerboseLevel lock_log_level):
+        AsyncCall_(lock_name, lock_log_level),
         proxy_(proxy),
         to_proxy_fn_(to_proxy),
         put_result_fn_(put_result),
@@ -353,19 +386,24 @@ class AsyncCall: public DBus::AsyncCall_
         return call_state_;
     }
 
-    void cancel(bool will_be_restarted) final override
+  private:
+    bool do_cancel(bool will_be_restarted) final override
     {
         auto lock_this(lock());
 
         log_assert(is_active());
 
-        if(!g_cancellable_is_cancelled(cancellable_))
+        if(g_cancellable_is_cancelled(cancellable_))
+            return false;
+        else
         {
             is_canceled_for_restart_ = will_be_restarted;
             g_cancellable_cancel(cancellable_);
+            return true;
         }
     }
 
+  public:
     static void cancel_and_delete(std::shared_ptr<AsyncCall> &call)
     {
         if(call == nullptr)

@@ -58,7 +58,8 @@ mk_async_resolve_redirect(tdbusAirable *proxy,
             if(std::get<1>(values) != nullptr)
                 g_free(std::get<1>(values));
         },
-        [] () { return true; });
+        [] () { return true; },
+        "AsyncResolveRedirect", MESSAGE_LEVEL_DEBUG);
 }
 
 Player::StreamPreplayInfo::OpResult
@@ -194,13 +195,15 @@ bool Player::StreamPreplayInfoCollection::store(ID::OurStream stream_id,
                                                 std::vector<std::string> &&uris,
                                                 Airable::SortedLinks &&airable_links,
                                                 ID::List list_id, unsigned int line,
-                                                unsigned int directory_depth)
+                                                unsigned int directory_depth,
+                                                bool is_crawler_direction_reverse)
 {
     const auto result =
         stream_ppinfos_.emplace(stream_id,
                                 StreamPreplayInfo(stream_key, std::move(uris),
                                                   std::move(airable_links),
-                                                  list_id, line, directory_depth));
+                                                  list_id, line, directory_depth,
+                                                  is_crawler_direction_reverse));
 
     return (result.first != stream_ppinfos_.end() && result.second);
 }
@@ -252,7 +255,8 @@ ID::OurStream Player::Data::store_stream_preplay_information(const GVariantWrapp
                                                              std::vector<std::string> &&uris,
                                                              Airable::SortedLinks &&airable_links,
                                                              ID::List list_id, unsigned int line,
-                                                             unsigned int directory_depth)
+                                                             unsigned int directory_depth,
+                                                             bool is_crawler_direction_reverse)
 {
     log_assert(list_id.is_valid());
 
@@ -269,7 +273,8 @@ ID::OurStream Player::Data::store_stream_preplay_information(const GVariantWrapp
 
         if(preplay_info_.store(id, stream_key,
                                std::move(uris), std::move(airable_links),
-                               list_id, line, directory_depth))
+                               list_id, line, directory_depth,
+                               is_crawler_direction_reverse))
         {
             ref_list_id(referenced_lists_, list_id);
             return id;
@@ -444,7 +449,10 @@ bool Player::Data::forget_stream(const ID::Stream &stream_id)
     unref_list_id(referenced_lists_, list_id);
 
     if(stream_id == current_stream_id_)
+    {
         current_stream_id_ = ID::Stream::make_invalid();
+        playback_speed_ = 1.0;
+    }
     else
         remove_stream_from_queued_app_streams(queued_app_streams_,
                                               AppStream::make_from_generic_id(stream_id));
@@ -457,6 +465,7 @@ void Player::Data::forget_all_streams()
     meta_data_db_.clear();
     preplay_info_.clear();
     queued_app_streams_.fill(AppStream::make_invalid());
+    playback_speed_ = 1.0;
 }
 
 const MetaData::Set &Player::Data::get_meta_data(const ID::Stream &stream_id)
@@ -472,9 +481,13 @@ const MetaData::Set &Player::Data::get_meta_data(const ID::Stream &stream_id)
     }
 }
 
-bool Player::Data::update_track_times(const std::chrono::milliseconds &position,
+bool Player::Data::update_track_times(const ID::Stream &stream_id,
+                                      const std::chrono::milliseconds &position,
                                       const std::chrono::milliseconds &duration)
 {
+    if(stream_id != current_stream_id_)
+        return false;
+
     if(stream_position_ == position && stream_duration_ == duration)
         return false;
 
@@ -482,6 +495,58 @@ bool Player::Data::update_track_times(const std::chrono::milliseconds &position,
     stream_duration_ = duration;
 
     return true;
+}
+
+static inline bool is_regular_speed(double s)
+{
+    return s <= 1.0 && s >= 1.0;
+}
+
+static inline bool is_playing_forward(double s)
+{
+    return s >= 0.0;
+}
+
+Player::VisibleStreamState Player::Data::get_current_visible_stream_state() const
+{
+    switch(get_current_stream_state())
+    {
+      case StreamState::STOPPED:
+        return VisibleStreamState::STOPPED;
+
+      case StreamState::BUFFERING:
+        return VisibleStreamState::BUFFERING;
+
+      case StreamState::PAUSED:
+        return VisibleStreamState::PAUSED;
+
+      case StreamState::PLAYING:
+        if(is_regular_speed(playback_speed_))
+            return VisibleStreamState::PLAYING;
+        else if(is_playing_forward(playback_speed_))
+            return VisibleStreamState::FAST_FORWARD;
+        else
+            return VisibleStreamState::FAST_REWIND;
+    }
+
+    BUG("%s(): unreachable", __func__);
+
+    return VisibleStreamState::STOPPED;
+}
+
+bool Player::Data::update_playback_speed(const ID::Stream &stream_id,
+                                         double speed)
+{
+    if(stream_id != current_stream_id_)
+        return false;
+
+    const bool retval =
+        is_regular_speed(speed) != is_regular_speed(playback_speed_) ||
+        is_playing_forward(speed) != is_playing_forward(playback_speed_);
+
+    playback_speed_ = speed;
+
+    return retval;
 }
 
 void Player::Data::append_referenced_lists(std::vector<ID::List> &list_ids) const
