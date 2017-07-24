@@ -113,9 +113,11 @@ class View: public ViewIface, public ViewSerializeBase
     List::NavItemNoFilter item_flags_;
     List::Nav navigation_;
 
-  private:
-    Player::AudioSource audio_source_;
+    ViewIface *play_view_;
+    std::vector<Player::AudioSource> audio_sources_;
+    ssize_t selected_audio_source_index_;
 
+  private:
     Playlist::DirectoryCrawler crawler_;
     Playlist::CrawlerIface::RecursiveMode default_recursive_mode_;
     Playlist::CrawlerIface::ShuffleMode default_shuffle_mode_;
@@ -126,8 +128,6 @@ class View: public ViewIface, public ViewSerializeBase
 
     ViewIface *search_parameters_view_;
     bool waiting_for_search_parameters_;
-
-    ViewIface *play_view_;
 
     AsyncCalls async_calls_;
 
@@ -152,15 +152,15 @@ class View: public ViewIface, public ViewSerializeBase
                    construct_file_item),
         item_flags_(&file_list_),
         navigation_(max_lines, List::Nav::WrapMode::FULL_WRAP, item_flags_),
-        audio_source_(name),
+        play_view_(nullptr),
+        selected_audio_source_index_(-1),
         crawler_(dbus_get_lists_navigation_iface(listbroker_id_),
                  list_contexts_, construct_file_item),
         default_recursive_mode_(default_recursive_mode),
         default_shuffle_mode_(default_shuffle_mode),
         drcp_browse_id_(drcp_browse_id),
         search_parameters_view_(nullptr),
-        waiting_for_search_parameters_(false),
-        play_view_(nullptr)
+        waiting_for_search_parameters_(false)
     {}
 
     bool init() final override;
@@ -191,6 +191,13 @@ class View: public ViewIface, public ViewSerializeBase
     virtual bool list_invalidate(ID::List list_id, ID::List replacement_id);
 
   protected:
+    static void audio_source_registered(GObject *source_object,
+                                        GAsyncResult *res, gpointer user_data);
+
+    virtual bool register_audio_sources();
+
+    bool have_audio_source() const { return selected_audio_source_index_ >= 0; }
+
     virtual void cancel_and_delete_all_async_calls()
     {
         async_calls_.cancel_and_delete_all();

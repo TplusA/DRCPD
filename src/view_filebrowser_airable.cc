@@ -23,6 +23,7 @@
 #include "view_filebrowser_airable.hh"
 #include "view_filebrowser_fileitem.hh"
 #include "view_filebrowser_utils.hh"
+#include "view_play.hh"
 #include "ui_parameters_predefined.hh"
 #include "de_tahifi_lists_context.h"
 #include "messages.h"
@@ -46,6 +47,39 @@ void ViewFileBrowser::AirableView::logged_out_from_service_notification(const ch
         point_to_root_directory();
 
     search_forms_.erase(ctx_id);
+}
+
+bool ViewFileBrowser::AirableView::register_audio_sources()
+{
+    if(list_contexts_.empty())
+    {
+        BUG("No list contexts, cannot create audio sources");
+        return false;
+    }
+
+    selected_audio_source_index_ = 0;
+
+    for(const auto &ctx : list_contexts_)
+        audio_sources_.emplace_back(Player::AudioSource(ctx.string_id_.c_str()));
+
+    auto *const pview = static_cast<ViewPlay::View *>(play_view_);
+    size_t i = 0;
+
+    for(const auto &ctx : list_contexts_)
+    {
+        pview->register_audio_source(audio_sources_[i], *this);
+        tdbus_aupath_manager_call_register_source(dbus_audiopath_get_manager_iface(),
+                                                  audio_sources_[i].id_,
+                                                  ctx.description_.c_str(),
+                                                  "strbo",
+                                                  "/de/tahifi/Drcpd",
+                                                  nullptr,
+                                                  audio_source_registered,
+                                                  &audio_sources_[i]);
+        ++i;
+    }
+
+    return true;
 }
 
 ViewIface::InputResult

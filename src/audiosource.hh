@@ -47,6 +47,7 @@ class AudioSource
 
   public:
     AudioSource(const AudioSource &) = delete;
+    AudioSource(AudioSource &&) = default;
     AudioSource &operator=(const AudioSource &) = delete;
 
     explicit AudioSource(const char *id):

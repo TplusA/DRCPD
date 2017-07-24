@@ -170,32 +170,8 @@ void ViewFileBrowser::View::handle_get_item_event(List::AsyncListIface::OpResult
     }
 }
 
-static void whatever(GObject *source_object, GAsyncResult *res,
-                     gpointer user_data)
-{
-    GError *error = nullptr;
-    tdbus_aupath_manager_call_register_source_finish(TDBUS_AUPATH_MANAGER(source_object),
-                                                     res, &error);
-
-    if(error != nullptr)
-    {
-        msg_error(0, LOG_ERR,
-                  "Failed registering audio source %s: %s",
-                  static_cast<const Player::AudioSource *>(user_data)->id_,
-                  error->message);
-        g_error_free(error);
-    }
-}
-
 bool ViewFileBrowser::View::init()
 {
-    tdbus_aupath_manager_call_register_source(dbus_audiopath_get_manager_iface(),
-                                              audio_source_.id_, on_screen_name_,
-                                              "strbo",
-                                              "/de/tahifi/Drcpd",
-                                              nullptr, whatever,
-                                              &audio_source_);
-
     file_list_.register_watcher(
         [this] (List::AsyncListIface::OpEvent event,
                 List::AsyncListIface::OpResult result,
@@ -250,10 +226,44 @@ bool ViewFileBrowser::View::late_init()
     if(play_view_ == nullptr)
         return false;
 
-    auto *const pview = static_cast<ViewPlay::View *>(play_view_);
-    pview->register_audio_source(audio_source_, *this);
+    return sync_with_list_broker() && register_audio_sources();
+}
 
-    return sync_with_list_broker();
+void ViewFileBrowser::View::audio_source_registered(GObject *source_object,
+                                                    GAsyncResult *res,
+                                                    gpointer user_data)
+{
+    GError *error = nullptr;
+    tdbus_aupath_manager_call_register_source_finish(TDBUS_AUPATH_MANAGER(source_object),
+                                                     res, &error);
+
+    if(error != nullptr)
+    {
+        msg_error(0, LOG_ERR,
+                  "Failed registering audio source %s: %s",
+                  static_cast<const Player::AudioSource *>(user_data)->id_,
+                  error->message);
+        g_error_free(error);
+    }
+}
+
+bool ViewFileBrowser::View::register_audio_sources()
+{
+    audio_sources_.emplace_back(Player::AudioSource(name_));
+
+    auto *const pview = static_cast<ViewPlay::View *>(play_view_);
+    pview->register_audio_source(audio_sources_.front(), *this);
+    selected_audio_source_index_ = 0;
+
+    tdbus_aupath_manager_call_register_source(dbus_audiopath_get_manager_iface(),
+                                              audio_sources_.front().id_,
+                                              on_screen_name_,
+                                              "strbo",
+                                              "/de/tahifi/Drcpd",
+                                              nullptr, audio_source_registered,
+                                              &audio_sources_.front());
+
+    return true;
 }
 
 static std::pair<const uint32_t, const Player::LocalPermissionsIface *const>
@@ -527,8 +537,11 @@ std::chrono::milliseconds ViewFileBrowser::View::keep_lists_alive_timer_callback
     if(current_list_id_.is_valid())
         list_ids.push_back(current_list_id_);
 
-    const auto *const pview = static_cast<ViewPlay::View *>(play_view_);
-    pview->append_referenced_lists(audio_source_, list_ids);
+    if(have_audio_source())
+    {
+        const auto *const pview = static_cast<ViewPlay::View *>(play_view_);
+        pview->append_referenced_lists(audio_sources_[selected_audio_source_index_], list_ids);
+    }
 
     if(list_ids.empty())
         return std::chrono::milliseconds::zero();
@@ -833,11 +846,12 @@ ViewFileBrowser::View::process_event(UI::ViewEventID event_id,
                 return InputResult::OK;
             }
 
-            if(crawler_.set_start_position(file_list_, navigation_.get_line_number_by_cursor()) &&
+            if(have_audio_source() &&
+               crawler_.set_start_position(file_list_, navigation_.get_line_number_by_cursor()) &&
                crawler_.configure_and_restart(default_recursive_mode_, default_shuffle_mode_))
-                static_cast<ViewPlay::View *>(play_view_)->prepare_for_playing(audio_source_,
-                                                                               crawler_,
-                                                                               permissions);
+                static_cast<ViewPlay::View *>(play_view_)->prepare_for_playing(
+                        audio_sources_[selected_audio_source_index_],
+                        crawler_, permissions);
 
             if(crawler_.is_attached_to_player())
                 view_manager_->sync_activate_view_by_name(ViewNames::PLAYER, true);
@@ -1115,10 +1129,11 @@ bool ViewFileBrowser::View::list_invalidate(ID::List list_id, ID::List replaceme
 
     if(crawler_.is_attached_to_player())
     {
-        if(crawler_.list_invalidate(list_id, replacement_id))
+        if(crawler_.list_invalidate(list_id, replacement_id) &&
+           have_audio_source())
         {
             auto *const pview = static_cast<ViewPlay::View *>(play_view_);
-            pview->stop_playing(audio_source_);
+            pview->stop_playing(audio_sources_[selected_audio_source_index_]);
         }
     }
 

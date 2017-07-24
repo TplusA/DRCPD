@@ -143,6 +143,20 @@ class ContextMap
     {
         return (*this)[id.c_str()];
     }
+
+    bool empty() const { return contexts_.empty(); }
+
+    using const_iterator = std::vector<ContextInfo>::const_iterator;
+
+    const_iterator begin() const
+    {
+        return contexts_.begin();
+    }
+
+    const_iterator end() const
+    {
+        return contexts_.end();
+    }
 };
 
 }

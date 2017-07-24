@@ -68,6 +68,8 @@ class AirableView: public View
 
     ~AirableView() {}
 
+    bool register_audio_sources() final override;
+
     InputResult process_event(UI::ViewEventID event_id,
                               std::unique_ptr<const UI::Parameters> parameters) final override;
 
