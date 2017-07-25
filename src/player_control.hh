@@ -293,6 +293,11 @@ class Control
 
     bool is_active_controller_for_audio_source(const std::string &audio_source_id) const;
 
+    bool is_crawler_plugged(const Playlist::CrawlerIface &crawler) const
+    {
+        return crawler_ == &crawler;
+    }
+
     void plug(AudioSource &audio_source,
               const std::function<void(void)> &stop_playing_notification,
               const std::string *blind_player_id = nullptr);

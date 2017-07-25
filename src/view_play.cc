@@ -124,8 +124,10 @@ void ViewPlay::View::prepare_for_playing(Player::AudioSource &audio_source,
         /* we already own the player, so we can do a "soft" jump to the newly
          * selected stream to avoid going through stopped/playing signals and
          * associated queue management (which would fail without extra
-         * precautions); we assume that the caller has pointed the crawler to
-         * the desired location */
+         * precautions) */
+        if(!player_control_.is_crawler_plugged(crawler))
+            player_control_.plug(crawler, permissions);
+
         player_control_.jump_to_crawler_location();
     }
     else
@@ -596,6 +598,7 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
                 audio_source->select_now();
                 plug_audio_source(*audio_source);
                 player_control_.plug(player_data_);
+                player_control_.source_selected_notification(ausrc_id);
             }
 
             if(view != nullptr)
