@@ -249,7 +249,8 @@ void ViewFileBrowser::View::audio_source_registered(GObject *source_object,
 
 bool ViewFileBrowser::View::register_audio_sources()
 {
-    audio_sources_.emplace_back(Player::AudioSource(name_));
+    log_assert(default_audio_source_name_ != nullptr);
+    audio_sources_.emplace_back(Player::AudioSource(default_audio_source_name_));
 
     auto *const pview = static_cast<ViewPlay::View *>(play_view_);
     pview->register_audio_source(audio_sources_.front(), *this);

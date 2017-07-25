@@ -63,7 +63,7 @@ class AirableView: public View
                          Playlist::CrawlerIface::ShuffleMode default_shuffle_mode,
                          ViewManager::VMIface *view_manager):
         View(name, on_screen_name, drcp_browse_id, max_lines, listbroker_id,
-             default_recursive_mode, default_shuffle_mode, view_manager)
+             default_recursive_mode, default_shuffle_mode, nullptr, view_manager)
     {}
 
     ~AirableView() {}

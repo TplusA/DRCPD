@@ -51,6 +51,8 @@ void ViewFileBrowser::AirableView::logged_out_from_service_notification(const ch
 
 bool ViewFileBrowser::AirableView::register_audio_sources()
 {
+    log_assert(default_audio_source_name_ == nullptr);
+
     if(list_contexts_.empty())
     {
         BUG("No list contexts, cannot create audio sources");

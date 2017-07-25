@@ -116,6 +116,7 @@ class View: public ViewIface, public ViewSerializeBase
     ViewIface *play_view_;
     std::vector<Player::AudioSource> audio_sources_;
     ssize_t selected_audio_source_index_;
+    const char *const default_audio_source_name_;
 
   private:
     Playlist::DirectoryCrawler crawler_;
@@ -141,6 +142,7 @@ class View: public ViewIface, public ViewSerializeBase
                   dbus_listbroker_id_t listbroker_id,
                   Playlist::CrawlerIface::RecursiveMode default_recursive_mode,
                   Playlist::CrawlerIface::ShuffleMode default_shuffle_mode,
+                  const char *audio_source_name,
                   ViewManager::VMIface *view_manager):
         ViewIface(name, true, view_manager),
         ViewSerializeBase(on_screen_name, "browse", 102U),
@@ -154,6 +156,7 @@ class View: public ViewIface, public ViewSerializeBase
         navigation_(max_lines, List::Nav::WrapMode::FULL_WRAP, item_flags_),
         play_view_(nullptr),
         selected_audio_source_index_(-1),
+        default_audio_source_name_(audio_source_name),
         crawler_(dbus_get_lists_navigation_iface(listbroker_id_),
                  list_contexts_, construct_file_item),
         default_recursive_mode_(default_recursive_mode),
