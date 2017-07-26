@@ -217,6 +217,9 @@ compute_keep_alive_timeout(guint64 expiry_ms, unsigned int percentage,
 
 bool ViewFileBrowser::View::late_init()
 {
+    if(!ViewIface::late_init())
+        return false;
+
     search_parameters_view_=
         dynamic_cast<ViewSearch::View *>(view_manager_->get_view_by_name(ViewNames::SEARCH_OPTIONS));
 
