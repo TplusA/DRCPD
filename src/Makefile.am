@@ -83,7 +83,7 @@ drcpd_LDADD = $(noinst_LTLIBRARIES) $(DRCPD_DEPENDENCIES_LIBS)
 
 drcpd_LDFLAGS = $(LTLIBINTL)
 
-liblist_la_SOURCES = list.hh list.cc ramlist.hh ramlist.cc dbuslist.hh dbuslist_exception.hh dbuslist.cc idtypes.hh stream_id.h stream_id.hh
+liblist_la_SOURCES = list.hh ramlist.hh ramlist.cc dbuslist.hh dbuslist_exception.hh dbuslist.cc idtypes.hh stream_id.h stream_id.hh
 liblist_la_CFLAGS = $(AM_CFLAGS)
 liblist_la_CXXFLAGS = $(AM_CXXFLAGS)
 

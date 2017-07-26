@@ -121,8 +121,7 @@ class TreeItem: virtual public Item
 class TextItem: virtual public Item
 {
   protected:
-    std::string text_;
-    bool text_is_translatable_;
+    I18n::String text_;
 
   public:
     TextItem(const TextItem &) = delete;
@@ -131,17 +130,16 @@ class TextItem: virtual public Item
 
     explicit TextItem(unsigned int flags):
         Item(flags),
-        text_is_translatable_(false)
+        text_(false)
     {}
 
     explicit TextItem(const char *text, bool text_is_translatable,
                       unsigned int flags):
         Item(flags),
-        text_(text),
-        text_is_translatable_(text_is_translatable)
+        text_(text_is_translatable, text)
     {}
 
-    const char *get_text() const;
+    const char *get_text() const { return text_.get_text(); }
 };
 
 /*!
