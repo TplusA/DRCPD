@@ -6,9 +6,9 @@
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: drcpd 1.5\n"
+"Project-Id-Version: drcpd 4.0\n"
 "Report-Msgid-Bugs-To: r.tiemann@ta-hifi.de\n"
-"POT-Creation-Date: 2016-01-18 17:45+0100\n"
+"POT-Creation-Date: 2017-07-26 14:20+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,82 +17,94 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: src/drcpd.cc:382
+#: src/drcpd.cc:480
 msgid "Configuration"
 msgstr ""
 
-#: src/drcpd.cc:384
+#: src/drcpd.cc:483
 msgid "USB devices"
 msgstr ""
 
-#: src/drcpd.cc:390
+#: src/drcpd.cc:491
 msgid "Airable internet radio"
 msgstr ""
 
-#: src/drcpd.cc:396
+#: src/drcpd.cc:498
 msgid "UPnP media servers"
 msgstr ""
 
-#: src/drcpd.cc:401
+#: src/drcpd.cc:505
 msgid "Stream information"
 msgstr ""
 
-#: src/view_config.cc:134
+#: src/drcpd.cc:509
+msgid "Search parameters"
+msgstr ""
+
+#: src/view_config.cc:135
 msgid "MAC"
 msgstr ""
 
-#: src/view_config.cc:139
+#: src/view_config.cc:140
 msgid "DHCP"
 msgstr ""
 
-#: src/view_config.cc:141
+#: src/view_config.cc:142
 msgid "Device IP"
 msgstr ""
 
-#: src/view_config.cc:145
+#: src/view_config.cc:146
 msgid "IP mask"
 msgstr ""
 
-#: src/view_config.cc:149
+#: src/view_config.cc:150
 msgid "Gateway IP"
 msgstr ""
 
-#: src/view_config.cc:153
+#: src/view_config.cc:154
 msgid "DNS 1"
 msgstr ""
 
-#: src/view_config.cc:157
+#: src/view_config.cc:158
 msgid "DNS 2"
 msgstr ""
 
-#: src/view_config.cc:162
+#: src/view_config.cc:163
 msgid "Proxy"
 msgstr ""
 
-#: src/view_config.cc:164
+#: src/view_config.cc:165
 msgid "Proxy IP"
 msgstr ""
 
-#: src/view_config.cc:168
+#: src/view_config.cc:169
 msgid "Proxy port"
 msgstr ""
 
-#: src/view_config.cc:173
+#: src/view_config.cc:174
 msgid "Device name"
 msgstr ""
 
-#: src/view_config.cc:175
+#: src/view_config.cc:176
 msgid "Networking mode"
 msgstr ""
 
-#: src/view_config.cc:177
+#: src/view_config.cc:178
 msgid "Save and restart"
 msgstr ""
 
-#: src/view_config.cc:179
+#: src/view_config.cc:180
 msgid "Exit without saving"
 msgstr ""
 
-#: src/view_play.cc:179
+#: src/view_play.cc:781
 msgid "Buffering"
+msgstr ""
+
+#: po/listbrokers.txt:1
+msgid "All USB devices"
+msgstr ""
+
+#: po/listbrokers.txt:2
+msgid "All UPnP servers"
 msgstr ""

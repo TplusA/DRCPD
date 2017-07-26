@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: drcpd 0.1\n"
 "Report-Msgid-Bugs-To: r.tiemann@ta-hifi.de\n"
-"POT-Creation-Date: 2016-01-18 17:45+0100\n"
+"POT-Creation-Date: 2017-07-26 14:20+0200\n"
 "PO-Revision-Date: 2014-10-01 15:45+0200\n"
 "Last-Translator: Robert Tiemann <r.tiemann@ta-hifi.de>\n"
 "Language-Team: German\n"
@@ -17,83 +17,95 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: src/drcpd.cc:382
+#: src/drcpd.cc:480
 msgid "Configuration"
 msgstr "Konfiguration"
 
-#: src/drcpd.cc:384
+#: src/drcpd.cc:483
 msgid "USB devices"
 msgstr "USB-Geräte"
 
-#: src/drcpd.cc:390
+#: src/drcpd.cc:491
 msgid "Airable internet radio"
 msgstr "Airable Internetradio"
 
-#: src/drcpd.cc:396
+#: src/drcpd.cc:498
 msgid "UPnP media servers"
 msgstr "UPnP Medienserver"
 
-#: src/drcpd.cc:401
+#: src/drcpd.cc:505
 msgid "Stream information"
 msgstr "Stream-Informationen"
 
-#: src/view_config.cc:134
+#: src/drcpd.cc:509
+msgid "Search parameters"
+msgstr "Suchparameter"
+
+#: src/view_config.cc:135
 msgid "MAC"
 msgstr ""
 
-#: src/view_config.cc:139
+#: src/view_config.cc:140
 msgid "DHCP"
 msgstr ""
 
-#: src/view_config.cc:141
+#: src/view_config.cc:142
 #, fuzzy
 msgid "Device IP"
 msgstr "Geräte-IP"
 
-#: src/view_config.cc:145
+#: src/view_config.cc:146
 msgid "IP mask"
 msgstr "IP-Maske"
 
-#: src/view_config.cc:149
+#: src/view_config.cc:150
 msgid "Gateway IP"
 msgstr "Gateway-IP"
 
-#: src/view_config.cc:153
+#: src/view_config.cc:154
 msgid "DNS 1"
 msgstr ""
 
-#: src/view_config.cc:157
+#: src/view_config.cc:158
 msgid "DNS 2"
 msgstr ""
 
-#: src/view_config.cc:162
+#: src/view_config.cc:163
 msgid "Proxy"
 msgstr ""
 
-#: src/view_config.cc:164
+#: src/view_config.cc:165
 msgid "Proxy IP"
 msgstr ""
 
-#: src/view_config.cc:168
+#: src/view_config.cc:169
 msgid "Proxy port"
 msgstr "Proxy-Port"
 
-#: src/view_config.cc:173
+#: src/view_config.cc:174
 msgid "Device name"
 msgstr "Gerätename"
 
-#: src/view_config.cc:175
+#: src/view_config.cc:176
 msgid "Networking mode"
 msgstr "Netzwerkmodus"
 
-#: src/view_config.cc:177
+#: src/view_config.cc:178
 msgid "Save and restart"
 msgstr "Speichern und neu starten"
 
-#: src/view_config.cc:179
+#: src/view_config.cc:180
 msgid "Exit without saving"
 msgstr "Ohne speichern beenden"
 
-#: src/view_play.cc:179
+#: src/view_play.cc:781
 msgid "Buffering"
 msgstr "Puffern"
+
+#: po/listbrokers.txt:1
+msgid "All USB devices"
+msgstr "Alle USB-Geräte"
+
+#: po/listbrokers.txt:2
+msgid "All UPnP servers"
+msgstr "Alle UPnP-Server"
