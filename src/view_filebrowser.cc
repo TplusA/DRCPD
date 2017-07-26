@@ -51,7 +51,8 @@ List::Item *ViewFileBrowser::construct_file_item(const char *name,
 static ID::List finish_async_enter_dir_op(List::AsyncListIface::OpResult result,
                                           const std::shared_ptr<List::QueryContextEnterList> &ctx,
                                           ViewFileBrowser::View::AsyncCalls &calls,
-                                          ID::List current_list_id)
+                                          ID::List current_list_id,
+                                          ViewSerializeBase &view)
 {
     auto lock(calls.acquire_lock());
 
@@ -62,9 +63,11 @@ static ID::List finish_async_enter_dir_op(List::AsyncListIface::OpResult result,
     switch(result)
     {
       case List::AsyncListIface::OpResult::SUCCEEDED:
+        view.set_dynamic_title(ctx->parameters_.title_);
         return ctx->parameters_.list_id_;
 
       case List::AsyncListIface::OpResult::FAILED:
+        view.clear_dynamic_title();
         return ID::List();
 
       case List::AsyncListIface::OpResult::CANCELED:
@@ -92,7 +95,7 @@ bool ViewFileBrowser::View::handle_enter_list_event_finish(
       case List::QueryContextEnterList::CallerID::ENTER_PARENT:
       case List::QueryContextEnterList::CallerID::RELOAD_LIST:
         current_list_id_ = finish_async_enter_dir_op(result, ctx, async_calls_,
-                                                     current_list_id_);
+                                                     current_list_id_, *this);
         break;
 
       case List::QueryContextEnterList::CallerID::CRAWLER_RESTART:
@@ -1201,8 +1204,10 @@ static void point_to_root_directory__got_list_id(DBus::AsyncCall_ &async_call,
 
     const auto &result(calls.get_list_id_->get_result(async_result));
 
-    const ListError error(result.first);
-    const ID::List id(result.second);
+    const ListError error(std::get<0>(result));
+    const ID::List id(std::get<1>(result));
+    gchar *const title(std::get<2>(result));
+    const gboolean title_translatable(std::get<3>(result));
 
     if(error != ListError::Code::OK)
     {
@@ -1217,12 +1222,17 @@ static void point_to_root_directory__got_list_id(DBus::AsyncCall_ &async_call,
         goto error_exit;
     }
 
-    file_list.enter_list_async(id, 0, List::QueryContextEnterList::CallerID::ENTER_ROOT);
+    file_list.enter_list_async(id, 0, List::QueryContextEnterList::CallerID::ENTER_ROOT,
+                               std::move(I18n::String(title_translatable,
+                                                      title != nullptr ? title : "")));
+
+    g_free(title);
 
     return;
 
 error_exit:
     calls.get_list_id_.reset();
+    g_free(title);
 }
 
 static std::shared_ptr<ViewFileBrowser::View::AsyncCalls::GetListId>
@@ -1243,20 +1253,27 @@ mk_get_list_id(tdbuslistsNavigation *proxy,
         {
             guchar error_code;
             guint child_list_id;
+            gchar *child_list_title;
+            gboolean child_list_title_translatable;
 
             async_ready =
                 (is_simple_get_list
                  ? tdbus_lists_navigation_call_get_list_id_finish(
-                        p, &error_code, &child_list_id, async_result, &error)
+                        p, &error_code, &child_list_id, &child_list_title,
+                        &child_list_title_translatable,
+                        async_result, &error)
                  : tdbus_lists_navigation_call_get_parameterized_list_id_finish(
-                        p, &error_code, &child_list_id, async_result, &error))
+                        p, &error_code, &child_list_id, &child_list_title,
+                        &child_list_title_translatable,
+                        async_result, &error))
                 ? DBus::AsyncResult::READY
                 : DBus::AsyncResult::FAILED;
 
             if(async_ready == DBus::AsyncResult::FAILED)
                 throw List::DBusListException(ListError::Code::INTERNAL, true);
 
-            promise.set_value(std::make_pair(error_code, child_list_id));
+            promise.set_value(std::make_tuple(error_code, child_list_id, child_list_title,
+                                              child_list_title_translatable));
         },
         std::move(result_available_fn),
         [] (ViewFileBrowser::View::AsyncCalls::GetListId::PromiseReturnType &values) {},
@@ -1322,8 +1339,10 @@ static void point_to_child_directory__got_list_id(DBus::AsyncCall_ &async_call,
 
     const auto &result(calls.get_list_id_->get_result(async_result));
 
-    const ListError error(result.first);
-    const ID::List id(result.second);
+    const ListError error(std::get<0>(result));
+    const ID::List id(std::get<1>(result));
+    gchar *const title(std::get<2>(result));
+    const gboolean title_translatable(std::get<3>(result));
 
     if(error != ListError::Code::OK)
     {
@@ -1338,12 +1357,17 @@ static void point_to_child_directory__got_list_id(DBus::AsyncCall_ &async_call,
         goto error_exit;
     }
 
-    file_list.enter_list_async(id, 0, List::QueryContextEnterList::CallerID::ENTER_CHILD);
+    file_list.enter_list_async(id, 0, List::QueryContextEnterList::CallerID::ENTER_CHILD,
+                               std::move(I18n::String(title_translatable,
+                                                      title != nullptr ? title : "")));
+
+    g_free(title);
 
     return;
 
 error_exit:
     calls.get_list_id_.reset();
+    g_free(title);
 }
 
 bool ViewFileBrowser::View::point_to_child_directory(const SearchParameters *search_parameters)
@@ -1414,12 +1438,16 @@ static void point_to_parent_link__got_parent_link(DBus::AsyncCall_ &async_call,
 
     const auto &result(calls.get_parent_id_->get_result(async_result));
 
-    const ID::List list_id(result.first);
-    const unsigned int line(result.second);
+    const ID::List list_id(std::get<0>(result));
+    const unsigned int line(std::get<1>(result));
+    gchar *const title(std::get<2>(result));
+    const gboolean title_translatable(std::get<3>(result));
 
     if(list_id.is_valid())
         file_list.enter_list_async(list_id, line,
-                                   List::QueryContextEnterList::CallerID::ENTER_PARENT);
+                                   List::QueryContextEnterList::CallerID::ENTER_PARENT,
+                                   std::move(I18n::String(title_translatable,
+                                                          title != nullptr ? title : "")));
     else
     {
         if(line == 1)
@@ -1430,6 +1458,8 @@ static void point_to_parent_link__got_parent_link(DBus::AsyncCall_ &async_call,
 
         calls.get_parent_id_.reset();
     }
+
+    g_free(title);
 }
 
 bool ViewFileBrowser::View::point_to_parent_link()
@@ -1448,11 +1478,15 @@ bool ViewFileBrowser::View::point_to_parent_link()
         {
             guint parent_list_id;
             guint parent_item_id;
+            gchar *parent_list_title;
+            gboolean parent_list_title_translatable;
 
             async_ready =
                 tdbus_lists_navigation_call_get_parent_link_finish(p,
                                                                    &parent_list_id,
                                                                    &parent_item_id,
+                                                                   &parent_list_title,
+                                                                   &parent_list_title_translatable,
                                                                    async_result,
                                                                    &error)
                 ? DBus::AsyncResult::READY
@@ -1461,7 +1495,8 @@ bool ViewFileBrowser::View::point_to_parent_link()
             if(async_ready == DBus::AsyncResult::FAILED)
                 throw List::DBusListException(ListError::Code::INTERNAL, true);
 
-            promise.set_value(std::make_pair(parent_list_id, parent_item_id));
+            promise.set_value(std::make_tuple(parent_list_id, parent_item_id, parent_list_title,
+                                              parent_list_title_translatable));
         },
         std::bind(point_to_parent_link__got_parent_link,
                   std::placeholders::_1,
@@ -1489,7 +1524,8 @@ void ViewFileBrowser::View::reload_list()
 
     if(line >= 0)
         file_list_.enter_list_async(current_list_id_, line,
-                                    List::QueryContextEnterList::CallerID::RELOAD_LIST);
+                                    List::QueryContextEnterList::CallerID::RELOAD_LIST,
+                                    std::move(I18n::String(get_dynamic_title())));
     else
         point_to_root_directory();
 }

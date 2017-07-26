@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2017  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -24,6 +24,7 @@
 #include "dcp_transaction_queue.hh"
 #include "busy.hh"
 #include "i18n.h"
+#include "i18nstring.hh"
 #include "xmlescape.hh"
 
 /* open up a bit for unit tests */
@@ -54,6 +55,7 @@ class ViewSerializeBase
      * View-specific flags that tell the view what exactly it should update.
      */
     uint32_t update_flags_;
+    I18n::String dynamic_title_;
 
   public:
     ViewSerializeBase(const ViewSerializeBase &) = delete;
@@ -77,7 +79,8 @@ class ViewSerializeBase
         on_screen_name_(on_screen_name),
         drcp_view_id_(drcp_view_id),
         drcp_screen_id_(drcp_screen_id),
-        update_flags_(0)
+        update_flags_(0),
+        dynamic_title_(false)
     {}
 
     virtual ~ViewSerializeBase() {}
@@ -129,6 +132,13 @@ class ViewSerializeBase
         update_flags_ |= (flags & UPDATE_FLAGS_BASE_MASK);
     }
 
+    virtual void set_dynamic_title(const I18n::String &t) { dynamic_title_ = t; }
+    virtual void set_dynamic_title(const char *t)         { dynamic_title_ = t; }
+    virtual void set_dynamic_title(I18n::String &&t)      { dynamic_title_ = std::move(t); }
+    virtual void clear_dynamic_title()                    { dynamic_title_.clear(); }
+
+    const I18n::String &get_dynamic_title() const { return dynamic_title_; }
+
   protected:
     /*!
      * Start writing XML data, opens view or update tag and some generic tags.
@@ -148,7 +158,11 @@ class ViewSerializeBase
 
         if(data.is_full_serialize_)
         {
-            os << "<text id=\"title\">" << XmlEscape(_(on_screen_name_)) << "</text>";
+            os << "<text id=\"title\">"
+               << (get_dynamic_title().empty()
+                   ? XmlEscape(_(on_screen_name_))
+                   : XmlEscape(get_dynamic_title().get_text()))
+               << "</text>";
             os << "<text id=\"scrid\">" << int(drcp_screen_id_) << "</text>";
         }
 

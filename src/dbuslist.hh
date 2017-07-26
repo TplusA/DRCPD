@@ -22,10 +22,12 @@
 #include <memory>
 #include <functional>
 #include <tuple>
+#include <string>
 
 #include "list.hh"
 #include "lists_dbus.h"
 #include "ramlist.hh"
+#include "i18nstring.hh"
 #include "context_map.hh"
 #include "messages.h"
 #include "dbuslist_exception.hh"
@@ -146,6 +148,7 @@ class QueryContextEnterList: public QueryContext_
     {
         ID::List list_id_;
         unsigned int line_;
+        I18n::String title_;
     }
     parameters_;
 
@@ -160,20 +163,22 @@ class QueryContextEnterList: public QueryContext_
     explicit QueryContextEnterList(AsyncListIface &result_receiver,
                                    unsigned short caller_id,
                                    tdbuslistsNavigation *proxy,
-                                   ID::List list_id, unsigned int line):
+                                   ID::List list_id, unsigned int line,
+                                   I18n::String &&title):
         QueryContext_(result_receiver, caller_id),
         proxy_(proxy),
-        parameters_({list_id, line})
+        parameters_({list_id, line, std::move(title)})
     {}
 
     /*!
      * Constructor for restarting the call with different parameters.
      */
     explicit QueryContextEnterList(const QueryContextEnterList &src,
-                                   ID::List list_id, unsigned int line):
+                                   ID::List list_id, unsigned int line,
+                                   I18n::String &&title):
         QueryContext_(src),
         proxy_(src.proxy_),
-        parameters_({list_id, line})
+        parameters_({list_id, line, std::move(title)})
     {}
 
     CallerID get_caller_id() const { return static_cast<CallerID>(caller_id_); }
@@ -830,9 +835,11 @@ class DBusList: public ListIface, public AsyncListIface
 
     void enter_list(ID::List list_id, unsigned int line) throw(List::DBusListException) override;
     OpResult enter_list_async(ID::List list_id, unsigned int line,
-                              QueryContextEnterList::CallerID caller)
+                              QueryContextEnterList::CallerID caller,
+                              I18n::String &&dynamic_title)
     {
-        return enter_list_async(list_id, line, static_cast<unsigned short>(caller));
+        return enter_list_async(list_id, line, static_cast<unsigned short>(caller),
+                                std::move(dynamic_title));
     }
 
     const Item *get_item(unsigned int line) const throw(List::DBusListException) override;
@@ -905,7 +912,8 @@ class DBusList: public ListIface, public AsyncListIface
             async_dbus_data_.event_watcher_(event, result, ctx);
     }
 
-    OpResult enter_list_async(ID::List list_id, unsigned int line, unsigned short caller_id) override;
+    OpResult enter_list_async(ID::List list_id, unsigned int line, unsigned short caller_id,
+                              I18n::String &&dynamic_title) override;
     OpResult get_item_async_set_hint(unsigned int line, unsigned int count,
                                      unsigned short caller_id) override;
 

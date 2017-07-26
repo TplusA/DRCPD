@@ -379,7 +379,8 @@ bool List::DBusList::can_scroll_to_line(unsigned int line,
 
 List::AsyncListIface::OpResult
 List::DBusList::enter_list_async(ID::List list_id, unsigned int line,
-                                 unsigned short caller_id)
+                                 unsigned short caller_id,
+                                 I18n::String &&dynamic_title)
 {
     log_assert(list_id.is_valid());
 
@@ -390,7 +391,8 @@ List::DBusList::enter_list_async(ID::List list_id, unsigned int line,
 
     async_dbus_data_.enter_list_query_ =
         std::make_shared<QueryContextEnterList>(*this, caller_id,
-                                                dbus_proxy_, list_id, line);
+                                                dbus_proxy_, list_id, line,
+                                                std::move(dynamic_title));
 
     if(async_dbus_data_.enter_list_query_ == nullptr)
     {
@@ -591,7 +593,8 @@ List::QueryContextEnterList::restart_if_necessary(std::shared_ptr<QueryContextEn
         {
             auto new_ctx =
                 std::make_shared<QueryContextEnterList>(*ctx_local_ref, replacement_id,
-                                                        ctx_local_ref->parameters_.line_);
+                                                        ctx_local_ref->parameters_.line_,
+                                                        std::move(I18n::String(ctx_local_ref->parameters_.title_)));
 
             if(new_ctx == nullptr)
                 msg_out_of_memory("asynchronous context (restart enter list)");

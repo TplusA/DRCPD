@@ -24,6 +24,7 @@
 #include <memory>
 
 #include "idtypes.hh"
+#include "i18nstring.hh"
 
 /*!
  * \addtogroup list List data model
@@ -224,7 +225,8 @@ class AsyncListIface
      *     The function failed before starting the asynchronous call.
      */
     virtual OpResult enter_list_async(ID::List list_id, unsigned int line,
-                                      unsigned short caller_id) = 0;
+                                      unsigned short caller_id,
+                                      I18n::String &&dynamic_title) = 0;
 
     /*!
      * Hint at which items are needed.

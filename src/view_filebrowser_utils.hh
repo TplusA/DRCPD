@@ -79,6 +79,7 @@ class Utils
                                       ID::List current_list_id,
                                       List::Nav &navigation,
                                       const SearchParameters *search_parameters,
+                                      std::string &child_list_title,
                                       bool suppress_error_if_file = false)
         throw(List::DBusListException)
     {
@@ -86,6 +87,8 @@ class Utils
             return ID::List();
 
         guint list_id;
+        gchar *list_title = NULL;
+        gboolean list_title_translatable = FALSE;
         guchar error_code;
 
         if(search_parameters == nullptr)
@@ -96,7 +99,9 @@ class Utils
                                                          current_list_id.get_raw_id(),
                                                          navigation.get_cursor(),
                                                          &error_code,
-                                                         &list_id, NULL, &error);
+                                                         &list_id, &list_title,
+                                                         &list_title_translatable,
+                                                         NULL, &error);
 
             if(dbus_common_handle_error(&error, "Get list ID") < 0)
             {
@@ -115,7 +120,8 @@ class Utils
                     file_list.get_dbus_proxy(), current_list_id.get_raw_id(),
                     navigation.get_cursor(),
                     search_parameters->get_query().c_str(),
-                    &error_code, &list_id, NULL, &error);
+                    &error_code, &list_id, &list_title, &list_title_translatable,
+                    NULL, &error);
 
             if(dbus_common_handle_error(&error, "Get parametrized list ID") < 0)
             {
@@ -142,22 +148,33 @@ class Utils
             return ID::List();
         }
         else
+        {
+            if(list_title != NULL)
+                child_list_title = list_title;
+            else
+                child_list_title.clear();
+
             return ID::List(list_id);
+        }
     }
 
     static ID::List get_parent_link_id(const List::DBusList &file_list,
                                        ID::List current_list_id,
-                                       unsigned int &item_id)
+                                       unsigned int &item_id,
+                                       std::string &parent_list_title)
         throw(List::DBusListException)
     {
         Busy::set(Busy::Source::GETTING_PARENT_LINK);
 
         guint list_id;
+        gchar *list_title = NULL;
+        gboolean list_title_translatable = FALSE;
         GError *error = NULL;
 
         tdbus_lists_navigation_call_get_parent_link_sync(file_list.get_dbus_proxy(),
                                                          current_list_id.get_raw_id(),
-                                                         &list_id, &item_id,
+                                                         &list_id, &item_id, &list_title,
+                                                         &list_title_translatable,
                                                          NULL, &error);
 
         if(dbus_common_handle_error(&error, "Get parent link") < 0)
@@ -174,7 +191,14 @@ class Utils
         Busy::clear(Busy::Source::GETTING_PARENT_LINK);
 
         if(list_id != 0)
+        {
+            if(list_title != NULL)
+                parent_list_title = list_title;
+            else
+                parent_list_title.clear();
+
             return ID::List(list_id);
+        }
 
         if(item_id == 1)
         {

@@ -295,9 +295,10 @@ ViewFileBrowser::AirableView::point_to_search_form(List::context_id_t ctx_id)
                              root_list_id_, path.first);
         current_list_id_ = root_list_id_;
 
+        std::string list_title;
         const ID::List list_id =
             Utils::get_child_item_id(file_list_, current_list_id_,
-                                     navigation_, nullptr);
+                                     navigation_, nullptr, list_title);
 
         if(list_id.is_valid())
         {

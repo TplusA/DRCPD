@@ -105,7 +105,8 @@ bool Playlist::DirectoryCrawler::restart()
     static constexpr auto cid(List::QueryContextEnterList::CallerID::CRAWLER_RESTART);
     const auto result =
         traversal_list_.enter_list_async(user_start_position_.get_list_id(),
-                                         user_start_position_.get_line(), cid);
+                                         user_start_position_.get_line(), cid,
+                                         I18n::String(false));
 
     switch(result)
     {
@@ -211,7 +212,8 @@ void Playlist::DirectoryCrawler::switch_direction()
         static constexpr auto cid(List::QueryContextEnterList::CallerID::CRAWLER_RESET_POSITION);
         const auto result =
             traversal_list_.enter_list_async(marked_position_.get_list_id(),
-                                             marked_position_.get_line(), cid);
+                                             marked_position_.get_line(), cid,
+                                             I18n::String(false));
 
         switch(result)
         {
@@ -565,13 +567,15 @@ Playlist::DirectoryCrawler::try_descend(const FindNextCallback &callback)
     }
 
     ID::List list_id;
+    std::string list_title;
 
     try
     {
         list_id =
             ViewFileBrowser::Utils::get_child_item_id(traversal_list_,
                                                       traversal_list_.get_list_id(),
-                                                      navigation_, nullptr, true);
+                                                      navigation_, nullptr,
+                                                      list_title, true);
     }
     catch(const List::DBusListException &e)
     {
@@ -613,7 +617,7 @@ Playlist::DirectoryCrawler::try_descend(const FindNextCallback &callback)
     find_next_callback_ = callback;
 
     static constexpr auto cid(List::QueryContextEnterList::CallerID::CRAWLER_DESCEND);
-    const auto result = traversal_list_.enter_list_async(list_id, 0, cid);
+    const auto result = traversal_list_.enter_list_async(list_id, 0, cid, I18n::String(false));
 
     switch(result)
     {
@@ -984,13 +988,14 @@ Playlist::DirectoryCrawler::back_to_parent(const FindNextCallback &callback)
 
     unsigned int item_id;
     ID::List list_id;
+    std::string list_title;
 
     try
     {
         list_id =
             ViewFileBrowser::Utils::get_parent_link_id(traversal_list_,
                                                        traversal_list_.get_list_id(),
-                                                       item_id);
+                                                       item_id, list_title);
     }
     catch(const List::DBusListException &e)
     {
@@ -1004,7 +1009,8 @@ Playlist::DirectoryCrawler::back_to_parent(const FindNextCallback &callback)
 
     const auto result =
         traversal_list_.enter_list_async(list_id, item_id,
-                                         List::QueryContextEnterList::CallerID::CRAWLER_ASCEND);
+                                         List::QueryContextEnterList::CallerID::CRAWLER_ASCEND,
+                                         I18n::String(false));
 
     switch(result)
     {

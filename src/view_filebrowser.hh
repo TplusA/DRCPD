@@ -67,10 +67,10 @@ class View: public ViewIface, public ViewSerializeBase
 
       public:
         using GetListId =
-            DBus::AsyncCall<tdbuslistsNavigation, std::pair<guchar, guint>,
+            DBus::AsyncCall<tdbuslistsNavigation, std::tuple<guchar, guint, gchar *, gboolean>,
                             Busy::Source::GETTING_LIST_ID>;
         using GetParentId =
-            DBus::AsyncCall<tdbuslistsNavigation, std::pair<guint, guint>,
+            DBus::AsyncCall<tdbuslistsNavigation, std::tuple<guint, guint, gchar *, gboolean>,
                             Busy::Source::GETTING_PARENT_LINK>;
 
         std::shared_ptr<GetListId> get_list_id_;
