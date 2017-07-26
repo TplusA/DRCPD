@@ -21,6 +21,8 @@
 
 #include <string>
 
+#include "i18n.h"
+
 namespace I18n
 {
 
@@ -50,7 +52,10 @@ class String
         is_subject_to_translation_(is_subject_to_translation)
     {}
 
-    const std::string &get_text() const { return string_; }
+    const char *get_text() const
+    {
+        return is_subject_to_translation_ ? _(string_.c_str()) : string_.c_str();
+    }
 
     bool empty() const { return string_.empty(); }
     void clear() { string_.clear(); }
