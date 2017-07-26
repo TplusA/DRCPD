@@ -59,25 +59,18 @@ bool ViewFileBrowser::AirableView::register_audio_sources()
         return false;
     }
 
-    selected_audio_source_index_ = 0;
-
     for(const auto &ctx : list_contexts_)
-        audio_sources_.emplace_back(Player::AudioSource(ctx.string_id_.c_str()));
+        new_audio_source(ctx.string_id_.c_str());
+
+    select_audio_source(0);
 
     auto *const pview = static_cast<ViewPlay::View *>(play_view_);
     size_t i = 0;
 
     for(const auto &ctx : list_contexts_)
     {
-        pview->register_audio_source(audio_sources_[i], *this);
-        tdbus_aupath_manager_call_register_source(dbus_audiopath_get_manager_iface(),
-                                                  audio_sources_[i].id_,
-                                                  ctx.description_.c_str(),
-                                                  "strbo",
-                                                  "/de/tahifi/Drcpd",
-                                                  nullptr,
-                                                  audio_source_registered,
-                                                  &audio_sources_[i]);
+        pview->register_audio_source(get_audio_source_by_index(i), *this);
+        register_own_source_with_audio_path_manager(i, ctx.description_.c_str());
         ++i;
     }
 

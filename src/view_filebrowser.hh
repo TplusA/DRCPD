@@ -24,10 +24,10 @@
 #include "directory_crawler.hh"
 #include "view.hh"
 #include "view_serialize.hh"
+#include "view_audiosource.hh"
 #include "listnav.hh"
 #include "search_parameters.hh"
 #include "player_permissions.hh"
-#include "audiosource.hh"
 #include "timeout.hh"
 #include "dbuslist.hh"
 #include "dbus_iface.h"
@@ -51,7 +51,7 @@ namespace ViewFileBrowser
 List::Item *construct_file_item(const char *name, ListItemKind kind,
                                 const char *const *names);
 
-class View: public ViewIface, public ViewSerializeBase
+class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSourceBase
 {
   public:
     /*!
@@ -114,8 +114,6 @@ class View: public ViewIface, public ViewSerializeBase
     List::Nav navigation_;
 
     ViewIface *play_view_;
-    std::vector<Player::AudioSource> audio_sources_;
-    ssize_t selected_audio_source_index_;
     const char *const default_audio_source_name_;
 
   private:
@@ -155,7 +153,6 @@ class View: public ViewIface, public ViewSerializeBase
         item_flags_(&file_list_),
         navigation_(max_lines, List::Nav::WrapMode::FULL_WRAP, item_flags_),
         play_view_(nullptr),
-        selected_audio_source_index_(-1),
         default_audio_source_name_(audio_source_name),
         crawler_(dbus_get_lists_navigation_iface(listbroker_id_),
                  list_contexts_, construct_file_item),
@@ -194,12 +191,7 @@ class View: public ViewIface, public ViewSerializeBase
     virtual bool list_invalidate(ID::List list_id, ID::List replacement_id);
 
   protected:
-    static void audio_source_registered(GObject *source_object,
-                                        GAsyncResult *res, gpointer user_data);
-
-    virtual bool register_audio_sources();
-
-    bool have_audio_source() const { return selected_audio_source_index_ >= 0; }
+    bool register_audio_sources() override;
 
     virtual void cancel_and_delete_all_async_calls()
     {

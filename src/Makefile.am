@@ -29,7 +29,7 @@ drcpd_SOURCES = \
     dbus_common.c dbus_common.h \
     dbus_async.hh \
     list.hh ramlist.hh dbuslist.hh dbuslist_exception.hh listnav.hh \
-    view.hh view_serialize.hh view_names.hh view_nop.hh \
+    view.hh view_serialize.hh view_audiosource.hh view_names.hh view_nop.hh \
     view_manager.hh ui_events.hh ui_event_queue.hh xmlescape.hh \
     view_config.hh \
     view_filebrowser.hh view_filebrowser_fileitem.hh view_filebrowser_airable.hh \
@@ -101,6 +101,7 @@ libviews_la_SOURCES = \
     view_filebrowser.hh view_filebrowser_utils.hh view_filebrowser.cc \
     view_filebrowser_fileitem.hh \
     view_filebrowser_airable.hh view_filebrowser_airable.cc \
+    view_audiosource.hh view_audiosource.cc \
     view_play.hh view_play.cc metadata.hh metadata_preloaded.hh \
     view_search.hh view_search.cc \
     view_manager.hh view_manager.cc \
