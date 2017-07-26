@@ -1,0 +1,2 @@
+_("All USB devices")
+_("All UPnP servers")

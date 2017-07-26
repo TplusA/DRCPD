@@ -2,3 +2,4 @@
 src/drcpd.cc
 src/view_config.cc
 src/view_play.cc
+po/listbrokers.txt

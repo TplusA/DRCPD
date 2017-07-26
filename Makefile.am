@@ -27,6 +27,7 @@ EXTRA_DIST = README.md cppcheck_suppressed.txt
 CLEANFILES = README.html
 
 EXTRA_DIST += \
+    po/listbrokers.txt \
     dbus_interfaces/extract_documentation.py \
     dbus_interfaces/de_tahifi_dcpd.xml \
     dbus_interfaces/de_tahifi_configuration.xml \
