@@ -278,7 +278,7 @@ class Data
         return LoggedLock::UniqueLock<LoggedLock::RecMutex>(const_cast<Data *>(this)->lock_);
     }
 
-    void detached_from_player_notification()
+    void detached_from_player_notification(bool is_complete_unplug)
     {
         set_intention(UserIntention::NOTHING);
     }

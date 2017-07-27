@@ -163,8 +163,11 @@ class CrawlerIface
         return true;
     }
 
-    void detached_from_player_notification()
+    void detached_from_player_notification(bool is_complete_unplug)
     {
+        if(!is_complete_unplug)
+            return;
+
         if(is_attached_to_player_)
         {
             is_attached_to_player_ = false;

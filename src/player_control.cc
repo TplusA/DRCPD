@@ -384,15 +384,19 @@ void Player::Control::unplug(bool is_complete_unplug)
 
     if(player_ != nullptr)
     {
-        player_->detached_from_player_notification();
-        player_ = nullptr;
+        player_->detached_from_player_notification(is_complete_unplug);
+
+        if(is_complete_unplug)
+            player_ = nullptr;
     }
 
     if(crawler_ != nullptr)
     {
         auto crawler_lock(crawler_->lock());
-        crawler_->detached_from_player_notification();
-        crawler_ = nullptr;
+        crawler_->detached_from_player_notification(is_complete_unplug);
+
+        if(is_complete_unplug)
+            crawler_ = nullptr;
     }
 
     if(is_complete_unplug)
