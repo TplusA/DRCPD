@@ -1,3 +1,41 @@
+2017-09-05  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 4.1 released.
+
+	* Summary: This is a merge of versions 3.9 and 4.0. It includes a
+	  first beta integration of our Roon player and explicit audio source
+	  handling.
+
+	* Roon: Add view for Roon audio source handling and corresponding idle
+	  screen.
+
+	* TA Control: Add view for plain URL audio source handling and
+	  corresponding idle screen.
+
+	* Airable: Register multiple audio sources, one for each top-level
+	  item in the root directory. The primary Airable audio source is
+	  called "airable", meaning all of Airable. Each sub-source is
+	  prefixed with string "airable." (as in "airable.tidal"). While an
+	  audio sub-source is active, list navigation is restricted to the
+	  subtree corresponding to that source (e.g., it is not possible to
+	  leave the TIDAL directory while source "airable.tidal" is active).
+
+	* Audio sources: Switching by audio source now also switches the view
+	  the audio source belongs to. For Airable sub-sources, the
+	  corresponding subtree is entered.
+
+	* Audio sources: Changed naming scheme. We do not use view name for
+	  audio source IDs anymore (primarily because the Airable view is
+	  associated with multiple audio sources).
+
+	* DRCP: Send dynamic view titles as passed in by list brokers.
+
+	* Airable: Fix minor bug in root list handling which sometimes caused
+	  the search forms to stop working.
+
+	* Misc: Show helpful message in case USB device list, UPnP server
+	  list, or Airable root list is empty.
+
 2017-09-01  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 3.9 released.
