@@ -1,2 +1,2 @@
-_("All USB devices")
-_("All UPnP servers")
+N_("All USB devices")
+N_("All UPnP servers")
