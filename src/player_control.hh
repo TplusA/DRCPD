@@ -300,7 +300,7 @@ class Control
 
     void plug(AudioSource &audio_source,
               const std::function<void(void)> &stop_playing_notification,
-              const std::string *blind_player_id = nullptr);
+              const std::string *external_player_id = nullptr);
     void plug(Data &player_data);
     void plug(Playlist::CrawlerIface &crawler, const LocalPermissionsIface &permissions);
     void plug(const LocalPermissionsIface &permissions);

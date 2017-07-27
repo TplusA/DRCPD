@@ -34,6 +34,8 @@ class View: public ViewExternalSource::Base
     explicit View(const char *on_screen_name, ViewManager::VMIface *view_manager):
         Base(ViewNames::APP, on_screen_name, "strbo.plainurl", view_manager)
     {}
+
+    const Player::LocalPermissionsIface &get_local_permissions() const final override;
 };
 
 }

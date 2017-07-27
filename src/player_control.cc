@@ -297,7 +297,7 @@ static void set_audio_player_dbus_proxies(const std::string &audio_player_id,
 
 void Player::Control::plug(AudioSource &audio_source,
                            const std::function<void(void)> &stop_playing_notification,
-                           const std::string *blind_player_id)
+                           const std::string *external_player_id)
 {
     log_assert(!is_any_audio_source_plugged());
     log_assert(stop_playing_notification_ == nullptr);
@@ -319,8 +319,8 @@ void Player::Control::plug(AudioSource &audio_source,
     else
         msg_info("Not requesting source %s, already selected", audio_source_->id_);
 
-    if(blind_player_id != nullptr)
-        set_audio_player_dbus_proxies(*blind_player_id, *audio_source_);
+    if(external_player_id != nullptr)
+        set_audio_player_dbus_proxies(*external_player_id, *audio_source_);
 }
 
 void Player::Control::plug(Player::Data &player_data)

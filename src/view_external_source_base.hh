@@ -22,6 +22,7 @@
 #include "view.hh"
 #include "view_serialize.hh"
 #include "view_audiosource.hh"
+#include "player_permissions.hh"
 
 namespace ViewExternalSource
 {
@@ -55,11 +56,15 @@ class Base: public ViewIface, public ViewSerializeBase, ViewWithAudioSourceBase
 
     bool register_audio_sources() final override;
 
+    virtual const Player::LocalPermissionsIface &get_local_permissions() const = 0;
+
     InputResult process_event(UI::ViewEventID event_id,
                               std::unique_ptr<const UI::Parameters> parameters) final override;
 
     void process_broadcast(UI::BroadcastEventID event_id,
                            const UI::Parameters *parameters) final override;
+
+    bool write_xml(std::ostream &os, const DCP::Queue::Data &data) final override;
 };
 
 }

@@ -24,6 +24,7 @@
 #include <climits>
 
 #include "view_play.hh"
+#include "view_external_source_base.hh"
 #include "view_manager.hh"
 #include "audiosource.hh"
 #include "ui_parameters_predefined.hh"
@@ -32,51 +33,8 @@
 #include "xmlescape.hh"
 #include "messages.h"
 
-class AppLocalPermissions: public Player::DefaultLocalPermissions
-{
-  public:
-    AppLocalPermissions(const AppLocalPermissions &) = delete;
-    AppLocalPermissions &operator=(const AppLocalPermissions &) = delete;
-
-    constexpr explicit AppLocalPermissions() {}
-
-    bool can_skip_backward()        const override { return false; }
-    bool can_skip_forward()         const override { return false; }
-    bool can_shuffle()              const override { return false; }
-    bool can_repeat_single()        const override { return false; }
-    bool can_show_listing()         const override { return false; }
-    bool can_prefetch_for_gapless() const override { return false; }
-};
-
-class RoonLocalPermissions: public Player::DefaultLocalPermissions
-{
-  public:
-    RoonLocalPermissions(const RoonLocalPermissions &) = delete;
-    RoonLocalPermissions &operator=(const RoonLocalPermissions &) = delete;
-
-    constexpr explicit RoonLocalPermissions() {}
-
-    bool can_fast_wind_backward()   const override { return false; }
-    bool can_fast_wind_forward()    const override { return false; }
-    bool can_shuffle()              const override { return false; }
-    bool can_repeat_single()        const override { return false; }
-    bool can_repeat_all()           const override { return false; }
-    bool can_show_listing()         const override { return false; }
-    bool can_prefetch_for_gapless() const override { return false; }
-    bool can_skip_on_error()        const override { return false; }
-};
-
 bool ViewPlay::View::init()
 {
-    /* view-less audio sources */
-    static Player::AudioSource app_source("App");
-    static Player::AudioSource roon_source("Roon");
-    static AppLocalPermissions app_permissions;
-    static RoonLocalPermissions roon_permissions;
-
-    register_audio_source(app_source, app_permissions);
-    register_audio_source(roon_source, roon_permissions);
-
     return true;
 }
 
@@ -97,19 +55,12 @@ void ViewPlay::View::register_audio_source(Player::AudioSource &audio_source,
                                      std::move(std::make_pair(&audio_source, &associated_view)));
 }
 
-void ViewPlay::View::register_audio_source(Player::AudioSource &audio_source,
-                                           const Player::LocalPermissionsIface &permissions)
-{
-    audio_sources_blind_.emplace(std::move(std::string(audio_source.id_)),
-                                 std::move(std::make_pair(&audio_source, &permissions)));
-}
-
 void ViewPlay::View::plug_audio_source(Player::AudioSource &audio_source,
-                                       const std::string *blind_player_id)
+                                       const std::string *external_player_id)
 {
     player_control_.plug(audio_source,
                          [this] () { do_stop_playing(); },
-                         blind_player_id);
+                         external_player_id);
 }
 
 void ViewPlay::View::prepare_for_playing(Player::AudioSource &audio_source,
@@ -217,25 +168,26 @@ static void lookup_source_and_view(std::map<std::string, std::pair<Player::Audio
     }
 }
 
-static void lookup_viewless_source(std::map<std::string, std::pair<Player::AudioSource *, const Player::LocalPermissionsIface *>> &audio_sources,
-                                   const std::string &audio_source_id,
-                                   Player::AudioSource *&audio_source,
-                                   const Player::LocalPermissionsIface *&permissions)
+static void lookup_view_for_external_source(std::map<std::string, std::pair<Player::AudioSource *, const ViewIface *>> &audio_sources,
+                                            const std::string &audio_source_id,
+                                            Player::AudioSource *&audio_source,
+                                            const ViewExternalSource::Base *&view)
 {
     try
     {
         const auto ausrc_and_perm(audio_sources.at(audio_source_id));
 
-        audio_source = ausrc_and_perm.first;
-        permissions = ausrc_and_perm.second;
+        view = dynamic_cast<const ViewExternalSource::Base *>(ausrc_and_perm.second);
 
-        if(permissions == nullptr)
-            BUG("Have no local permissions for audio source %s",
+        if(view == nullptr)
+            BUG("View for audio source %s is not for external audio source",
                 audio_source_id.c_str());
+        else
+            audio_source = ausrc_and_perm.first;
     }
     catch(const std::out_of_range &e)
     {
-        BUG("Audio source %s (view-less) not known", audio_source_id.c_str());
+        BUG("View for external audio source %s not known", audio_source_id.c_str());
     }
 }
 
@@ -657,9 +609,9 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
             /* this must be an audio source not owned by us (or empty string),
              * otherwise we would already be controlling it */
             Player::AudioSource *audio_source = nullptr;
-            const Player::LocalPermissionsIface *permissions = nullptr;
-            lookup_viewless_source(audio_sources_blind_, ausrc_id,
-                                   audio_source, permissions);
+            const ViewExternalSource::Base *view = nullptr;
+            lookup_view_for_external_source(audio_sources_with_view_, ausrc_id,
+                                            audio_source, view);
 
             const bool audio_source_is_deselected =
                 audio_source == nullptr || ausrc_id.empty();
@@ -671,14 +623,15 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
             {
                 /* plug in audio source, pass player ID so that the D-Bus
                  * proxies for that player can be set up */
-                msg_info("Plug blind audio source %s into player", audio_source->id_);
+                msg_info("Plug external audio source %s into player", audio_source->id_);
 
-                log_assert(permissions != nullptr);
+                log_assert(view != nullptr);
 
                 audio_source->select_now();
                 plug_audio_source(*audio_source, &player_id);
                 player_control_.plug(player_data_);
-                player_control_.plug(*permissions);
+                player_control_.plug(view->get_local_permissions());
+                view_manager_->sync_activate_view_by_name(view->name_, false);
             }
             else
             {
