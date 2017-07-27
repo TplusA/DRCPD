@@ -203,7 +203,7 @@ static void lookup_source_and_view(std::map<std::string, std::pair<Player::Audio
 {
     try
     {
-        const auto ausrc_and_view(audio_sources[audio_source_id]);
+        const auto ausrc_and_view(audio_sources.at(audio_source_id));
 
         audio_source = ausrc_and_view.first;
         view = ausrc_and_view.second;
@@ -224,7 +224,7 @@ static void lookup_viewless_source(std::map<std::string, std::pair<Player::Audio
 {
     try
     {
-        const auto ausrc_and_perm(audio_sources[audio_source_id]);
+        const auto ausrc_and_perm(audio_sources.at(audio_source_id));
 
         audio_source = ausrc_and_perm.first;
         permissions = ausrc_and_perm.second;
