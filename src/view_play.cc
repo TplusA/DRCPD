@@ -545,7 +545,8 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
 
             if(audio_source != nullptr)
             {
-                msg_info("Plug selected audio source %s into player", audio_source->id_);
+                msg_info("Plug selected audio source %s into player",
+                         audio_source->id_.c_str());
 
                 audio_source->select_now();
                 plug_audio_source(*audio_source);
@@ -583,7 +584,8 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
                 else
                 {
                     audio_source->deselected_notification();
-                    msg_info("Deselected unplugged audio source %s", audio_source->id_);
+                    msg_info("Deselected unplugged audio source %s",
+                             audio_source->id_.c_str());
                 }
             }
         }
@@ -623,7 +625,8 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
             {
                 /* plug in audio source, pass player ID so that the D-Bus
                  * proxies for that player can be set up */
-                msg_info("Plug external audio source %s into player", audio_source->id_);
+                msg_info("Plug external audio source %s into player",
+                         audio_source->id_.c_str());
 
                 log_assert(view != nullptr);
 

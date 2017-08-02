@@ -50,9 +50,9 @@ class ViewWithAudioSourceBase
     void register_own_source_with_audio_path_manager(size_t idx,
                                                      const char *description);
 
-    void new_audio_source(const char *id)
+    void new_audio_source(std::string &&id)
     {
-        audio_sources_.emplace_back(Player::AudioSource(id));
+        audio_sources_.emplace_back(Player::AudioSource(std::move(id)));
     }
 
     void select_audio_source(size_t idx)

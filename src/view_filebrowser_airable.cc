@@ -60,7 +60,26 @@ bool ViewFileBrowser::AirableView::register_audio_sources()
     }
 
     for(const auto &ctx : list_contexts_)
-        new_audio_source(ctx.string_id_.c_str());
+    {
+        static const char prefix[] = "airable.";
+
+        if(ctx.string_id_.length() >= sizeof(prefix) - 2 &&
+           std::equal(prefix, prefix + sizeof(prefix) - 2, ctx.string_id_.begin()) &&
+           (ctx.string_id_.length() == sizeof(prefix) - 2 ||
+            ctx.string_id_[sizeof(prefix) - 2] == '.'))
+        {
+            /* take any string as is if it begins with "airable." or if it is
+             * exactly the string "airable" */
+            new_audio_source(std::move(std::string(ctx.string_id_)));
+        }
+        else
+        {
+            /* put "airable." in front of the name */
+            std::string temp(prefix);
+            temp += ctx.string_id_;
+            new_audio_source(std::move(temp));
+        }
+    }
 
     select_audio_source(0);
 

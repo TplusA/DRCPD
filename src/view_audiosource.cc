@@ -35,7 +35,7 @@ void ViewWithAudioSourceBase::audio_source_registered(GObject *source_object,
     {
         msg_error(0, LOG_ERR,
                   "Failed registering audio source %s: %s",
-                  static_cast<const Player::AudioSource *>(user_data)->id_,
+                  static_cast<const Player::AudioSource *>(user_data)->id_.c_str(),
                   error->message);
         g_error_free(error);
     }
@@ -45,7 +45,7 @@ void ViewWithAudioSourceBase::register_own_source_with_audio_path_manager(size_t
                                                                           const char *description)
 {
     tdbus_aupath_manager_call_register_source(dbus_audiopath_get_manager_iface(),
-                                              audio_sources_[idx].id_,
+                                              audio_sources_[idx].id_.c_str(),
                                               description,
                                               "strbo",
                                               "/de/tahifi/Drcpd",

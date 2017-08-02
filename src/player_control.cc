@@ -253,7 +253,7 @@ static void source_request_done(GObject *source_object, GAsyncResult *res,
     if(error != nullptr)
     {
         msg_error(0, LOG_EMERG, "Requesting audio source %s failed: %s",
-                  audio_source->id_, error->message);
+                  audio_source->id_.c_str(), error->message);
         g_error_free(error);
 
         /* keep audio source state the way it is and leave state switching to
@@ -310,14 +310,15 @@ void Player::Control::plug(AudioSource &audio_source,
 
     if(!audio_source_->is_selected())
     {
-        msg_info("Requesting source %s", audio_source_->id_);
+        msg_info("Requesting source %s", audio_source_->id_.c_str());
         audio_source_->request();
         tdbus_aupath_manager_call_request_source(dbus_audiopath_get_manager_iface(),
-                                                 audio_source_->id_, NULL,
+                                                 audio_source_->id_.c_str(), NULL,
                                                  source_request_done, audio_source_);
     }
     else
-        msg_info("Not requesting source %s, already selected", audio_source_->id_);
+        msg_info("Not requesting source %s, already selected",
+                 audio_source_->id_.c_str());
 
     if(external_player_id != nullptr)
         set_audio_player_dbus_proxies(*external_player_id, *audio_source_);
@@ -745,7 +746,7 @@ bool Player::Control::source_selected_notification(const std::string &audio_sour
     {
         do_deselect_audio_source(*audio_source_, true);
         msg_info("Deselected audio source %s because %s was selected",
-                 audio_source_->id_, audio_source_id.c_str());
+                 audio_source_->id_.c_str(), audio_source_id.c_str());
         return false;
     }
 }
@@ -759,7 +760,8 @@ bool Player::Control::source_deselected_notification(const std::string *audio_so
         return false;
 
     do_deselect_audio_source(*audio_source_, audio_source_id != nullptr);
-    msg_info("Deselected audio source %s as requested", audio_source_->id_);
+    msg_info("Deselected audio source %s as requested",
+             audio_source_->id_.c_str());
 
     return true;
 }

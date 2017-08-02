@@ -19,6 +19,8 @@
 #ifndef AUDIOSOURCE_HH
 #define AUDIOSOURCE_HH
 
+#include <string>
+
 #include "messages.h"
 
 struct _tdbussplayURLFIFO;
@@ -37,7 +39,7 @@ enum class AudioSourceState
 class AudioSource
 {
   public:
-    const char *const id_;
+    const std::string id_;
 
   private:
     AudioSourceState state_;
@@ -50,8 +52,8 @@ class AudioSource
     AudioSource(AudioSource &&) = default;
     AudioSource &operator=(const AudioSource &) = delete;
 
-    explicit AudioSource(const char *id):
-        id_(id),
+    explicit AudioSource(std::string &&id):
+        id_(std::move(id)),
         state_(AudioSourceState::DESELECTED),
         urlfifo_proxy_(nullptr),
         playback_proxy_(nullptr)
@@ -65,7 +67,7 @@ class AudioSource
                      struct _tdbussplayPlayback *playback_proxy)
     {
         if(!is_selected())
-            BUG("Set D-Bus proxies for not selected audio source %s", id_);
+            BUG("Set D-Bus proxies for not selected audio source %s", id_.c_str());
 
         urlfifo_proxy_ = urlfifo_proxy;
         playback_proxy_ = playback_proxy;
