@@ -566,6 +566,10 @@ void dbussignal_audiopath_manager(GDBusProxy *proxy, const gchar *sender_name,
         data->event_sink_.store_event(UI::EventID::AUDIO_PATH_CHANGED,
                                       std::move(params));
     }
+    else if(strcmp(signal_name, "PathAvailable") == 0)
+    {
+        /* ignored */
+    }
     else
         unknown_signal(iface_name, signal_name, sender_name);
 }
