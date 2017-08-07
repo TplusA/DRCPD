@@ -68,8 +68,6 @@ class AirableView: public View
 
     ~AirableView() {}
 
-    bool register_audio_sources() final override;
-
     InputResult process_event(UI::ViewEventID event_id,
                               std::unique_ptr<const UI::Parameters> parameters) final override;
 
@@ -79,6 +77,8 @@ class AirableView: public View
                                               enum ActorID actor_id);
 
   protected:
+    bool register_audio_sources() final override;
+
     void cancel_and_delete_all_async_calls() final override;
     void handle_enter_list_event(List::AsyncListIface::OpResult result,
                                  const std::shared_ptr<List::QueryContextEnterList> &ctx) final override;
