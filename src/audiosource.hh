@@ -20,6 +20,7 @@
 #define AUDIOSOURCE_HH
 
 #include <string>
+#include <functional>
 
 #include "messages.h"
 
@@ -39,10 +40,14 @@ enum class AudioSourceState
 class AudioSource
 {
   public:
+    using StateChangedFn =
+        std::function<void(const AudioSource &src, AudioSourceState prev_state)>;
+
     const std::string id_;
 
   private:
     AudioSourceState state_;
+    const StateChangedFn state_changed_callback_;
 
     struct _tdbussplayURLFIFO *urlfifo_proxy_;
     struct _tdbussplayPlayback *playback_proxy_;
@@ -52,9 +57,10 @@ class AudioSource
     AudioSource(AudioSource &&) = default;
     AudioSource &operator=(const AudioSource &) = delete;
 
-    explicit AudioSource(std::string &&id):
+    explicit AudioSource(std::string &&id, StateChangedFn &&state_changed_fn):
         id_(std::move(id)),
         state_(AudioSourceState::DESELECTED),
+        state_changed_callback_(state_changed_fn),
         urlfifo_proxy_(nullptr),
         playback_proxy_(nullptr)
     {}
@@ -78,7 +84,7 @@ class AudioSource
 
     void deselected_notification()
     {
-        state_ = AudioSourceState::DESELECTED;
+        set_state(AudioSourceState::DESELECTED);
         urlfifo_proxy_ = nullptr;
         playback_proxy_ = nullptr;
     }
@@ -88,7 +94,7 @@ class AudioSource
         switch(state_)
         {
           case AudioSourceState::DESELECTED:
-            state_ = AudioSourceState::REQUESTED;
+            set_state(AudioSourceState::REQUESTED);
             break;
 
           case AudioSourceState::REQUESTED:
@@ -106,7 +112,7 @@ class AudioSource
             break;
 
           case AudioSourceState::REQUESTED:
-            state_ = AudioSourceState::SELECTED;
+            set_state(AudioSourceState::SELECTED);
             break;
 
           case AudioSourceState::SELECTED:
@@ -124,12 +130,25 @@ class AudioSource
             /* fall-through */
 
           case AudioSourceState::DESELECTED:
-            state_ = AudioSourceState::SELECTED;
+            set_state(AudioSourceState::SELECTED);
             break;
 
           case AudioSourceState::SELECTED:
             break;
         }
+    }
+
+  private:
+    void set_state(AudioSourceState new_state)
+    {
+        if(new_state == state_)
+            return;
+
+        const auto prev_state = state_;
+        state_ = new_state;
+
+        if(state_changed_callback_ != nullptr)
+            state_changed_callback_(*this, prev_state);
     }
 };
 

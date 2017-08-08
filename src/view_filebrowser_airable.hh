@@ -88,6 +88,11 @@ class AirableView: public View
 
   private:
     void finish_async_point_to_child_directory();
+
+    void audio_source_state_changed(const Player::AudioSource &audio_source,
+                                    Player::AudioSourceState prev_state)
+    {
+    }
 };
 
 }

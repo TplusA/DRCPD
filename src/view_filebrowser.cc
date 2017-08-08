@@ -238,7 +238,7 @@ bool ViewFileBrowser::View::late_init()
 bool ViewFileBrowser::View::register_audio_sources()
 {
     log_assert(default_audio_source_name_ != nullptr);
-    new_audio_source(default_audio_source_name_);
+    new_audio_source(default_audio_source_name_, nullptr);
     select_audio_source(0);
 
     auto *const pview = static_cast<ViewPlay::View *>(play_view_);
