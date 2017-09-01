@@ -1054,13 +1054,11 @@ Playlist::DirectoryCrawler::find_next_impl(FindNextCallback callback)
             break;
         }
 
-        if(!is_first_item_in_list_processed_)
-        {
-            if(navigation_.get_total_number_of_visible_items() == 0)
-                return handle_end_of_list(callback);
-        }
-        else if(!is_waiting_for_async_get_list_item_completion_ &&
-                !go_to_next_list_item())
+        if((is_first_item_in_list_processed_ &&
+            !is_waiting_for_async_get_list_item_completion_ &&
+            !go_to_next_list_item()) ||
+           (!is_first_item_in_list_processed_ &&
+            navigation_.get_total_number_of_visible_items() == 0))
         {
             if(directory_depth_ <= 1)
                 return handle_end_of_list(callback);
