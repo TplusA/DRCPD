@@ -46,6 +46,12 @@ namespace List
 
 /*!
  * Base class for asynchronous D-Bus query contexts.
+ *
+ * Typically, derived classes will make use of an #DBus::AsyncCall object to
+ * handle a bare asynchronous D-Bus method call for doing something with a
+ * remote list. To be able to do anything with the result of the method call,
+ * they will also add in some extra data and state to handle the specific
+ * method call in various contexts.
  */
 class QueryContext_
 {
