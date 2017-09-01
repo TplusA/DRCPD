@@ -65,15 +65,21 @@ class AudioSource
         playback_proxy_(nullptr)
     {}
 
-    bool is_deselected() const { return state_ == AudioSourceState::DESELECTED; }
-    bool is_requested() const { return state_ == AudioSourceState::REQUESTED; }
-    bool is_selected() const { return state_ == AudioSourceState::SELECTED; }
+    AudioSourceState get_state() const { return state_; }
 
     void set_proxies(struct _tdbussplayURLFIFO *urlfifo_proxy,
                      struct _tdbussplayPlayback *playback_proxy)
     {
-        if(!is_selected())
+        switch(state_)
+        {
+          case AudioSourceState::DESELECTED:
+          case AudioSourceState::REQUESTED:
             BUG("Set D-Bus proxies for not selected audio source %s", id_.c_str());
+            break;
+
+          case AudioSourceState::SELECTED:
+            break;
+        }
 
         urlfifo_proxy_ = urlfifo_proxy;
         playback_proxy_ = playback_proxy;

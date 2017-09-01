@@ -308,17 +308,22 @@ void Player::Control::plug(AudioSource &audio_source,
     audio_source_ = &audio_source;
     stop_playing_notification_ = stop_playing_notification;
 
-    if(!audio_source_->is_selected())
+    switch(audio_source_->get_state())
     {
+      case AudioSourceState::DESELECTED:
+      case AudioSourceState::REQUESTED:
         msg_info("Requesting source %s", audio_source_->id_.c_str());
         audio_source_->request();
         tdbus_aupath_manager_call_request_source(dbus_audiopath_get_manager_iface(),
                                                  audio_source_->id_.c_str(), NULL,
                                                  source_request_done, audio_source_);
-    }
-    else
+        break;
+
+      case AudioSourceState::SELECTED:
         msg_info("Not requesting source %s, already selected",
                  audio_source_->id_.c_str());
+        break;
+    }
 
     if(external_player_id != nullptr)
         set_audio_player_dbus_proxies(*external_player_id, *audio_source_);
@@ -428,8 +433,7 @@ static bool send_play_command(const Player::AudioSource *asrc)
 
 static bool send_stop_command(const Player::AudioSource *asrc)
 {
-    if(asrc == nullptr)
-        return true;
+    log_assert(asrc != nullptr);
 
     auto *proxy = asrc->get_playback_proxy();
 
@@ -553,11 +557,22 @@ void Player::Control::play_request()
     if(!is_active_controller())
         return;
 
-    if(!audio_source_->is_deselected())
+    const auto astate = audio_source_->get_state();
+
+    switch(astate)
+    {
+      case AudioSourceState::DESELECTED:
+        return;
+
+      case AudioSourceState::REQUESTED:
+      case AudioSourceState::SELECTED:
         player_->set_intention(UserIntention::LISTENING);
 
-    if(!audio_source_->is_selected())
-        return;
+        if(astate == AudioSourceState::REQUESTED)
+            return;
+
+        break;
+    }
 
     switch(player_->get_current_stream_state())
     {
@@ -605,13 +620,23 @@ void Player::Control::stop_request()
     if(!is_any_audio_source_plugged())
         return;
 
-    if(is_active_controller() && !audio_source_->is_deselected())
-        player_->set_intention(UserIntention::STOPPING);
+    const auto astate = audio_source_->get_state();
 
-    if(!audio_source_->is_selected())
-        return;
+    switch(astate)
+    {
+      case AudioSourceState::DESELECTED:
+        break;
 
-    send_stop_command(audio_source_);
+      case AudioSourceState::REQUESTED:
+      case AudioSourceState::SELECTED:
+        if(is_active_controller())
+            player_->set_intention(UserIntention::STOPPING);
+
+        if(astate == AudioSourceState::SELECTED)
+            send_stop_command(audio_source_);
+
+        break;
+    }
 }
 
 void Player::Control::pause_request()
@@ -625,20 +650,31 @@ void Player::Control::pause_request()
     if(!is_any_audio_source_plugged())
         return;
 
-    if(is_active_controller() && !audio_source_->is_deselected())
-        player_->set_intention(UserIntention::PAUSING);
+    const auto astate = audio_source_->get_state();
 
-    if(!audio_source_->is_selected())
-        return;
+    switch(astate)
+    {
+      case AudioSourceState::DESELECTED:
+        break;
 
-    send_pause_command(audio_source_);
+      case AudioSourceState::REQUESTED:
+      case AudioSourceState::SELECTED:
+        if(is_active_controller())
+            player_->set_intention(UserIntention::PAUSING);
+
+        if(astate == AudioSourceState::SELECTED)
+            send_pause_command(audio_source_);
+
+        break;
+    }
 }
 
 static void enforce_intention(Player::UserIntention intention,
                               Player::StreamState known_stream_state,
                               const Player::AudioSource *audio_source_)
 {
-    if(audio_source_ == nullptr || !audio_source_->is_selected())
+    if(audio_source_ == nullptr ||
+       audio_source_->get_state() != Player::AudioSourceState::SELECTED)
     {
         BUG("Cannot enforce intention on %s audio source",
             audio_source_ == nullptr ? "null" : "deselected");
@@ -928,8 +964,15 @@ bool Player::Control::skip_forward_request()
     if(!is_any_audio_source_plugged())
         return false;
 
-    if(!audio_source_->is_selected())
+    switch(audio_source_->get_state())
+    {
+      case AudioSourceState::DESELECTED:
+      case AudioSourceState::REQUESTED:
         return false;
+
+      case AudioSourceState::SELECTED:
+        break;
+    }
 
     auto crawler_lock(crawler_->lock());
 
@@ -1043,8 +1086,15 @@ void Player::Control::skip_backward_request()
     if(!is_any_audio_source_plugged())
         return;
 
-    if(!audio_source_->is_selected())
+    switch(audio_source_->get_state())
+    {
+      case AudioSourceState::DESELECTED:
+      case AudioSourceState::REQUESTED:
         return;
+
+      case AudioSourceState::SELECTED:
+        break;
+    }
 
     auto crawler_lock(crawler_->lock());
 
@@ -1085,8 +1135,15 @@ void Player::Control::rewind_request()
     if(!is_active_controller())
         return;
 
-    if(!audio_source_->is_selected())
+    switch(audio_source_->get_state())
+    {
+      case AudioSourceState::DESELECTED:
+      case AudioSourceState::REQUESTED:
         return;
+
+      case AudioSourceState::SELECTED:
+        break;
+    }
 
     if(permissions_ != nullptr)
     {
