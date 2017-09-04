@@ -134,9 +134,9 @@ ViewFileBrowser::AirableView::process_event(UI::ViewEventID event_id,
 
 bool ViewFileBrowser::AirableView::list_invalidate(ID::List list_id, ID::List replacement_id)
 {
-    if(replacement_id == root_list_id_)
+    if(list_id == root_list_id_)
     {
-        root_list_id_ = list_id;
+        root_list_id_ = replacement_id;
         search_forms_.clear();
     }
 
