@@ -141,6 +141,16 @@ gboolean tdbus_lists_navigation_call_get_parent_link_finish(
 /*
  * Dummy for the linker.
  */
+void tdbus_lists_navigation_call_get_root_link_to_context(tdbuslistsNavigation *proxy,
+        const gchar *arg_context, GCancellable *cancellable,
+        GAsyncReadyCallback callback, gpointer user_data)
+{
+    cut_fail("Unexpected call of %s()", __func__);
+}
+
+/*
+ * Dummy for the linker.
+ */
 void tdbus_lists_navigation_call_get_parameterized_list_id(
     tdbuslistsNavigation *proxy, guint arg_list_id, guint arg_item_id,
     const gchar *arg_parameter, GCancellable *cancellable,

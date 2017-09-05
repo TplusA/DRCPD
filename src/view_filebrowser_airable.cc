@@ -86,6 +86,10 @@ bool ViewFileBrowser::AirableView::register_audio_sources()
         }
     }
 
+    /* for the time being, we need the root audio source in the first slot */
+    log_assert(audio_source_index_to_list_context(0) == 0);
+    log_assert(get_audio_source_by_index(0).id_ == "airable");
+
     select_audio_source(0);
 
     auto *const pview = static_cast<ViewPlay::View *>(play_view_);
@@ -254,6 +258,7 @@ void ViewFileBrowser::AirableView::handle_enter_list_event(List::AsyncListIface:
         break;
 
       case List::QueryContextEnterList::CallerID::ENTER_CHILD:
+      case List::QueryContextEnterList::CallerID::ENTER_CONTEXT_ROOT:
         finish_async_point_to_child_directory();
         break;
 
@@ -356,6 +361,44 @@ void ViewFileBrowser::AirableView::log_out_from_context(List::context_id_t conte
                                                     true, ACTOR_ID_LOCAL_UI,
                                                     NULL, &error);
     dbus_common_handle_error(&error, "Logout from service");
+}
+
+bool ViewFileBrowser::AirableView::write_xml(std::ostream &os,
+                                             const DCP::Queue::Data &data)
+{
+    bool is_unavailable = false;
+
+    switch(may_access_list_for_serialization())
+    {
+      case ListAccessPermission::ALLOWED:
+        return ViewFileBrowser::View::write_xml(os, data);
+
+      case ListAccessPermission::DENIED__LOADING:
+        break;
+
+      case ListAccessPermission::DENIED__BLOCKED:
+      case ListAccessPermission::DENIED__NO_LIST_ID:
+        is_unavailable = true;
+        break;
+    }
+
+    const auto ctx_id(have_audio_source()
+                      ? context_restriction_.get_context_id()
+                      : List::ContextMap::INVALID_ID);
+    const auto &ctx(list_contexts_[ctx_id]);
+
+    os << "<text id=\"cbid\">" << int(drcp_browse_id_) << "</text>"
+       << "<context>"
+       << ctx.string_id_.c_str()
+       << "</context>";
+
+    os << "<text id=\"line0\" flag=\"us"
+       << (is_unavailable ? "l" : "") << "\">"
+       << XmlEscape(ctx.description_) << ": "
+       << XmlEscape(is_unavailable ? _("Unavailable") : _("Accessing"))
+       << "</text>";
+
+    return true;
 }
 
 void ViewFileBrowser::AirableView::cancel_and_delete_all_async_calls()

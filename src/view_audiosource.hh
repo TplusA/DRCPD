@@ -20,6 +20,7 @@
 #define VIEW_AUDIOSOURCE_HH
 
 #include <vector>
+#include <algorithm>
 #include <gio/gio.h>
 
 #include "audiosource.hh"
@@ -55,10 +56,16 @@ class ViewWithAudioSourceBase
         audio_sources_.emplace_back(Player::AudioSource(std::move(id), std::move(state_changed_fn)));
     }
 
-    void select_audio_source(size_t idx)
+    bool select_audio_source(size_t idx)
     {
         log_assert(idx < audio_sources_.size());
+
+        if(selected_audio_source_index_ == ssize_t(idx))
+            return false;
+
         selected_audio_source_index_ = idx;
+
+        return true;
     }
 
     const Player::AudioSource &get_audio_source_by_index(size_t idx) const
@@ -81,6 +88,11 @@ class ViewWithAudioSourceBase
     {
         log_assert(have_audio_source());
         return get_audio_source_by_index(selected_audio_source_index_);
+    }
+
+    size_t get_audio_source_index(const Player::AudioSource &src) const
+    {
+        return std::distance(&*audio_sources_.begin(), &src);
     }
 
     bool have_audio_source() const { return selected_audio_source_index_ >= 0; }

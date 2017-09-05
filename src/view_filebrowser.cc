@@ -93,6 +93,7 @@ bool ViewFileBrowser::View::handle_enter_list_event_finish(
       case List::QueryContextEnterList::CallerID::ENTER_ROOT:
       case List::QueryContextEnterList::CallerID::ENTER_CHILD:
       case List::QueryContextEnterList::CallerID::ENTER_PARENT:
+      case List::QueryContextEnterList::CallerID::ENTER_CONTEXT_ROOT:
       case List::QueryContextEnterList::CallerID::RELOAD_LIST:
         current_list_id_ = finish_async_enter_dir_op(result, ctx, async_calls_,
                                                      current_list_id_, *this);
@@ -126,12 +127,58 @@ void ViewFileBrowser::View::handle_enter_list_event_update_after_finish(
             line = lines - 1;
 
         navigation_.set_cursor_by_line_number(line);
+
+        if(ctx->get_caller_id() == List::QueryContextEnterList::CallerID::ENTER_CONTEXT_ROOT)
+        {
+            log_assert(async_calls_.context_jump_.is_jumping_to_context());
+
+            switch(async_calls_.context_jump_.get_state())
+            {
+              case JumpToContext::State::NOT_JUMPING:
+              case JumpToContext::State::GET_CONTEXT_PARENT_ID:
+              case JumpToContext::State::GET_CONTEXT_LIST_ID:
+                BUG("Wrong jtc state");
+                break;
+
+              case JumpToContext::State::ENTER_CONTEXT_PARENT:
+                async_calls_.context_jump_.begin_second_step();
+                point_to_child_directory();
+                break;
+
+              case JumpToContext::State::ENTER_CONTEXT_LIST:
+                context_restriction_.set_boundary(async_calls_.context_jump_.end());
+                log_assert(context_restriction_.is_boundary(current_list_id_));
+                break;
+            }
+        }
+        else
+            log_assert(!async_calls_.context_jump_.is_jumping_to_context());
     }
 
-    if(!current_list_id_.is_valid() &&
-       ctx->get_caller_id() != List::QueryContextEnterList::CallerID::ENTER_ROOT)
+    if(!current_list_id_.is_valid())
     {
-        point_to_root_directory();
+        switch(ctx->get_caller_id())
+        {
+          case List::QueryContextEnterList::CallerID::ENTER_ROOT:
+            break;
+
+          case List::QueryContextEnterList::CallerID::ENTER_CONTEXT_ROOT:
+            break;
+
+          case List::QueryContextEnterList::CallerID::SYNC_WRAPPER:
+          case List::QueryContextEnterList::CallerID::ENTER_CHILD:
+          case List::QueryContextEnterList::CallerID::ENTER_PARENT:
+          case List::QueryContextEnterList::CallerID::RELOAD_LIST:
+            point_to_root_directory();
+            break;
+
+          case List::QueryContextEnterList::CallerID::CRAWLER_RESTART:
+          case List::QueryContextEnterList::CallerID::CRAWLER_RESET_POSITION:
+          case List::QueryContextEnterList::CallerID::CRAWLER_DESCEND:
+          case List::QueryContextEnterList::CallerID::CRAWLER_ASCEND:
+            BUG("Wrong caller ID in %s()", __PRETTY_FUNCTION__);
+            break;
+        }
     }
 
     if((result == List::AsyncListIface::OpResult::SUCCEEDED ||
@@ -906,6 +953,21 @@ ViewFileBrowser::View::process_event(UI::ViewEventID event_id,
     return InputResult::OK;
 }
 
+ViewFileBrowser::View::ListAccessPermission
+ViewFileBrowser::View::may_access_list_for_serialization() const
+{
+    if(async_calls_.context_jump_.is_jumping_to_context())
+        return ListAccessPermission::DENIED__LOADING;
+
+    if(context_restriction_.is_blocked())
+        return ListAccessPermission::DENIED__BLOCKED;
+
+    if(!file_list_.get_list_id().is_valid())
+        return ListAccessPermission::DENIED__NO_LIST_ID;
+
+    return ListAccessPermission::ALLOWED;
+}
+
 bool ViewFileBrowser::View::write_xml(std::ostream &os,
                                       const DCP::Queue::Data &data)
 {
@@ -914,8 +976,17 @@ bool ViewFileBrowser::View::write_xml(std::ostream &os,
        << list_contexts_[DBUS_LISTS_CONTEXT_GET(current_list_id_.get_raw_id())].string_id_.c_str()
        << "</context>";
 
-    if(!file_list_.get_list_id().is_valid())
+    switch(may_access_list_for_serialization())
+    {
+      case ListAccessPermission::ALLOWED:
+        break;
+
+      case ListAccessPermission::DENIED__LOADING:
+      case ListAccessPermission::DENIED__BLOCKED:
+      case ListAccessPermission::DENIED__NO_LIST_ID:
+        os << "<text id=\"line0\">" << XmlEscape(_(on_screen_name_)) << "</text>";
         return true;
+    }
 
     switch(file_list_.get_item_async_set_hint(*(navigation_.begin()),
                                               std::min(navigation_.get_total_number_of_visible_items(),
@@ -1033,9 +1104,21 @@ void ViewFileBrowser::View::serialize(DCP::Queue &queue, DCP::Queue::Mode mode,
     if(!debug_os)
         return;
 
-    if(!file_list_.get_list_id().is_valid())
+    switch(may_access_list_for_serialization())
     {
-        *debug_os << "Attempted to dump list with invalid list ID\n";
+      case ListAccessPermission::ALLOWED:
+        break;
+
+      case ListAccessPermission::DENIED__LOADING:
+        *debug_os << "Cannot serialize list while jumping to context\n";
+        return;
+
+      case ListAccessPermission::DENIED__BLOCKED:
+        *debug_os << "Cannot serialize list with blocked context\n";
+        return;
+
+      case ListAccessPermission::DENIED__NO_LIST_ID:
+        *debug_os << "Cannot serialize list with invalid list ID\n";
         return;
     }
 
@@ -1110,6 +1193,9 @@ bool ViewFileBrowser::View::list_invalidate(ID::List list_id, ID::List replaceme
 {
     log_assert(list_id.is_valid());
 
+    const bool have_lost_root_list =
+        context_restriction_.list_invalidate(list_id, replacement_id);
+
     file_list_.list_invalidate(list_id, replacement_id);
 
     if(crawler_.is_attached_to_player())
@@ -1120,6 +1206,17 @@ bool ViewFileBrowser::View::list_invalidate(ID::List list_id, ID::List replaceme
             auto *const pview = static_cast<ViewPlay::View *>(play_view_);
             pview->stop_playing(get_audio_source());
         }
+    }
+
+    if(have_lost_root_list)
+    {
+        msg_vinfo(MESSAGE_LEVEL_IMPORTANT,
+                  "Root list %u got removed, blocking further access",
+                  list_id.get_raw_id());
+
+        current_list_id_ = ID::List();
+
+        return false;
     }
 
     if(list_id != current_list_id_)
@@ -1259,12 +1356,8 @@ mk_get_list_id(tdbuslistsNavigation *proxy,
         "AsyncCalls::GetListId", MESSAGE_LEVEL_DEBUG);
 }
 
-bool ViewFileBrowser::View::point_to_root_directory()
+bool ViewFileBrowser::View::do_point_to_real_root_directory()
 {
-    auto lock(lock_async_calls());
-
-    cancel_and_delete_all_async_calls();
-
     async_calls_.get_list_id_ =
         mk_get_list_id(file_list_.get_dbus_proxy(),
                        std::bind(point_to_root_directory__got_list_id,
@@ -1280,6 +1373,139 @@ bool ViewFileBrowser::View::point_to_root_directory()
     async_calls_.get_list_id_->invoke(tdbus_lists_navigation_call_get_list_id, 0, 0);
 
     return true;
+}
+
+/*!
+ * Chained from #ViewFileBrowser::View::do_point_to_context_root_directory().
+ */
+static void point_to_list_context_root__got_parent_link(DBus::AsyncCall_ &async_call,
+                                                        ViewFileBrowser::View::AsyncCalls &calls,
+                                                        List::DBusList &file_list,
+                                                        List::context_id_t ctx_id)
+{
+    auto lock(calls.acquire_lock());
+
+    if(&async_call != calls.get_context_root_.get())
+        return;
+
+    DBus::AsyncResult async_result;
+
+    try
+    {
+        async_result = calls.get_context_root_->wait_for_result();
+    }
+    catch(const List::DBusListException &e)
+    {
+        async_result = DBus::AsyncResult::FAILED;
+        msg_error(0, LOG_ERR,
+                  "Failed obtaining parent for root list of context %u: %s",
+                  ctx_id, e.what());
+    }
+
+    if(!calls.get_context_root_->success() ||
+       async_result != DBus::AsyncResult::DONE)
+    {
+        calls.get_context_root_.reset();
+        calls.context_jump_.cancel();
+        return;
+    }
+
+    const auto &result(calls.get_context_root_->get_result(async_result));
+
+    const ID::List list_id(std::get<0>(result));
+    const unsigned int line(std::get<1>(result));
+    gchar *const title(std::get<2>(result));
+    const gboolean title_translatable(std::get<3>(result));
+
+    if(list_id.is_valid())
+    {
+        calls.context_jump_.put_parent_list_id(list_id);
+        file_list.enter_list_async(list_id, line,
+                                   List::QueryContextEnterList::CallerID::ENTER_CONTEXT_ROOT,
+                                   std::move(I18n::String(title_translatable,
+                                                          title != nullptr ? title : "")));
+    }
+    else
+    {
+        msg_info("Cannot enter root directory for context %u", ctx_id);
+        calls.get_context_root_.reset();
+        calls.context_jump_.cancel();
+    }
+
+    g_free(title);
+}
+
+bool ViewFileBrowser::View::point_to_root_directory()
+{
+    auto lock(lock_async_calls());
+
+    cancel_and_delete_all_async_calls();
+
+    const auto ctx_id = context_restriction_.get_context_id();
+
+    if(ctx_id == List::ContextMap::INVALID_ID)
+        return do_point_to_real_root_directory();
+    else
+        return do_point_to_context_root_directory(ctx_id);
+}
+
+bool ViewFileBrowser::View::do_point_to_context_root_directory(List::context_id_t ctx_id)
+{
+    async_calls_.get_context_root_ = std::make_shared<AsyncCalls::GetContextRoot>(
+        file_list_.get_dbus_proxy(),
+        [] (GObject *source_object) { return TDBUS_LISTS_NAVIGATION(source_object); },
+        [] (DBus::AsyncResult &async_ready,
+            ViewFileBrowser::View::AsyncCalls::GetContextRoot::PromiseType &promise,
+            tdbuslistsNavigation *p, GAsyncResult *async_result,
+            GError *&error)
+        {
+            guint parent_list_id;
+            guint parent_item_id;
+            gchar *parent_list_title;
+            gboolean parent_list_title_translatable;
+
+            async_ready = tdbus_lists_navigation_call_get_root_link_to_context_finish(
+                                p, &parent_list_id, &parent_item_id,
+                                &parent_list_title, &parent_list_title_translatable,
+                                async_result, &error)
+                ? DBus::AsyncResult::READY
+                : DBus::AsyncResult::FAILED;
+
+            if(async_ready == DBus::AsyncResult::FAILED)
+                throw List::DBusListException(ListError::Code::INTERNAL, true);
+
+            promise.set_value(std::make_tuple(parent_list_id, parent_item_id, parent_list_title,
+                                              parent_list_title_translatable));
+        },
+        std::bind(point_to_list_context_root__got_parent_link,
+                  std::placeholders::_1,
+                  std::ref(async_calls_), std::ref(file_list_), ctx_id),
+        [] (ViewFileBrowser::View::AsyncCalls::GetContextRoot::PromiseReturnType &values) {},
+        [] () { return true; },
+        "AsyncCalls::GetContextRoot", MESSAGE_LEVEL_DEBUG);
+
+    if(async_calls_.get_context_root_ == nullptr)
+    {
+        msg_out_of_memory("async go list context root");
+        return false;
+    }
+
+    async_calls_.context_jump_.begin(current_list_id_, navigation_.get_cursor(), ctx_id);
+
+    async_calls_.get_context_root_->invoke(tdbus_lists_navigation_call_get_root_link_to_context,
+                                           list_contexts_[ctx_id].string_id_.c_str());
+
+    return false;
+}
+
+void ViewFileBrowser::View::set_list_context_root(List::context_id_t ctx_id)
+{
+    if(ctx_id == List::ContextMap::INVALID_ID)
+        context_restriction_.release();
+    else if(list_contexts_.exists(ctx_id))
+        context_restriction_.set_context_id(ctx_id);
+    else
+        BUG("Invalid context ID %u passed as filter", ctx_id);
 }
 
 /*!
@@ -1312,6 +1538,7 @@ static void point_to_child_directory__got_list_id(DBus::AsyncCall_ &async_call,
        async_result != DBus::AsyncResult::DONE)
     {
         calls.get_list_id_.reset();
+        calls.context_jump_.cancel();
         return;
     }
 
@@ -1335,7 +1562,17 @@ static void point_to_child_directory__got_list_id(DBus::AsyncCall_ &async_call,
         goto error_exit;
     }
 
-    file_list.enter_list_async(id, 0, List::QueryContextEnterList::CallerID::ENTER_CHILD,
+    List::QueryContextEnterList::CallerID caller_id;
+
+    if(calls.context_jump_.is_jumping_to_context())
+    {
+        calls.context_jump_.put_context_list_id(id);
+        caller_id = List::QueryContextEnterList::CallerID::ENTER_CONTEXT_ROOT;
+    }
+    else
+        caller_id = List::QueryContextEnterList::CallerID::ENTER_CHILD;
+
+    file_list.enter_list_async(id, 0, caller_id,
                                std::move(I18n::String(title_translatable,
                                                       title != nullptr ? title : "")));
 
@@ -1345,6 +1582,7 @@ static void point_to_child_directory__got_list_id(DBus::AsyncCall_ &async_call,
 
 error_exit:
     calls.get_list_id_.reset();
+    calls.context_jump_.cancel();
     g_free(title);
 }
 
@@ -1442,6 +1680,14 @@ static void point_to_parent_link__got_parent_link(DBus::AsyncCall_ &async_call,
 
 bool ViewFileBrowser::View::point_to_parent_link()
 {
+    if(context_restriction_.is_boundary(current_list_id_))
+    {
+        msg_vinfo(MESSAGE_LEVEL_DIAG,
+                  "Cannot point to parent of list %u: restricted to context",
+                  current_list_id_.get_raw_id());
+        return false;
+    }
+
     auto lock(lock_async_calls());
 
     cancel_and_delete_all_async_calls();

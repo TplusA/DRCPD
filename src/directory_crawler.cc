@@ -1135,6 +1135,7 @@ void Playlist::DirectoryCrawler::handle_enter_list_event(List::AsyncListIface::O
       case List::QueryContextEnterList::CallerID::ENTER_ROOT:
       case List::QueryContextEnterList::CallerID::ENTER_CHILD:
       case List::QueryContextEnterList::CallerID::ENTER_PARENT:
+      case List::QueryContextEnterList::CallerID::ENTER_CONTEXT_ROOT:
       case List::QueryContextEnterList::CallerID::RELOAD_LIST:
         BUG("Wrong caller ID in %s()", __PRETTY_FUNCTION__);
         break;

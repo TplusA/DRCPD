@@ -86,12 +86,42 @@ class AirableView: public View
     GoToSearchForm point_to_search_form(List::context_id_t ctx_id) final override;
     void log_out_from_context(List::context_id_t context) final override;
 
+    bool write_xml(std::ostream &os, const DCP::Queue::Data &data) final override;
+
   private:
     void finish_async_point_to_child_directory();
 
     void audio_source_state_changed(const Player::AudioSource &audio_source,
                                     Player::AudioSourceState prev_state)
     {
+        switch(audio_source.get_state())
+        {
+          case Player::AudioSourceState::DESELECTED:
+          case Player::AudioSourceState::REQUESTED:
+            break;
+
+          case Player::AudioSourceState::SELECTED:
+            {
+                const auto idx(get_audio_source_index(audio_source));
+
+                if(select_audio_source(idx))
+                {
+                    if(idx > 0)
+                        set_list_context_root(audio_source_index_to_list_context(idx));
+                    else
+                        set_list_context_root(List::ContextMap::INVALID_ID);
+
+                    point_to_root_directory();
+                }
+            }
+
+            break;
+        }
+    }
+
+    static List::context_id_t audio_source_index_to_list_context(size_t source_index)
+    {
+        return List::context_id_t(source_index);
     }
 };
 

@@ -143,6 +143,7 @@ class QueryContextEnterList: public QueryContext_
         ENTER_ROOT,
         ENTER_CHILD,
         ENTER_PARENT,
+        ENTER_CONTEXT_ROOT,
         RELOAD_LIST,
         CRAWLER_RESTART,
         CRAWLER_RESET_POSITION,

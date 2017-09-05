@@ -51,6 +51,181 @@ namespace ViewFileBrowser
 List::Item *construct_file_item(const char *name, ListItemKind kind,
                                 const char *const *names);
 
+class JumpToContext
+{
+  public:
+    enum class State
+    {
+        NOT_JUMPING,
+        GET_CONTEXT_PARENT_ID,
+        ENTER_CONTEXT_PARENT,
+        GET_CONTEXT_LIST_ID,
+        ENTER_CONTEXT_LIST,
+    };
+
+  private:
+    State state_;
+
+    std::pair<ID::List, unsigned int> source_;
+    List::context_id_t destination_;
+    ID::List parent_list_id_;
+    ID::List context_list_id_;
+
+  public:
+    JumpToContext(const JumpToContext &) = delete;
+    JumpToContext &operator=(const JumpToContext &) = delete;
+
+    explicit JumpToContext():
+        state_(State::NOT_JUMPING),
+        source_({ID::List(), UINT_MAX}),
+        destination_(List::ContextMap::INVALID_ID)
+    {}
+
+    void begin(ID::List source_list_id, unsigned int source_line,
+               List::context_id_t destination)
+    {
+        log_assert(state_ == State::NOT_JUMPING);
+        log_assert(destination != List::ContextMap::INVALID_ID);
+        source_.first = source_list_id;
+        source_.second = source_line;
+        destination_ = destination;
+        set_state(State::GET_CONTEXT_PARENT_ID);
+    }
+
+    void put_parent_list_id(const ID::List list_id)
+    {
+        log_assert(state_ == State::GET_CONTEXT_PARENT_ID);
+        parent_list_id_ = list_id;
+        set_state(State::ENTER_CONTEXT_PARENT);
+    }
+
+    void begin_second_step()
+    {
+        log_assert(state_ == State::ENTER_CONTEXT_PARENT);
+        set_state(State::GET_CONTEXT_LIST_ID);
+    }
+
+    void put_context_list_id(const ID::List list_id)
+    {
+        log_assert(state_ == State::GET_CONTEXT_LIST_ID);
+        context_list_id_ = list_id;
+        set_state(State::ENTER_CONTEXT_LIST);
+    }
+
+    bool cancel()
+    {
+        if(state_ == State::NOT_JUMPING)
+            return false;
+
+        reset(false);
+
+        return true;
+    }
+
+    ID::List end()
+    {
+        log_assert(state_ == State::ENTER_CONTEXT_LIST);
+        const ID::List result = context_list_id_;
+        reset(true);
+        return result;
+    }
+
+    bool is_jumping_to_context() const { return state_ != State::NOT_JUMPING; }
+
+    State get_state() const { return state_; }
+
+  private:
+    void set_state(State state)
+    {
+        if(state != state_)
+            state_ = state;
+    }
+
+    void reset(bool complete_reset)
+    {
+        if(complete_reset)
+        {
+            source_.first = ID::List();
+            source_.second = UINT_MAX;
+        }
+
+        destination_ = List::ContextMap::INVALID_ID;
+        parent_list_id_ = ID::List();
+        context_list_id_ = ID::List();
+        set_state(State::NOT_JUMPING);
+    }
+};
+
+class ContextRestriction
+{
+  private:
+    ID::List root_list_id_;
+    List::context_id_t context_id_;
+    bool is_blocked_;
+
+  public:
+    ContextRestriction(const ContextRestriction &) = delete;
+    ContextRestriction &operator=(const ContextRestriction &) = delete;
+
+    explicit ContextRestriction():
+        context_id_(List::ContextMap::INVALID_ID),
+        is_blocked_(false)
+    {}
+
+    void set_context_id(List::context_id_t ctx)
+    {
+        log_assert(ctx != List::ContextMap::INVALID_ID);
+        root_list_id_ = ID::List();
+        context_id_ = ctx;
+        is_blocked_ = true;
+    }
+
+    List::context_id_t get_context_id() const { return context_id_; }
+
+    void set_boundary(ID::List root_list_id)
+    {
+        if(root_list_id_.is_valid())
+            msg_error(0, LOG_WARNING, "Replacing valid list ID %u by %u",
+                      root_list_id_.get_raw_id(), root_list_id.get_raw_id());
+
+        root_list_id_ = root_list_id;
+        is_blocked_ = false;
+    }
+
+    void release()
+    {
+        root_list_id_ = ID::List();
+        context_id_ = List::ContextMap::INVALID_ID;
+        is_blocked_ = false;
+    }
+
+    bool is_boundary(const ID::List &list_id) const
+    {
+        return (root_list_id_.is_valid() && root_list_id_ == list_id) ||
+               is_blocked_;
+    }
+
+    bool is_blocked() const { return is_blocked_; }
+
+    bool list_invalidate(ID::List list_id, ID::List replacement_id)
+    {
+        if(list_id != root_list_id_)
+            return false;
+
+        root_list_id_ = replacement_id;
+
+        if(root_list_id_.is_valid())
+            return false;
+
+        msg_info("Lost root list ID for context ID %u", context_id_);
+
+        if(context_id_ != List::ContextMap::INVALID_ID)
+            is_blocked_ = true;
+
+        return true;
+    }
+};
+
 class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSourceBase
 {
   public:
@@ -73,8 +248,15 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
             DBus::AsyncCall<tdbuslistsNavigation, std::tuple<guint, guint, gchar *, gboolean>,
                             Busy::Source::GETTING_PARENT_LINK>;
 
+        using GetContextRoot =
+            DBus::AsyncCall<tdbuslistsNavigation, std::tuple<guint, guint, gchar *, gboolean>,
+                            Busy::Source::GETTING_LIST_CONTEXT_ROOT_LINK>;
+
         std::shared_ptr<GetListId> get_list_id_;
         std::shared_ptr<GetParentId> get_parent_id_;
+        std::shared_ptr<GetContextRoot> get_context_root_;
+
+        JumpToContext context_jump_;
 
         explicit AsyncCalls()
         {
@@ -90,12 +272,14 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
         {
             GetListId::cancel_and_delete(get_list_id_);
             GetParentId::cancel_and_delete(get_parent_id_);
+            GetContextRoot::cancel_and_delete(get_context_root_);
         }
 
         void delete_all()
         {
             get_list_id_.reset();
             get_parent_id_.reset();
+            get_context_root_.reset();
         }
     };
 
@@ -106,6 +290,7 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
     List::ContextMap list_contexts_;
 
     ID::List current_list_id_;
+    ContextRestriction context_restriction_;
 
     /* list for the user */
     List::DBusList file_list_;
@@ -121,8 +306,10 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
     Playlist::CrawlerIface::RecursiveMode default_recursive_mode_;
     Playlist::CrawlerIface::ShuffleMode default_shuffle_mode_;
 
+  protected:
     const uint8_t drcp_browse_id_;
 
+  private:
     Timeout::Timer keep_lists_alive_timeout_;
 
     ViewIface *search_parameters_view_;
@@ -206,11 +393,33 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
     /*!
      * Load whole root directory into internal list.
      *
+     * This function is subject to context root restrictions, if any. In case a
+     * list context has been set as root, the root list for that context is
+     * loaded; otherwise, the true root is loaded.
+     *
      * \returns
      *     True on success, false on error. In any case the list will have been
      *     modified (empty on error).
+     *
+     * \see
+     *     #ViewFileBrowser::View::set_list_context_root()
      */
     bool point_to_root_directory();
+
+    /*!
+     * Restrict list hierarchy to subtree of given list context.
+     *
+     * In case the given context ID is valid and does exist, then this function
+     * restricts list navigation such that the parent directory of the list
+     * context's root directory cannot be reached. That is, the effect of
+     * #ViewFileBrowser::View::point_to_parent_link() is restricted to the
+     * top-most boundary of the list context after this call has succeeded, and
+     * #ViewFileBrowser::View::point_to_root_directory() will always jump to
+     * the root list of the given context.
+     *
+     * The restriction can be removed by passing #List::ContextMap::INVALID_ID.
+     */
+    void set_list_context_root(List::context_id_t ctx_id);
 
     /*!
      * Load whole selected subdirectory into internal list.
@@ -234,6 +443,21 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
 
     virtual void log_out_from_context(List::context_id_t context) {}
 
+    enum class ListAccessPermission
+    {
+        ALLOWED,
+        DENIED__LOADING,
+        DENIED__BLOCKED,
+        DENIED__NO_LIST_ID,
+    };
+
+    ListAccessPermission may_access_list_for_serialization() const;
+
+    /*!
+     * Generate XML document from current state.
+     */
+    bool write_xml(std::ostream &os, const DCP::Queue::Data &data) override;
+
   private:
     const Player::LocalPermissionsIface &get_local_permissions() const;
 
@@ -253,14 +477,19 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
     bool point_to_parent_link();
 
     /*!
+     * Helper for #ViewFileBrowser::View::point_to_root_directory().
+     */
+    bool do_point_to_real_root_directory();
+
+    /*!
+     * Helper for #ViewFileBrowser::View::point_to_root_directory().
+     */
+    bool do_point_to_context_root_directory(List::context_id_t ctx_id);
+
+    /*!
      * Reload currently displayed list, try to keep navigation in good shape.
      */
     void reload_list();
-
-    /*!
-     * Generate XML document from current state.
-     */
-    bool write_xml(std::ostream &os, const DCP::Queue::Data &data) final override;
 
     bool waiting_for_search_parameters(WaitForParametersHelper &wait_helper);
     bool point_to_search_form_and_wait(WaitForParametersHelper &wait_helper,
