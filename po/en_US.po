@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: drcpd 0.1\n"
 "Report-Msgid-Bugs-To: r.tiemann@ta-hifi.de\n"
-"POT-Creation-Date: 2017-07-26 14:20+0200\n"
+"POT-Creation-Date: 2017-09-05 14:24+0200\n"
 "PO-Revision-Date: 2014-10-01 15:44+0200\n"
 "Last-Translator: Robert Tiemann <r.tiemann@ta-hifi.de>\n"
 "Language-Team: English\n"
@@ -17,27 +17,31 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: src/drcpd.cc:480
+#: src/dbuslist.cc:1017
+msgid "Loading..."
+msgstr ""
+
+#: src/drcpd.cc:482
 msgid "Configuration"
 msgstr ""
 
-#: src/drcpd.cc:483
+#: src/drcpd.cc:485
 msgid "USB devices"
 msgstr ""
 
-#: src/drcpd.cc:491
+#: src/drcpd.cc:493
 msgid "Airable internet radio"
 msgstr ""
 
-#: src/drcpd.cc:498
+#: src/drcpd.cc:500
 msgid "UPnP media servers"
 msgstr ""
 
-#: src/drcpd.cc:505
+#: src/drcpd.cc:509
 msgid "Stream information"
 msgstr ""
 
-#: src/drcpd.cc:509
+#: src/drcpd.cc:513
 msgid "Search parameters"
 msgstr ""
 
@@ -97,7 +101,31 @@ msgstr ""
 msgid "Exit without saving"
 msgstr ""
 
-#: src/view_play.cc:781
+#: src/view_filebrowser.cc:475
+msgid "No USB mass storage device found"
+msgstr ""
+
+#: src/view_filebrowser.cc:477
+msgid "Airable services not available"
+msgstr ""
+
+#: src/view_filebrowser.cc:479
+msgid "No UPnP or DLNA server found"
+msgstr ""
+
+#: src/view_filebrowser.cc:481
+msgid "empty"
+msgstr ""
+
+#: src/view_filebrowser_airable.cc:392
+msgid "Unavailable"
+msgstr ""
+
+#: src/view_filebrowser_airable.cc:392
+msgid "Accessing"
+msgstr ""
+
+#: src/view_play.cc:737
 msgid "Buffering"
 msgstr ""
 
