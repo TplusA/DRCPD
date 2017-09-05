@@ -47,8 +47,6 @@ class AirableView: public View
     AsyncCallsDecorations async_calls_deco_;
 
   private:
-    ID::List root_list_id_;
-
     /* collection of search form items found so far */
     std::map<List::context_id_t, std::pair<unsigned int, unsigned int>> search_forms_;
 

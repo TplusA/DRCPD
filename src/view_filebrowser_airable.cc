@@ -134,11 +134,8 @@ ViewFileBrowser::AirableView::process_event(UI::ViewEventID event_id,
 
 bool ViewFileBrowser::AirableView::list_invalidate(ID::List list_id, ID::List replacement_id)
 {
-    if(list_id == root_list_id_)
-    {
-        root_list_id_ = replacement_id;
+    if(is_root_list(list_id))
         search_forms_.clear();
-    }
 
     return View::list_invalidate(list_id, replacement_id);
 }
@@ -158,7 +155,7 @@ void ViewFileBrowser::AirableView::finish_async_point_to_child_directory()
     /*
      * Find the search form link in the current list.
      */
-    if(current_list_id_ == root_list_id_)
+    if(is_root_list(current_list_id_))
         return;
 
     const List::context_id_t ctx_id(DBUS_LISTS_CONTEXT_GET(current_list_id_.get_raw_id()));
@@ -249,6 +246,7 @@ void ViewFileBrowser::AirableView::handle_enter_list_event(List::AsyncListIface:
     switch(ctx->get_caller_id())
     {
       case List::QueryContextEnterList::CallerID::SYNC_WRAPPER:
+      case List::QueryContextEnterList::CallerID::ENTER_ROOT:
       case List::QueryContextEnterList::CallerID::ENTER_PARENT:
       case List::QueryContextEnterList::CallerID::RELOAD_LIST:
       case List::QueryContextEnterList::CallerID::CRAWLER_RESTART:
@@ -261,10 +259,6 @@ void ViewFileBrowser::AirableView::handle_enter_list_event(List::AsyncListIface:
       case List::QueryContextEnterList::CallerID::ENTER_CONTEXT_ROOT:
         finish_async_point_to_child_directory();
         break;
-
-      case List::QueryContextEnterList::CallerID::ENTER_ROOT:
-        root_list_id_ = current_list_id_;
-        break;
     }
 
     View::handle_enter_list_event_update_after_finish(result, ctx);
@@ -272,7 +266,7 @@ void ViewFileBrowser::AirableView::handle_enter_list_event(List::AsyncListIface:
 
 bool ViewFileBrowser::AirableView::point_to_child_directory(const SearchParameters *search_parameters)
 {
-    if(current_list_id_ != root_list_id_ || search_parameters != nullptr)
+    if(!is_root_list(current_list_id_) || search_parameters != nullptr)
     {
         async_calls_deco_.point_to_child_directory_.selected_line_from_root_ = UINT_MAX;
         return View::point_to_child_directory(search_parameters);
@@ -314,8 +308,8 @@ ViewFileBrowser::AirableView::point_to_search_form(List::context_id_t ctx_id)
     try
     {
         Utils::enter_list_at(file_list_, item_flags_, navigation_,
-                             root_list_id_, path.first);
-        current_list_id_ = root_list_id_;
+                             get_root_list_id(), path.first);
+        current_list_id_ = get_root_list_id();
 
         std::string list_title;
         const ID::List list_id =

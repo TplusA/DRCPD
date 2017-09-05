@@ -286,6 +286,8 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
   private:
     dbus_listbroker_id_t listbroker_id_;
 
+    ID::List root_list_id_;
+
   protected:
     List::ContextMap list_contexts_;
 
@@ -452,6 +454,13 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
     };
 
     ListAccessPermission may_access_list_for_serialization() const;
+
+    bool is_root_list(ID::List list_id) const
+    {
+        return list_id.is_valid() && list_id == root_list_id_;
+    }
+
+    ID::List get_root_list_id() const { return root_list_id_; }
 
     /*!
      * Generate XML document from current state.

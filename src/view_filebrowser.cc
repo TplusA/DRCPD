@@ -97,6 +97,10 @@ bool ViewFileBrowser::View::handle_enter_list_event_finish(
       case List::QueryContextEnterList::CallerID::RELOAD_LIST:
         current_list_id_ = finish_async_enter_dir_op(result, ctx, async_calls_,
                                                      current_list_id_, *this);
+
+        if((ctx->get_caller_id() == List::QueryContextEnterList::CallerID::ENTER_ROOT))
+            root_list_id_ = current_list_id_;
+
         break;
 
       case List::QueryContextEnterList::CallerID::CRAWLER_RESTART:
@@ -1192,6 +1196,9 @@ bool ViewFileBrowser::View::owns_dbus_proxy(const void *dbus_proxy) const
 bool ViewFileBrowser::View::list_invalidate(ID::List list_id, ID::List replacement_id)
 {
     log_assert(list_id.is_valid());
+
+    if(is_root_list(list_id))
+        root_list_id_ = replacement_id;
 
     const bool have_lost_root_list =
         context_restriction_.list_invalidate(list_id, replacement_id);
