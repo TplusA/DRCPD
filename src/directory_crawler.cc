@@ -104,9 +104,11 @@ bool Playlist::DirectoryCrawler::restart()
 
     static constexpr auto cid(List::QueryContextEnterList::CallerID::CRAWLER_RESTART);
     const auto result =
-        traversal_list_.enter_list_async(user_start_position_.get_list_id(),
-                                         user_start_position_.get_line(), cid,
-                                         I18n::String(false));
+        user_start_position_.get_list_id().is_valid()
+        ? traversal_list_.enter_list_async(user_start_position_.get_list_id(),
+                                           user_start_position_.get_line(), cid,
+                                           I18n::String(false))
+        : List::AsyncListIface::OpResult::FAILED;
 
     switch(result)
     {
