@@ -463,6 +463,29 @@ static bool request_search_parameters_from_user(ViewManager::VMIface &vm,
     return true;
 }
 
+const std::string &ViewFileBrowser::View::get_fallback_string_for_empty_root()
+{
+    if(fallback_string_for_empty_root_.empty())
+    {
+        std::ostringstream os;
+
+        /* those magic numbers come from drcpd.cc and should be replaced by
+         * \c constexpr \c uint8_t constants */
+        if(drcp_browse_id_ == 1)
+            os << XmlEscape(_("No USB mass storage device found"));
+        else if(drcp_browse_id_ == 3)
+            os << XmlEscape(_("Airable services not available"));
+        else if(drcp_browse_id_ == 4)
+            os << XmlEscape(_("No UPnP or DLNA server found"));
+        else
+            os << XmlEscape(_("empty"));
+
+        fallback_string_for_empty_root_ = std::move(os.str());
+    }
+
+    return fallback_string_for_empty_root_;
+}
+
 const Player::LocalPermissionsIface &
 ViewFileBrowser::View::get_local_permissions() const
 {
@@ -988,7 +1011,8 @@ bool ViewFileBrowser::View::write_xml(std::ostream &os,
       case ListAccessPermission::DENIED__LOADING:
       case ListAccessPermission::DENIED__BLOCKED:
       case ListAccessPermission::DENIED__NO_LIST_ID:
-        os << "<text id=\"line0\">" << XmlEscape(_(on_screen_name_)) << "</text>";
+        os << "<text id=\"line0\" flag=\"uls\">"
+           << XmlEscape(_(on_screen_name_)) << "</text>";
         return true;
     }
 
@@ -1002,6 +1026,14 @@ bool ViewFileBrowser::View::write_xml(std::ostream &os,
       case List::AsyncListIface::OpResult::CANCELED:
       case List::AsyncListIface::OpResult::FAILED:
         break;
+    }
+
+    if(is_root_list(current_list_id_) &&
+       navigation_.get_total_number_of_visible_items() == 0)
+    {
+        os << "<text id=\"line0\" flag=\"uls\">"
+           << get_fallback_string_for_empty_root() << "</text>";
+        return true;
     }
 
     size_t displayed_line = 0;

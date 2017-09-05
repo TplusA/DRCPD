@@ -287,6 +287,7 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
     dbus_listbroker_id_t listbroker_id_;
 
     ID::List root_list_id_;
+    std::string fallback_string_for_empty_root_;
 
   protected:
     List::ContextMap list_contexts_;
@@ -468,6 +469,8 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
     bool write_xml(std::ostream &os, const DCP::Queue::Data &data) override;
 
   private:
+    const std::string &get_fallback_string_for_empty_root();
+
     const Player::LocalPermissionsIface &get_local_permissions() const;
 
     bool is_fetching_directory();
