@@ -1,3 +1,22 @@
+2017-09-26  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 4.2 released.
+
+	* Playback: Lists are requested to remain in cache while playing their
+	  contents. To make this work, listbrokers v3.1 or later is required.
+
+	  The problem with non-cacheable lists is that they are destroyed and
+	  reloaded once the user re-enters them by navigating back and forth.
+	  The directory crawler cannot catch up with these changes, so it
+	  stopped working in previous versions and drcpd even crashed in this
+	  situation. Since it would have been impractical to extend the
+	  crawler, the list brokers have been taught to temporarily override
+	  list caching modes.
+
+	* Roon: Forward button presses to Roon (skip, seek, shuffle, repeat)
+	  if the Roon source is selected, report Roon state changes to SPI
+	  slave via DRCP XML.
+
 2017-09-05  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 4.1 released.
