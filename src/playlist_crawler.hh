@@ -165,15 +165,13 @@ class CrawlerIface
 
     void detached_from_player_notification(bool is_complete_unplug)
     {
-        if(!is_complete_unplug)
-            return;
-
-        if(is_attached_to_player_)
+        if(is_complete_unplug && is_attached_to_player_)
         {
             is_attached_to_player_ = false;
             stop_crawler();
-            detached_from_player();
         }
+
+        detached_from_player(is_complete_unplug);
     }
 
     /*!
@@ -367,7 +365,7 @@ class CrawlerIface
     /*!
      * Called when detached from #Player::Control object.
      */
-    virtual void detached_from_player() {}
+    virtual void detached_from_player(bool is_complete_unplug) {}
 };
 
 }

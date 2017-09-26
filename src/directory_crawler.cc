@@ -82,6 +82,7 @@ bool Playlist::DirectoryCrawler::set_start_position(const List::DBusList &start_
 {
     user_start_position_.set(start_list.get_list_id(), start_line_number);
     marked_position_ = user_start_position_;
+    start_cache_enforcer(user_start_position_.get_list_id());
     return true;
 }
 
@@ -133,6 +134,17 @@ bool Playlist::DirectoryCrawler::list_invalidate(ID::List list_id, ID::List repl
     /* nothing to do in passive mode */
     if(!user_start_position_.get_list_id().is_valid())
         return false;
+
+    if(cache_enforcer_ != nullptr && cache_enforcer_->get_list_id() == list_id)
+    {
+        const bool restart_enforcer =
+            !cache_enforcer_->is_stopped() && replacement_id.is_valid();
+
+        stop_cache_enforcer(false);
+
+        if(restart_enforcer)
+            start_cache_enforcer(replacement_id);
+    }
 
     /* do it and check validity in active mode */
     return user_start_position_.list_invalidate(list_id, replacement_id)
@@ -1354,4 +1366,30 @@ void Playlist::DirectoryCrawler::handle_get_item_event(List::AsyncListIface::OpR
 
         break;
     }
+}
+
+void Playlist::DirectoryCrawler::start_cache_enforcer(ID::List list_id)
+{
+    msg_info("Keeping list %u in cache", list_id.get_raw_id());
+
+    log_assert(list_id.is_valid());
+
+    stop_cache_enforcer();
+
+    cache_enforcer_.reset(new CacheEnforcer(traversal_list_, list_id));
+    cache_enforcer_->start();
+}
+
+bool Playlist::DirectoryCrawler::stop_cache_enforcer(bool remove_override)
+{
+    if(cache_enforcer_ == nullptr)
+        return false;
+
+    msg_info("Stop keeping list %u in cache",
+             cache_enforcer_->get_list_id().get_raw_id());
+
+    auto *const enforcer = cache_enforcer_.get();
+    enforcer->stop(std::move(cache_enforcer_), remove_override);
+
+    return true;
 }

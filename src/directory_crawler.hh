@@ -24,6 +24,7 @@
 #include "playlist_crawler.hh"
 #include "dbuslist.hh"
 #include "listnav.hh"
+#include "cacheenforcer.hh"
 #include "metadata_preloaded.hh"
 #include "airable_links.hh"
 #include "gvariantwrapper.hh"
@@ -106,6 +107,8 @@ class DirectoryCrawler: public CrawlerIface
             directory_depth_ = directory_depth;
             arived_direction_ = arived_direction;
         }
+
+        void clear() { set(ID::List(), 0); }
 
         bool list_invalidate(ID::List list_id, ID::List replacement_id)
         {
@@ -217,6 +220,7 @@ class DirectoryCrawler: public CrawlerIface
 
     /* where the user pushed the play button */
     MarkedPosition user_start_position_;
+    std::unique_ptr<CacheEnforcer> cache_enforcer_;
 
     enum class RecurseResult
     {
@@ -350,11 +354,18 @@ class DirectoryCrawler: public CrawlerIface
     bool retrieve_item_information_impl(RetrieveItemInfoCallback callback) final override;
     const List::Item *get_current_list_item_impl(List::AsyncListIface::OpResult &op_result) final override;
 
-    void detached_from_player() final override
+    void detached_from_player(bool is_complete_unplug) final override
     {
+        stop_cache_enforcer();
+
+        if(!is_complete_unplug)
+            return;
+
         find_next_callback_ = nullptr;
         failure_callback_enter_list_ = nullptr;
         failure_callback_get_item_ = nullptr;
+
+        user_start_position_.clear();
     }
 
   private:
@@ -397,6 +408,9 @@ class DirectoryCrawler: public CrawlerIface
                                 List::AsyncListIface::OpResult op_result);
     void handle_get_item_event(List::AsyncListIface::OpResult result,
                                const std::shared_ptr<List::QueryContextGetItem> &ctx);
+
+    void start_cache_enforcer(ID::List list_id);
+    bool stop_cache_enforcer(bool remove_override = true);
 };
 
 }
