@@ -409,7 +409,10 @@ void Player::Control::unplug(bool is_complete_unplug)
         permissions_ = nullptr;
 }
 
-static bool send_play_command(const Player::AudioSource *asrc)
+static bool send_simple_playback_command(
+        const Player::AudioSource *asrc,
+        gboolean (*const sync_call)(tdbussplayPlayback *, GCancellable *, GError **),
+        const char *error_short, const char *error_long)
 {
     if(asrc == nullptr)
         return true;
@@ -420,86 +423,57 @@ static bool send_play_command(const Player::AudioSource *asrc)
         return true;
 
     GError *error = NULL;
-    tdbus_splay_playback_call_start_sync(proxy, NULL, &error);
+    sync_call(proxy, NULL, &error);
 
-    if(dbus_common_handle_error(&error, "Start playback") < 0)
+    if(dbus_common_handle_error(&error, error_short) < 0)
     {
-        msg_error(0, LOG_NOTICE, "Failed sending start playback message");
+        msg_error(0, LOG_NOTICE, "%s", error_long);
         return false;
     }
     else
         return true;
 }
 
-static bool send_stop_command(const Player::AudioSource *asrc)
+static inline bool send_play_command(const Player::AudioSource *asrc)
+{
+    return
+        send_simple_playback_command(asrc, tdbus_splay_playback_call_start_sync,
+                                     "Start playback",
+                                     "Failed sending start playback message");
+}
+
+static inline bool send_stop_command(const Player::AudioSource *asrc)
 {
     log_assert(asrc != nullptr);
 
-    auto *proxy = asrc->get_playback_proxy();
-
-    if(proxy == nullptr)
-        return true;
-
-    GError *error = NULL;
-    tdbus_splay_playback_call_stop_sync(proxy, NULL, &error);
-
-    if(dbus_common_handle_error(&error, "Stop playback") < 0)
-    {
-        msg_error(0, LOG_NOTICE, "Failed sending stop playback message");
-        return false;
-    }
-    else
-        return true;
+    return
+        send_simple_playback_command(asrc, tdbus_splay_playback_call_stop_sync,
+                                     "Stop playback",
+                                     "Failed sending stop playback message");
 }
 
-static bool send_pause_command(const Player::AudioSource *asrc)
+static inline bool send_pause_command(const Player::AudioSource *asrc)
 {
-    if(asrc == nullptr)
-        return true;
-
-    auto *proxy = asrc->get_playback_proxy();
-
-    if(proxy == nullptr)
-        return true;
-
-    GError *error = NULL;
-    tdbus_splay_playback_call_pause_sync(proxy, NULL, &error);
-
-    if(dbus_common_handle_error(&error, "Pause playback") < 0)
-    {
-        msg_error(0, LOG_NOTICE, "Failed sending pause playback message");
-        return false;
-    }
-    else
-        return true;
+    return
+        send_simple_playback_command(asrc, tdbus_splay_playback_call_pause_sync,
+                                     "Pause playback",
+                                     "Failed sending pause playback message");
 }
 
-static bool send_simple_skip_command(const Player::AudioSource *asrc,
-                                     bool forward)
+static inline bool send_simple_skip_forward_command(const Player::AudioSource *asrc)
 {
-    if(asrc == nullptr)
-        return true;
+    return
+        send_simple_playback_command(asrc, tdbus_splay_playback_call_skip_to_next_sync,
+                                     "Skip to next stream",
+                                     "Failed sending skip forward message");
+}
 
-    auto *proxy = asrc->get_playback_proxy();
-
-    if(proxy == nullptr)
-        return true;
-
-    GError *error = NULL;
-
-    if(forward)
-        tdbus_splay_playback_call_skip_to_next_sync(proxy, NULL, &error);
-    else
-        tdbus_splay_playback_call_skip_to_previous_sync(proxy, NULL, &error);
-
-    if(dbus_common_handle_error(&error, "Skip stream") < 0)
-    {
-        msg_error(0, LOG_NOTICE, "Failed sending skip %s message",
-                  forward ? "forward" : "backward");
-        return false;
-    }
-    else
-        return true;
+static inline bool send_simple_skip_backward_command(const Player::AudioSource *asrc)
+{
+    return
+        send_simple_playback_command(asrc, tdbus_splay_playback_call_skip_to_previous_sync,
+                                     "Skip to previous stream",
+                                     "Failed sending skip backward message");
 }
 
 static bool send_skip_to_next_command(ID::Stream &removed_stream_from_queue,
@@ -982,7 +956,7 @@ bool Player::Control::skip_forward_request()
 {
     if(player_ == nullptr || crawler_ == nullptr)
     {
-        send_simple_skip_command(audio_source_, true);
+        send_simple_skip_forward_command(audio_source_);
         return false;
     }
 
@@ -1107,7 +1081,7 @@ void Player::Control::skip_backward_request()
 {
     if(player_ == nullptr || crawler_ == nullptr)
     {
-        send_simple_skip_command(audio_source_, false);
+        send_simple_skip_backward_command(audio_source_);
         return;
     }
 
