@@ -646,11 +646,11 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
         break;
 
       case UI::ViewEventID::PLAYBACK_MODE_REPEAT_TOGGLE:
-      case UI::ViewEventID::PLAYBACK_MODE_SHUFFLE_TOGGLE:
-        msg_vinfo(MESSAGE_LEVEL_IMPORTANT,
-                  "%s(): view event 0x%08x not implemented yet",
-                  __PRETTY_FUNCTION__, static_cast<unsigned int>(event_id));
+        player_control_.repeat_mode_toggle_request();
+        break;
 
+      case UI::ViewEventID::PLAYBACK_MODE_SHUFFLE_TOGGLE:
+        player_control_.shuffle_mode_toggle_request();
         break;
 
       case UI::ViewEventID::SEARCH_COMMENCE:

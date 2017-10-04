@@ -309,7 +309,8 @@ class Control
     bool source_selected_notification(const std::string &audio_source_id);
     bool source_deselected_notification(const std::string *audio_source_id);
 
-    void set_repeat_mode(RepeatMode repeat_mode);
+    void repeat_mode_toggle_request() const;
+    void shuffle_mode_toggle_request() const;
 
     /* functions below are called as a result of user actions that are supposed
      * to take direct, immediate influence on playback, so they impose requests

@@ -548,6 +548,76 @@ static void do_deselect_audio_source(Player::AudioSource &audio_source,
     audio_source.deselected_notification();
 }
 
+void Player::Control::repeat_mode_toggle_request() const
+{
+    if(permissions_ != nullptr && !permissions_->can_toggle_repeat())
+    {
+        msg_error(EPERM, LOG_INFO, "Ignoring repeat mode toggle request");
+        return;
+    }
+
+    if(crawler_ != nullptr)
+    {
+        msg_error(ENOSYS, LOG_NOTICE,
+                  "Repeat mode not implemented yet (see ticket #250)");
+        return;
+    }
+
+    if(audio_source_ == nullptr)
+        return;
+
+    switch(audio_source_->get_state())
+    {
+      case AudioSourceState::DESELECTED:
+      case AudioSourceState::REQUESTED:
+        return;
+
+      case AudioSourceState::SELECTED:
+        break;
+    }
+
+    auto *proxy = audio_source_->get_playback_proxy();
+
+    if(proxy != nullptr)
+        tdbus_splay_playback_call_set_repeat_mode(proxy, "toggle",
+                                                  nullptr, nullptr, nullptr);
+}
+
+void Player::Control::shuffle_mode_toggle_request() const
+{
+    if(permissions_ != nullptr && !permissions_->can_toggle_shuffle())
+    {
+        msg_error(EPERM, LOG_INFO, "Ignoring shuffle mode toggle request");
+        return;
+    }
+
+    if(crawler_ != nullptr)
+    {
+        msg_error(ENOSYS, LOG_NOTICE,
+                  "Shuffle mode not implemented yet (see tickets #27, #40, #80)");
+        return;
+    }
+
+    if(audio_source_ == nullptr)
+        return;
+
+    switch(audio_source_->get_state())
+    {
+      case AudioSourceState::DESELECTED:
+      case AudioSourceState::REQUESTED:
+        return;
+
+      case AudioSourceState::SELECTED:
+        break;
+    }
+
+    auto *proxy = audio_source_->get_playback_proxy();
+
+    if(proxy != nullptr)
+        tdbus_splay_playback_call_set_shuffle_mode(proxy, "toggle",
+                                                   nullptr, nullptr, nullptr);
+}
+
 void Player::Control::play_request()
 {
     if(permissions_ != nullptr && !permissions_->can_play())
