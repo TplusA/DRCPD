@@ -33,8 +33,11 @@ class AppPermissions: public Player::DefaultLocalPermissions
 
     bool can_skip_backward()        const override { return false; }
     bool can_skip_forward()         const override { return false; }
-    bool can_shuffle()              const override { return false; }
+    bool can_set_shuffle()          const override { return false; }
+    bool can_toggle_shuffle()       const override { return false; }
     bool can_repeat_single()        const override { return false; }
+    bool can_repeat_all()           const override { return false; }
+    bool can_toggle_repeat()        const override { return false; }
     bool can_show_listing()         const override { return false; }
     bool can_prefetch_for_gapless() const override { return false; }
 };

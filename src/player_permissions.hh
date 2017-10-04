@@ -39,9 +39,11 @@ class LocalPermissionsIface
     virtual bool can_skip_forward() const = 0;
     virtual bool can_fast_wind_backward() const = 0;
     virtual bool can_fast_wind_forward() const = 0;
-    virtual bool can_shuffle() const = 0;
+    virtual bool can_set_shuffle() const = 0;
+    virtual bool can_toggle_shuffle() const = 0;
     virtual bool can_repeat_single() const = 0;
     virtual bool can_repeat_all() const = 0;
+    virtual bool can_toggle_repeat() const = 0;
     virtual bool can_show_listing() const = 0;
     virtual bool can_prefetch_for_gapless() const = 0;
     virtual bool can_skip_on_error() const = 0;
@@ -63,9 +65,11 @@ class DefaultLocalPermissions: public LocalPermissionsIface
     bool can_skip_forward()         const override { return true; }
     bool can_fast_wind_backward()   const override { return true; }
     bool can_fast_wind_forward()    const override { return true; }
-    bool can_shuffle()              const override { return true; }
+    bool can_set_shuffle()          const override { return true; }
+    bool can_toggle_shuffle()       const override { return true; }
     bool can_repeat_single()        const override { return true; }
     bool can_repeat_all()           const override { return true; }
+    bool can_toggle_repeat()        const override { return true; }
     bool can_show_listing()         const override { return true; }
     bool can_prefetch_for_gapless() const override { return true; }
     bool can_skip_on_error()        const override { return true; }
