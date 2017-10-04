@@ -474,6 +474,34 @@ static bool send_pause_command(const Player::AudioSource *asrc)
         return true;
 }
 
+static bool send_simple_skip_command(const Player::AudioSource *asrc,
+                                     bool forward)
+{
+    if(asrc == nullptr)
+        return true;
+
+    auto *proxy = asrc->get_playback_proxy();
+
+    if(proxy == nullptr)
+        return true;
+
+    GError *error = NULL;
+
+    if(forward)
+        tdbus_splay_playback_call_skip_to_next_sync(proxy, NULL, &error);
+    else
+        tdbus_splay_playback_call_skip_to_previous_sync(proxy, NULL, &error);
+
+    if(dbus_common_handle_error(&error, "Skip stream") < 0)
+    {
+        msg_error(0, LOG_NOTICE, "Failed sending skip %s message",
+                  forward ? "forward" : "backward");
+        return false;
+    }
+    else
+        return true;
+}
+
 static bool send_skip_to_next_command(ID::Stream &removed_stream_from_queue,
                                       Player::StreamState &play_status,
                                       const Player::AudioSource *asrc)
@@ -953,7 +981,10 @@ static StreamExpected is_stream_expected_playing(const ID::OurStream current_str
 bool Player::Control::skip_forward_request()
 {
     if(player_ == nullptr || crawler_ == nullptr)
+    {
+        send_simple_skip_command(audio_source_, true);
         return false;
+    }
 
     if(permissions_ != nullptr && !permissions_->can_skip_forward())
     {
@@ -1075,7 +1106,10 @@ bool Player::Control::skip_forward_request()
 void Player::Control::skip_backward_request()
 {
     if(player_ == nullptr || crawler_ == nullptr)
+    {
+        send_simple_skip_command(audio_source_, false);
         return;
+    }
 
     if(permissions_ != nullptr && !permissions_->can_skip_backward())
     {
