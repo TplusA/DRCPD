@@ -1223,8 +1223,24 @@ void Player::Control::seek_stream_request(int64_t value, const std::string &unit
         return;
     }
 
-    tdbus_splay_playback_call_seek(dbus_get_streamplayer_playback_iface(),
-                                   value, units.c_str(), NULL, NULL, NULL);
+    if(!is_any_audio_source_plugged())
+        return;
+
+    switch(audio_source_->get_state())
+    {
+      case AudioSourceState::DESELECTED:
+      case AudioSourceState::REQUESTED:
+        return;
+
+      case AudioSourceState::SELECTED:
+        break;
+    }
+
+    auto *proxy = audio_source_->get_playback_proxy();
+
+    if(proxy != nullptr)
+        tdbus_splay_playback_call_seek(proxy, value, units.c_str(),
+                                       NULL, NULL, NULL);
 }
 
 void Player::Control::play_notification(ID::Stream stream_id,
