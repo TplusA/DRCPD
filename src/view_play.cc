@@ -464,6 +464,26 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
 
         break;
 
+      case UI::ViewEventID::NOTIFY_PLAYBACK_MODE_CHANGED:
+        {
+            const auto params =
+                UI::Events::downcast<UI::ViewEventID::NOTIFY_PLAYBACK_MODE_CHANGED>(parameters);
+
+            if(params == nullptr)
+                break;
+
+            const auto &plist = params->get_specific();
+
+            if(player_data_.set_reported_playback_state(std::get<0>(plist),
+                                                        std::get<1>(plist)))
+            {
+                add_update_flags(UPDATE_FLAGS_PLAYBACK_MODES);
+                view_manager_->update_view_if_active(this, DCP::Queue::Mode::FORCE_ASYNC);
+            }
+        }
+
+        break;
+
       case UI::ViewEventID::STORE_STREAM_META_DATA:
         {
             const auto params =
@@ -788,6 +808,37 @@ bool ViewPlay::View::write_xml(std::ostream &os, const DCP::Queue::Data &data)
         os << "<icon id=\"play\">"
            << play_icon[static_cast<size_t>(stream_state)]
            << "</icon>";
+    }
+
+    if((update_flags & UPDATE_FLAGS_PLAYBACK_MODES) != 0)
+    {
+        switch(player_data_.get_repeat_mode())
+        {
+          case DBus::ReportedRepeatMode::UNKNOWN:
+          case DBus::ReportedRepeatMode::OFF:
+            os << "<icon id=\"repeat\"/>";
+            break;
+
+          case DBus::ReportedRepeatMode::ALL:
+            os << "<icon id=\"repeat\">repeat all</icon>";
+            break;
+
+          case DBus::ReportedRepeatMode::ONE:
+            os << "<icon id=\"repeat\">repeat</icon>";
+            break;
+        }
+
+        switch(player_data_.get_shuffle_mode())
+        {
+          case DBus::ReportedShuffleMode::UNKNOWN:
+          case DBus::ReportedShuffleMode::OFF:
+            os << "<icon id=\"shuffle\"/>";
+            break;
+
+          case DBus::ReportedShuffleMode::ON:
+            os << "<icon id=\"shuffle\">shuffle</icon>";
+            break;
+        }
     }
 
     return true;

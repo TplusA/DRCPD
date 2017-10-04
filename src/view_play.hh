@@ -46,7 +46,8 @@ class View: public ViewIface, public ViewSerializeBase
   private:
     static constexpr const uint32_t UPDATE_FLAGS_STREAM_POSITION = 1U << 0;
     static constexpr const uint32_t UPDATE_FLAGS_PLAYBACK_STATE  = 1U << 1;
-    static constexpr const uint32_t UPDATE_FLAGS_META_DATA       = 1U << 2;
+    static constexpr const uint32_t UPDATE_FLAGS_PLAYBACK_MODES  = 1U << 2;
+    static constexpr const uint32_t UPDATE_FLAGS_META_DATA       = 1U << 3;
 
     bool is_visible_;
 

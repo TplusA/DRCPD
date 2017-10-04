@@ -44,7 +44,7 @@ drcpd_SOURCES = \
     ui_parameters.hh ui_parameters_predefined.hh search_parameters.hh \
     player_control.hh player_control.cc \
     player_data.hh player_data.cc \
-    player_stopped_reason.hh \
+    player_stopped_reason.hh playback_modes.hh \
     playlist_crawler.hh directory_crawler.hh cacheenforcer.hh \
     gvariantwrapper.hh \
     airable_links.hh \
@@ -117,6 +117,7 @@ libviews_la_SOURCES = \
     gvariantwrapper.hh gvariantwrapper.cc \
     airable_links.hh airable_links.cc \
     ui_parameters.hh ui_parameters_predefined.hh search_parameters.hh \
+    playback_modes.hh \
     search_algo.hh \
     actor_id.h \
     dbuslist.hh dbuslist_exception.hh \

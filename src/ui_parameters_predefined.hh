@@ -28,6 +28,7 @@
 #include "actor_id.h"
 #include "metadata.hh"
 #include "search_parameters.hh"
+#include "playback_modes.hh"
 #include "configuration_drcpd.hh"
 #include "gvariantwrapper.hh"
 
@@ -151,6 +152,13 @@ template <>
 struct ParamTraits<EventID::VIEW_PLAYER_SPEED_CHANGED>
 {
     using PType = SpecificParameters<std::tuple<const ID::Stream, const double>>;
+};
+
+template <>
+struct ParamTraits<EventID::VIEW_PLAYER_PLAYBACK_MODE_CHANGED>
+{
+    using PType = SpecificParameters<std::tuple<const DBus::ReportedRepeatMode,
+                                                const DBus::ReportedShuffleMode>>;
 };
 
 template <>

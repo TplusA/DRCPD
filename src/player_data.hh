@@ -24,6 +24,7 @@
 
 #include "metadata.hh"
 #include "dbus_async.hh"
+#include "playback_modes.hh"
 #include "airable_dbus.h"
 #include "airable_links.hh"
 #include "logged_lock.hh"
@@ -227,10 +228,56 @@ class StreamPreplayInfoCollection
     }
 };
 
+class ReportedPlaybackState
+{
+  private:
+    DBus::ReportedRepeatMode repeat_mode_;
+    DBus::ReportedShuffleMode shuffle_mode_;
+
+  public:
+    ReportedPlaybackState(const ReportedPlaybackState &) = delete;
+    ReportedPlaybackState &operator=(const ReportedPlaybackState &) = delete;
+
+    explicit ReportedPlaybackState():
+        repeat_mode_(DBus::ReportedRepeatMode::UNKNOWN),
+        shuffle_mode_(DBus::ReportedShuffleMode::UNKNOWN)
+    {}
+
+    void reset()
+    {
+        repeat_mode_ = DBus::ReportedRepeatMode::UNKNOWN;
+        shuffle_mode_ = DBus::ReportedShuffleMode::UNKNOWN;
+    }
+
+    bool set(DBus::ReportedRepeatMode repeat_mode,
+             DBus::ReportedShuffleMode shuffle_mode)
+    {
+        const bool changed = (repeat_mode != repeat_mode_ ||
+                              shuffle_mode != shuffle_mode_);
+
+        repeat_mode_ = repeat_mode;
+        shuffle_mode_ = shuffle_mode;
+
+        return changed;
+    }
+
+    DBus::ReportedRepeatMode get_repeat_mode() const
+    {
+        return repeat_mode_;
+    }
+
+    DBus::ReportedShuffleMode get_shuffle_mode() const
+    {
+        return shuffle_mode_;
+    }
+};
+
 class Data
 {
   private:
     LoggedLock::RecMutex lock_;
+
+    bool is_attached_;
 
     MetaData::Collection meta_data_db_;
     StreamPreplayInfoCollection preplay_info_;
@@ -245,6 +292,8 @@ class Data
     std::chrono::milliseconds stream_position_;
     std::chrono::milliseconds stream_duration_;
 
+    ReportedPlaybackState reported_playback_state_;
+
     double playback_speed_;
 
     tdbusAirable *airable_proxy_;
@@ -254,6 +303,7 @@ class Data
     Data &operator=(const Data &) = delete;
 
     explicit Data():
+        is_attached_(false),
         intention_(UserIntention::NOTHING),
         current_stream_state_(StreamState::STOPPED),
         current_stream_id_(ID::Stream::make_invalid()),
@@ -278,8 +328,16 @@ class Data
         return LoggedLock::UniqueLock<LoggedLock::RecMutex>(const_cast<Data *>(this)->lock_);
     }
 
+    void attached_to_player_notification()
+    {
+        reported_playback_state_.reset();
+        is_attached_ = true;
+    }
+
     void detached_from_player_notification(bool is_complete_unplug)
     {
+        is_attached_ = false;
+        reported_playback_state_.reset();
         set_intention(UserIntention::NOTHING);
     }
 
@@ -321,6 +379,24 @@ class Data
     }
 
     bool set_stream_state(ID::Stream new_current_stream, StreamState state);
+
+    bool set_reported_playback_state(DBus::ReportedRepeatMode repeat_mode,
+                                     DBus::ReportedShuffleMode shuffle_mode)
+    {
+        return is_attached_
+            ? reported_playback_state_.set(repeat_mode, shuffle_mode)
+            : false;
+    }
+
+    DBus::ReportedRepeatMode get_repeat_mode() const
+    {
+        return reported_playback_state_.get_repeat_mode();
+    }
+
+    DBus::ReportedShuffleMode get_shuffle_mode() const
+    {
+        return reported_playback_state_.get_shuffle_mode();
+    }
 
     /*!
      * Return current stream's position and total duration (in this order).

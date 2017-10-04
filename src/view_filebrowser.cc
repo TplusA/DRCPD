@@ -968,6 +968,7 @@ ViewFileBrowser::View::process_event(UI::ViewEventID event_id,
       case UI::ViewEventID::NOTIFY_STREAM_PAUSED:
       case UI::ViewEventID::NOTIFY_STREAM_POSITION:
       case UI::ViewEventID::NOTIFY_SPEED_CHANGED:
+      case UI::ViewEventID::NOTIFY_PLAYBACK_MODE_CHANGED:
       case UI::ViewEventID::AUDIO_SOURCE_SELECTED:
       case UI::ViewEventID::AUDIO_SOURCE_DESELECTED:
       case UI::ViewEventID::AUDIO_PATH_CHANGED:

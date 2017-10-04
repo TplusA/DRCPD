@@ -22,6 +22,7 @@
 
 #include <cstring>
 #include <cerrno>
+#include <algorithm>
 
 #include "dbus_handlers.h"
 #include "dbus_handlers.hh"
@@ -337,6 +338,42 @@ static std::chrono::milliseconds parse_stream_position(gint64 time_value,
     return std::chrono::milliseconds(-1);
 }
 
+static DBus::ReportedRepeatMode parse_repeat_mode(const char *repeat_mode)
+{
+    static const std::array<const char *const, 3> modes{ "off", "all", "one", };
+    static_assert(modes.size() == size_t(DBus::ReportedRepeatMode::LAST_MODE) + 1,
+                  "Unexpected array size");
+
+    const auto it =
+        std::find_if(modes.begin(), modes.end(),
+                     [repeat_mode] (const char *mode)
+                     {
+                         return strcmp(mode, repeat_mode) == 0;
+                     });
+
+    return it != modes.end()
+        ? DBus::ReportedRepeatMode(std::distance(modes.begin(), it))
+        : DBus::ReportedRepeatMode::UNKNOWN;
+}
+
+static DBus::ReportedShuffleMode parse_shuffle_mode(const char *shuffle_mode)
+{
+    static const std::array<const char *const, 2> modes{ "off", "on", };
+    static_assert(modes.size() == size_t(DBus::ReportedShuffleMode::LAST_MODE) + 1,
+                  "Unexpected array size");
+
+    const auto it =
+        std::find_if(modes.begin(), modes.end(),
+                     [shuffle_mode] (const char *mode)
+                     {
+                         return strcmp(mode, shuffle_mode) == 0;
+                     });
+
+    return it != modes.end()
+        ? DBus::ReportedShuffleMode(std::distance(modes.begin(), it))
+        : DBus::ReportedShuffleMode::UNKNOWN;
+}
+
 void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
                                const gchar *signal_name, GVariant *parameters,
                                gpointer user_data)
@@ -477,6 +514,22 @@ void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
             UI::Events::mk_params<UI::EventID::VIEW_PLAYER_SPEED_CHANGED>(
                 ID::Stream::make_from_raw_id(raw_stream_id), speed);
         data->event_sink_.store_event(UI::EventID::VIEW_PLAYER_SPEED_CHANGED,
+                                      std::move(params));
+    }
+    else if(strcmp(signal_name, "PlaybackModeChanged") == 0)
+    {
+        check_parameter_assertions(parameters, 2);
+
+        const gchar *repeat_mode;
+        const gchar *shuffle_mode;
+
+        g_variant_get(parameters, "(&s&s)", &repeat_mode, &shuffle_mode);
+
+        auto params =
+            UI::Events::mk_params<UI::EventID::VIEW_PLAYER_PLAYBACK_MODE_CHANGED>(
+                parse_repeat_mode(repeat_mode),
+                parse_shuffle_mode(shuffle_mode));
+        data->event_sink_.store_event(UI::EventID::VIEW_PLAYER_PLAYBACK_MODE_CHANGED,
                                       std::move(params));
     }
     else

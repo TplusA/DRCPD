@@ -336,6 +336,7 @@ void Player::Control::plug(Player::Data &player_data)
     log_assert(permissions_ == nullptr);
 
     player_ = &player_data;
+    player_->attached_to_player_notification();
 }
 
 void Player::Control::plug(Playlist::CrawlerIface &crawler,
