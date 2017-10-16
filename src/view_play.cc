@@ -662,6 +662,8 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
             {
                 /* plain deselect and unplug: either we don't know the selected
                  * source or the audio path has been shutdown completely */
+                view_manager_->sync_activate_view_by_name(ViewNames::INACTIVE,
+                                                          false);
             }
         }
 

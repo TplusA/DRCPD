@@ -28,6 +28,7 @@
 
 #include "configuration.hh"
 #include "i18n.h"
+#include "view_inactive.hh"
 #include "view_filebrowser.hh"
 #include "view_filebrowser_airable.hh"
 #include "view_src_app.hh"
@@ -479,6 +480,7 @@ static void connect_everything(ViewManager::Manager &views,
                                DBus::SignalData &dbus_data,
                                const Configuration::DrcpdValues &config)
 {
+    static ViewInactive::View inactive(N_("Inactive"));
     static ViewConfig::View cfg(N_("Configuration"),
                                 views.NUMBER_OF_LINES_ON_DISPLAY);
     static ViewFileBrowser::View fs(ViewNames::BROWSER_FILESYSTEM,
@@ -537,6 +539,7 @@ static void connect_everything(ViewManager::Manager &views,
     if(!search.init())
         return;
 
+    views.add_view(&inactive);
     views.add_view(&cfg);
     views.add_view(&fs);
     views.add_view(&tunein);

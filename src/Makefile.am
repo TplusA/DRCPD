@@ -34,7 +34,7 @@ drcpd_SOURCES = \
     view_config.hh \
     view_filebrowser.hh view_filebrowser_fileitem.hh view_filebrowser_airable.hh \
     view_filebrowser_utils.hh view_play.hh \
-    view_search.hh \
+    view_search.hh view_inactive.hh \
     player_permissions.hh player_permissions_airable.hh \
     audiosource.hh \
     search_algo.hh \
