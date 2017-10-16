@@ -1,3 +1,20 @@
+2017-10-16  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 4.3 released.
+
+	* Audio sources: A new view for inactive state has been added. It does
+	  not send any screen updates and does not react to any inputs.
+
+	* Roon: Forward non-structured meta data to SPI slave as per
+	  certification requirements. This is done in the play view using the
+	  new tags "line0", "line1", and "line2". The tags for transmitting
+	  structured information remain empty for Roon.
+
+	* Misc: The program activates the view for inactive at startup. In
+	  previous versions, the UPnP view was automatically activated (an
+	  arbitrary choice made in the past because "just something" had to be
+	  activated).
+
 2017-09-26  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 4.2 released.
