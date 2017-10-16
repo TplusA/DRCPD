@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2017  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -60,6 +60,9 @@ class Set
 
         /* internal tags */
         INTERNAL_DRCPD_TITLE,
+        INTERNAL_DRCPD_OPAQUE_LINE_1,
+        INTERNAL_DRCPD_OPAQUE_LINE_2,
+        INTERNAL_DRCPD_OPAQUE_LINE_3,
         INTERNAL_DRCPD_URL,
 
         METADATA_ID_LAST_REGULAR = BITRATE_NOM,

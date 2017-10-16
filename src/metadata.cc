@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016, 2017  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -49,6 +49,9 @@ key_to_id[MetaData::Set::METADATA_ID_LAST + 1] =
     { "maximum-bitrate", MetaData::Set::BITRATE_MAX, },
     { "nominal-bitrate", MetaData::Set::BITRATE_NOM, },
     { "x-drcpd-title",   MetaData::Set::INTERNAL_DRCPD_TITLE, },
+    { "x-drcpd-line-1",  MetaData::Set::INTERNAL_DRCPD_OPAQUE_LINE_1, },
+    { "x-drcpd-line-2",  MetaData::Set::INTERNAL_DRCPD_OPAQUE_LINE_2, },
+    { "x-drcpd-line-3",  MetaData::Set::INTERNAL_DRCPD_OPAQUE_LINE_3, },
     { "x-drcpd-url",     MetaData::Set::INTERNAL_DRCPD_URL, },
 };
 
@@ -97,6 +100,9 @@ void MetaData::Set::add(const MetaData::Set::ID key_id, const char *value,
       case ALBUM:
       case CODEC:
       case INTERNAL_DRCPD_TITLE:
+      case INTERNAL_DRCPD_OPAQUE_LINE_1:
+      case INTERNAL_DRCPD_OPAQUE_LINE_2:
+      case INTERNAL_DRCPD_OPAQUE_LINE_3:
       case INTERNAL_DRCPD_URL:
         break;
     }

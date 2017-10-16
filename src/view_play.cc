@@ -774,6 +774,15 @@ bool ViewPlay::View::write_xml(std::ostream &os, const DCP::Queue::Data &data)
         os << "<text id=\"album\">"
            << XmlEscape(md.values_[MetaData::Set::ALBUM])
            << "</text>";
+        os << "<text id=\"line0\">"
+           << XmlEscape(md.values_[MetaData::Set::INTERNAL_DRCPD_OPAQUE_LINE_1])
+           << "</text>";
+        os << "<text id=\"line1\">"
+           << XmlEscape(md.values_[MetaData::Set::INTERNAL_DRCPD_OPAQUE_LINE_2])
+           << "</text>";
+        os << "<text id=\"line2\">"
+           << XmlEscape(md.values_[MetaData::Set::INTERNAL_DRCPD_OPAQUE_LINE_3])
+           << "</text>";
         os << "<text id=\"bitrate\">"
            << get_bitrate(md).c_str()
            << "</text>";
