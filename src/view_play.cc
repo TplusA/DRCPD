@@ -632,8 +632,10 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
              * otherwise we would already be controlling it */
             Player::AudioSource *audio_source = nullptr;
             const ViewExternalSource::Base *view = nullptr;
-            lookup_view_for_external_source(audio_sources_with_view_, ausrc_id,
-                                            audio_source, view);
+
+            if(!ausrc_id.empty())
+                lookup_view_for_external_source(audio_sources_with_view_,
+                                                ausrc_id, audio_source, view);
 
             const bool audio_source_is_deselected =
                 audio_source == nullptr || ausrc_id.empty();
