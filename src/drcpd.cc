@@ -555,7 +555,7 @@ static void connect_everything(ViewManager::Manager &views,
     Busy::init(std::bind(&ViewManager::Manager::busy_state_notification,
                          &views, std::placeholders::_1));
 
-    views.sync_activate_view_by_name(ViewNames::BROWSER_UPNP, true);
+    views.sync_activate_view_by_name(ViewNames::INACTIVE, true);
 }
 
 static gboolean signal_handler(gpointer user_data)
