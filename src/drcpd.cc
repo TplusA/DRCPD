@@ -504,7 +504,7 @@ static void connect_everything(ViewManager::Manager &views,
                                       "strbo.upnpcm",
                                       &views);
     static ViewSourceApp::View app("TA Control", &views);
-    static ViewSourceRoon::View roon("Roon (beta)", &views);
+    static ViewSourceRoon::View roon("Roon Ready (beta)", &views);
     static ViewPlay::View play(N_("Stream information"),
                                views.NUMBER_OF_LINES_ON_DISPLAY,
                                config.maximum_bitrate_,
