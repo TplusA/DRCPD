@@ -481,7 +481,7 @@ static void connect_everything(ViewManager::Manager &views,
 {
     static ViewInactive::View inactive("Inactive");
     static ViewFileBrowser::View fs(ViewNames::BROWSER_FILESYSTEM,
-                                    N_("USB devices"), 1,
+                                    N_("USB mass storage devices"), 1,
                                     views.NUMBER_OF_LINES_ON_DISPLAY,
                                     DBUS_LISTBROKER_ID_FILESYSTEM,
                                     Playlist::CrawlerIface::RecursiveMode::DEPTH_FIRST,
