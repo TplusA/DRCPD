@@ -105,7 +105,8 @@ class View: public ViewIface, public ViewSerializeBase
     /*!
      * Generate XML document from current state.
      */
-    bool write_xml(std::ostream &os, const DCP::Queue::Data &data) override;
+    bool write_xml(std::ostream &os, uint32_t bits,
+                   const DCP::Queue::Data &data) override;
     void do_stop_playing();
     void plug_audio_source(Player::AudioSource &audio_source,
                            const std::string *external_player_id = nullptr);

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2017  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -92,7 +92,7 @@ ViewSearch::View::process_event(UI::ViewEventID event_id,
     return InputResult::OK;
 }
 
-bool ViewSearch::View::write_xml(std::ostream &os,
+bool ViewSearch::View::write_xml(std::ostream &os, uint32_t bits,
                                  const DCP::Queue::Data &data)
 {
     log_assert(!request_context_.empty());

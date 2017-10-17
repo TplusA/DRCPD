@@ -62,7 +62,6 @@ class ViewSerializeBase
 
     const char *const on_screen_name_;
     const ViewID drcp_view_id_;
-    const ScreenID::id_t drcp_screen_id_;
 
   private:
     /*!
@@ -82,15 +81,11 @@ class ViewSerializeBase
      *     Name as presented to the user. Should be internationalized;
      *     serialization will push the localized name.
      * \param drcp_view_id
-     *     View ID for this view.
-     * \param drcp_screen_id
-     *     Numeric screen ID as defined in #ScreenID namespace.
+     *     Default view ID for this view.
      */
-    explicit ViewSerializeBase(const char *on_screen_name, ViewID drcp_view_id,
-                               ScreenID::id_t drcp_screen_id = ScreenID::INVALID_ID):
+    explicit ViewSerializeBase(const char *on_screen_name, ViewID drcp_view_id):
         on_screen_name_(on_screen_name),
         drcp_view_id_(drcp_view_id),
-        drcp_screen_id_(drcp_screen_id),
         update_flags_(0),
         dynamic_title_(false)
     {}
@@ -134,9 +129,11 @@ class ViewSerializeBase
 
     bool write_whole_xml(std::ostream &os, const DCP::Queue::Data &data)
     {
-        return (write_xml_begin(os, data) &&
-                write_xml(os, data) &&
-                write_xml_end(os, data));
+        const uint32_t bits = about_to_write_xml(data);
+
+        return (write_xml_begin(os, bits, data) &&
+                write_xml(os, bits, data) &&
+                write_xml_end(os, bits, data));
     }
 
     void add_base_update_flags(uint32_t flags)
@@ -152,17 +149,30 @@ class ViewSerializeBase
     const I18n::String &get_dynamic_title() const { return dynamic_title_; }
 
   protected:
+    virtual uint32_t about_to_write_xml(const DCP::Queue::Data &data) const
+    {
+        return 0;
+    }
+
+    virtual std::pair<const ViewID, const ScreenID::id_t>
+    get_dynamic_ids(uint32_t bits) const
+    {
+        return std::make_pair(drcp_view_id_, ScreenID::INVALID_ID);
+    }
+
     /*!
      * Start writing XML data, opens view or update tag and some generic tags.
      *
      * \param os
      *     Output stream the XML data is written to.
+     * \param bits
+     *     Flags returned by #ViewSerializeBase::about_to_write_xml().
      * \param data
      *     Collected data about the serialization action.
      *
      * \returns True to keep going, false to abort the transaction.
      */
-    virtual bool write_xml_begin(std::ostream &os,
+    virtual bool write_xml_begin(std::ostream &os, uint32_t bits,
                                  const DCP::Queue::Data &data)
     {
         static constexpr std::array<const char *const, size_t(ViewID::LAST_VIEW_ID) + 1> idnames
@@ -170,10 +180,12 @@ class ViewSerializeBase
             "browse", "play", "edit", "msg", "error",
         };
 
-        log_assert(drcp_view_id_ <= ViewID::LAST_VIEW_ID);
+        const auto ids(get_dynamic_ids(bits));
+
+        log_assert(ids.first <= ViewID::LAST_VIEW_ID);
 
         os << "<" << (data.is_full_serialize_ ? "view" : "update") << " id=\""
-           << idnames[size_t(drcp_view_id_)] << "\">";
+           << idnames[size_t(ids.first)] << "\">";
 
         if(data.is_full_serialize_)
         {
@@ -183,8 +195,8 @@ class ViewSerializeBase
                    : XmlEscape(get_dynamic_title().get_text()))
                << "</text>";
 
-            if(drcp_screen_id_ != ScreenID::INVALID_ID)
-                os << "<text id=\"scrid\">" << int(drcp_screen_id_) << "</text>";
+            if(ids.second != ScreenID::INVALID_ID)
+                os << "<text id=\"scrid\">" << ids.second << "</text>";
         }
 
         return true;
@@ -198,7 +210,8 @@ class ViewSerializeBase
      *
      * \returns True to keep going, false to abort the transaction.
      */
-    virtual bool write_xml(std::ostream &os, const DCP::Queue::Data &data)
+    virtual bool write_xml(std::ostream &os, uint32_t bits,
+                           const DCP::Queue::Data &data)
     {
         return true;
     }
@@ -208,7 +221,8 @@ class ViewSerializeBase
      *
      * \returns True to keep going, false to abort the transaction.
      */
-    virtual bool write_xml_end(std::ostream &os, const DCP::Queue::Data &data)
+    virtual bool write_xml_end(std::ostream &os, uint32_t bits,
+                               const DCP::Queue::Data &data)
     {
         os << "<value id=\"busy\">" << (Busy::is_busy() ? '1' : '0') << "</value>";
         os << "</" << (data.is_full_serialize_ ? "view" : "update") << ">";

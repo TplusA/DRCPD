@@ -64,7 +64,7 @@ void ViewExternalSource::Base::process_broadcast(UI::BroadcastEventID event_id,
     MSG_TRACE();
 }
 
-bool ViewExternalSource::Base::write_xml(std::ostream &os,
+bool ViewExternalSource::Base::write_xml(std::ostream &os, uint32_t bits,
                                          const DCP::Queue::Data &data)
 {
     os << "<text id=\"line0\">" << XmlEscape(_(on_screen_name_)) << "</text>";

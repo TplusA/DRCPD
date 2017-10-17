@@ -64,7 +64,9 @@ class Base: public ViewIface, public ViewSerializeBase, ViewWithAudioSourceBase
     void process_broadcast(UI::BroadcastEventID event_id,
                            const UI::Parameters *parameters) final override;
 
-    bool write_xml(std::ostream &os, const DCP::Queue::Data &data) final override;
+  protected:
+    bool write_xml(std::ostream &os, uint32_t bits,
+                   const DCP::Queue::Data &data) final override;
 };
 
 }

@@ -110,7 +110,8 @@ class View: public ViewIface, public ViewSerializeBase
     }
 
   private:
-    bool write_xml(std::ostream &os, const DCP::Queue::Data &data) override;
+    bool write_xml(std::ostream &os, uint32_t bits,
+                   const DCP::Queue::Data &data) override;
 
     bool can_serialize() const
     {

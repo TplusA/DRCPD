@@ -330,7 +330,7 @@ void ViewMock::View::process_broadcast(UI::BroadcastEventID event_id, const UI::
         cppcut_assert_null(parameters);
 }
 
-bool ViewMock::View::write_xml_begin(std::ostream &os,
+bool ViewMock::View::write_xml_begin(std::ostream &os, uint32_t bits,
                                      const DCP::Queue::Data &data)
 {
     if(ignore_all_)
@@ -344,16 +344,19 @@ bool ViewMock::View::write_xml_begin(std::ostream &os,
     return expect.retval_bool_;
 }
 
-bool ViewMock::View::write_xml(std::ostream &os, const DCP::Queue::Data &data)
+bool ViewMock::View::write_xml(std::ostream &os, uint32_t bits,
+                               const DCP::Queue::Data &data)
 {
     /* don't emit anything to keep tests simple */
+    cppcut_assert_equal(0U, bits);
     return true;
 }
 
-bool ViewMock::View::write_xml_end(std::ostream &os,
+bool ViewMock::View::write_xml_end(std::ostream &os, uint32_t bits,
                                    const DCP::Queue::Data &data)
 {
     /* don't emit anything to keep tests simple */
+    cppcut_assert_equal(0U, bits);
     return true;
 }
 

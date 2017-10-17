@@ -996,7 +996,7 @@ ViewFileBrowser::View::may_access_list_for_serialization() const
     return ListAccessPermission::ALLOWED;
 }
 
-bool ViewFileBrowser::View::write_xml(std::ostream &os,
+bool ViewFileBrowser::View::write_xml(std::ostream &os, uint32_t bits,
                                       const DCP::Queue::Data &data)
 {
     os << "<text id=\"cbid\">" << int(drcp_browse_id_) << "</text>"

@@ -746,7 +746,8 @@ static const std::string &get_bitrate(const MetaData::Set &md)
     return md.values_[MetaData::Set::BITRATE_MIN];
 }
 
-bool ViewPlay::View::write_xml(std::ostream &os, const DCP::Queue::Data &data)
+bool ViewPlay::View::write_xml(std::ostream &os, uint32_t bits,
+                               const DCP::Queue::Data &data)
 {
     const auto lock(player_data_.lock());
     const auto &md(player_data_.get_current_meta_data());

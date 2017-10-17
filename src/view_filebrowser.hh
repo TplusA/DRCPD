@@ -466,7 +466,8 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
     /*!
      * Generate XML document from current state.
      */
-    bool write_xml(std::ostream &os, const DCP::Queue::Data &data) override;
+    bool write_xml(std::ostream &os, uint32_t bits,
+                   const DCP::Queue::Data &data) override;
 
   private:
     const std::string &get_fallback_string_for_empty_root();

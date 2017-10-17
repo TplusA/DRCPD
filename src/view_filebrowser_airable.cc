@@ -357,7 +357,7 @@ void ViewFileBrowser::AirableView::log_out_from_context(List::context_id_t conte
     dbus_common_handle_error(&error, "Logout from service");
 }
 
-bool ViewFileBrowser::AirableView::write_xml(std::ostream &os,
+bool ViewFileBrowser::AirableView::write_xml(std::ostream &os, uint32_t bits,
                                              const DCP::Queue::Data &data)
 {
     bool is_unavailable = false;
@@ -365,7 +365,7 @@ bool ViewFileBrowser::AirableView::write_xml(std::ostream &os,
     switch(may_access_list_for_serialization())
     {
       case ListAccessPermission::ALLOWED:
-        return ViewFileBrowser::View::write_xml(os, data);
+        return ViewFileBrowser::View::write_xml(os, bits, data);
 
       case ListAccessPermission::DENIED__LOADING:
         break;
