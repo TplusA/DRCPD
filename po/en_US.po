@@ -5,9 +5,9 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: drcpd 0.1\n"
+"Project-Id-Version: drcpd 4.3\n"
 "Report-Msgid-Bugs-To: r.tiemann@ta-hifi.de\n"
-"POT-Creation-Date: 2017-09-05 14:24+0200\n"
+"POT-Creation-Date: 2017-10-18 12:18+0200\n"
 "PO-Revision-Date: 2014-10-01 15:44+0200\n"
 "Last-Translator: Robert Tiemann <r.tiemann@ta-hifi.de>\n"
 "Language-Team: English\n"
@@ -21,111 +21,55 @@ msgstr ""
 msgid "Loading..."
 msgstr ""
 
-#: src/drcpd.cc:482
-msgid "Configuration"
+#: src/drcpd.cc:484
+msgid "USB mass storage devices"
 msgstr ""
 
-#: src/drcpd.cc:485
-msgid "USB devices"
-msgstr ""
-
-#: src/drcpd.cc:493
+#: src/drcpd.cc:492
 msgid "Airable internet radio"
 msgstr ""
 
-#: src/drcpd.cc:500
+#: src/drcpd.cc:499
 msgid "UPnP media servers"
 msgstr ""
 
-#: src/drcpd.cc:509
+#: src/drcpd.cc:508
 msgid "Stream information"
 msgstr ""
 
-#: src/drcpd.cc:513
+#: src/drcpd.cc:512
 msgid "Search parameters"
 msgstr ""
 
-#: src/view_config.cc:135
-msgid "MAC"
+#: src/view_filebrowser.cc:501
+msgid "No devices found"
 msgstr ""
 
-#: src/view_config.cc:140
-msgid "DHCP"
+#: src/view_filebrowser.cc:503
+msgid "Services not available"
 msgstr ""
 
-#: src/view_config.cc:142
-msgid "Device IP"
+#: src/view_filebrowser.cc:505
+msgid "No servers found"
 msgstr ""
 
-#: src/view_config.cc:146
-msgid "IP mask"
-msgstr ""
-
-#: src/view_config.cc:150
-msgid "Gateway IP"
-msgstr ""
-
-#: src/view_config.cc:154
-msgid "DNS 1"
-msgstr ""
-
-#: src/view_config.cc:158
-msgid "DNS 2"
-msgstr ""
-
-#: src/view_config.cc:163
-msgid "Proxy"
-msgstr ""
-
-#: src/view_config.cc:165
-msgid "Proxy IP"
-msgstr ""
-
-#: src/view_config.cc:169
-msgid "Proxy port"
-msgstr ""
-
-#: src/view_config.cc:174
-msgid "Device name"
-msgstr ""
-
-#: src/view_config.cc:176
-msgid "Networking mode"
-msgstr ""
-
-#: src/view_config.cc:178
-msgid "Save and restart"
-msgstr ""
-
-#: src/view_config.cc:180
-msgid "Exit without saving"
-msgstr ""
-
-#: src/view_filebrowser.cc:475
-msgid "No USB mass storage device found"
-msgstr ""
-
-#: src/view_filebrowser.cc:477
-msgid "Airable services not available"
-msgstr ""
-
-#: src/view_filebrowser.cc:479
-msgid "No UPnP or DLNA server found"
-msgstr ""
-
-#: src/view_filebrowser.cc:481
+#: src/view_filebrowser.cc:507
 msgid "empty"
 msgstr ""
 
-#: src/view_filebrowser_airable.cc:392
+#: src/view_filebrowser.cc:1039
+msgid "Loading"
+msgstr ""
+
+#: src/view_filebrowser.cc:1041 src/view_filebrowser_airable.cc:382
 msgid "Unavailable"
 msgstr ""
 
-#: src/view_filebrowser_airable.cc:392
+#: src/view_filebrowser_airable.cc:380
 msgid "Accessing"
 msgstr ""
 
-#: src/view_play.cc:737
+#: src/view_play.cc:762
 msgid "Buffering"
 msgstr ""
 
