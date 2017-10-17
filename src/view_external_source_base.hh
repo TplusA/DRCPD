@@ -38,7 +38,7 @@ class Base: public ViewIface, public ViewSerializeBase, ViewWithAudioSourceBase
                   const char *audio_source_name,
                   ViewManager::VMIface *view_manager):
         ViewIface(name, true, view_manager),
-        ViewSerializeBase(on_screen_name, "browse", 102U),
+        ViewSerializeBase(on_screen_name, "msg", 111U),
         play_view_(nullptr),
         default_audio_source_name_(audio_source_name)
     {}
