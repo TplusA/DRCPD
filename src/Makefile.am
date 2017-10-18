@@ -123,15 +123,6 @@ libviews_la_SOURCES = \
 libviews_la_CFLAGS = $(AM_CFLAGS)
 libviews_la_CXXFLAGS = $(AM_CXXFLAGS)
 
-# libplayback_la_SOURCES = \
-#     player.cc player.hh \
-#     idtypes.hh stream_id.h stream_id.hh logged_lock.hh \
-#     playbackmode.hh playbackmode_state.hh playbackmode_state.cc \
-#     playback_abort_enqueue.hh \
-#     dbus_async.hh
-# libplayback_la_CFLAGS = $(CRELAXEDWARNINGS)
-# libplayback_la_CXXFLAGS = $(CXXRELAXEDWARNINGS)
-
 libdcp_transaction_la_SOURCES = \
     dcp_transaction.cc dcp_transaction.hh \
     dcp_transaction_queue.cc dcp_transaction_queue.hh
