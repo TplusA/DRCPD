@@ -463,27 +463,53 @@ static bool request_search_parameters_from_user(ViewManager::VMIface &vm,
     return true;
 }
 
-const std::string &ViewFileBrowser::View::get_fallback_string_for_empty_root()
+uint32_t ViewFileBrowser::View::about_to_write_xml(const DCP::Queue::Data &data) const
 {
-    if(fallback_string_for_empty_root_.empty())
+    uint32_t flags = 0;
+
+    switch(may_access_list_for_serialization())
+    {
+      case ListAccessPermission::ALLOWED:
+        break;
+
+      case ListAccessPermission::DENIED__LOADING:
+        flags |= WRITE_FLAG__IS_LOADING;
+        break;
+
+      case ListAccessPermission::DENIED__BLOCKED:
+      case ListAccessPermission::DENIED__NO_LIST_ID:
+        flags |= WRITE_FLAG__IS_UNAVAILABLE;
+        break;
+    }
+
+    if(is_root_list(current_list_id_) &&
+       navigation_.get_total_number_of_visible_items() == 0)
+        flags |= WRITE_FLAG__IS_EMPTY_ROOT;
+
+    return flags;
+}
+
+const std::string &ViewFileBrowser::View::get_status_string_for_empty_root()
+{
+    if(status_string_for_empty_root_.empty())
     {
         std::ostringstream os;
 
         /* those magic numbers come from drcpd.cc and should be replaced by
          * \c constexpr \c uint8_t constants */
         if(drcp_browse_id_ == 1)
-            os << XmlEscape(_("No USB mass storage device found"));
+            os << XmlEscape(_("No devices found"));
         else if(drcp_browse_id_ == 3)
-            os << XmlEscape(_("Airable services not available"));
+            os << XmlEscape(_("Services not available"));
         else if(drcp_browse_id_ == 4)
-            os << XmlEscape(_("No UPnP or DLNA server found"));
+            os << XmlEscape(_("No servers found"));
         else
             os << XmlEscape(_("empty"));
 
-        fallback_string_for_empty_root_ = std::move(os.str());
+        status_string_for_empty_root_ = std::move(os.str());
     }
 
-    return fallback_string_for_empty_root_;
+    return status_string_for_empty_root_;
 }
 
 const Player::LocalPermissionsIface &
@@ -1004,16 +1030,18 @@ bool ViewFileBrowser::View::write_xml(std::ostream &os, uint32_t bits,
        << list_contexts_[DBUS_LISTS_CONTEXT_GET(current_list_id_.get_raw_id())].string_id_.c_str()
        << "</context>";
 
-    switch(may_access_list_for_serialization())
+    if((bits & (WRITE_FLAG__IS_LOADING | WRITE_FLAG__IS_UNAVAILABLE)) != 0)
     {
-      case ListAccessPermission::ALLOWED:
-        break;
+        os << "<text id=\"line0\">" << XmlEscape(_(on_screen_name_)) << "</text>";
+        os << "<text id=\"line1\">";
 
-      case ListAccessPermission::DENIED__LOADING:
-      case ListAccessPermission::DENIED__BLOCKED:
-      case ListAccessPermission::DENIED__NO_LIST_ID:
-        os << "<text id=\"line0\" flag=\"uls\">"
-           << XmlEscape(_(on_screen_name_)) << "</text>";
+        if((bits & WRITE_FLAG__IS_LOADING) != 0)
+            os << XmlEscape(_("Loading")) << "...";
+        else
+            os << XmlEscape(_("Unavailable"));
+
+        os << "</text>";
+
         return true;
     }
 
@@ -1029,11 +1057,10 @@ bool ViewFileBrowser::View::write_xml(std::ostream &os, uint32_t bits,
         break;
     }
 
-    if(is_root_list(current_list_id_) &&
-       navigation_.get_total_number_of_visible_items() == 0)
+    if((bits & WRITE_FLAG__IS_EMPTY_ROOT) != 0)
     {
-        os << "<text id=\"line0\" flag=\"uls\">"
-           << get_fallback_string_for_empty_root() << "</text>";
+        os << "<text id=\"line0\">" << XmlEscape(_(on_screen_name_)) << "</text>";
+        os << "<text id=\"line1\">" << get_status_string_for_empty_root() << "</text>";
         return true;
     }
 

@@ -228,6 +228,11 @@ class ContextRestriction
 
 class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSourceBase
 {
+  protected:
+    static constexpr const uint32_t WRITE_FLAG__IS_LOADING     = 1U << 0;
+    static constexpr const uint32_t WRITE_FLAG__IS_UNAVAILABLE = 1U << 1;
+    static constexpr const uint32_t WRITE_FLAG__IS_EMPTY_ROOT  = 1U << 2;
+
   public:
     /*!
      * Collection of type aliases and pointers to #DBus::AsyncCall instances.
@@ -287,7 +292,7 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
     dbus_listbroker_id_t listbroker_id_;
 
     ID::List root_list_id_;
-    std::string fallback_string_for_empty_root_;
+    std::string status_string_for_empty_root_;
 
   protected:
     List::ContextMap list_contexts_;
@@ -463,6 +468,18 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
 
     ID::List get_root_list_id() const { return root_list_id_; }
 
+    uint32_t about_to_write_xml(const DCP::Queue::Data &data) const final override;
+
+    std::pair<const ViewID, const ScreenID::id_t>
+    get_dynamic_ids(uint32_t bits) const final override
+    {
+        if((bits & (WRITE_FLAG__IS_LOADING | WRITE_FLAG__IS_UNAVAILABLE |
+                    WRITE_FLAG__IS_EMPTY_ROOT)) == 0)
+            return ViewSerializeBase::get_dynamic_ids(bits);
+
+        return std::make_pair(ViewID::MESSAGE, ScreenID::INVALID_ID);
+    }
+
     /*!
      * Generate XML document from current state.
      */
@@ -470,7 +487,7 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
                    const DCP::Queue::Data &data) override;
 
   private:
-    const std::string &get_fallback_string_for_empty_root();
+    const std::string &get_status_string_for_empty_root();
 
     const Player::LocalPermissionsIface &get_local_permissions() const;
 

@@ -360,21 +360,8 @@ void ViewFileBrowser::AirableView::log_out_from_context(List::context_id_t conte
 bool ViewFileBrowser::AirableView::write_xml(std::ostream &os, uint32_t bits,
                                              const DCP::Queue::Data &data)
 {
-    bool is_unavailable = false;
-
-    switch(may_access_list_for_serialization())
-    {
-      case ListAccessPermission::ALLOWED:
+    if((bits & (WRITE_FLAG__IS_LOADING | WRITE_FLAG__IS_UNAVAILABLE)) == 0)
         return ViewFileBrowser::View::write_xml(os, bits, data);
-
-      case ListAccessPermission::DENIED__LOADING:
-        break;
-
-      case ListAccessPermission::DENIED__BLOCKED:
-      case ListAccessPermission::DENIED__NO_LIST_ID:
-        is_unavailable = true;
-        break;
-    }
 
     const auto ctx_id(have_audio_source()
                       ? context_restriction_.get_context_id()
@@ -386,11 +373,15 @@ bool ViewFileBrowser::AirableView::write_xml(std::ostream &os, uint32_t bits,
        << ctx.string_id_.c_str()
        << "</context>";
 
-    os << "<text id=\"line0\" flag=\"us"
-       << (is_unavailable ? "l" : "") << "\">"
-       << XmlEscape(ctx.description_) << ": "
-       << XmlEscape(is_unavailable ? _("Unavailable") : _("Accessing"))
-       << "</text>";
+    os << "<text id=\"line0\">" << XmlEscape(ctx.description_) << "</text>"
+       << "<text id=\"line1\">";
+
+    if((bits & WRITE_FLAG__IS_LOADING) != 0)
+        os << XmlEscape(_("Accessing")) << "...";
+    else
+        os << XmlEscape(_("Unavailable"));
+
+    os << "</text>";
 
     return true;
 }
