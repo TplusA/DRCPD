@@ -33,7 +33,6 @@
 #include "view_filebrowser_airable.hh"
 #include "view_src_app.hh"
 #include "view_src_roon.hh"
-#include "view_config.hh"
 #include "view_manager.hh"
 #include "view_play.hh"
 #include "view_search.hh"
@@ -481,8 +480,6 @@ static void connect_everything(ViewManager::Manager &views,
                                const Configuration::DrcpdValues &config)
 {
     static ViewInactive::View inactive(N_("Inactive"));
-    static ViewConfig::View cfg(N_("Configuration"),
-                                views.NUMBER_OF_LINES_ON_DISPLAY);
     static ViewFileBrowser::View fs(ViewNames::BROWSER_FILESYSTEM,
                                     N_("USB devices"), 1,
                                     views.NUMBER_OF_LINES_ON_DISPLAY,
@@ -515,9 +512,6 @@ static void connect_everything(ViewManager::Manager &views,
     static ViewSearch::View search(N_("Search parameters"),
                                    views.NUMBER_OF_LINES_ON_DISPLAY, &views);
 
-    if(!cfg.init())
-        return;
-
     if(!fs.init())
         return;
 
@@ -540,7 +534,6 @@ static void connect_everything(ViewManager::Manager &views,
         return;
 
     views.add_view(&inactive);
-    views.add_view(&cfg);
     views.add_view(&fs);
     views.add_view(&tunein);
     views.add_view(&upnp);
