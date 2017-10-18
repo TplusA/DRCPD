@@ -1,3 +1,45 @@
+2017-11-23  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 4.4 released.
+
+	* DRCP: Support resume-playback command (0xb4). The current crawler
+	  state is encoded as StrBo URL by asking the responsible list broker
+	  and then stored on file. On next start, the configuration is read
+	  back and used when the resume request is received. Resume data is
+	  erased on explicit stop commands sent by the end user.
+
+	* DRCP: Screen IDs are not sent anymore with browse, play, edit, or
+	  msg views. There is a new screen ID "error" which uses screen IDs
+	  for error reporting purposes.
+
+	  The term "screen ID" will still be used even though the term "error
+	  ID" would be more appropriate given the current implementation. This
+	  is because it is possible to send screen IDs with non-error views,
+	  too. This is also the reason why screen IDs will be global and
+	  independent of context they appear in.
+
+	* DRCP: A few errors with proper screen IDs are emitted for testing
+	  purposes. They are emitted on problems when entering a directory or
+	  jumping to a list context (aka activating an Airable audio source),
+	  e.g., if permission is denied or on authentication failure.
+
+	* DRCP: Audio source idle screens are sent as view ID "msg".
+
+	* DRCP: Empty or other status screens are sent as view ID "msg"
+	  containing multi-line messages.
+
+	* Roon: Idle screen says, "Roon Ready (beta)".
+
+	* Roon: Only send opaque lines (see d03067e7) to SPI slave as stream
+	  meta data if the other tags are unavailable. This reduces the amount
+	  of data sent to the SPI slave and causes less confusion.
+
+	* Internationalization: The local language can be configured and
+	  queried over D-Bus using the generic configuration interface.
+	  Language settings are stored on configuration file so to avoid
+	  "language flickering" at startup. Translated on-screen messages are
+	  updated at runtime the instant the language settings are changed.
+
 2017-10-16  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 4.3 released.
