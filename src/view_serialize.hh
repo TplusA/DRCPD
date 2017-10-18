@@ -21,6 +21,7 @@
 
 #include <ostream>
 
+#include "screen_ids.hh"
 #include "dcp_transaction_queue.hh"
 #include "busy.hh"
 #include "i18n.h"
@@ -33,6 +34,19 @@ namespace ViewMock { class View; }
 class ViewSerializeBase
 {
   public:
+    enum class ViewID
+    {
+        BROWSE,
+        PLAY,
+        EDIT,
+        MESSAGE,
+        ERROR,
+
+        LAST_VIEW_ID = ERROR,
+
+        INVALID,
+    };
+
     /*!
      * Reserved bits for globally used update flags handled by this base class.
      *
@@ -47,8 +61,8 @@ class ViewSerializeBase
     static constexpr const uint32_t UPDATE_FLAGS_BASE_BUSY_FLAG = 1U << 31;
 
     const char *const on_screen_name_;
-    const char *const drcp_view_id_;
-    const uint8_t drcp_screen_id_;
+    const ViewID drcp_view_id_;
+    const ScreenID::id_t drcp_screen_id_;
 
   private:
     /*!
@@ -68,14 +82,12 @@ class ViewSerializeBase
      *     Name as presented to the user. Should be internationalized;
      *     serialization will push the localized name.
      * \param drcp_view_id
-     *     View ID as defined in the DRCP specification ("config", "browse",
-     *     "play", etc.).
+     *     View ID for this view.
      * \param drcp_screen_id
-     *     Numeric screen ID as defined in DRCP specification.
+     *     Numeric screen ID as defined in #ScreenID namespace.
      */
-    explicit ViewSerializeBase(const char *on_screen_name,
-                               const char *drcp_view_id,
-                               uint8_t drcp_screen_id):
+    explicit ViewSerializeBase(const char *on_screen_name, ViewID drcp_view_id,
+                               ScreenID::id_t drcp_screen_id = ScreenID::INVALID_ID):
         on_screen_name_(on_screen_name),
         drcp_view_id_(drcp_view_id),
         drcp_screen_id_(drcp_screen_id),
@@ -153,8 +165,15 @@ class ViewSerializeBase
     virtual bool write_xml_begin(std::ostream &os,
                                  const DCP::Queue::Data &data)
     {
+        static constexpr std::array<const char *const, size_t(ViewID::LAST_VIEW_ID) + 1> idnames
+        {
+            "browse", "play", "edit", "msg", "error",
+        };
+
+        log_assert(drcp_view_id_ <= ViewID::LAST_VIEW_ID);
+
         os << "<" << (data.is_full_serialize_ ? "view" : "update") << " id=\""
-           << drcp_view_id_ << "\">";
+           << idnames[size_t(drcp_view_id_)] << "\">";
 
         if(data.is_full_serialize_)
         {
@@ -163,7 +182,9 @@ class ViewSerializeBase
                    ? XmlEscape(_(on_screen_name_))
                    : XmlEscape(get_dynamic_title().get_text()))
                << "</text>";
-            os << "<text id=\"scrid\">" << int(drcp_screen_id_) << "</text>";
+
+            if(drcp_screen_id_ != ScreenID::INVALID_ID)
+                os << "<text id=\"scrid\">" << int(drcp_screen_id_) << "</text>";
         }
 
         return true;

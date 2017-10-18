@@ -51,7 +51,7 @@ class View: public ViewIface, public ViewSerializeBase
     explicit View(const char *on_screen_name, unsigned int max_lines,
                   ViewManager::VMIface *view_manager):
         ViewIface(ViewNames::SEARCH_OPTIONS, false, view_manager),
-        ViewSerializeBase(on_screen_name, "edit", 123U),
+        ViewSerializeBase(on_screen_name, ViewID::EDIT),
         request_view_(nullptr)
     {}
 

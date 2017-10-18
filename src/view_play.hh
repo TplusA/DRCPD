@@ -67,7 +67,7 @@ class View: public ViewIface, public ViewSerializeBase
                   uint32_t maximum_bitrate_for_streams,
                   ViewManager::VMIface *view_manager):
         ViewIface(ViewNames::PLAYER, false, view_manager),
-        ViewSerializeBase(on_screen_name, "play", 100U),
+        ViewSerializeBase(on_screen_name, ViewID::PLAY),
         is_visible_(false),
         maximum_bitrate_(maximum_bitrate_for_streams),
         player_control_([this] (uint32_t bitrate)

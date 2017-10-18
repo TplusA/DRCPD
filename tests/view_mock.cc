@@ -185,7 +185,7 @@ class ViewMock::View::Expectation
 
 ViewMock::View::View(const char *name, bool is_browse_view):
     ViewIface(name, is_browse_view, nullptr),
-    ViewSerializeBase("The mock view", "mockview", 200U),
+    ViewSerializeBase("The mock view", ViewID::MESSAGE),
     ignore_all_(false)
 {
     expectations_ = new MockExpectations();

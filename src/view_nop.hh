@@ -45,7 +45,7 @@ class View: public ViewIface, public ViewSerializeBase
 
     explicit View():
         ViewIface(ViewNames::NOP, false, nullptr),
-        ViewSerializeBase("", "", 0)
+        ViewSerializeBase("", ViewID::INVALID, ScreenID::INVALID_ID)
     {}
 
     bool init() override { return true; }

@@ -333,7 +333,7 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
                   const char *audio_source_name,
                   ViewManager::VMIface *view_manager):
         ViewIface(name, true, view_manager),
-        ViewSerializeBase(on_screen_name, "browse", 102U),
+        ViewSerializeBase(on_screen_name, ViewID::BROWSE),
         listbroker_id_(listbroker_id),
         current_list_id_(0),
         file_list_(std::move(std::string(name) + " view"),

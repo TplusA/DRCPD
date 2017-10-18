@@ -43,7 +43,7 @@ class View: public ViewIface, public ViewSerializeBase
 
     explicit View(const char *on_screen_name):
         ViewIface(ViewNames::INACTIVE, false, nullptr),
-        ViewSerializeBase(on_screen_name, "inactive", 127U)
+        ViewSerializeBase(on_screen_name, ViewID::INVALID, ScreenID::INVALID_ID)
     {}
 
     bool init() override { return true; }

@@ -37,7 +37,7 @@ drcpd_SOURCES = \
     player_permissions.hh player_permissions_airable.hh \
     audiosource.hh \
     search_algo.hh \
-    actor_id.h \
+    screen_ids.hh actor_id.h \
     configuration.hh configuration_base.hh configuration_changed.hh \
     configuration_settings.hh inifile.h configuration_drcpd.hh \
     ui_parameters.hh ui_parameters_predefined.hh search_parameters.hh \
@@ -109,7 +109,7 @@ libviews_la_SOURCES = \
     player_permissions.hh player_permissions_airable.hh \
     audiosource.hh \
     ui_events.hh ui_event_queue.hh \
-    idtypes.hh stream_id.h stream_id.hh \
+    idtypes.hh stream_id.h stream_id.hh screen_ids.hh \
     playlist_crawler.hh directory_crawler.cc directory_crawler.hh \
     cacheenforcer.hh cacheenforcer.cc \
     gvariantwrapper.hh gvariantwrapper.cc \
