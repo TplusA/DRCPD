@@ -189,11 +189,12 @@ class ViewSerializeBase
 
         if(data.is_full_serialize_)
         {
-            os << "<text id=\"title\">"
-               << (get_dynamic_title().empty()
-                   ? XmlEscape(_(on_screen_name_))
-                   : XmlEscape(get_dynamic_title().get_text()))
-               << "</text>";
+            if(ids.first != ViewID::ERROR)
+                os << "<text id=\"title\">"
+                   << (get_dynamic_title().empty()
+                       ? XmlEscape(_(on_screen_name_))
+                       : XmlEscape(get_dynamic_title().get_text()))
+                   << "</text>";
 
             if(ids.second != ScreenID::INVALID_ID)
                 os << "<text id=\"scrid\">" << ids.second << "</text>";

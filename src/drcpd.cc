@@ -28,6 +28,7 @@
 
 #include "configuration.hh"
 #include "i18n.h"
+#include "view_error_sink.hh"
 #include "view_inactive.hh"
 #include "view_filebrowser.hh"
 #include "view_filebrowser_airable.hh"
@@ -479,6 +480,7 @@ static void connect_everything(ViewManager::Manager &views,
                                DBus::SignalData &dbus_data,
                                const Configuration::DrcpdValues &config)
 {
+    static ViewErrorSink::View error_sink(N_("Error"), &views);
     static ViewInactive::View inactive("Inactive");
     static ViewFileBrowser::View fs(ViewNames::BROWSER_FILESYSTEM,
                                     N_("USB mass storage devices"), 1,
@@ -512,6 +514,9 @@ static void connect_everything(ViewManager::Manager &views,
     static ViewSearch::View search(N_("Search parameters"),
                                    views.NUMBER_OF_LINES_ON_DISPLAY, &views);
 
+    if(!error_sink.init())
+        return;
+
     if(!fs.init())
         return;
 
@@ -533,6 +538,7 @@ static void connect_everything(ViewManager::Manager &views,
     if(!search.init())
         return;
 
+    views.add_view(&error_sink);
     views.add_view(&inactive);
     views.add_view(&fs);
     views.add_view(&tunein);

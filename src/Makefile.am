@@ -33,7 +33,7 @@ drcpd_SOURCES = \
     view_manager.hh ui_events.hh ui_event_queue.hh xmlescape.hh \
     view_filebrowser.hh view_filebrowser_fileitem.hh view_filebrowser_airable.hh \
     view_filebrowser_utils.hh view_play.hh \
-    view_search.hh view_inactive.hh \
+    view_search.hh view_inactive.hh view_error_sink.hh error_sink.hh \
     player_permissions.hh player_permissions_airable.hh \
     audiosource.hh \
     search_algo.hh \
@@ -96,6 +96,7 @@ libconfiguration_la_CXXFLAGS = $(AM_CXXFLAGS)
 libviews_la_SOURCES = \
     view.hh view_serialize.hh \
     view_names.hh view_nop.hh \
+    view_error_sink.hh view_error_sink.cc error_sink.hh \
     view_filebrowser.hh view_filebrowser_utils.hh view_filebrowser.cc \
     view_filebrowser_fileitem.hh \
     view_filebrowser_airable.hh view_filebrowser_airable.cc \

@@ -31,6 +31,7 @@ namespace ViewNames
     static constexpr const char SEARCH_OPTIONS[]     = "Search";
 
     static constexpr const char INACTIVE[]           = "Inactive";
+    static constexpr const char ERROR_SINK[]         = "ErrorSink";
 
     static constexpr const char NOP[]                = "#NOP";
 };
