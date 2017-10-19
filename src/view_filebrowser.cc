@@ -1618,7 +1618,7 @@ static bool sink_point_to_child_error(ListError::Code error,
         else
         {
             snprintf(buffer, sizeof(buffer),
-                     _("Authentication error for \"%s\", please check your credentials."),
+                     _("Authentication error for \"%s\". Please check your credentials."),
                      child_name.c_str());
             Error::errors().sink(ScreenID::Error::ENTER_LIST_AUTHENTICATION, buffer);
         }
