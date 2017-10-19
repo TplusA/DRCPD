@@ -134,6 +134,8 @@ class JumpToContext
 
     State get_state() const { return state_; }
 
+    List::context_id_t get_destination() const { return destination_; }
+
   private:
     void set_state(State state)
     {

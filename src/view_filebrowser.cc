@@ -28,6 +28,7 @@
 #include "view_play.hh"
 #include "view_manager.hh"
 #include "view_names.hh"
+#include "error_sink.hh"
 #include "player_permissions_airable.hh"
 #include "search_algo.hh"
 #include "ui_parameters_predefined.hh"
@@ -1575,13 +1576,98 @@ void ViewFileBrowser::View::set_list_context_root(List::context_id_t ctx_id)
         BUG("Invalid context ID %u passed as filter", ctx_id);
 }
 
+static bool sink_point_to_child_error(ListError::Code error,
+                                      const std::string &child_name,
+                                      const ViewFileBrowser::JumpToContext &jtc,
+                                      const List::ContextMap &list_contexts)
+{
+    char buffer[2048];
+
+    switch(error)
+    {
+      case ListError::Code::OK:
+        return false;
+
+      case ListError::Code::PHYSICAL_MEDIA_IO:
+        Error::errors().sink(ScreenID::Error::ENTER_LIST_MEDIA_IO,
+                             _("Media error, something seems to be wrong with the device."));
+        break;
+
+      case ListError::Code::NET_IO:
+        Error::errors().sink(ScreenID::Error::ENTER_LIST_NET_IO,
+                             _("Networking error, please check cabling or try again later."));
+        break;
+
+      case ListError::Code::PROTOCOL:
+        Error::errors().sink(ScreenID::Error::ENTER_LIST_PROTOCOL,
+                             _("Protocol error, please try again later."));
+        break;
+
+      case ListError::Code::AUTHENTICATION:
+        if(jtc.is_jumping_to_context())
+        {
+            snprintf(buffer, sizeof(buffer),
+                     _("Please check your %s credentials."),
+                     list_contexts[jtc.get_destination()].description_.c_str());
+            Error::errors().sink(ScreenID::Error::ENTER_CONTEXT_AUTHENTICATION, buffer,
+                                 list_contexts[jtc.get_destination()].string_id_);
+        }
+        else if(child_name.empty())
+            Error::errors().sink(ScreenID::Error::ENTER_LIST_AUTHENTICATION,
+                                 _("Authentication error, please check your credentials."));
+        else
+        {
+            snprintf(buffer, sizeof(buffer),
+                     _("Authentication error for \"%s\", please check your credentials."),
+                     child_name.c_str());
+            Error::errors().sink(ScreenID::Error::ENTER_LIST_AUTHENTICATION, buffer);
+        }
+
+        break;
+
+      case ListError::Code::PERMISSION_DENIED:
+        if(child_name.empty())
+            Error::errors().sink(ScreenID::Error::ENTER_LIST_PERMISSION_DENIED,
+                                 _("Entering directory is not allowed."));
+        else
+        {
+            snprintf(buffer, sizeof(buffer),
+                     _("Entering \"%s\" not is allowed."), child_name.c_str());
+            Error::errors().sink(ScreenID::Error::ENTER_LIST_PERMISSION_DENIED, buffer);
+        }
+
+        break;
+
+      case ListError::Code::INTERNAL:
+      case ListError::Code::INTERRUPTED:
+      case ListError::Code::INVALID_ID:
+      case ListError::Code::INCONSISTENT:
+      case ListError::Code::NOT_SUPPORTED:
+      case ListError::Code::INVALID_URI:
+      case ListError::Code::BUSY_500:
+      case ListError::Code::BUSY_1000:
+      case ListError::Code::BUSY_1500:
+      case ListError::Code::BUSY_3000:
+      case ListError::Code::BUSY_5000:
+      case ListError::Code::BUSY:
+        msg_error(0, LOG_NOTICE,
+                  "Got error for child list ID, error code %s",
+                  ListError::code_to_string(error));
+        break;
+    }
+
+    return true;
+}
+
 /*!
  * Chained from #ViewFileBrowser::View::point_to_child_directory().
  */
 static void point_to_child_directory__got_list_id(DBus::AsyncCall_ &async_call,
                                                   ViewFileBrowser::View::AsyncCalls &calls,
                                                   List::DBusList &file_list,
-                                                  ID::List list_id, unsigned int line)
+                                                  ID::List list_id, unsigned int line,
+                                                  const std::string &child_name,
+                                                  const List::ContextMap &list_contexts)
 {
     auto lock(calls.acquire_lock());
 
@@ -1599,6 +1685,8 @@ static void point_to_child_directory__got_list_id(DBus::AsyncCall_ &async_call,
         async_result = DBus::AsyncResult::FAILED;
         msg_error(0, LOG_ERR, "Failed obtaining ID for item %u in list %u: %s",
                   line, list_id.get_raw_id(), e.what());
+        sink_point_to_child_error(e.get(), child_name,
+                                  calls.context_jump_, list_contexts);
     }
 
     if(!calls.get_list_id_->success() ||
@@ -1616,12 +1704,9 @@ static void point_to_child_directory__got_list_id(DBus::AsyncCall_ &async_call,
     gchar *const title(std::get<2>(result));
     const gboolean title_translatable(std::get<3>(result));
 
-    if(error != ListError::Code::OK)
-    {
-        msg_error(0, LOG_NOTICE,
-                  "Got error for child list ID, error code %s", error.to_string());
+    if(sink_point_to_child_error(error.get(), child_name,
+                                 calls.context_jump_, list_contexts))
         goto error_exit;
-    }
 
     if(!id.is_valid())
     {
@@ -1653,6 +1738,37 @@ error_exit:
     g_free(title);
 }
 
+static std::string get_child_name(List::DBusList &file_list, unsigned int line)
+{
+    const ViewFileBrowser::FileItem *item;
+
+    try
+    {
+        item = nullptr;
+
+        const List::Item *dbus_list_item = nullptr;
+        const auto op_result = file_list.get_item_async(line, dbus_list_item);
+
+        switch(op_result)
+        {
+          case List::AsyncListIface::OpResult::SUCCEEDED:
+            item = dynamic_cast<decltype(item)>(dbus_list_item);
+            break;
+
+          case List::AsyncListIface::OpResult::STARTED:
+          case List::AsyncListIface::OpResult::FAILED:
+          case List::AsyncListIface::OpResult::CANCELED:
+            break;
+        }
+    }
+    catch(const List::DBusListException &e)
+    {
+        item = nullptr;
+    }
+
+    return item != nullptr ? item->get_text() : "";
+}
+
 bool ViewFileBrowser::View::point_to_child_directory(const SearchParameters *search_parameters)
 {
     auto lock(lock_async_calls());
@@ -1664,7 +1780,9 @@ bool ViewFileBrowser::View::point_to_child_directory(const SearchParameters *sea
                        std::bind(point_to_child_directory__got_list_id,
                                  std::placeholders::_1,
                                  std::ref(async_calls_), std::ref(file_list_),
-                                 current_list_id_, navigation_.get_cursor()),
+                                 current_list_id_, navigation_.get_cursor(),
+                                 get_child_name(file_list_, navigation_.get_cursor()),
+                                 std::cref(list_contexts_)),
                        search_parameters);
 
     if(async_calls_.get_list_id_ == nullptr)
