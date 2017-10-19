@@ -426,8 +426,7 @@ bool ViewFileBrowser::View::sync_with_list_broker(bool is_first_call)
     return keep_lists_alive_timeout_.start(
             compute_keep_alive_timeout(expiry_ms, 50,
                                        std::chrono::seconds(30)),
-            std::bind(&ViewFileBrowser::View::keep_lists_alive_timer_callback,
-                      this));
+            [this] () { return keep_lists_alive_timer_callback(); });
 }
 
 void ViewFileBrowser::View::focus()
@@ -1428,9 +1427,11 @@ bool ViewFileBrowser::View::do_point_to_real_root_directory()
 {
     async_calls_.get_list_id_ =
         mk_get_list_id(file_list_.get_dbus_proxy(),
-                       std::bind(point_to_root_directory__got_list_id,
-                                 std::placeholders::_1,
-                                 std::ref(async_calls_), std::ref(file_list_)));
+            [this] (DBus::AsyncCall_ &async_call)
+            {
+                point_to_root_directory__got_list_id(async_call, async_calls_,
+                                                     file_list_);
+            });
 
     if(async_calls_.get_list_id_ == nullptr)
     {
@@ -1545,9 +1546,11 @@ bool ViewFileBrowser::View::do_point_to_context_root_directory(List::context_id_
             promise.set_value(std::make_tuple(parent_list_id, parent_item_id, parent_list_title,
                                               parent_list_title_translatable));
         },
-        std::bind(point_to_list_context_root__got_parent_link,
-                  std::placeholders::_1,
-                  std::ref(async_calls_), std::ref(file_list_), ctx_id),
+        [this, ctx_id] (DBus::AsyncCall_ &async_call)
+        {
+            point_to_list_context_root__got_parent_link(async_call, async_calls_,
+                                                        file_list_, ctx_id);
+        },
         [] (ViewFileBrowser::View::AsyncCalls::GetContextRoot::PromiseReturnType &values) {},
         [] () { return true; },
         "AsyncCalls::GetContextRoot", MESSAGE_LEVEL_DEBUG);
@@ -1777,13 +1780,17 @@ bool ViewFileBrowser::View::point_to_child_directory(const SearchParameters *sea
 
     async_calls_.get_list_id_ =
         mk_get_list_id(file_list_.get_dbus_proxy(),
-                       std::bind(point_to_child_directory__got_list_id,
-                                 std::placeholders::_1,
-                                 std::ref(async_calls_), std::ref(file_list_),
-                                 current_list_id_, navigation_.get_cursor(),
-                                 get_child_name(file_list_, navigation_.get_cursor()),
-                                 std::cref(list_contexts_)),
-                       search_parameters);
+            [this] (DBus::AsyncCall_ &async_call)
+            {
+                point_to_child_directory__got_list_id(async_call,
+                                                      async_calls_, file_list_,
+                                                      current_list_id_,
+                                                      navigation_.get_cursor(),
+                                                      get_child_name(file_list_,
+                                                                     navigation_.get_cursor()),
+                                                      list_contexts_);
+            },
+            search_parameters);
 
     if(async_calls_.get_list_id_ == nullptr)
     {
@@ -1907,10 +1914,11 @@ bool ViewFileBrowser::View::point_to_parent_link()
             promise.set_value(std::make_tuple(parent_list_id, parent_item_id, parent_list_title,
                                               parent_list_title_translatable));
         },
-        std::bind(point_to_parent_link__got_parent_link,
-                  std::placeholders::_1,
-                  std::ref(async_calls_), std::ref(file_list_),
-                  current_list_id_),
+        [this] (DBus::AsyncCall_ &async_call)
+        {
+            point_to_parent_link__got_parent_link(async_call, async_calls_,
+                                                  file_list_, current_list_id_);
+        },
         [] (ViewFileBrowser::View::AsyncCalls::GetParentId::PromiseReturnType &values) {},
         [] () { return true; },
         "AsyncCalls::GetParentId", MESSAGE_LEVEL_DEBUG);
