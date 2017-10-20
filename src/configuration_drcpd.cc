@@ -24,7 +24,6 @@
 #include <string>
 #include <glib.h>
 
-#include "configuration.hh"
 #include "configuration_drcpd.hh"
 #include "messages.h"
 #include "inifile.h"
@@ -96,18 +95,23 @@ unbox_bitrate(Configuration::UpdateSettings<Configuration::DrcpdValues> &dest,
 const std::array<const Configuration::ConfigKey, Configuration::DrcpdValues::NUMBER_OF_KEYS>
 Configuration::DrcpdValues::all_keys
 {
-#define ENTRY(ID, SER_ID, KEY) \
-    Configuration::ConfigKey(ID, \
+#define ENTRY_FULL(ID, KEY, SER, DESER, BOX, UNBOX) \
+    Configuration::ConfigKey(Configuration::DrcpdValues::KeyID::ID, \
+                             ":" KEY, SER, DESER, BOX, UNBOX)
+
+#define ENTRY(ID, KEY, UNBOX) \
+    Configuration::ConfigKey(Configuration::DrcpdValues::KeyID::ID, \
                              ":" KEY, \
-                             serialize_bitrate, \
-                             deserialize_bitrate, \
-                             box_bitrate, \
-                             unbox_bitrate)
+                             serialize_value<Configuration::DrcpdValues,   UpdateTraits<Configuration::DrcpdValues::KeyID::ID>>, \
+                             deserialize_value<Configuration::DrcpdValues, UpdateTraits<Configuration::DrcpdValues::KeyID::ID>>, \
+                             box_value<Configuration::DrcpdValues,         UpdateTraits<Configuration::DrcpdValues::KeyID::ID>>, \
+                             UNBOX)
 
-    ENTRY(Configuration::DrcpdValues::KeyID::MAXIMUM_BITRATE,
-          Configuration::DrcpdValues::KeyID::MAXIMUM_BITRATE,
-          "maximum_stream_bit_rate"),
+    ENTRY_FULL(MAXIMUM_BITRATE, "maximum_stream_bit_rate",
+               serialize_bitrate, deserialize_bitrate,
+               box_bitrate, unbox_bitrate),
 
+#undef ENTRY_FULL
 #undef ENTRY
 };
 

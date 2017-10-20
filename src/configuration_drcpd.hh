@@ -21,6 +21,7 @@
 
 #include <cinttypes>
 
+#include "configuration.hh"
 #include "configuration_settings.hh"
 
 namespace Configuration
@@ -94,9 +95,9 @@ class ConfigKey: public ConfigKeyBase<DrcpdValues>
     }
 };
 
-template <DrcpdValues::KeyID ID> struct UpdateValueTraits;
+template <DrcpdValues::KeyID ID> struct UpdateTraits;
 
-CONFIGURATION_UPDATE_TRAITS(UpdateValueTraits, DrcpdValues, MAXIMUM_BITRATE, maximum_bitrate_);
+CONFIGURATION_UPDATE_TRAITS(UpdateTraits, DrcpdValues, MAXIMUM_BITRATE, maximum_bitrate_);
 
 template <>
 class UpdateSettings<DrcpdValues>
@@ -117,7 +118,7 @@ class UpdateSettings<DrcpdValues>
     bool maximum_stream_bit_rate(uint32_t bitrate)
     {
         return settings_.update<DrcpdValues::KeyID::MAXIMUM_BITRATE,
-                                UpdateValueTraits<DrcpdValues::KeyID::MAXIMUM_BITRATE>>(bitrate);
+                                UpdateTraits<DrcpdValues::KeyID::MAXIMUM_BITRATE>>(bitrate);
     }
 };
 
