@@ -51,6 +51,12 @@ struct I18nValues
     std::string country_code_;
 
     I18nValues() {}
+
+    explicit I18nValues(std::string &&default_language_code,
+                        std::string &&default_country_code):
+        language_code_(std::move(default_language_code)),
+        country_code_(std::move(default_country_code))
+    {}
 };
 
 class I18nConfigKey: public ConfigKeyBase<I18nValues>
