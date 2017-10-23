@@ -482,10 +482,9 @@ uint32_t ViewFileBrowser::View::about_to_write_xml(const DCP::Queue::Data &data)
         break;
     }
 
-    if(navigation_.get_total_number_of_visible_items() == 0)
-        flags |= is_root_list(current_list_id_)
-            ? WRITE_FLAG__IS_EMPTY_ROOT
-            : WRITE_FLAG__IS_EMPTY_LIST;
+    if(is_root_list(current_list_id_) &&
+       navigation_.get_total_number_of_visible_items() == 0)
+        flags |= WRITE_FLAG__IS_EMPTY_ROOT;
 
     return flags;
 }
@@ -1062,23 +1061,6 @@ bool ViewFileBrowser::View::write_xml(std::ostream &os, uint32_t bits,
     {
         os << "<text id=\"line0\">" << XmlEscape(_(on_screen_name_)) << "</text>";
         os << "<text id=\"line1\">" << get_status_string_for_empty_root() << "</text>";
-        return true;
-    }
-
-    if((bits & WRITE_FLAG__IS_EMPTY_LIST) != 0)
-    {
-        const I18n::String &title(get_dynamic_title());
-
-        if(title.empty())
-            os << "<text id=\"line0\">" << XmlEscape(_("This directory is empty.")) << "</text>";
-        else
-        {
-            char buffer[2048];
-            snprintf(buffer, sizeof(buffer),
-                     _("Directory \"%s\" is empty."), title.get_text());
-            os << "<text id=\"line0\">" << XmlEscape(buffer) << "</text>";
-        }
-
         return true;
     }
 
