@@ -44,6 +44,7 @@ namespace dbus_handlers_tests
 
 static MockMessages *mock_messages;
 static MockViewManager *mock_view_manager;
+static Configuration::ConfigManager<Configuration::I18nValues> *i18n_config_manager;
 static Configuration::ConfigManager<Configuration::DrcpdValues> *drcpd_config_manager;
 
 static GDBusProxy *dummy_gdbus_proxy;
@@ -64,6 +65,11 @@ void cut_setup(void)
 
     static const char cfg_file_name[] = "/some/config.ini";
 
+    static const Configuration::I18nValues default_i18n_config;
+    i18n_config_manager = new Configuration::ConfigManager<Configuration::I18nValues>(cfg_file_name, default_i18n_config);
+    cppcut_assert_not_null(i18n_config_manager);
+    i18n_config_manager->reset_to_defaults();
+
     static const Configuration::DrcpdValues default_drcpd_config{0};
     drcpd_config_manager = new Configuration::ConfigManager<Configuration::DrcpdValues>(cfg_file_name, default_drcpd_config);
     cppcut_assert_not_null(drcpd_config_manager);
@@ -77,10 +83,12 @@ void cut_teardown(void)
 
     mock_messages_singleton = nullptr;
 
+    delete i18n_config_manager;
     delete drcpd_config_manager;
     delete mock_messages;
     delete mock_view_manager;
 
+    i18n_config_manager = nullptr;
     drcpd_config_manager = nullptr;
     mock_messages = nullptr;
     mock_view_manager = nullptr;
@@ -88,7 +96,8 @@ void cut_teardown(void)
 
 static DBus::SignalData mk_dbus_signal_data()
 {
-    return DBus::SignalData(*mock_view_manager, *drcpd_config_manager);
+    return DBus::SignalData(*mock_view_manager, *drcpd_config_manager,
+                            *i18n_config_manager);
 }
 
 /*!\test

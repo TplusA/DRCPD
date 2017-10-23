@@ -27,6 +27,7 @@
 #include <glib-unix.h>
 
 #include "configuration.hh"
+#include "configuration_i18n.hh"
 #include "i18n.h"
 #include "view_error_sink.hh"
 #include "view_inactive.hh"
@@ -73,6 +74,8 @@ struct parameters
     bool run_in_foreground;
     bool connect_to_session_dbus;
 };
+
+using I18nConfigMgr = Configuration::ConfigManager<Configuration::I18nValues>;
 
 ssize_t (*os_read)(int fd, void *dest, size_t count) = read;
 ssize_t (*os_write)(int fd, const void *buf, size_t count) = write;
@@ -604,6 +607,10 @@ int main(int argc, char *argv[])
         drcpd_config_manager(configuration_file_name, default_drcpd_settings);
     drcpd_config_manager.load();
 
+    static const Configuration::I18nValues default_i18n_settings;
+    I18nConfigMgr i18n_config_manager(configuration_file_name, default_i18n_settings);
+    i18n_config_manager.load();
+
     static UI::EventQueue ui_event_queue(
         std::bind(defer_ui_event_processing, &ui_events_processing_data));
     static DCP::Queue dcp_transaction_queue(
@@ -616,7 +623,8 @@ int main(int argc, char *argv[])
                                              drcpd_config_manager);
 
     static DBus::SignalData dbus_signal_data(view_manager,
-                                             drcpd_config_manager);
+                                             drcpd_config_manager,
+                                             i18n_config_manager);
 
     view_manager.set_output_stream(fd_out);
     view_manager.set_debug_stream(std::cout);

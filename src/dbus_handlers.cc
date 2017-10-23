@@ -693,6 +693,9 @@ gboolean dbusmethod_config_get_all_keys(tdbusConfigurationRead *object,
     log_assert(data != nullptr);
 
     auto keys(data->drcpd_config_mgr_.keys());
+    auto temp(data->i18n_config_mgr_.keys());
+    keys.insert(keys.end(), std::make_move_iterator(temp.begin()),
+                std::make_move_iterator(temp.end()));
     keys.push_back(nullptr);
 
     tdbus_configuration_read_complete_get_all_keys(object, invocation,
@@ -712,6 +715,8 @@ gboolean dbusmethod_config_get_value(tdbusConfigurationRead *object,
     log_assert(data != nullptr);
 
     GVariantWrapper value = data->drcpd_config_mgr_.lookup_boxed(key);
+    if(value == nullptr)
+        value = data->i18n_config_mgr_.lookup_boxed(key);
 
     if(value != nullptr)
         tdbus_configuration_read_complete_get_value(object, invocation,
@@ -751,6 +756,7 @@ gboolean dbusmethod_config_get_all_values(tdbusConfigurationRead *object,
     g_variant_dict_init(&dict, nullptr);
 
     get_all_values(&dict, data->drcpd_config_mgr_);
+    get_all_values(&dict, data->i18n_config_mgr_);
 
     tdbus_configuration_read_complete_get_all_values(object, invocation,
                                                      g_variant_dict_end(&dict));
@@ -789,9 +795,22 @@ gboolean dbusmethod_config_set_value(tdbusConfigurationWrite *object,
     auto *data = static_cast<DBus::SignalData *>(user_data);
     log_assert(data != nullptr);
 
-    auto scope(data->drcpd_config_mgr_.get_update_scope(origin));
+    Configuration::InsertResult result = Configuration::InsertResult::KEY_UNKNOWN;
+    std::string section;
+    const char *local_key;
 
-    switch(insert_packed_value(std::move(scope), key, value))
+    if(Configuration::key_extract_section_name(key, "drcpd", 5,
+                                               &local_key, section))
+    {
+        if(section == Configuration::DrcpdValues::CONFIGURATION_SECTION_NAME)
+            result = insert_packed_value(std::move(data->drcpd_config_mgr_.get_update_scope(origin)),
+                                         local_key, value);
+        else if(section == Configuration::I18nValues::CONFIGURATION_SECTION_NAME)
+            result = insert_packed_value(std::move(data->i18n_config_mgr_.get_update_scope(origin)),
+                                         local_key, value);
+    }
+
+    switch(result)
     {
       case Configuration::InsertResult::UPDATED:
       case Configuration::InsertResult::UNCHANGED:
@@ -864,10 +883,22 @@ gboolean dbusmethod_config_set_multiple_values(tdbusConfigurationWrite *object,
     GVariant *value;
 
     auto scope_drcpd(data->drcpd_config_mgr_.get_update_scope(origin));
+    auto scope_i18n(data->i18n_config_mgr_.get_update_scope(origin));
 
     while(g_variant_iter_loop(&values_iter, "{sv}", &key, &value))
     {
-        auto result = scope_drcpd().insert_boxed(key, std::move(GVariantWrapper(value)));
+        Configuration::InsertResult result = Configuration::InsertResult::KEY_UNKNOWN;
+        std::string section;
+        const char *local_key;
+
+        if(Configuration::key_extract_section_name(key, "drcpd", 5,
+                                                   &local_key, section))
+        {
+            if(section == Configuration::DrcpdValues::CONFIGURATION_SECTION_NAME)
+                result = scope_drcpd().insert_boxed(key, std::move(GVariantWrapper(value)));
+            else if(section == Configuration::I18nValues::CONFIGURATION_SECTION_NAME)
+                result = scope_i18n().insert_boxed(key, std::move(GVariantWrapper(value)));
+        }
 
         switch(result)
         {

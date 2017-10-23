@@ -40,6 +40,7 @@ drcpd_SOURCES = \
     screen_ids.hh actor_id.h \
     configuration.hh configuration_base.hh configuration_changed.hh \
     configuration_settings.hh inifile.h configuration_drcpd.hh \
+    configuration_i18n.hh \
     ui_parameters.hh ui_parameters_predefined.hh search_parameters.hh \
     player_control.hh player_control.cc \
     player_data.hh player_data.cc \
@@ -88,7 +89,9 @@ liblist_la_CXXFLAGS = $(AM_CXXFLAGS)
 
 libconfiguration_la_SOURCES = \
     configuration.hh configuration_base.hh configuration_changed.hh \
-    configuration_drcpd.hh configuration_drcpd.cc configuration.cc \
+    configuration_drcpd.hh configuration_drcpd.cc \
+    configuration_i18n.hh configuration_i18n.cc \
+    configuration.cc \
     inifile.h inifile.c
 libconfiguration_la_CFLAGS = $(AM_CFLAGS)
 libconfiguration_la_CXXFLAGS = $(AM_CXXFLAGS)

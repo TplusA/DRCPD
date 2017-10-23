@@ -21,6 +21,7 @@
 
 #include "configuration.hh"
 #include "configuration_drcpd.hh"
+#include "configuration_i18n.hh"
 
 class ViewIface;
 
@@ -50,11 +51,14 @@ class SignalData
 
     UI::EventStoreIface &event_sink_;
     Configuration::ConfigManager<Configuration::DrcpdValues> &drcpd_config_mgr_;
+    Configuration::ConfigManager<Configuration::I18nValues> &i18n_config_mgr_;
 
     explicit SignalData(UI::EventStoreIface &event_sink,
-                        Configuration::ConfigManager<Configuration::DrcpdValues> &drcpd_config_mgr):
+                        Configuration::ConfigManager<Configuration::DrcpdValues> &drcpd_config_mgr,
+                        Configuration::ConfigManager<Configuration::I18nValues> &i18n_config_mgr):
         event_sink_(event_sink),
-        drcpd_config_mgr_(drcpd_config_mgr)
+        drcpd_config_mgr_(drcpd_config_mgr),
+        i18n_config_mgr_(i18n_config_mgr)
     {}
 };
 
