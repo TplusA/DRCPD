@@ -49,12 +49,12 @@ class SignalData
     SignalData(SignalData &&) = default;
 
     UI::EventStoreIface &event_sink_;
-    Configuration::ConfigManager<Configuration::DrcpdValues> &config_mgr_;
+    Configuration::ConfigManager<Configuration::DrcpdValues> &drcpd_config_mgr_;
 
     explicit SignalData(UI::EventStoreIface &event_sink,
-                        Configuration::ConfigManager<Configuration::DrcpdValues> &config_mgr):
+                        Configuration::ConfigManager<Configuration::DrcpdValues> &drcpd_config_mgr):
         event_sink_(event_sink),
-        config_mgr_(config_mgr)
+        drcpd_config_mgr_(drcpd_config_mgr)
     {}
 };
 

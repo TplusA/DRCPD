@@ -597,10 +597,12 @@ int main(int argc, char *argv[])
     if(setup(&parameters, &dcp_dispatch_data, &loop) < 0)
         return EXIT_FAILURE;
 
-    static const Configuration::DrcpdValues default_settings(0);
-    ViewManager::Manager::ConfigMgr config_manager("/var/local/etc/drcpd.ini",
-                                                   default_settings);
-    config_manager.load();
+    static const char configuration_file_name[] = "/var/local/etc/drcpd.ini";
+
+    static const Configuration::DrcpdValues default_drcpd_settings(0);
+    ViewManager::Manager::ConfigMgr
+        drcpd_config_manager(configuration_file_name, default_drcpd_settings);
+    drcpd_config_manager.load();
 
     static UI::EventQueue ui_event_queue(
         std::bind(defer_ui_event_processing, &ui_events_processing_data));
@@ -611,9 +613,10 @@ int main(int argc, char *argv[])
     static std::ostream fd_out(&fd_sbuf);
     static ViewManager::Manager view_manager(ui_event_queue,
                                              dcp_transaction_queue,
-                                             config_manager);
+                                             drcpd_config_manager);
 
-    static DBus::SignalData dbus_signal_data(view_manager, config_manager);
+    static DBus::SignalData dbus_signal_data(view_manager,
+                                             drcpd_config_manager);
 
     view_manager.set_output_stream(fd_out);
     view_manager.set_debug_stream(std::cout);
@@ -627,7 +630,8 @@ int main(int argc, char *argv[])
     g_unix_signal_add(SIGINT, signal_handler, loop);
     g_unix_signal_add(SIGTERM, signal_handler, loop);
 
-    connect_everything(view_manager, dbus_signal_data, config_manager.values());
+    connect_everything(view_manager, dbus_signal_data,
+                       drcpd_config_manager.values());
 
     g_main_loop_run(loop);
 

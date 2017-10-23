@@ -92,20 +92,23 @@ unbox_bitrate(Configuration::UpdateSettings<Configuration::DrcpdValues> &dest,
     return Configuration::InsertResult::VALUE_TYPE_INVALID;
 }
 
-const std::array<const Configuration::ConfigKey, Configuration::DrcpdValues::NUMBER_OF_KEYS>
+const std::array<const Configuration::DrcpdConfigKey, Configuration::DrcpdValues::NUMBER_OF_KEYS>
 Configuration::DrcpdValues::all_keys
 {
 #define ENTRY_FULL(ID, KEY, SER, DESER, BOX, UNBOX) \
-    Configuration::ConfigKey(Configuration::DrcpdValues::KeyID::ID, \
-                             ":" KEY, SER, DESER, BOX, UNBOX)
+    Configuration::DrcpdConfigKey(Configuration::DrcpdValues::KeyID::ID, \
+                                  ":drcpd:" KEY, SER, DESER, BOX, UNBOX)
 
 #define ENTRY(ID, KEY, UNBOX) \
-    Configuration::ConfigKey(Configuration::DrcpdValues::KeyID::ID, \
-                             ":" KEY, \
-                             serialize_value<Configuration::DrcpdValues,   UpdateTraits<Configuration::DrcpdValues::KeyID::ID>>, \
-                             deserialize_value<Configuration::DrcpdValues, UpdateTraits<Configuration::DrcpdValues::KeyID::ID>>, \
-                             box_value<Configuration::DrcpdValues,         UpdateTraits<Configuration::DrcpdValues::KeyID::ID>>, \
-                             UNBOX)
+    Configuration::DrcpdConfigKey(Configuration::DrcpdValues::KeyID::ID, \
+        ":drcpd:" KEY, \
+        serialize_value<Configuration::DrcpdValues, \
+                        UpdateTraits<Configuration::DrcpdValues::KeyID::ID>>, \
+        deserialize_value<Configuration::DrcpdValues, \
+                        UpdateTraits<Configuration::DrcpdValues::KeyID::ID>>, \
+        box_value<Configuration::DrcpdValues, \
+                UpdateTraits<Configuration::DrcpdValues::KeyID::ID>>, \
+        UNBOX)
 
     ENTRY_FULL(MAXIMUM_BITRATE, "maximum_stream_bit_rate",
                serialize_bitrate, deserialize_bitrate,

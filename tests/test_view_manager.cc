@@ -38,6 +38,15 @@
  */
 /*!@{*/
 
+static void create_config_managers(const char *cfg_file_name,
+                                   Configuration::ConfigManager<Configuration::DrcpdValues> *&drcpd)
+{
+    static const Configuration::DrcpdValues default_drcpd_config{0};
+    drcpd = new Configuration::ConfigManager<Configuration::DrcpdValues>(cfg_file_name, default_drcpd_config);
+    cppcut_assert_not_null(drcpd);
+    drcpd->reset_to_defaults();
+}
+
 static void clear_ostream(std::ostringstream &ss)
 {
     ss.str("");
@@ -92,10 +101,7 @@ void cut_setup(void)
     ui_queue = new UI::EventQueue(deferred_ui_event_observer);
     cppcut_assert_not_null(ui_queue);
 
-    static const Configuration::DrcpdValues default_config{0};
-    config_manager = new Configuration::ConfigManager<Configuration::DrcpdValues>("/some/config.ini", default_config);
-    cppcut_assert_not_null(config_manager);
-    config_manager->reset_to_defaults();
+    create_config_managers("/some/config.ini", config_manager);
 
     dcp_queue = new DCP::Queue(transaction_observer, deferred_dcp_transfer_observer);
     cppcut_assert_not_null(dcp_queue);
@@ -121,6 +127,7 @@ void cut_teardown(void)
 
     mock_messages = nullptr;
     vm =nullptr;
+    config_manager = nullptr;
     ui_queue = nullptr;
     dcp_queue = nullptr;
     views_output = nullptr;
@@ -249,10 +256,7 @@ void cut_setup(void)
     ui_queue = new UI::EventQueue(deferred_ui_event_observer);
     cppcut_assert_not_null(ui_queue);
 
-    static const Configuration::DrcpdValues default_config{0};
-    config_manager = new Configuration::ConfigManager<Configuration::DrcpdValues>("/some/config.ini", default_config);
-    cppcut_assert_not_null(config_manager);
-    config_manager->reset_to_defaults();
+    create_config_managers("/some/config.ini", config_manager);
 
     dcp_queue = new DCP::Queue(dcp_transaction_setup_timeout, dcp_deferred_tx);
     cppcut_assert_not_null(dcp_queue);
@@ -504,10 +508,7 @@ void cut_setup(void)
     ui_queue = new UI::EventQueue(deferred_ui_event_observer);
     cppcut_assert_not_null(ui_queue);
 
-    static const Configuration::DrcpdValues default_config{0};
-    config_manager = new Configuration::ConfigManager<Configuration::DrcpdValues>("/some/config.ini", default_config);
-    cppcut_assert_not_null(config_manager);
-    config_manager->reset_to_defaults();
+    create_config_managers("/some/config.ini", config_manager);
 
     dcp_queue = new DCP::Queue(dcp_transaction_setup_timeout, dcp_deferred_tx);
     cppcut_assert_not_null(dcp_queue);
@@ -546,6 +547,7 @@ void cut_teardown(void)
 
     mock_messages = nullptr;
     vm = nullptr;
+    config_manager = nullptr;
     ui_queue = nullptr;
     dcp_queue = nullptr;
     views_output = nullptr;
@@ -1067,10 +1069,7 @@ void cut_setup(void)
     ui_queue = new UI::EventQueue(deferred_ui_event_observer);
     cppcut_assert_not_null(ui_queue);
 
-    static const Configuration::DrcpdValues default_config{0};
-    config_manager = new Configuration::ConfigManager<Configuration::DrcpdValues>("/some/config.ini", default_config);
-    cppcut_assert_not_null(config_manager);
-    config_manager->reset_to_defaults();
+    create_config_managers("/some/config.ini", config_manager);
 
     dcp_queue = new DCP::Queue(dcp_transaction_setup_timeout, dcp_deferred_tx);
     cppcut_assert_not_null(dcp_queue);
@@ -1102,6 +1101,7 @@ void cut_teardown(void)
     mock_messages = nullptr;
     mock_view = nullptr;
     vm =nullptr;
+    config_manager = nullptr;
     ui_queue = nullptr;
     dcp_queue = nullptr;
     views_output = nullptr;

@@ -692,7 +692,7 @@ gboolean dbusmethod_config_get_all_keys(tdbusConfigurationRead *object,
     auto *data = static_cast<DBus::SignalData *>(user_data);
     log_assert(data != nullptr);
 
-    auto keys(data->config_mgr_.keys());
+    auto keys(data->drcpd_config_mgr_.keys());
     keys.push_back(nullptr);
 
     tdbus_configuration_read_complete_get_all_keys(object, invocation,
@@ -711,7 +711,7 @@ gboolean dbusmethod_config_get_value(tdbusConfigurationRead *object,
     auto *data = static_cast<DBus::SignalData *>(user_data);
     log_assert(data != nullptr);
 
-    auto value = data->config_mgr_.lookup_boxed(key);
+    GVariantWrapper value = data->drcpd_config_mgr_.lookup_boxed(key);
 
     if(value != nullptr)
         tdbus_configuration_read_complete_get_value(object, invocation,
@@ -723,6 +723,19 @@ gboolean dbusmethod_config_get_value(tdbusConfigurationRead *object,
                                               key);
 
     return TRUE;
+}
+
+template <typename ValuesT>
+static void get_all_values(GVariantDict *dict,
+                           const Configuration::ConfigManager<ValuesT> &config_mgr)
+{
+    for(const auto &k : config_mgr.keys())
+    {
+        auto value = config_mgr.lookup_boxed(k);
+
+        if(value != nullptr)
+            g_variant_dict_insert_value(dict, k, GVariantWrapper::move(value));
+    }
 }
 
 gboolean dbusmethod_config_get_all_values(tdbusConfigurationRead *object,
@@ -737,13 +750,7 @@ gboolean dbusmethod_config_get_all_values(tdbusConfigurationRead *object,
     GVariantDict dict;
     g_variant_dict_init(&dict, nullptr);
 
-    for(const auto &k : data->config_mgr_.keys())
-    {
-        auto value = data->config_mgr_.lookup_boxed(k);
-
-        if(value != nullptr)
-            g_variant_dict_insert_value(&dict, k, GVariantWrapper::move(value));
-    }
+    get_all_values(&dict, data->drcpd_config_mgr_);
 
     tdbus_configuration_read_complete_get_all_values(object, invocation,
                                                      g_variant_dict_end(&dict));
@@ -760,9 +767,9 @@ static void enter_config_write_handler(GDBusMethodInvocation *invocation)
               g_dbus_method_invocation_get_method_name(invocation));
 }
 
+template <typename ScopeT>
 static Configuration::InsertResult
-insert_packed_value(Configuration::ConfigChanged<Configuration::DrcpdValues>::UpdateScope &scope,
-                    const char *key, GVariant *value)
+insert_packed_value(ScopeT &&scope, const char *key, GVariant *value)
 {
     GVariantWrapper unpacked_value(g_variant_get_child_value(value, 0),
                                    GVariantWrapper::Transfer::JUST_MOVE);
@@ -774,7 +781,7 @@ insert_packed_value(Configuration::ConfigChanged<Configuration::DrcpdValues>::Up
 
 gboolean dbusmethod_config_set_value(tdbusConfigurationWrite *object,
                                      GDBusMethodInvocation *invocation,
-                                     const char *origin, const char *key,
+                                     const char *const origin, const char *const key,
                                      GVariant *value, gpointer user_data)
 {
     enter_config_write_handler(invocation);
@@ -782,9 +789,9 @@ gboolean dbusmethod_config_set_value(tdbusConfigurationWrite *object,
     auto *data = static_cast<DBus::SignalData *>(user_data);
     log_assert(data != nullptr);
 
-    auto scope(data->config_mgr_.get_update_scope(origin));
+    auto scope(data->drcpd_config_mgr_.get_update_scope(origin));
 
-    switch(insert_packed_value(scope, key, value))
+    switch(insert_packed_value(std::move(scope), key, value))
     {
       case Configuration::InsertResult::UPDATED:
       case Configuration::InsertResult::UNCHANGED:
@@ -856,13 +863,13 @@ gboolean dbusmethod_config_set_multiple_values(tdbusConfigurationWrite *object,
     const gchar *key;
     GVariant *value;
 
-    auto scope(data->config_mgr_.get_update_scope(origin));
+    auto scope_drcpd(data->drcpd_config_mgr_.get_update_scope(origin));
 
     while(g_variant_iter_loop(&values_iter, "{sv}", &key, &value))
     {
-        auto err = scope().insert_boxed(key, std::move(GVariantWrapper(value)));
+        auto result = scope_drcpd().insert_boxed(key, std::move(GVariantWrapper(value)));
 
-        switch(err)
+        switch(result)
         {
           case Configuration::InsertResult::UPDATED:
           case Configuration::InsertResult::UNCHANGED:
@@ -873,7 +880,7 @@ gboolean dbusmethod_config_set_multiple_values(tdbusConfigurationWrite *object,
           case Configuration::InsertResult::VALUE_INVALID:
           case Configuration::InsertResult::PERMISSION_DENIED:
             g_variant_builder_add(&errors, "{ss}", key,
-                                  error_codes[static_cast<size_t>(err)]);
+                                  error_codes[static_cast<size_t>(result)]);
             break;
         }
     }

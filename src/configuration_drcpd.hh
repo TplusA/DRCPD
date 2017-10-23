@@ -27,7 +27,7 @@
 namespace Configuration
 {
 
-class ConfigKey;
+class DrcpdConfigKey;
 
 struct DrcpdValues
 {
@@ -44,7 +44,7 @@ struct DrcpdValues
 
     static constexpr size_t NUMBER_OF_KEYS = static_cast<size_t>(KeyID::LAST_ID) + 1;
 
-    static const std::array<const ConfigKey, NUMBER_OF_KEYS> all_keys;
+    static const std::array<const DrcpdConfigKey, NUMBER_OF_KEYS> all_keys;
 
     uint32_t maximum_bitrate_;
 
@@ -55,7 +55,7 @@ struct DrcpdValues
     {}
 };
 
-class ConfigKey: public ConfigKeyBase<DrcpdValues>
+class DrcpdConfigKey: public ConfigKeyBase<DrcpdValues>
 {
   private:
     const Serializer serialize_;
@@ -64,9 +64,9 @@ class ConfigKey: public ConfigKeyBase<DrcpdValues>
     const Unboxer unboxer_;
 
   public:
-    explicit ConfigKey(DrcpdValues::KeyID id, const char *name,
-                       Serializer &&serializer, Deserializer &&deserializer,
-                       Boxer &&boxer, Unboxer &&unboxer):
+    explicit DrcpdConfigKey(DrcpdValues::KeyID id, const char *name,
+                            Serializer &&serializer, Deserializer &&deserializer,
+                            Boxer &&boxer, Unboxer &&unboxer):
         ConfigKeyBase(id, name, find_varname_offset_in_keyname(name)),
         serialize_(std::move(serializer)),
         deserialize_(std::move(deserializer)),
@@ -95,9 +95,9 @@ class ConfigKey: public ConfigKeyBase<DrcpdValues>
     }
 };
 
-template <DrcpdValues::KeyID ID> struct UpdateTraits;
+template <DrcpdValues::KeyID ID> struct DrcpdUpdateTraits;
 
-CONFIGURATION_UPDATE_TRAITS(UpdateTraits, DrcpdValues, MAXIMUM_BITRATE, maximum_bitrate_);
+CONFIGURATION_UPDATE_TRAITS(DrcpdUpdateTraits, DrcpdValues, MAXIMUM_BITRATE, maximum_bitrate_);
 
 template <>
 class UpdateSettings<DrcpdValues>
@@ -118,7 +118,7 @@ class UpdateSettings<DrcpdValues>
     bool maximum_stream_bit_rate(uint32_t bitrate)
     {
         return settings_.update<DrcpdValues::KeyID::MAXIMUM_BITRATE,
-                                UpdateTraits<DrcpdValues::KeyID::MAXIMUM_BITRATE>>(bitrate);
+                                DrcpdUpdateTraits<DrcpdValues::KeyID::MAXIMUM_BITRATE>>(bitrate);
     }
 };
 
