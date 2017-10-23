@@ -115,6 +115,8 @@ class VMIface
     virtual void set_output_stream(std::ostream &os) = 0;
     virtual void set_debug_stream(std::ostream &os) = 0;
 
+    virtual void language_settings_changed_notification() = 0;
+
     /*!
      * End of DCP transmission, callback from I/O layer.
      */
@@ -174,6 +176,8 @@ class Manager: public VMIface, public UI::EventStoreIface
     bool invoke_late_init_functions() override;
     void set_output_stream(std::ostream &os) override;
     void set_debug_stream(std::ostream &os) override;
+
+    void language_settings_changed_notification() override;
 
     void serialization_result(DCP::Transaction::Result result) override;
 

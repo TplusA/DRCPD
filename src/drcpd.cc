@@ -479,9 +479,40 @@ static void defer_dcp_transfer(DCP::Queue *queue)
     call_in_main_context(fn_object, false);
 }
 
+static void language_changed(const I18nConfigMgr &config_manager,
+                             ViewManager::VMIface &view_manager,
+                             bool is_first_call = false)
+{
+    const Configuration::I18nValues &values(config_manager.values());
+    const char *lang_id;
+    std::string temp;
+
+    if(values.language_code_.empty())
+        lang_id = "en_US.UTF-8";
+    else
+    {
+        temp = values.language_code_;
+
+        if(values.country_code_.empty())
+            temp += ".UTF-8";
+        else
+            temp += "_" + values.country_code_;
+
+        lang_id = temp.c_str();
+    }
+
+    if(is_first_call)
+        i18n_init(lang_id);
+    else
+        i18n_switch_language(lang_id);
+
+    view_manager.language_settings_changed_notification();
+}
+
 static void connect_everything(ViewManager::Manager &views,
                                DBus::SignalData &dbus_data,
-                               const Configuration::DrcpdValues &config)
+                               const Configuration::DrcpdValues &config,
+                               I18nConfigMgr &i18n_config_manager)
 {
     static ViewErrorSink::View error_sink(N_("Error"), &views);
     static ViewInactive::View inactive("Inactive");
@@ -557,6 +588,14 @@ static void connect_everything(ViewManager::Manager &views,
     Busy::init(std::bind(&ViewManager::Manager::busy_state_notification,
                          &views, std::placeholders::_1));
 
+    i18n_config_manager.set_updated_notification_callback(
+        [&i18n_config_manager, &views]
+        (const char *origin,
+         const std::array<bool, Configuration::I18nValues::NUMBER_OF_KEYS> &changed)
+        {
+            language_changed(i18n_config_manager, views);
+        });
+
     views.sync_activate_view_by_name(ViewNames::INACTIVE, true);
 }
 
@@ -568,8 +607,6 @@ static gboolean signal_handler(gpointer user_data)
 
 int main(int argc, char *argv[])
 {
-    i18n_init("en_US.UTF-8");
-
     static struct parameters parameters;
     static struct files_t files;
 
@@ -629,6 +666,7 @@ int main(int argc, char *argv[])
     view_manager.set_output_stream(fd_out);
     view_manager.set_debug_stream(std::cout);
 
+    language_changed(i18n_config_manager, view_manager, true);
     ui_events_processing_data.vm = &view_manager;
     dcp_dispatch_data.vm = &view_manager;
 
@@ -639,7 +677,7 @@ int main(int argc, char *argv[])
     g_unix_signal_add(SIGTERM, signal_handler, loop);
 
     connect_everything(view_manager, dbus_signal_data,
-                       drcpd_config_manager.values());
+                       drcpd_config_manager.values(), i18n_config_manager);
 
     g_main_loop_run(loop);
 

@@ -367,6 +367,11 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
     void focus() final override;
     void defocus() final override;
 
+    void language_settings_changed_notification() final override
+    {
+        status_string_for_empty_root_.clear();
+    }
+
     /*!
      * Query properties of associated list broker.
      *

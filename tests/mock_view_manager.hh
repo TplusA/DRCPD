@@ -64,6 +64,7 @@ class MockViewManager: public ViewManager::VMIface, public UI::EventStoreIface
     bool invoke_late_init_functions() override;
     void set_output_stream(std::ostream &os) override;
     void set_debug_stream(std::ostream &os) override;
+    void language_settings_changed_notification() override;
     void serialization_result(DCP::Transaction::Result result) override;
     ViewIface::InputResult input_bounce(const ViewManager::InputBouncer &bouncer, UI::ViewEventID event_id, std::unique_ptr<const UI::Parameters> parameters) override;
     ViewIface *get_view_by_name(const char *view_name) override;

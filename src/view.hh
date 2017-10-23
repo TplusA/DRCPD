@@ -142,6 +142,19 @@ class ViewIface
     virtual void defocus() = 0;
 
     /*!
+     * Called when the system language has been changed.
+     *
+     * This function should drop any cached messages subject to
+     * internationalization. It should *not* try to refresh the screen content
+     * since this is a task for the view manager.
+     *
+     * Since for most views nothings to be done, there is a default
+     * implementation which does nothing. Those views that need to do anything
+     * special must override this function.
+     */
+    virtual void language_settings_changed_notification() {}
+
+    /*!
      * Process the given event/command.
      *
      * The view handles the given event synchronously and mutates its internal

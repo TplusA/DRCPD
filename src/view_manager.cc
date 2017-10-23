@@ -73,8 +73,11 @@ bool ViewManager::Manager::invoke_late_init_functions()
     }
 
     config_manager_.set_updated_notification_callback(
-        std::bind(&ViewManager::Manager::configuration_changed_notification,
-                  this, std::placeholders::_1, std::placeholders::_2));
+        [this] (const char *origin,
+                const std::array<bool, Configuration::DrcpdValues::NUMBER_OF_KEYS> &changed)
+        {
+            ViewManager::Manager::configuration_changed_notification(origin, changed);
+        });
 
     return ok;
 }
@@ -87,6 +90,17 @@ void ViewManager::Manager::set_output_stream(std::ostream &os)
 void ViewManager::Manager::set_debug_stream(std::ostream &os)
 {
     debug_stream_ = &os;
+}
+
+void ViewManager::Manager::language_settings_changed_notification()
+{
+    for(auto &view : all_views_)
+        view.second->language_settings_changed_notification();
+
+    if(active_view_ != nullptr)
+        dynamic_cast<ViewSerializeBase *>(active_view_)->serialize(dcp_transaction_queue_,
+                                                                   DCP::Queue::Mode::SYNC_IF_POSSIBLE,
+                                                                   debug_stream_);
 }
 
 void ViewManager::Manager::serialization_result(DCP::Transaction::Result result)
@@ -528,8 +542,9 @@ void ViewManager::Manager::busy_state_notification(bool is_busy)
                  debug_stream_);
 }
 
-void ViewManager::Manager::configuration_changed_notification(const char *origin,
-                                                              const std::array<bool, Configuration::DrcpdValues::NUMBER_OF_KEYS> &changed)
+void ViewManager::Manager::configuration_changed_notification(
+        const char *origin,
+        const std::array<bool, Configuration::DrcpdValues::NUMBER_OF_KEYS> &changed)
 {
     auto params = UI::Events::mk_params<UI::EventID::CONFIGURATION_UPDATED>();
     auto &vec(params->get_specific_non_const());

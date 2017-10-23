@@ -388,6 +388,11 @@ void MockViewManager::set_debug_stream(std::ostream &os)
     cut_fail("Not implemented");
 }
 
+void MockViewManager::language_settings_changed_notification()
+{
+    cut_fail("Not implemented");
+}
+
 void MockViewManager::store_event(UI::EventID event_id, std::unique_ptr<const UI::Parameters> parameters)
 {
     const auto &expect(expectations_->get_next_expectation(__func__));
