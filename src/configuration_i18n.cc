@@ -63,7 +63,7 @@ unbox_country_code(Configuration::UpdateSettings<Configuration::I18nValues> &des
     if(!Configuration::default_unbox(temp, std::move(src)))
         return Configuration::InsertResult::VALUE_TYPE_INVALID;
 
-    if(!temp.empty() && !is_valid_alpha2_code(temp))
+    if(!is_valid_alpha2_code(temp))
         return Configuration::InsertResult::VALUE_INVALID;
 
     if(!dest.country_code(temp))

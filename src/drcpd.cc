@@ -487,19 +487,15 @@ static void language_changed(const I18nConfigMgr &config_manager,
     const char *lang_id;
     std::string temp;
 
-    if(values.language_code_.empty())
+    if(values.language_code_.empty() || values.country_code_.empty())
         lang_id = "en_US.UTF-8";
     else
     {
-        temp = values.language_code_;
-
-        if(values.country_code_.empty())
-            temp += ".UTF-8";
-        else
-            temp += "_" + values.country_code_;
-
+        temp = values.language_code_ + '_' + values.country_code_ + ".UTF-8";
         lang_id = temp.c_str();
     }
+
+    msg_info("Setting system language \"%s\"", lang_id);
 
     if(is_first_call)
         i18n_init(lang_id);
