@@ -50,20 +50,6 @@ bool ViewExternalSource::Base::register_audio_sources()
     return true;
 }
 
-ViewIface::InputResult
-ViewExternalSource::Base::process_event(UI::ViewEventID event_id,
-                                        std::unique_ptr<const UI::Parameters> parameters)
-{
-    MSG_TRACE();
-    return InputResult::OK;
-}
-
-void ViewExternalSource::Base::process_broadcast(UI::BroadcastEventID event_id,
-                                                 const UI::Parameters *parameters)
-{
-    MSG_TRACE();
-}
-
 bool ViewExternalSource::Base::write_xml(std::ostream &os, uint32_t bits,
                                          const DCP::Queue::Data &data)
 {

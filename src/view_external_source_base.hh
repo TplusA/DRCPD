@@ -59,10 +59,13 @@ class Base: public ViewIface, public ViewSerializeBase, ViewWithAudioSourceBase
     virtual const Player::LocalPermissionsIface &get_local_permissions() const = 0;
 
     InputResult process_event(UI::ViewEventID event_id,
-                              std::unique_ptr<const UI::Parameters> parameters) final override;
+                              std::unique_ptr<const UI::Parameters> parameters) final override
+    {
+        return InputResult::OK;
+    }
 
     void process_broadcast(UI::BroadcastEventID event_id,
-                           const UI::Parameters *parameters) final override;
+                           const UI::Parameters *parameters) final override {}
 
   protected:
     bool write_xml(std::ostream &os, uint32_t bits,
