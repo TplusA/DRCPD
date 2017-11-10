@@ -97,6 +97,17 @@ static unsigned int query_list_size_sync(tdbuslistsNavigation *proxy,
                   list_id.get_raw_id(), list_iface_name.c_str());
         break;
 
+      case ListError::Code::INVALID_STRBO_URL:
+        msg_error(EINVAL, LOG_NOTICE, "Invalid StrBo URL for list ID %u, cannot query size [%s]",
+                  list_id.get_raw_id(), list_iface_name.c_str());
+        break;
+
+      case ListError::Code::NOT_FOUND:
+        msg_error(EINVAL, LOG_NOTICE,
+                  "Failed to locate content for list ID %u, cannot query size [%s]",
+                  list_id.get_raw_id(), list_iface_name.c_str());
+        break;
+
       case ListError::Code::BUSY_500:
       case ListError::Code::BUSY_1000:
       case ListError::Code::BUSY_1500:
@@ -115,6 +126,11 @@ static unsigned int query_list_size_sync(tdbuslistsNavigation *proxy,
       case ListError::Code::INCONSISTENT:
       case ListError::Code::PERMISSION_DENIED:
       case ListError::Code::NOT_SUPPORTED:
+      case ListError::Code::OUT_OF_RANGE:
+      case ListError::Code::EMPTY:
+      case ListError::Code::OVERFLOWN:
+      case ListError::Code::UNDERFLOWN:
+      case ListError::Code::INVALID_STREAM_URL:
         msg_error(0, LOG_NOTICE,
                   "Error while obtaining size of list ID %u: %s [%s]",
                   list_id.get_raw_id(), error.to_string(), list_iface_name.c_str());
@@ -652,6 +668,18 @@ void List::QueryContextEnterList::put_result(DBus::AsyncResult &async_ready,
                   list_id.get_raw_id());
         break;
 
+      case ListError::Code::INVALID_STRBO_URL:
+        msg_error(EINVAL, LOG_NOTICE,
+                  "Invalid StrBo URL for list ID %u, cannot put async result",
+                  list_id.get_raw_id());
+        break;
+
+      case ListError::Code::NOT_FOUND:
+        msg_error(EINVAL, LOG_NOTICE,
+                  "Failed to locate content for list ID %u, cannot put async result",
+                  list_id.get_raw_id());
+        break;
+
       case ListError::Code::BUSY_500:
       case ListError::Code::BUSY_1000:
       case ListError::Code::BUSY_1500:
@@ -670,6 +698,11 @@ void List::QueryContextEnterList::put_result(DBus::AsyncResult &async_ready,
       case ListError::Code::INCONSISTENT:
       case ListError::Code::PERMISSION_DENIED:
       case ListError::Code::NOT_SUPPORTED:
+      case ListError::Code::OUT_OF_RANGE:
+      case ListError::Code::EMPTY:
+      case ListError::Code::OVERFLOWN:
+      case ListError::Code::UNDERFLOWN:
+      case ListError::Code::INVALID_STREAM_URL:
         msg_error(0, LOG_NOTICE,
                   "Error while putting async result for list ID %u: %s",
                   list_id.get_raw_id(), list_error.to_string());

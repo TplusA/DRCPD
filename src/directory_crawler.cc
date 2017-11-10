@@ -600,6 +600,13 @@ Playlist::DirectoryCrawler::try_descend(const FindNextCallback &callback)
           case ListError::Code::INVALID_ID:
           case ListError::Code::INVALID_URI:
           case ListError::Code::INCONSISTENT:
+          case ListError::Code::OUT_OF_RANGE:
+          case ListError::Code::EMPTY:
+          case ListError::Code::OVERFLOWN:
+          case ListError::Code::UNDERFLOWN:
+          case ListError::Code::INVALID_STREAM_URL:
+          case ListError::Code::INVALID_STRBO_URL:
+          case ListError::Code::NOT_FOUND:
             break;
 
           case ListError::Code::BUSY_500:

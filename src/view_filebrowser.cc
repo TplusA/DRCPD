@@ -1653,6 +1653,13 @@ static bool sink_point_to_child_error(ListError::Code error,
       case ListError::Code::BUSY_3000:
       case ListError::Code::BUSY_5000:
       case ListError::Code::BUSY:
+      case ListError::Code::OUT_OF_RANGE:
+      case ListError::Code::EMPTY:
+      case ListError::Code::OVERFLOWN:
+      case ListError::Code::UNDERFLOWN:
+      case ListError::Code::INVALID_STREAM_URL:
+      case ListError::Code::INVALID_STRBO_URL:
+      case ListError::Code::NOT_FOUND:
         msg_error(0, LOG_NOTICE,
                   "Got error for child list ID, error code %s",
                   ListError::code_to_string(error));
