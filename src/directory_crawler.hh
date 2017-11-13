@@ -79,7 +79,7 @@ class DirectoryCrawler: public CrawlerIface
         ID::List list_id_;
         unsigned int line_;
         unsigned int directory_depth_;
-        Direction arived_direction_;
+        Direction arrived_direction_;
 
       public:
         MarkedPosition(const MarkedPosition &) = delete;
@@ -88,7 +88,7 @@ class DirectoryCrawler: public CrawlerIface
         explicit MarkedPosition():
             line_(0),
             directory_depth_(0),
-            arived_direction_(Direction::NONE)
+            arrived_direction_(Direction::NONE)
         {}
 
         void set(ID::List list_id, unsigned int line)
@@ -96,16 +96,16 @@ class DirectoryCrawler: public CrawlerIface
             list_id_ = list_id;
             line_ = line;
             directory_depth_ = 1;
-            arived_direction_ = Direction::NONE;
+            arrived_direction_ = Direction::NONE;
         }
 
         void set(ID::List list_id, unsigned int line, unsigned int directory_depth,
-                 Direction arived_direction)
+                 Direction arrived_direction)
         {
             list_id_ = list_id;
             line_ = line;
             directory_depth_ = directory_depth;
-            arived_direction_ = arived_direction;
+            arrived_direction_ = arrived_direction;
         }
 
         void clear() { set(ID::List(), 0); }
@@ -124,7 +124,7 @@ class DirectoryCrawler: public CrawlerIface
         const ID::List &get_list_id() const { return list_id_; }
         unsigned int get_line() const { return line_; }
         unsigned int get_directory_depth() const { return directory_depth_; }
-        Direction get_arived_direction() const { return arived_direction_; }
+        Direction get_arrived_direction() const { return arrived_direction_; }
     };
 
     class ItemInfo
@@ -159,10 +159,10 @@ class DirectoryCrawler: public CrawlerIface
         }
 
         void set(ID::List list_id, unsigned int line,
-                 unsigned int directory_depth, Direction arived_direction,
+                 unsigned int directory_depth, Direction arrived_direction,
                  GVariantWrapper &&stream_key)
         {
-            set_common(list_id, line, directory_depth, arived_direction,
+            set_common(list_id, line, directory_depth, arrived_direction,
                        std::move(stream_key));
             is_item_info_valid_ = false;
             file_item_text_.clear();
@@ -170,12 +170,12 @@ class DirectoryCrawler: public CrawlerIface
         }
 
         void set(ID::List list_id, unsigned int line,
-                 unsigned int directory_depth, Direction arived_direction,
+                 unsigned int directory_depth, Direction arrived_direction,
                  const std::string &file_item_text,
                  const MetaData::PreloadedSet &file_item_meta_data,
                  GVariantWrapper &&stream_key)
         {
-            set_common(list_id, line, directory_depth, arived_direction,
+            set_common(list_id, line, directory_depth, arrived_direction,
                        std::move(stream_key));
             file_item_text_ = file_item_text;
             file_item_meta_data_.copy_from(file_item_meta_data);
@@ -184,10 +184,10 @@ class DirectoryCrawler: public CrawlerIface
 
       private:
         void set_common(ID::List list_id, unsigned int line,
-                        unsigned int directory_depth, Direction arived_direction,
+                        unsigned int directory_depth, Direction arrived_direction,
                         GVariantWrapper &&stream_key)
         {
-            position_.set(list_id, line, directory_depth, arived_direction);
+            position_.set(list_id, line, directory_depth, arrived_direction);
             stream_key_ = std::move(stream_key);
             stream_uris_.clear();
             airable_links_.clear();
@@ -310,10 +310,10 @@ class DirectoryCrawler: public CrawlerIface
     bool set_direction_from_marked_position() final override;
 
     void mark_position(ID::List list_id, unsigned int line, unsigned int directory_depth,
-                       Direction arived_direction)
+                       Direction arrived_direction)
     {
         log_assert(list_id.is_valid());
-        marked_position_.set(list_id, line, directory_depth, arived_direction);
+        marked_position_.set(list_id, line, directory_depth, arrived_direction);
     }
 
     bool list_invalidate(ID::List list_id, ID::List replacement_id);

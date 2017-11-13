@@ -197,7 +197,7 @@ void Playlist::DirectoryCrawler::mark_current_position()
 
 bool Playlist::DirectoryCrawler::set_direction_from_marked_position()
 {
-    switch(marked_position_.get_arived_direction())
+    switch(marked_position_.get_arrived_direction())
     {
       case Direction::NONE:
       case Direction::FORWARD:
