@@ -106,6 +106,7 @@ bool ViewFileBrowser::View::handle_enter_list_event_finish(
 
       case List::QueryContextEnterList::CallerID::CRAWLER_RESTART:
       case List::QueryContextEnterList::CallerID::CRAWLER_RESET_POSITION:
+      case List::QueryContextEnterList::CallerID::CRAWLER_RESUME_FROM_POSITION:
       case List::QueryContextEnterList::CallerID::CRAWLER_DESCEND:
       case List::QueryContextEnterList::CallerID::CRAWLER_ASCEND:
         BUG("Wrong caller ID in %s()", __PRETTY_FUNCTION__);
@@ -179,6 +180,7 @@ void ViewFileBrowser::View::handle_enter_list_event_update_after_finish(
 
           case List::QueryContextEnterList::CallerID::CRAWLER_RESTART:
           case List::QueryContextEnterList::CallerID::CRAWLER_RESET_POSITION:
+          case List::QueryContextEnterList::CallerID::CRAWLER_RESUME_FROM_POSITION:
           case List::QueryContextEnterList::CallerID::CRAWLER_DESCEND:
           case List::QueryContextEnterList::CallerID::CRAWLER_ASCEND:
             BUG("Wrong caller ID in %s()", __PRETTY_FUNCTION__);

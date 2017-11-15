@@ -86,6 +86,15 @@ bool Playlist::DirectoryCrawler::set_start_position(const List::DBusList &start_
     return true;
 }
 
+bool Playlist::DirectoryCrawler::set_start_position(MarkedPosition &&reference_point,
+                                                    MarkedPosition &&resume_position)
+{
+    user_start_position_ = std::move(reference_point);
+    marked_position_ = std::move(resume_position);
+    start_cache_enforcer(user_start_position_.get_list_id());
+    return true;
+}
+
 std::string Playlist::DirectoryCrawler::generate_resume_url(const Player::CrawlerResumeData &rd,
                                                             const std::string &asrc_id) const
 {
@@ -146,20 +155,47 @@ bool Playlist::DirectoryCrawler::is_busy_impl() const
 
 bool Playlist::DirectoryCrawler::restart()
 {
+    static constexpr auto cid(List::QueryContextEnterList::CallerID::CRAWLER_RESTART);
+
+    return do_restart_or_resume(cid, "playback",
+                [this] ()
+                {
+                    marked_position_ = user_start_position_;
+
+                    return user_start_position_.get_list_id().is_valid()
+                        ? traversal_list_.enter_list_async(user_start_position_.get_list_id(),
+                                                           user_start_position_.get_line(), cid,
+                                                           I18n::String(false))
+                        : List::AsyncListIface::OpResult::FAILED;
+                });
+}
+
+bool Playlist::DirectoryCrawler::resume(I18n::String &&root_list_title)
+{
+    static constexpr auto cid(List::QueryContextEnterList::CallerID::CRAWLER_RESUME_FROM_POSITION);
+
+    return do_restart_or_resume(cid, "resuming playback",
+                [this, &root_list_title] ()
+                {
+                    return marked_position_.get_list_id().is_valid()
+                        ? traversal_list_.enter_list_async(marked_position_.get_list_id(),
+                                                           marked_position_.get_line(), cid,
+                                                           std::move(root_list_title))
+                        : List::AsyncListIface::OpResult::FAILED;
+                });
+}
+
+bool Playlist::DirectoryCrawler::do_restart_or_resume(List::QueryContextEnterList::CallerID cid,
+                                                      const char *what,
+                                                      const std::function<List::AsyncListIface::OpResult()> &enter_list_fn)
+{
     directory_depth_ = 0;
     is_first_item_in_list_processed_ = false;
     is_waiting_for_async_enter_list_completion_ = false;
     is_waiting_for_async_get_list_item_completion_ = false;
     current_item_info_.clear();
-    marked_position_ = user_start_position_;
 
-    static constexpr auto cid(List::QueryContextEnterList::CallerID::CRAWLER_RESTART);
-    const auto result =
-        user_start_position_.get_list_id().is_valid()
-        ? traversal_list_.enter_list_async(user_start_position_.get_list_id(),
-                                           user_start_position_.get_line(), cid,
-                                           I18n::String(false))
-        : List::AsyncListIface::OpResult::FAILED;
+    const auto result = enter_list_fn();
 
     switch(result)
     {
@@ -169,7 +205,7 @@ bool Playlist::DirectoryCrawler::restart()
 
       case List::AsyncListIface::OpResult::FAILED:
       case List::AsyncListIface::OpResult::CANCELED:
-        msg_error(0, LOG_NOTICE, "Failed entering list for playback");
+        msg_error(0, LOG_NOTICE, "Failed entering list for %s", what);
         call_callback(failure_callback_enter_list_, *this, cid, result);
         break;
     }
@@ -344,6 +380,41 @@ map_asyncresult_to_retrieve_item_result(const DBus::AsyncResult &async_result)
     }
 
     return Playlist::CrawlerIface::RetrieveItemInfoResult::FAILED;
+}
+
+bool Playlist::DirectoryCrawler::try_pass_on_current_item(const FindNextCallback &callback,
+                                                          bool *should_retry)
+{
+    const auto result =
+        is_waiting_for_async_get_list_item_completion_
+        ? List::AsyncListIface::OpResult::STARTED
+        : set_dbuslist_hint(traversal_list_, navigation_, is_crawling_forward(),
+                            List::QueryContextGetItem::CallerID::CRAWLER_FIND_NEXT);
+
+    switch(result)
+    {
+      case List::AsyncListIface::OpResult::STARTED:
+      case List::AsyncListIface::OpResult::SUCCEEDED:
+        {
+            const bool temp = try_get_dbuslist_item_after_started_or_successful_hint(callback);
+
+            if(should_retry != nullptr)
+                *should_retry = temp;
+        }
+
+        return true;
+
+      case List::AsyncListIface::OpResult::FAILED:
+        call_callback(callback, *this, FindNextItemResult::FAILED);
+        break;
+
+      case List::AsyncListIface::OpResult::CANCELED:
+        BUG("Unexpected canceled result");
+        call_callback(callback, *this, FindNextItemResult::CANCELED);
+        break;
+    }
+
+    return false;
 }
 
 bool Playlist::DirectoryCrawler::try_get_dbuslist_item_after_started_or_successful_hint(const FindNextCallback &callback)
@@ -531,7 +602,8 @@ static bool determine_forward_or_reverse(const Playlist::CrawlerIface &crawler,
 
 bool Playlist::DirectoryCrawler::handle_entered_list(unsigned int line,
                                                      LineRelative line_relative,
-                                                     bool continue_if_empty)
+                                                     bool continue_if_empty,
+                                                     bool current_item_is_next)
 {
     ++directory_depth_;
     is_first_item_in_list_processed_ = false;
@@ -568,6 +640,12 @@ bool Playlist::DirectoryCrawler::handle_entered_list(unsigned int line,
     else if(find_next_callback_ != nullptr)
     {
         /* have pending find-next request */
+        if(current_item_is_next)
+        {
+            is_resetting_to_marked_position_ = false;
+            return try_pass_on_current_item(pass_on(find_next_callback_));
+        }
+
         const bool is_resetting(is_resetting_to_marked_position_);
         const bool temp(is_first_item_in_list_processed_);
 
@@ -1152,28 +1230,8 @@ Playlist::DirectoryCrawler::find_next_impl(FindNextCallback callback)
             }
         }
 
-        const auto result =
-            is_waiting_for_async_get_list_item_completion_
-            ? List::AsyncListIface::OpResult::STARTED
-            : set_dbuslist_hint(traversal_list_, navigation_, is_crawling_forward(),
-                                List::QueryContextGetItem::CallerID::CRAWLER_FIND_NEXT);
-
-        switch(result)
-        {
-          case List::AsyncListIface::OpResult::STARTED:
-          case List::AsyncListIface::OpResult::SUCCEEDED:
-            looping = try_get_dbuslist_item_after_started_or_successful_hint(callback);
-            break;
-
-          case List::AsyncListIface::OpResult::FAILED:
-            call_callback(callback, *this, FindNextItemResult::FAILED);
+        if(!try_pass_on_current_item(callback, &looping))
             return FindNextFnResult::FAILED;
-
-          case List::AsyncListIface::OpResult::CANCELED:
-            BUG("Unexpected canceled result");
-            call_callback(callback, *this, FindNextItemResult::CANCELED);
-            return FindNextFnResult::FAILED;
-        }
     }
 
     return FindNextFnResult::SEARCHING;
@@ -1232,6 +1290,7 @@ void Playlist::DirectoryCrawler::handle_enter_list_event(List::AsyncListIface::O
         break;
 
       case List::QueryContextEnterList::CallerID::CRAWLER_RESET_POSITION:
+      case List::QueryContextEnterList::CallerID::CRAWLER_RESUME_FROM_POSITION:
         switch(result)
         {
           case List::AsyncListIface::OpResult::STARTED:
@@ -1244,7 +1303,8 @@ void Playlist::DirectoryCrawler::handle_enter_list_event(List::AsyncListIface::O
 
             directory_depth_ = marked_position_.get_directory_depth() - 1;
 
-            if(!handle_entered_list(ctx->parameters_.line_, LineRelative::START_OF_LIST, false))
+            if(!handle_entered_list(ctx->parameters_.line_, LineRelative::START_OF_LIST, false,
+                                    cid == List::QueryContextEnterList::CallerID::CRAWLER_RESUME_FROM_POSITION))
                 is_resetting_to_marked_position_ = false;
 
             break;

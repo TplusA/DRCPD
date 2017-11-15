@@ -92,6 +92,15 @@ class DirectoryCrawler: public CrawlerIface
             arrived_direction_(Direction::NONE)
         {}
 
+        explicit MarkedPosition(ID::List list_id, unsigned int line,
+                                unsigned int depth = 1,
+                                Direction dir = Direction::NONE):
+            list_id_(list_id),
+            line_(line),
+            directory_depth_(depth),
+            arrived_direction_(dir)
+        {}
+
         void set(ID::List list_id, unsigned int line)
         {
             list_id_ = list_id;
@@ -241,9 +250,10 @@ class DirectoryCrawler: public CrawlerIface
      * Whether or not we are waiting for async D-Bus enter-list completion.
      *
      * This member is only modified in the D-Bus list watcher functions, all
-     * other accesses should be read-only. There is a single exception:
-     * function #Playlist::DirectoryCrawler::configure_and_restart() assigns
-     * \c false to this member.
+     * other accesses should be read-only. There are two exceptions: functions
+     * #Playlist::DirectoryCrawler::configure_and_restart() and
+     * #Playlist::DirectoryCrawler::configure_and_resume() both assign \c false
+     * to this member.
      */
     bool is_waiting_for_async_enter_list_completion_;
 
@@ -251,9 +261,10 @@ class DirectoryCrawler: public CrawlerIface
      * Whether or not we are waiting for async D-Bus get-item completion.
      *
      * This member is only modified in the D-Bus list watcher functions, all
-     * other accesses should be read-only. There is a single exception:
-     * function #Playlist::DirectoryCrawler::configure_and_restart() assigns
-     * \c false to this member.
+     * other accesses should be read-only. There are two exceptions: functions
+     * #Playlist::DirectoryCrawler::configure_and_restart() and
+     * #Playlist::DirectoryCrawler::configure_and_resume() both assign \c false
+     * to this member.
      */
     bool is_waiting_for_async_get_list_item_completion_;
 
@@ -306,6 +317,9 @@ class DirectoryCrawler: public CrawlerIface
     bool set_start_position(const List::DBusList &start_list,
                             int start_line_number);
 
+    bool set_start_position(MarkedPosition &&reference_point,
+                            MarkedPosition &&resume_position);
+
     const MarkedPosition &get_start_position() const
     {
         return user_start_position_;
@@ -357,6 +371,7 @@ class DirectoryCrawler: public CrawlerIface
 
   protected:
     bool restart() final override;
+    bool resume(I18n::String &&root_list_title) final override;
     bool is_busy_impl() const final override;
     void switch_direction() final override;
     FindNextFnResult find_next_impl(FindNextCallback callback) final override;
@@ -378,6 +393,10 @@ class DirectoryCrawler: public CrawlerIface
     }
 
   private:
+    bool do_restart_or_resume(List::QueryContextEnterList::CallerID cid,
+                              const char *what,
+                              const std::function<List::AsyncListIface::OpResult()> &enter_list_fn);
+
     bool go_to_next_list_item()
     {
         return is_crawling_forward() ? navigation_.down() : navigation_.up();
@@ -386,11 +405,13 @@ class DirectoryCrawler: public CrawlerIface
     RecurseResult try_descend(const FindNextCallback &callback);
     FindNextFnResult handle_end_of_list(const FindNextCallback &callback);
     bool handle_entered_list(unsigned int line, LineRelative line_relative,
-                             bool continue_if_empty);
+                             bool continue_if_empty,
+                             bool current_item_is_next = false);
     void handle_entered_list_failed(List::QueryContextEnterList::CallerID cid,
                                     List::AsyncListIface::OpResult op_result);
     List::AsyncListIface::OpResult back_to_parent(const FindNextCallback &callback);
 
+    bool try_pass_on_current_item(const FindNextCallback &callback, bool *should_retry = nullptr);
     bool try_get_dbuslist_item_after_started_or_successful_hint(const FindNextCallback &callback);
     RecurseResult process_current_ready_item(const ViewFileBrowser::FileItem *file_item,
                                              List::AsyncListIface::OpResult op_result,

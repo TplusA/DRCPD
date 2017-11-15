@@ -147,6 +147,7 @@ class QueryContextEnterList: public QueryContext_
         RELOAD_LIST,
         CRAWLER_RESTART,
         CRAWLER_RESET_POSITION,
+        CRAWLER_RESUME_FROM_POSITION,
         CRAWLER_DESCEND,
         CRAWLER_ASCEND,
     };

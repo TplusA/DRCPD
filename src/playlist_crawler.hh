@@ -148,6 +148,19 @@ class CrawlerIface
         return restart();
     }
 
+    bool configure_and_resume(RecursiveMode recursive_mode,
+                              ShuffleMode shuffle_mode,
+                              bool resume_crawling_forward,
+                              I18n::String &&root_list_title)
+    {
+        recursive_mode_ = recursive_mode;
+        shuffle_mode_ = shuffle_mode;
+        crawler_state_ = CrawlerState::NOT_STARTED;
+        is_crawling_forward_ = resume_crawling_forward;
+
+        return resume(std::move(root_list_title));
+    }
+
     bool is_attached_to_player() const { return is_attached_to_player_; }
     bool is_crawling_forward() const { return is_crawling_forward_; }
     CrawlerState get_crawler_state() const { return crawler_state_; }
@@ -350,6 +363,14 @@ class CrawlerIface
      * Start position is defined by the implementation of this interface.
      */
     virtual bool restart() = 0;
+
+    /*!
+     * Resume the crawler using predefined coordinates.
+     *
+     * This function is like #Playlist::CrawlerIface::restart(), but it uses a
+     * preset marked position as reference.
+     */
+    virtual bool resume(I18n::String &&root_list_title) = 0;
 
     virtual bool is_busy_impl() const = 0;
     virtual void switch_direction() = 0;

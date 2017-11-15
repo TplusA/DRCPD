@@ -251,6 +251,7 @@ void ViewFileBrowser::AirableView::handle_enter_list_event(List::AsyncListIface:
       case List::QueryContextEnterList::CallerID::RELOAD_LIST:
       case List::QueryContextEnterList::CallerID::CRAWLER_RESTART:
       case List::QueryContextEnterList::CallerID::CRAWLER_RESET_POSITION:
+      case List::QueryContextEnterList::CallerID::CRAWLER_RESUME_FROM_POSITION:
       case List::QueryContextEnterList::CallerID::CRAWLER_DESCEND:
       case List::QueryContextEnterList::CallerID::CRAWLER_ASCEND:
         break;
