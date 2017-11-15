@@ -20,6 +20,7 @@
 #define VIEW_INACTIVE_HH
 
 #include "view.hh"
+#include "view_manager.hh"
 #include "view_serialize.hh"
 #include "view_names.hh"
 
@@ -37,17 +38,32 @@ namespace ViewInactive
 
 class View: public ViewIface, public ViewSerializeBase
 {
+  private:
+    bool enable_deselect_notifications_;
+
   public:
     View(const View &) = delete;
     View &operator=(const View &) = delete;
 
-    explicit View(const char *on_screen_name):
-        ViewIface(ViewNames::INACTIVE, false, nullptr),
-        ViewSerializeBase(on_screen_name, ViewID::INVALID)
+    explicit View(const char *on_screen_name, ViewManager::VMIface *vm):
+        ViewIface(ViewNames::INACTIVE, false, vm),
+        ViewSerializeBase(on_screen_name, ViewID::INVALID),
+        enable_deselect_notifications_(false)
     {}
 
+    void enable_deselect_notifications()
+    {
+        enable_deselect_notifications_ = true;
+    }
+
     bool init() override { return true; }
-    void focus() override {}
+
+    void focus() override
+    {
+        if(enable_deselect_notifications_)
+            view_manager_->deselected_notification();
+    }
+
     void defocus() override {}
 
     InputResult process_event(UI::ViewEventID event_id,

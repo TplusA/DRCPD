@@ -1361,10 +1361,21 @@ void Player::Control::play_notification(ID::Stream stream_id,
                 player_->get_stream_preplay_info(ID::OurStream::make_from_generic_id(stream_id));
 
             if(info != nullptr)
+            {
                 crawler->mark_position(info->list_id_, info->line_, info->directory_depth_,
                                        info->is_crawler_direction_reverse_
                                        ? Playlist::CrawlerIface::Direction::BACKWARD
                                        : Playlist::CrawlerIface::Direction::FORWARD);
+
+                if(audio_source_ != nullptr)
+                {
+                    const auto &refpoint(crawler->get_start_position());
+                    audio_source_->resume_data_update(
+                        Player::CrawlerResumeData(refpoint.get_list_id(),
+                                                  refpoint.get_line(),
+                                                  info->list_id_, info->line_));
+                }
+            }
             else
                 BUG("No list position for stream %u", stream_id.get_raw_id());
         }
@@ -1372,6 +1383,12 @@ void Player::Control::play_notification(ID::Stream stream_id,
         enforce_intention(player_->get_intention(), Player::StreamState::PLAYING,
                           audio_source_);
     }
+}
+
+static inline void clear_resume_data(Player::AudioSource *audio_source)
+{
+    if(audio_source != nullptr)
+        audio_source->resume_data_reset();
 }
 
 Player::Control::StopReaction
@@ -1417,8 +1434,12 @@ Player::Control::stop_notification(ID::Stream stream_id)
     /* stream stopped playing with no error---good? */
     switch(intention)
     {
-      case UserIntention::NOTHING:
       case UserIntention::STOPPING:
+        clear_resume_data(audio_source_);
+
+        /* fall-through */
+
+      case UserIntention::NOTHING:
         crawler_->configure_and_restart(crawler_->get_recursive_mode(),
                                         crawler_->get_shuffle_mode());
         return StopReaction::STOPPED;
@@ -1494,6 +1515,9 @@ Player::Control::stop_notification(ID::Stream stream_id)
 
       case Playlist::CrawlerIface::FindNextFnResult::STOPPED_AT_START_OF_LIST:
       case Playlist::CrawlerIface::FindNextFnResult::STOPPED_AT_END_OF_LIST:
+        clear_resume_data(audio_source_);
+        break;
+
       case Playlist::CrawlerIface::FindNextFnResult::FAILED:
         break;
     }
@@ -1707,8 +1731,12 @@ Player::Control::stop_notification(ID::Stream stream_id,
 
     switch(intention)
     {
-      case UserIntention::NOTHING:
       case UserIntention::STOPPING:
+        clear_resume_data(audio_source_);
+
+        /* fall-through */
+
+      case UserIntention::NOTHING:
         crawler_->configure_and_restart(crawler_->get_recursive_mode(),
                                         crawler_->get_shuffle_mode());
         return StopReaction::STOPPED;
@@ -1866,6 +1894,9 @@ Player::Control::stop_notification(ID::Stream stream_id,
 
       case Playlist::CrawlerIface::FindNextFnResult::STOPPED_AT_START_OF_LIST:
       case Playlist::CrawlerIface::FindNextFnResult::STOPPED_AT_END_OF_LIST:
+        clear_resume_data(audio_source_);
+        break;
+
       case Playlist::CrawlerIface::FindNextFnResult::FAILED:
         break;
     }

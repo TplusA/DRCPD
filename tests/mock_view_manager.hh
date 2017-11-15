@@ -64,7 +64,11 @@ class MockViewManager: public ViewManager::VMIface, public UI::EventStoreIface
     bool invoke_late_init_functions() override;
     void set_output_stream(std::ostream &os) override;
     void set_debug_stream(std::ostream &os) override;
+    void set_resume_playback_configuration_file(const char *filename) override;
+    void deselected_notification() override;
+    void shutdown() override;
     void language_settings_changed_notification() override;
+    const char *get_resume_url_by_audio_source_id(const std::string &id) const override;
     void serialization_result(DCP::Transaction::Result result) override;
     ViewIface::InputResult input_bounce(const ViewManager::InputBouncer &bouncer, UI::ViewEventID event_id, std::unique_ptr<const UI::Parameters> parameters) override;
     ViewIface *get_view_by_name(const char *view_name) override;

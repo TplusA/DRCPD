@@ -388,9 +388,30 @@ void MockViewManager::set_debug_stream(std::ostream &os)
     cut_fail("Not implemented");
 }
 
+void MockViewManager::set_resume_playback_configuration_file(const char *filename)
+{
+    cut_fail("Not implemented");
+}
+
+void MockViewManager::deselected_notification()
+{
+    cut_fail("Not implemented");
+}
+
+void MockViewManager::shutdown()
+{
+    cut_fail("Not implemented");
+}
+
 void MockViewManager::language_settings_changed_notification()
 {
     cut_fail("Not implemented");
+}
+
+const char *MockViewManager::get_resume_url_by_audio_source_id(const std::string &id) const
+{
+    cut_fail("Not implemented");
+    return nullptr;
 }
 
 void MockViewManager::store_event(UI::EventID event_id, std::unique_ptr<const UI::Parameters> parameters)

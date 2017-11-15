@@ -20,6 +20,8 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
+#include <string>
+
 #include "view_manager.hh"
 #include "view_filebrowser.hh"
 #include "view_nop.hh"
@@ -28,15 +30,25 @@
 
 static ViewNop::View nop_view;
 
+const char ViewManager::Manager::RESUME_CONFIG_SECTION__AUDIO_SOURCES[] = "audio sources";
+
 ViewManager::Manager::Manager(UI::EventQueue &event_queue, DCP::Queue &dcp_queue,
                               ViewManager::Manager::ConfigMgr &config_manager):
     ui_events_(event_queue),
     config_manager_(config_manager),
+    resume_playback_config_filename_(nullptr),
     active_view_(&nop_view),
     last_browse_view_(nullptr),
     dcp_transaction_queue_(dcp_queue),
     debug_stream_(nullptr)
-{}
+{
+    inifile_new(&resume_configuration_file_);
+}
+
+ViewManager::Manager::~Manager()
+{
+    inifile_free(&resume_configuration_file_);
+}
 
 static inline bool is_view_name_valid(const char *view_name)
 {
@@ -92,6 +104,59 @@ void ViewManager::Manager::set_debug_stream(std::ostream &os)
     debug_stream_ = &os;
 }
 
+void ViewManager::Manager::set_resume_playback_configuration_file(const char *filename)
+{
+    log_assert(filename != nullptr);
+    log_assert(filename[0] != '\0');
+
+    resume_playback_config_filename_ = filename;
+    inifile_free(&resume_configuration_file_);
+    inifile_parse_from_file(&resume_configuration_file_,
+                            resume_playback_config_filename_);
+}
+
+void ViewManager::Manager::deselected_notification()
+{
+    inifile_free(&resume_configuration_file_);
+    inifile_new(&resume_configuration_file_);
+
+    struct ini_section *const section =
+        inifile_new_section(&resume_configuration_file_,
+                            RESUME_CONFIG_SECTION__AUDIO_SOURCES,
+                            sizeof(RESUME_CONFIG_SECTION__AUDIO_SOURCES) - 1);
+
+    if(section != nullptr)
+    {
+        for(const auto &view : all_views_)
+        {
+            const auto *v = dynamic_cast<const ViewWithAudioSourceBase *>(view.second);
+
+            if(v == nullptr)
+                continue;
+
+            v->enumerate_audio_source_resume_urls(
+                [&section]
+                (const std::string &asrc_id, const std::string &url)
+                {
+                    inifile_section_store_value(section,
+                                                asrc_id.c_str(), asrc_id.length(),
+                                                url.c_str(), url.length());
+                });
+        }
+    }
+
+    /* we write the file also in case the section could not be created due to
+     * an out-of-memory condition because we don't want to keep around
+     * (sometimes *very*) outdated URLs */
+    inifile_write_to_file(&resume_configuration_file_,
+                          resume_playback_config_filename_);
+}
+
+void ViewManager::Manager::shutdown()
+{
+    deselected_notification();
+}
+
 void ViewManager::Manager::language_settings_changed_notification()
 {
     for(auto &view : all_views_)
@@ -101,6 +166,35 @@ void ViewManager::Manager::language_settings_changed_notification()
         dynamic_cast<ViewSerializeBase *>(active_view_)->serialize(dcp_transaction_queue_,
                                                                    DCP::Queue::Mode::SYNC_IF_POSSIBLE,
                                                                    debug_stream_);
+}
+
+const char *ViewManager::Manager::get_resume_url_by_audio_source_id(const std::string &id) const
+{
+    const struct ini_section *const section =
+        inifile_find_section(&resume_configuration_file_,
+                             RESUME_CONFIG_SECTION__AUDIO_SOURCES,
+                             sizeof(RESUME_CONFIG_SECTION__AUDIO_SOURCES) - 1);
+
+    const struct ini_key_value_pair *kv = (section == nullptr || id.empty())
+        ? nullptr
+        : inifile_section_lookup_kv_pair(section, id.c_str(), id.length());
+
+    if(kv == nullptr || kv->value == nullptr)
+    {
+        if(id.empty())
+            BUG("Tried to resume playback for empty audio source ID");
+        else
+            msg_error(0, LOG_NOTICE,
+                      "No resume data for audio source \"%s\" available",
+                      id.c_str());
+
+        return nullptr;
+    }
+
+    msg_vinfo(MESSAGE_LEVEL_NORMAL,
+              "Resume URL for %s: %s", id.c_str(), kv->value);
+
+    return kv->value;
 }
 
 void ViewManager::Manager::serialization_result(DCP::Transaction::Result result)

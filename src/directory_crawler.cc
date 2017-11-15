@@ -86,6 +86,56 @@ bool Playlist::DirectoryCrawler::set_start_position(const List::DBusList &start_
     return true;
 }
 
+std::string Playlist::DirectoryCrawler::generate_resume_url(const Player::CrawlerResumeData &rd,
+                                                            const std::string &asrc_id) const
+{
+    std::string result;
+
+    if(!rd.is_set())
+        return result;
+
+    const auto d(rd.get());
+
+    guchar raw_error_code;
+    gchar *trace;
+    GError *error = nullptr;
+
+    tdbus_lists_navigation_call_get_location_trace_sync(dbus_proxy_,
+                                                        d.current_list_id_.get_raw_id(),
+                                                        d.current_line_ + 1,
+                                                        d.reference_list_id_.get_raw_id(),
+                                                        d.reference_line_ + 1,
+                                                        &raw_error_code, &trace,
+                                                        nullptr, &error);
+
+    ListError list_error;
+
+    if(dbus_common_handle_error(&error, "Get location trace") < 0)
+        list_error = ListError::INTERNAL;
+    else
+        list_error = ListError(raw_error_code);
+
+    if(list_error.failed())
+        msg_error(0, LOG_ERR,
+                  "Failed getting location trace for audio source %s (%s)",
+                  asrc_id.c_str(), list_error.to_string());
+    else
+    {
+        result = trace;
+
+        if(result.empty())
+            msg_error(0, LOG_ERR,
+                      "Location trace for audio source %s is empty",
+                      asrc_id.c_str());
+    }
+
+
+    if(trace != nullptr)
+        g_free(trace);
+
+    return result;
+}
+
 bool Playlist::DirectoryCrawler::is_busy_impl() const
 {
     return is_waiting_for_async_enter_list_completion_ ||

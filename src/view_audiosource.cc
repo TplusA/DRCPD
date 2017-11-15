@@ -20,8 +20,24 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
+#include <string>
+
 #include "view_audiosource.hh"
 #include "dbus_iface_deep.h"
+
+void ViewWithAudioSourceBase::enumerate_audio_source_resume_urls(const ViewWithAudioSourceBase::EnumURLsCallback &cb) const
+{
+    if(cb == nullptr)
+        return;
+
+    for(const auto &asrc : audio_sources_)
+    {
+        const std::string url(generate_resume_url(asrc));
+
+        if(!url.empty())
+            cb(asrc.id_, url);
+    }
+}
 
 void ViewWithAudioSourceBase::audio_source_registered(GObject *source_object,
                                                       GAsyncResult *res,

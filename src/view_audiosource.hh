@@ -19,6 +19,7 @@
 #ifndef VIEW_AUDIOSOURCE_HH
 #define VIEW_AUDIOSOURCE_HH
 
+#include <string>
 #include <vector>
 #include <algorithm>
 #include <gio/gio.h>
@@ -42,11 +43,21 @@ class ViewWithAudioSourceBase
 
     virtual ~ViewWithAudioSourceBase() {}
 
+    using EnumURLsCallback =
+        std::function<void(const std::string &, const std::string &)>;
+
+    void enumerate_audio_source_resume_urls(const EnumURLsCallback &cb) const;
+
   protected:
     static void audio_source_registered(GObject *source_object,
                                         GAsyncResult *res, gpointer user_data);
 
     virtual bool register_audio_sources() = 0;
+
+    virtual std::string generate_resume_url(const Player::AudioSource &asrc) const
+    {
+        return "";
+    }
 
     void register_own_source_with_audio_path_manager(size_t idx,
                                                      const char *description);

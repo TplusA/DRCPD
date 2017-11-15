@@ -22,6 +22,7 @@
 #include <string>
 #include <functional>
 
+#include "player_resume_data.hh"
 #include "messages.h"
 
 struct _tdbussplayURLFIFO;
@@ -48,6 +49,8 @@ class AudioSource
   private:
     AudioSourceState state_;
     const StateChangedFn state_changed_callback_;
+
+    ResumeData resume_data_;
 
     struct _tdbussplayURLFIFO *urlfifo_proxy_;
     struct _tdbussplayPlayback *playback_proxy_;
@@ -142,6 +145,14 @@ class AudioSource
           case AudioSourceState::SELECTED:
             break;
         }
+    }
+
+    void resume_data_reset() { resume_data_.reset(); }
+    const ResumeData &get_resume_data() const { return resume_data_; }
+
+    void resume_data_update(CrawlerResumeData &&data)
+    {
+        resume_data_.crawler_data_ = std::move(data);
     }
 
   private:

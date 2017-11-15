@@ -549,6 +549,13 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
                                                      const std::shared_ptr<List::QueryContextEnterList> &ctx);
     virtual void handle_get_item_event(List::AsyncListIface::OpResult result,
                                        const std::shared_ptr<List::QueryContextGetItem> &ctx);
+
+    std::string generate_resume_url(const Player::AudioSource &asrc) const final override
+    {
+        auto crawler_lock(crawler_.lock());
+        return crawler_.generate_resume_url(asrc.get_resume_data().crawler_data_,
+                                            asrc.id_);
+    }
 };
 
 };

@@ -35,7 +35,7 @@ drcpd_SOURCES = \
     view_filebrowser_utils.hh view_play.hh \
     view_search.hh view_inactive.hh view_error_sink.hh error_sink.hh \
     player_permissions.hh player_permissions_airable.hh \
-    audiosource.hh \
+    audiosource.hh player_resume_data.hh \
     search_algo.hh \
     screen_ids.hh actor_id.h \
     configuration.hh configuration_base.hh configuration_changed.hh \
@@ -111,7 +111,7 @@ libviews_la_SOURCES = \
     view_src_roon.hh view_src_roon.cc \
     view_manager.hh view_manager.cc \
     player_permissions.hh player_permissions_airable.hh \
-    audiosource.hh \
+    audiosource.hh player_resume_data.hh \
     ui_events.hh ui_event_queue.hh \
     idtypes.hh stream_id.h stream_id.hh screen_ids.hh \
     playlist_crawler.hh directory_crawler.cc directory_crawler.hh \

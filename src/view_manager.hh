@@ -114,8 +114,14 @@ class VMIface
     virtual bool invoke_late_init_functions() = 0;
     virtual void set_output_stream(std::ostream &os) = 0;
     virtual void set_debug_stream(std::ostream &os) = 0;
+    virtual void set_resume_playback_configuration_file(const char *filename) = 0;
+
+    virtual void deselected_notification() = 0;
+    virtual void shutdown() = 0;
 
     virtual void language_settings_changed_notification() = 0;
+
+    virtual const char *get_resume_url_by_audio_source_id(const std::string &id) const = 0;
 
     /*!
      * End of DCP transmission, callback from I/O layer.
@@ -161,6 +167,10 @@ class Manager: public VMIface, public UI::EventStoreIface
 
     ConfigMgr &config_manager_;
 
+    static const char RESUME_CONFIG_SECTION__AUDIO_SOURCES[];
+    const char *resume_playback_config_filename_;
+    struct ini_file resume_configuration_file_;
+
     ViewIface *active_view_;
     ViewIface *last_browse_view_;
     DCP::Queue &dcp_transaction_queue_;
@@ -173,12 +183,19 @@ class Manager: public VMIface, public UI::EventStoreIface
     explicit Manager(UI::EventQueue &event_queue, DCP::Queue &dcp_queue,
                      ConfigMgr &config_manager);
 
+    virtual ~Manager();
+
     bool add_view(ViewIface *view) override;
     bool invoke_late_init_functions() override;
     void set_output_stream(std::ostream &os) override;
     void set_debug_stream(std::ostream &os) override;
+    void set_resume_playback_configuration_file(const char *filename) override;
+    void deselected_notification() override;
+    void shutdown() override;
 
     void language_settings_changed_notification() override;
+
+    const char *get_resume_url_by_audio_source_id(const std::string &id) const override;
 
     void serialization_result(DCP::Transaction::Result result) override;
 

@@ -278,8 +278,10 @@ error_dcp_fifo_out:
     return -1;
 }
 
-static void shutdown(struct files_t *files)
+static void shutdown(ViewManager::VMIface &view_manager, struct files_t *files)
 {
+    view_manager.shutdown();
+
     fifo_close(&files->dcp_fifo.in_fd);
     fifo_close(&files->dcp_fifo.out_fd);
 }
@@ -511,7 +513,7 @@ static void connect_everything(ViewManager::Manager &views,
                                I18nConfigMgr &i18n_config_manager)
 {
     static ViewErrorSink::View error_sink(N_("Error"), &views);
-    static ViewInactive::View inactive("Inactive");
+    static ViewInactive::View inactive("Inactive", &views);
     static ViewFileBrowser::View fs(ViewNames::BROWSER_FILESYSTEM,
                                     N_("USB mass storage devices"), 1,
                                     views.NUMBER_OF_LINES_ON_DISPLAY,
@@ -593,6 +595,8 @@ static void connect_everything(ViewManager::Manager &views,
         });
 
     views.sync_activate_view_by_name(ViewNames::INACTIVE, true);
+
+    inactive.enable_deselect_notifications();
 }
 
 static gboolean signal_handler(gpointer user_data)
@@ -634,6 +638,7 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
 
     static const char configuration_file_name[] = "/var/local/etc/drcpd.ini";
+    static const char resume_config_file_name[] = "/var/local/etc/resume.ini";
 
     static const Configuration::DrcpdValues default_drcpd_settings(0);
     ViewManager::Manager::ConfigMgr
@@ -663,6 +668,7 @@ int main(int argc, char *argv[])
 
     view_manager.set_output_stream(fd_out);
     view_manager.set_debug_stream(std::cout);
+    view_manager.set_resume_playback_configuration_file(resume_config_file_name);
 
     language_changed(i18n_config_manager, view_manager, true);
     ui_events_processing_data.vm = &view_manager;
@@ -682,7 +688,7 @@ int main(int argc, char *argv[])
     msg_vinfo(MESSAGE_LEVEL_IMPORTANT, "Shutting down");
 
     fd_sbuf.set_fd(-1);
-    shutdown(&files);
+    shutdown(view_manager, &files);
     dbus_shutdown();
 
     return EXIT_SUCCESS;

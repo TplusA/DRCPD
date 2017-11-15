@@ -22,6 +22,7 @@
 #include <string>
 
 #include "playlist_crawler.hh"
+#include "player_resume_data.hh"
 #include "dbuslist.hh"
 #include "listnav.hh"
 #include "cacheenforcer.hh"
@@ -305,6 +306,11 @@ class DirectoryCrawler: public CrawlerIface
     bool set_start_position(const List::DBusList &start_list,
                             int start_line_number);
 
+    const MarkedPosition &get_start_position() const
+    {
+        return user_start_position_;
+    }
+
     void mark_current_position() final override;
 
     bool set_direction_from_marked_position() final override;
@@ -315,6 +321,9 @@ class DirectoryCrawler: public CrawlerIface
         log_assert(list_id.is_valid());
         marked_position_.set(list_id, line, directory_depth, arrived_direction);
     }
+
+    std::string generate_resume_url(const Player::CrawlerResumeData &rd,
+                                    const std::string &asrc_id) const;
 
     bool list_invalidate(ID::List list_id, ID::List replacement_id);
 
