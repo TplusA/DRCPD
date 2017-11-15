@@ -95,6 +95,43 @@ bool Playlist::DirectoryCrawler::set_start_position(MarkedPosition &&reference_p
     return true;
 }
 
+uint32_t Playlist::DirectoryCrawler::recover_state_from_url_request(const std::string &url)
+{
+    guchar raw_error_code;
+    guint cookie;
+    GError *error = nullptr;
+
+    tdbus_lists_navigation_call_realize_location_sync(dbus_proxy_, url.c_str(),
+                                                      &raw_error_code, &cookie,
+                                                      nullptr, &error);
+
+    if(dbus_common_handle_error(&error, "Realize location") < 0)
+        return 0;
+
+    const ListError list_error(raw_error_code);
+
+    if(list_error.failed())
+    {
+        msg_error(0, LOG_NOTICE, "Failed realizing location \"%s\" (%s)",
+                  url.c_str(), list_error.to_string());
+        return 0;
+    }
+
+    msg_vinfo(MESSAGE_LEVEL_DIAG,
+              "Waiting for notification for \"%s\" from list broker [%u]",
+              url.c_str(), cookie);
+
+    return cookie;
+}
+
+void Playlist::DirectoryCrawler::recover_state_from_url_abort(uint32_t cookie)
+{
+    if(cookie != 0)
+        tdbus_lists_navigation_call_abort_realize_location(dbus_proxy_, cookie,
+                                                           nullptr, nullptr,
+                                                           nullptr);
+}
+
 std::string Playlist::DirectoryCrawler::generate_resume_url(const Player::CrawlerResumeData &rd,
                                                             const std::string &asrc_id) const
 {

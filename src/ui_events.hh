@@ -75,8 +75,9 @@ enum class ViewEventID
     AUDIO_SOURCE_SELECTED,
     AUDIO_SOURCE_DESELECTED,
     AUDIO_PATH_CHANGED,
+    PLAYBACK_TRY_RESUME,
 
-    LAST_VIEW_EVENT_ID = AUDIO_PATH_CHANGED,
+    LAST_VIEW_EVENT_ID = PLAYBACK_TRY_RESUME,
 };
 
 /*!
@@ -86,8 +87,9 @@ enum class BroadcastEventID
 {
     NOP,
     CONFIGURATION_UPDATED,
+    STRBO_URL_RESOLVED,
 
-    LAST_EVENT_ID = CONFIGURATION_UPDATED,
+    LAST_EVENT_ID = STRBO_URL_RESOLVED,
 };
 
 /*!
@@ -153,6 +155,7 @@ enum class EventID
     PLAYBACK_COMMAND_START       = mk_event_id(ViewEventID::PLAYBACK_COMMAND_START),
     PLAYBACK_COMMAND_STOP        = mk_event_id(ViewEventID::PLAYBACK_COMMAND_STOP),
     PLAYBACK_COMMAND_PAUSE       = mk_event_id(ViewEventID::PLAYBACK_COMMAND_PAUSE),
+    PLAYBACK_TRY_RESUME          = mk_event_id(ViewEventID::PLAYBACK_TRY_RESUME),
     PLAYBACK_PREVIOUS            = mk_event_id(ViewEventID::PLAYBACK_PREVIOUS),
     PLAYBACK_NEXT                = mk_event_id(ViewEventID::PLAYBACK_NEXT),
     PLAYBACK_FAST_WIND_SET_SPEED = mk_event_id(ViewEventID::PLAYBACK_FAST_WIND_SET_SPEED),
@@ -179,6 +182,7 @@ enum class EventID
     VIEW_SEARCH_COMMENCE         = mk_event_id(ViewEventID::SEARCH_COMMENCE),
     VIEW_SEARCH_STORE_PARAMETERS = mk_event_id(ViewEventID::SEARCH_STORE_PARAMETERS),
     VIEW_PLAYER_STORE_PRELOADED_META_DATA = mk_event_id(ViewEventID::STORE_PRELOADED_META_DATA),
+    VIEW_STRBO_URL_RESOLVED      = mk_event_id(BroadcastEventID::STRBO_URL_RESOLVED),
 
     /* =====================
      * Passive notifications

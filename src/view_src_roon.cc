@@ -31,6 +31,7 @@ class RoonPermissions: public Player::DefaultLocalPermissions
 
     constexpr explicit RoonPermissions() {}
 
+    bool can_resume()               const override { return false; }
     bool can_set_shuffle()          const override { return false; }
     bool can_repeat_single()        const override { return false; }
     bool can_repeat_all()           const override { return false; }

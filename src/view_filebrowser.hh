@@ -28,6 +28,7 @@
 #include "listnav.hh"
 #include "search_parameters.hh"
 #include "player_permissions.hh"
+#include "player_resumer.hh"
 #include "timeout.hh"
 #include "dbuslist.hh"
 #include "dbus_iface.h"
@@ -315,6 +316,7 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
     Playlist::DirectoryCrawler crawler_;
     Playlist::CrawlerIface::RecursiveMode default_recursive_mode_;
     Playlist::CrawlerIface::ShuffleMode default_shuffle_mode_;
+    std::unique_ptr<Player::Resumer> resumer_;
 
   protected:
     const uint8_t drcp_browse_id_;
@@ -382,7 +384,7 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
     InputResult process_event(UI::ViewEventID event_id,
                               std::unique_ptr<const UI::Parameters> parameters) override;
     void process_broadcast(UI::BroadcastEventID event_id,
-                           const UI::Parameters *parameters) final override {}
+                           const UI::Parameters *parameters) final override;
 
     void serialize(DCP::Queue &queue, DCP::Queue::Mode mode,
                    std::ostream *debug_os) final override;
@@ -534,6 +536,8 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
     bool apply_search_parameters();
 
     std::chrono::milliseconds keep_lists_alive_timer_callback();
+
+    void resume_request();
 
   protected:
     virtual void handle_enter_list_event(List::AsyncListIface::OpResult result,

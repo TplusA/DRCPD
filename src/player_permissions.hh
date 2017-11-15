@@ -35,6 +35,7 @@ class LocalPermissionsIface
 
     virtual bool can_play() const = 0;
     virtual bool can_pause() const = 0;
+    virtual bool can_resume() const = 0;
     virtual bool can_skip_backward() const = 0;
     virtual bool can_skip_forward() const = 0;
     virtual bool can_fast_wind_backward() const = 0;
@@ -61,6 +62,7 @@ class DefaultLocalPermissions: public LocalPermissionsIface
 
     bool can_play()                 const override { return true; }
     bool can_pause()                const override { return true; }
+    bool can_resume()               const override { return true; }
     bool can_skip_backward()        const override { return true; }
     bool can_skip_forward()         const override { return true; }
     bool can_fast_wind_backward()   const override { return true; }

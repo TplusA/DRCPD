@@ -31,6 +31,8 @@
 #include "playback_modes.hh"
 #include "configuration_drcpd.hh"
 #include "gvariantwrapper.hh"
+#include "i18nstring.hh"
+#include "de_tahifi_lists_errors.hh"
 
 namespace UI
 {
@@ -159,6 +161,16 @@ struct ParamTraits<EventID::VIEW_PLAYER_PLAYBACK_MODE_CHANGED>
 {
     using PType = SpecificParameters<std::tuple<const DBus::ReportedRepeatMode,
                                                 const DBus::ReportedShuffleMode>>;
+};
+
+template <>
+struct ParamTraits<EventID::VIEW_STRBO_URL_RESOLVED>
+{
+    using PType = SpecificParameters<std::tuple<const uint32_t, const ListError,
+                                                const ID::List, const unsigned int,
+                                                const ID::List, const unsigned int,
+                                                const size_t, const size_t,
+                                                const I18n::String>>;
 };
 
 template <>

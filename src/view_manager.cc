@@ -317,6 +317,7 @@ static void log_event_dispatch(const UI::ViewEventID event_id,
         "AUDIO_SOURCE_SELECTED",
         "AUDIO_SOURCE_DESELECTED",
         "AUDIO_PATH_CHANGED",
+        "PLAYBACK_TRY_RESUME",
     };
 
     static_assert(events[events.size() - 1] != nullptr, "Table too short");
@@ -336,6 +337,7 @@ static void log_event_dispatch(const UI::BroadcastEventID event_id,
     {
         "NOP",
         "CONFIGURATION_UPDATED",
+        "STRBO_URL_RESOLVED",
     };
 
     static_assert(events[events.size() - 1] != nullptr, "Table too short");

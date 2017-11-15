@@ -73,6 +73,8 @@ void dbussignal_dcpd_playback(GDBusProxy *proxy, const gchar *sender_name,
         data->event_sink_.store_event(UI::EventID::PLAYBACK_COMMAND_STOP);
     else if(strcmp(signal_name, "Pause") == 0)
         data->event_sink_.store_event(UI::EventID::PLAYBACK_COMMAND_PAUSE);
+    else if(strcmp(signal_name, "Resume") == 0)
+        data->event_sink_.store_event(UI::EventID::PLAYBACK_TRY_RESUME);
     else if(strcmp(signal_name, "Next") == 0)
         data->event_sink_.store_event(UI::EventID::PLAYBACK_NEXT);
     else if(strcmp(signal_name, "Previous") == 0)
@@ -295,6 +297,34 @@ void dbussignal_lists_navigation(GDBusProxy *proxy, const gchar *sender_name,
             UI::Events::mk_params<UI::EventID::VIEWMAN_INVALIDATE_LIST_ID>(
                 static_cast<void *>(proxy), list_id, new_list_id);
         data->event_sink_.store_event(UI::EventID::VIEWMAN_INVALIDATE_LIST_ID,
+                                      std::move(params));
+    }
+    else if(strcmp(signal_name, "RealizeLocationResult") == 0)
+    {
+        guint cookie;
+        guchar raw_error_code;
+        guint raw_list_id;
+        guint item_id;
+        guint raw_ref_list_id;
+        guint ref_item_id;
+        guint distance;
+        guint trace_length;
+        const gchar *raw_list_title;
+        gboolean list_title_translatable;
+
+        g_variant_get(parameters, "(uyuuuuuusb)", &cookie, &raw_error_code,
+                      &raw_list_id, &item_id,
+                      &raw_ref_list_id, &ref_item_id,
+                      &distance, &trace_length,
+                      &raw_list_title, &list_title_translatable);
+
+        auto params =
+            UI::Events::mk_params<UI::EventID::VIEW_STRBO_URL_RESOLVED>(
+                cookie, ListError(raw_error_code),
+                ID::List(raw_list_id), item_id,
+                ID::List(raw_ref_list_id), ref_item_id, distance, trace_length,
+                I18n::String(list_title_translatable, raw_list_title));
+        data->event_sink_.store_event(UI::EventID::VIEW_STRBO_URL_RESOLVED,
                                       std::move(params));
     }
     else

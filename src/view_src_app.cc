@@ -31,6 +31,7 @@ class AppPermissions: public Player::DefaultLocalPermissions
 
     constexpr explicit AppPermissions() {}
 
+    bool can_resume()               const override { return false; }
     bool can_skip_backward()        const override { return false; }
     bool can_skip_forward()         const override { return false; }
     bool can_set_shuffle()          const override { return false; }

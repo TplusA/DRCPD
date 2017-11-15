@@ -41,6 +41,12 @@ namespace ViewPlay
 
 extern const MetaData::Reformatters meta_data_reformatters;
 
+enum class PlayMode
+{
+    FRESH_START,
+    RESUME,
+};
+
 class View: public ViewIface, public ViewSerializeBase
 {
   private:
@@ -95,7 +101,7 @@ class View: public ViewIface, public ViewSerializeBase
                                const ViewIface &associated_view);
 
     void prepare_for_playing(Player::AudioSource &audio_source,
-                             Playlist::CrawlerIface &crawler,
+                             Playlist::CrawlerIface &crawler, PlayMode how,
                              const Player::LocalPermissionsIface &permissions);
     void stop_playing(const Player::AudioSource &audio_source);
     void append_referenced_lists(const Player::AudioSource &audio_source,

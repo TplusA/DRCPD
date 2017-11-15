@@ -336,6 +336,8 @@ class DirectoryCrawler: public CrawlerIface
         marked_position_.set(list_id, line, directory_depth, arrived_direction);
     }
 
+    uint32_t recover_state_from_url_request(const std::string &url) override;
+    void recover_state_from_url_abort(uint32_t cookie) override;
     std::string generate_resume_url(const Player::CrawlerResumeData &rd,
                                     const std::string &asrc_id) const;
 

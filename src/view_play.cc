@@ -64,7 +64,7 @@ void ViewPlay::View::plug_audio_source(Player::AudioSource &audio_source,
 }
 
 void ViewPlay::View::prepare_for_playing(Player::AudioSource &audio_source,
-                                         Playlist::CrawlerIface &crawler,
+                                         Playlist::CrawlerIface &crawler, PlayMode how,
                                          const Player::LocalPermissionsIface &permissions)
 {
     const auto lock_ctrl(player_control_.lock());
@@ -79,7 +79,15 @@ void ViewPlay::View::prepare_for_playing(Player::AudioSource &audio_source,
         if(!player_control_.is_crawler_plugged(crawler))
             player_control_.plug(crawler, permissions);
 
-        player_control_.jump_to_crawler_location();
+        switch(how)
+        {
+          case PlayMode::FRESH_START:
+            player_control_.jump_to_crawler_location();
+            break;
+
+          case PlayMode::RESUME:
+            break;
+        }
     }
     else
     {
@@ -680,6 +688,7 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
       case UI::ViewEventID::SEARCH_COMMENCE:
       case UI::ViewEventID::SEARCH_STORE_PARAMETERS:
       case UI::ViewEventID::NOTIFY_AIRABLE_SERVICE_LOGIN_STATUS_UPDATE:
+      case UI::ViewEventID::PLAYBACK_TRY_RESUME:
         BUG("Unexpected view event 0x%08x for play view",
             static_cast<unsigned int>(event_id));
 
@@ -698,6 +707,7 @@ void ViewPlay::View::process_broadcast(UI::BroadcastEventID event_id,
     switch(event_id)
     {
       case UI::BroadcastEventID::NOP:
+      case UI::BroadcastEventID::STRBO_URL_RESOLVED:
         break;
 
       case UI::BroadcastEventID::CONFIGURATION_UPDATED:

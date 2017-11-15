@@ -161,6 +161,9 @@ class CrawlerIface
         return resume(std::move(root_list_title));
     }
 
+    virtual uint32_t recover_state_from_url_request(const std::string &url) = 0;
+    virtual void recover_state_from_url_abort(uint32_t cookie) = 0;
+
     bool is_attached_to_player() const { return is_attached_to_player_; }
     bool is_crawling_forward() const { return is_crawling_forward_; }
     CrawlerState get_crawler_state() const { return crawler_state_; }
