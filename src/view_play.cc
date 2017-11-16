@@ -756,6 +756,20 @@ static const std::string &get_bitrate(const MetaData::Set &md)
     return md.values_[MetaData::Set::BITRATE_MIN];
 }
 
+static bool want_artist_track_album(const MetaData::Set &md)
+{
+    const auto &tags(md.values_);
+
+    if(!tags[MetaData::Set::ARTIST].empty() ||
+       !tags[MetaData::Set::TITLE].empty() ||
+       !tags[MetaData::Set::ALBUM].empty())
+        return true;
+
+    return (tags[MetaData::Set::INTERNAL_DRCPD_OPAQUE_LINE_1].empty() &&
+            tags[MetaData::Set::INTERNAL_DRCPD_OPAQUE_LINE_2].empty() &&
+            tags[MetaData::Set::INTERNAL_DRCPD_OPAQUE_LINE_3].empty());
+}
+
 bool ViewPlay::View::write_xml(std::ostream &os, uint32_t bits,
                                const DCP::Queue::Data &data)
 {
@@ -773,26 +787,32 @@ bool ViewPlay::View::write_xml(std::ostream &os, uint32_t bits,
            << "</text>";
     else if((update_flags & UPDATE_FLAGS_META_DATA) != 0)
     {
-        os << "<text id=\"artist\">"
-           << XmlEscape(md.values_[MetaData::Set::ARTIST])
-           << "</text>";
-        os << "<text id=\"track\">"
-           << XmlEscape(md.values_[MetaData::Set::TITLE])
-           << "</text>";
+        if(want_artist_track_album(md))
+        {
+            os << "<text id=\"artist\">"
+               << XmlEscape(md.values_[MetaData::Set::ARTIST])
+               << "</text>";
+            os << "<text id=\"track\">"
+               << XmlEscape(md.values_[MetaData::Set::TITLE])
+               << "</text>";
+            os << "<text id=\"album\">"
+               << XmlEscape(md.values_[MetaData::Set::ALBUM])
+               << "</text>";
+        }
+        else
+        {
+            os << "<text id=\"line0\">"
+               << XmlEscape(md.values_[MetaData::Set::INTERNAL_DRCPD_OPAQUE_LINE_1])
+               << "</text>";
+            os << "<text id=\"line1\">"
+               << XmlEscape(md.values_[MetaData::Set::INTERNAL_DRCPD_OPAQUE_LINE_2])
+               << "</text>";
+            os << "<text id=\"line2\">"
+               << XmlEscape(md.values_[MetaData::Set::INTERNAL_DRCPD_OPAQUE_LINE_3])
+               << "</text>";
+        }
         os << "<text id=\"alttrack\">"
            << XmlEscape(mk_alt_track_name(md))
-           << "</text>";
-        os << "<text id=\"album\">"
-           << XmlEscape(md.values_[MetaData::Set::ALBUM])
-           << "</text>";
-        os << "<text id=\"line0\">"
-           << XmlEscape(md.values_[MetaData::Set::INTERNAL_DRCPD_OPAQUE_LINE_1])
-           << "</text>";
-        os << "<text id=\"line1\">"
-           << XmlEscape(md.values_[MetaData::Set::INTERNAL_DRCPD_OPAQUE_LINE_2])
-           << "</text>";
-        os << "<text id=\"line2\">"
-           << XmlEscape(md.values_[MetaData::Set::INTERNAL_DRCPD_OPAQUE_LINE_3])
            << "</text>";
         os << "<text id=\"bitrate\">"
            << get_bitrate(md).c_str()
