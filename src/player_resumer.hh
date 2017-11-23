@@ -51,6 +51,21 @@ class Resumer
         cookie_(0)
     {}
 
+    ~Resumer()
+    {
+        switch(state_)
+        {
+          case RequestState::INITIALIZED:
+            break;
+
+          case RequestState::WAITING_FOR_AUDIO_SOURCE:
+          case RequestState::HAVE_AUDIO_SOURCE:
+          case RequestState::WAITING_FOR_LIST_BROKER:
+            Busy::clear(Busy::Source::RESUMING_PLAYBACK);
+            break;
+        }
+    }
+
     RequestState get_state() const { return state_; }
 
     bool set_url(const char *url)
@@ -60,6 +75,7 @@ class Resumer
         if(url == nullptr || url[0] == '\0')
             return false;
 
+        Busy::set(Busy::Source::RESUMING_PLAYBACK);
         url_ = url;
         state_ = RequestState::WAITING_FOR_AUDIO_SOURCE;
 

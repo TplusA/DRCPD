@@ -40,6 +40,7 @@ enum class Source
     GETTING_ITEM_STREAM_LINKS,
     GETTING_LIST_RANGE,
     CHECKING_LIST_RANGE,
+    RESUMING_PLAYBACK,
 
     /* specific to Airable */
     RESOLVING_AIRABLE_REDIRECT,
