@@ -1151,10 +1151,13 @@ void ViewFileBrowser::View::process_broadcast(UI::BroadcastEventID event_id,
                 break;
             }
 
+            Playlist::DirectoryCrawler::MarkedPosition start_pos(
+                        std::get<4>(plist).is_valid() ? std::get<4>(plist) : std::get<2>(plist),
+                        std::get<4>(plist).is_valid() ? std::get<5>(plist) : std::get<3>(plist));
+
             if(have_audio_source() &&
                crawler_.set_start_position(
-                    Playlist::DirectoryCrawler::MarkedPosition(
-                        std::get<4>(plist), std::get<5>(plist)),
+                    std::move(start_pos),
                     Playlist::DirectoryCrawler::MarkedPosition(
                         std::get<2>(plist), std::get<3>(plist),
                         std::get<6>(plist),

@@ -143,41 +143,59 @@ std::string Playlist::DirectoryCrawler::generate_resume_url(const Player::Crawle
     const auto d(rd.get());
 
     guchar raw_error_code;
-    gchar *trace;
+    gchar *location_url;
     GError *error = nullptr;
+    const char *what;
+    const char *dbus_error_message;
 
-    tdbus_lists_navigation_call_get_location_trace_sync(dbus_proxy_,
-                                                        d.current_list_id_.get_raw_id(),
-                                                        d.current_line_ + 1,
-                                                        d.reference_list_id_.get_raw_id(),
-                                                        d.reference_line_ + 1,
-                                                        &raw_error_code, &trace,
-                                                        nullptr, &error);
+    if(d.current_list_id_ == d.reference_list_id_)
+    {
+        what = "key";
+        dbus_error_message = "Get location key";
+        tdbus_lists_navigation_call_get_location_key_sync(dbus_proxy_,
+                                                          d.current_list_id_.get_raw_id(),
+                                                          d.current_line_ + 1,
+                                                          TRUE,
+                                                          &raw_error_code, &location_url,
+                                                          nullptr, &error);
+    }
+    else
+    {
+        what = "trace";
+        dbus_error_message = "Get location trace";
+        tdbus_lists_navigation_call_get_location_trace_sync(dbus_proxy_,
+                                                            d.current_list_id_.get_raw_id(),
+                                                            d.current_line_ + 1,
+                                                            d.reference_list_id_.get_raw_id(),
+                                                            d.reference_line_ + 1,
+                                                            &raw_error_code, &location_url,
+                                                            nullptr, &error);
+    }
 
     ListError list_error;
 
-    if(dbus_common_handle_error(&error, "Get location trace") < 0)
+    if(dbus_common_handle_error(&error, dbus_error_message) < 0)
         list_error = ListError::INTERNAL;
     else
         list_error = ListError(raw_error_code);
 
     if(list_error.failed())
         msg_error(0, LOG_ERR,
-                  "Failed getting location trace for audio source %s (%s)",
-                  asrc_id.c_str(), list_error.to_string());
+                  "Failed getting location %s for audio source %s (%s)",
+                  what, asrc_id.c_str(), list_error.to_string());
     else
     {
-        result = trace;
+        result = location_url;
 
         if(result.empty())
             msg_error(0, LOG_ERR,
-                      "Location trace for audio source %s is empty",
-                      asrc_id.c_str());
+                      "Location %s for audio source %s is empty",
+                      what, asrc_id.c_str());
     }
 
 
-    if(trace != nullptr)
-        g_free(trace);
+    if(location_url != nullptr)
+        g_free(location_url);
 
     return result;
 }
