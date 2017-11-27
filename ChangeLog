@@ -1,3 +1,23 @@
+2017-11-30  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 4.5 released.
+
+	* Playback: Resuming after switching between audio sources works now.
+
+	* Playback: Bit rate limitation setting works reliably now.
+
+	* Airable: Reload root listing of external service whose login status
+	  have been changed. This change relies on D-Bus API changes as used
+	  by listbrokers v3.3.
+
+	* Airable: Fix list context information in XML serialization for old
+	  navigation style (coming from the Airable root directory).
+
+	* Deezer: Locked out. It is possible to activate the Deezer source,
+	  but it will not work.
+
+	* UI: Avoid funny lines in lists ("Project-Id-Version: ...").
+
 2017-11-23  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 4.4 released.
