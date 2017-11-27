@@ -168,13 +168,9 @@ void ViewManager::Manager::language_settings_changed_notification()
                                                                    debug_stream_);
 }
 
-const char *ViewManager::Manager::get_resume_url_by_audio_source_id(const std::string &id) const
+static const char *do_get_resume_url_by_audio_source_id(const struct ini_section *const section,
+                                                        const std::string &id)
 {
-    const struct ini_section *const section =
-        inifile_find_section(&resume_configuration_file_,
-                             RESUME_CONFIG_SECTION__AUDIO_SOURCES,
-                             sizeof(RESUME_CONFIG_SECTION__AUDIO_SOURCES) - 1);
-
     const struct ini_key_value_pair *kv = (section == nullptr || id.empty())
         ? nullptr
         : inifile_section_lookup_kv_pair(section, id.c_str(), id.length());
@@ -195,6 +191,34 @@ const char *ViewManager::Manager::get_resume_url_by_audio_source_id(const std::s
               "Resume URL for %s: %s", id.c_str(), kv->value);
 
     return kv->value;
+}
+
+const char *ViewManager::Manager::get_resume_url_by_audio_source_id(const std::string &id) const
+{
+    return do_get_resume_url_by_audio_source_id(
+                inifile_find_section(&resume_configuration_file_,
+                                     RESUME_CONFIG_SECTION__AUDIO_SOURCES,
+                                     sizeof(RESUME_CONFIG_SECTION__AUDIO_SOURCES) - 1),
+                id);
+}
+
+std::string ViewManager::Manager::move_resume_url_by_audio_source_id(const std::string &id)
+{
+    struct ini_section *const section =
+        inifile_find_section(&resume_configuration_file_,
+                             RESUME_CONFIG_SECTION__AUDIO_SOURCES,
+                             sizeof(RESUME_CONFIG_SECTION__AUDIO_SOURCES) - 1);
+    const char *temp = do_get_resume_url_by_audio_source_id(section, id);
+
+    if(temp == nullptr)
+        return "";
+
+    std::string result(temp);
+
+    inifile_section_remove_value(section, RESUME_CONFIG_SECTION__AUDIO_SOURCES,
+                                 sizeof(RESUME_CONFIG_SECTION__AUDIO_SOURCES) - 1);
+
+    return result;
 }
 
 void ViewManager::Manager::serialization_result(DCP::Transaction::Result result)

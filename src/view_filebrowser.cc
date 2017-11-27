@@ -842,6 +842,61 @@ static ViewIface::InputResult move_up_multi(List::Nav &navigation,
     return moved ? ViewIface::InputResult::UPDATE_NEEDED : ViewIface::InputResult::OK;
 }
 
+void ViewFileBrowser::View::try_resume_from_arguments(ID::List ref_list_id,
+                                                      unsigned int ref_line,
+                                                      ID::List list_id,
+                                                      unsigned int current_line,
+                                                      unsigned int directory_depth,
+                                                      const I18n::String &list_title)
+{
+    Playlist::DirectoryCrawler::MarkedPosition start_pos(
+        ref_list_id.is_valid() ? ref_list_id : list_id,
+        ref_list_id.is_valid() ? ref_line    : current_line);
+
+    auto crawler_lock(crawler_.lock());
+
+    if(!crawler_.set_start_position(std::move(start_pos),
+                                    Playlist::DirectoryCrawler::MarkedPosition(
+                                        list_id, current_line, directory_depth,
+                                        Playlist::DirectoryCrawler::Direction::FORWARD)))
+        return;
+
+    if(!crawler_.configure_and_resume(default_recursive_mode_,
+                                      default_shuffle_mode_, true,
+                                      I18n::String(list_title)))
+        return;
+
+    static_cast<ViewPlay::View *>(play_view_)->prepare_for_playing(
+                    get_audio_source(), crawler_,
+                    ViewPlay::PlayMode::RESUME, get_local_permissions());
+
+    if(crawler_.is_attached_to_player())
+        view_manager_->sync_activate_view_by_name(ViewNames::PLAYER, true);
+}
+
+static void try_resume_from_file_begin(ViewManager::VMIface &view_manager,
+                                       const Player::AudioSource &asrc,
+                                       std::unique_ptr<Player::Resumer> &resumer,
+                                       Playlist::DirectoryCrawler &crawler)
+{
+    resumer.reset(new Player::Resumer());
+
+    if(resumer == nullptr)
+    {
+        msg_out_of_memory("resumer state machine");
+        return;
+    }
+
+    if(!resumer->set_url(std::move(view_manager.move_resume_url_by_audio_source_id(asrc.id_))))
+    {
+        resumer = nullptr;
+        return;
+    }
+
+    auto crawler_lock(crawler.lock());
+    handle_resume_request(resumer, asrc, crawler);
+}
+
 void ViewFileBrowser::View::resume_request()
 {
     if(resumer_ != nullptr)
@@ -849,17 +904,15 @@ void ViewFileBrowser::View::resume_request()
 
     const auto &asrc(get_audio_source());
 
-    resumer_.reset(new Player::Resumer());
-
-    if(resumer_ == nullptr ||
-       !resumer_->set_url(view_manager_->get_resume_url_by_audio_source_id(asrc.id_)))
+    if(asrc.get_resume_data().crawler_data_.is_set())
     {
-        resumer_ = nullptr;
-        return;
+        const auto &rd(asrc.get_resume_data().crawler_data_.get());
+        try_resume_from_arguments(rd.reference_list_id_, rd.reference_line_,
+                                  rd.current_list_id_, rd.current_line_,
+                                  rd.directory_depth_, rd.list_title_);
     }
-
-    auto crawler_lock(crawler_.lock());
-    handle_resume_request(resumer_, asrc, crawler_);
+    else
+        try_resume_from_file_begin(*view_manager_, asrc, resumer_, crawler_);
 }
 
 ViewIface::InputResult
@@ -1151,27 +1204,11 @@ void ViewFileBrowser::View::process_broadcast(UI::BroadcastEventID event_id,
                 break;
             }
 
-            Playlist::DirectoryCrawler::MarkedPosition start_pos(
-                        std::get<4>(plist).is_valid() ? std::get<4>(plist) : std::get<2>(plist),
-                        std::get<4>(plist).is_valid() ? std::get<5>(plist) : std::get<3>(plist));
-
-            if(have_audio_source() &&
-               crawler_.set_start_position(
-                    std::move(start_pos),
-                    Playlist::DirectoryCrawler::MarkedPosition(
-                        std::get<2>(plist), std::get<3>(plist),
-                        std::get<6>(plist),
-                        Playlist::DirectoryCrawler::Direction::FORWARD)) &&
-               crawler_.configure_and_resume(
-                    default_recursive_mode_, default_shuffle_mode_, true,
-                    I18n::String(std::get<8>(plist))))
-                static_cast<ViewPlay::View *>(play_view_)->prepare_for_playing(
-                        get_audio_source(), crawler_,
-                        ViewPlay::PlayMode::RESUME, get_local_permissions());
+            if(have_audio_source())
+                try_resume_from_arguments(std::get<4>(plist), std::get<5>(plist),
+                                          std::get<2>(plist), std::get<3>(plist),
+                                          std::get<6>(plist), std::get<8>(plist));
         }
-
-        if(crawler_.is_attached_to_player())
-            view_manager_->sync_activate_view_by_name(ViewNames::PLAYER, true);
 
         break;
     }

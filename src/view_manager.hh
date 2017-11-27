@@ -122,6 +122,7 @@ class VMIface
     virtual void language_settings_changed_notification() = 0;
 
     virtual const char *get_resume_url_by_audio_source_id(const std::string &id) const = 0;
+    virtual std::string move_resume_url_by_audio_source_id(const std::string &id) = 0;
 
     /*!
      * End of DCP transmission, callback from I/O layer.
@@ -196,6 +197,7 @@ class Manager: public VMIface, public UI::EventStoreIface
     void language_settings_changed_notification() override;
 
     const char *get_resume_url_by_audio_source_id(const std::string &id) const override;
+    std::string move_resume_url_by_audio_source_id(const std::string &id) override;
 
     void serialization_result(DCP::Transaction::Result result) override;
 

@@ -71,12 +71,18 @@ class Resumer
     bool set_url(const char *url)
     {
         log_assert(state_ == RequestState::INITIALIZED);
+        return url != nullptr ? set_url(std::move(std::string(url))) : false;
+    }
 
-        if(url == nullptr || url[0] == '\0')
+    bool set_url(std::string &&url)
+    {
+        log_assert(state_ == RequestState::INITIALIZED);
+
+        if(url.empty())
             return false;
 
         Busy::set(Busy::Source::RESUMING_PLAYBACK);
-        url_ = url;
+        url_ = std::move(url);
         state_ = RequestState::WAITING_FOR_AUDIO_SOURCE;
 
         return true;

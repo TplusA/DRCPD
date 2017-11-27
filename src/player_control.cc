@@ -1373,7 +1373,9 @@ void Player::Control::play_notification(ID::Stream stream_id,
                     audio_source_->resume_data_update(
                         Player::CrawlerResumeData(refpoint.get_list_id(),
                                                   refpoint.get_line(),
-                                                  info->list_id_, info->line_));
+                                                  info->list_id_, info->line_,
+                                                  info->directory_depth_,
+                                                  I18n::String(false)));
                 }
             }
             else

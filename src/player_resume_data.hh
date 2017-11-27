@@ -20,6 +20,7 @@
 #define PLAYER_RESUME_DATA_HH
 
 #include "idtypes.hh"
+#include "i18nstring.hh"
 
 namespace Player
 {
@@ -37,18 +38,26 @@ class CrawlerResumeData
 
         ID::List current_list_id_;
         unsigned int current_line_;
+        unsigned int directory_depth_;
+        I18n::String list_title_;
 
         D():
             reference_line_(0),
-            current_line_(0)
+            current_line_(0),
+            directory_depth_(0),
+            list_title_(false)
         {}
 
         explicit D(ID::List reference_list_id, unsigned int reference_line,
-                   ID::List current_list_id, unsigned int current_line):
+                   ID::List current_list_id, unsigned int current_line,
+                   unsigned int directory_depth,
+                   const I18n::String &list_title):
             reference_list_id_(reference_list_id),
             reference_line_(reference_line),
             current_list_id_(current_list_id),
-            current_line_(current_line)
+            current_line_(current_line),
+            directory_depth_(directory_depth),
+            list_title_(list_title)
         {}
     };
 
@@ -67,9 +76,12 @@ class CrawlerResumeData
     {}
 
     explicit CrawlerResumeData(ID::List reference_list_id, unsigned int reference_line,
-                               ID::List current_list_id, unsigned int current_line):
+                               ID::List current_list_id, unsigned int current_line,
+                               unsigned int directory_depth,
+                               const I18n::String &list_title):
         is_defined_(true),
-        data_(reference_list_id, reference_line, current_list_id, current_line)
+        data_(reference_list_id, reference_line,
+              current_list_id, current_line, directory_depth, list_title)
     {}
 
     bool is_set() const { return is_defined_; }

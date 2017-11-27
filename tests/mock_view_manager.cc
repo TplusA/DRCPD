@@ -414,6 +414,12 @@ const char *MockViewManager::get_resume_url_by_audio_source_id(const std::string
     return nullptr;
 }
 
+std::string MockViewManager::move_resume_url_by_audio_source_id(const std::string &id)
+{
+    cut_fail("Not implemented");
+    return "";
+}
+
 void MockViewManager::store_event(UI::EventID event_id, std::unique_ptr<const UI::Parameters> parameters)
 {
     const auto &expect(expectations_->get_next_expectation(__func__));

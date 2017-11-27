@@ -560,6 +560,11 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
         return crawler_.generate_resume_url(asrc.get_resume_data().crawler_data_,
                                             asrc.id_);
     }
+
+    void try_resume_from_arguments(ID::List ref_list_id, unsigned int ref_line,
+                                   ID::List list_id, unsigned int current_line,
+                                   unsigned int directory_depth,
+                                   const I18n::String &list_title);
 };
 
 };
