@@ -56,6 +56,7 @@ struct dbus_data
     tdbusaupathSource *audiopath_source_iface;
     tdbusaupathManager *audiopath_manager_proxy;
 
+    guint bus_watch_dcpd;
     tdbusConfigurationProxy *configuration_proxy;
     tdbusConfigurationRead *configuration_read_iface;
     tdbusConfigurationWrite *configuration_write_iface;
@@ -147,19 +148,19 @@ static void created_debug_config_proxy(GObject *source_object, GAsyncResult *res
                          NULL);
 }
 
-static void created_configuration_proxy(GObject *source_object, GAsyncResult *res,
-                                        gpointer user_data)
+static void dcpd_appeared(GDBusConnection *connection, const gchar *name,
+                          const gchar *name_owner, gpointer user_data)
 {
     struct dbus_data *data = user_data;
     GError *error = NULL;
-
-    data->configuration_proxy =
-        tdbus_configuration_proxy_proxy_new_finish(res, &error);
 
     if(dbus_common_handle_error(&error, "Create configuration proxy") == 0)
         tdbus_configuration_proxy_call_register(data->configuration_proxy,
                                                 "drcpd", "/de/tahifi/Drcpd",
                                                 NULL, NULL, NULL);
+
+    g_bus_unwatch_name(data->bus_watch_dcpd);
+    data->bus_watch_dcpd = 0;
 }
 
 static void connect_signals_dcpd(GDBusConnection *connection,
@@ -192,15 +193,22 @@ static void connect_signals_dcpd(GDBusConnection *connection,
                                             NULL, &error);
     dbus_common_handle_error(&error, "Create list item proxy");
 
+    data->configuration_proxy =
+        tdbus_configuration_proxy_proxy_new_sync(connection, flags,
+                                                 bus_name, object_path,
+                                                 NULL, &error);
+    dbus_common_handle_error(&error, "Create configuration proxy");
+
     data->debug_logging_config_proxy = NULL;
     tdbus_debug_logging_config_proxy_new(connection, flags,
                                          bus_name, object_path, NULL,
                                          created_debug_config_proxy, data);
 
-    data->configuration_proxy = NULL;
-    tdbus_configuration_proxy_proxy_new(connection, flags,
-                                        bus_name, object_path, NULL,
-                                        created_configuration_proxy, data);
+    data->bus_watch_dcpd =
+        g_bus_watch_name_on_connection(connection, bus_name,
+                                       G_BUS_NAME_WATCHER_FLAGS_NONE,
+                                       dcpd_appeared, NULL,
+                                       data, NULL);
 }
 
 static void connect_signals_list_broker(GDBusConnection *connection,
@@ -507,6 +515,12 @@ void dbus_shutdown(void)
 {
     if(process_data.loop == NULL)
         return;
+
+    if(dbus_data.bus_watch_dcpd != 0)
+    {
+        g_bus_unwatch_name(dbus_data.bus_watch_dcpd);
+        dbus_data.bus_watch_dcpd = 0;
+    }
 
     g_bus_unown_name(dbus_data.owner_id);
 
