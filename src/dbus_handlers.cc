@@ -585,12 +585,13 @@ void dbussignal_airable_sec(GDBusProxy *proxy, const gchar *sender_name,
         const gchar *info;
         uint8_t raw_actor_id;
         gboolean is_login;
-        gboolean has_failed;
+        guchar raw_error_code;
 
-        g_variant_get(parameters, "(&sybb&s)",
-                      &service_id, &raw_actor_id, &is_login, &has_failed, &info);
+        g_variant_get(parameters, "(&syby&s)",
+                      &service_id, &raw_actor_id, &is_login,
+                      &raw_error_code, &info);
 
-        if(!has_failed)
+        if(raw_error_code == 0)
         {
             const enum ActorID actor_id =
                 (raw_actor_id <= int(ACTOR_ID_LAST_ID))
