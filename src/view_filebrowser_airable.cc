@@ -41,11 +41,37 @@ ViewFileBrowser::AirableView::logged_into_service_notification(const std::string
         msg_vinfo(MESSAGE_LEVEL_IMPORTANT, "Logged into \"%s\" by %u\n",
                   service_id.c_str(), actor_id);
 
-    if(error.failed())
-        return InputResult::OK;
-
     List::context_id_t ctx_id;
     const auto &ctx(list_contexts_.get_context_info_by_string_id(service_id, ctx_id));
+
+    if(error.failed())
+    {
+        switch(actor_id)
+        {
+          case ACTOR_ID_LOCAL_UI:
+            switch(may_access_list_for_serialization())
+            {
+              case ListAccessPermission::ALLOWED:
+              case ListAccessPermission::DENIED__BLOCKED:
+              case ListAccessPermission::DENIED__NO_LIST_ID:
+                StandardError::service_authentication_failure(list_contexts_, ctx_id);
+                break;
+
+              case ListAccessPermission::DENIED__LOADING:
+                /* suppress duplicate error emission */
+                break;
+            }
+
+            break;
+
+          case ACTOR_ID_INVALID:
+          case ACTOR_ID_UNKNOWN:
+          case ACTOR_ID_SMARTPHONE_APP:
+            break;
+        }
+
+        return InputResult::OK;
+    }
 
     if(!ctx.is_valid() || ctx_id != context_restriction_.get_context_id())
         return InputResult::OK;

@@ -1786,13 +1786,32 @@ void ViewFileBrowser::View::set_list_context_root(List::context_id_t ctx_id)
         BUG("Invalid context ID %u passed as filter", ctx_id);
 }
 
+void ViewFileBrowser::StandardError::service_authentication_failure(
+        const List::ContextMap &list_contexts, List::context_id_t ctx_id)
+{
+    const auto &ctx(list_contexts[ctx_id]);
+
+    if(ctx.is_valid())
+    {
+        char buffer[512];
+
+        snprintf(buffer, sizeof(buffer),
+                 _("Please check your %s credentials."),
+                 ctx.description_.c_str());
+        Error::errors().sink(ScreenID::Error::ENTER_CONTEXT_AUTHENTICATION, buffer,
+                             ctx.string_id_);
+
+    }
+    else
+        Error::errors().sink(ScreenID::Error::ENTER_LIST_AUTHENTICATION,
+                             _("Authentication error, please check your credentials."));
+}
+
 static bool sink_point_to_child_error(ListError::Code error,
                                       const std::string &child_name,
                                       const ViewFileBrowser::JumpToContext &jtc,
                                       const List::ContextMap &list_contexts)
 {
-    char buffer[2048];
-
     switch(error)
     {
       case ListError::Code::OK:
@@ -1815,18 +1834,14 @@ static bool sink_point_to_child_error(ListError::Code error,
 
       case ListError::Code::AUTHENTICATION:
         if(jtc.is_jumping_to_context())
-        {
-            snprintf(buffer, sizeof(buffer),
-                     _("Please check your %s credentials."),
-                     list_contexts[jtc.get_destination()].description_.c_str());
-            Error::errors().sink(ScreenID::Error::ENTER_CONTEXT_AUTHENTICATION, buffer,
-                                 list_contexts[jtc.get_destination()].string_id_);
-        }
+            ViewFileBrowser::StandardError::service_authentication_failure(list_contexts,
+                                                                           jtc.get_destination());
         else if(child_name.empty())
-            Error::errors().sink(ScreenID::Error::ENTER_LIST_AUTHENTICATION,
-                                 _("Authentication error, please check your credentials."));
+            ViewFileBrowser::StandardError::service_authentication_failure(list_contexts,
+                                                                           List::ContextMap::INVALID_ID);
         else
         {
+            char buffer[1024];
             snprintf(buffer, sizeof(buffer),
                      _("Authentication error for \"%s\". Please check your credentials."),
                      child_name.c_str());
@@ -1841,6 +1856,7 @@ static bool sink_point_to_child_error(ListError::Code error,
                                  _("Entering directory is not allowed."));
         else
         {
+            char buffer[1024];
             snprintf(buffer, sizeof(buffer),
                      _("Entering \"%s\" not is allowed."), child_name.c_str());
             Error::errors().sink(ScreenID::Error::ENTER_LIST_PERMISSION_DENIED, buffer);

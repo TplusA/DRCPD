@@ -52,6 +52,12 @@ namespace ViewFileBrowser
 List::Item *construct_file_item(const char *name, ListItemKind kind,
                                 const char *const *names);
 
+namespace StandardError
+{
+void service_authentication_failure(const List::ContextMap &list_contexts,
+                                    List::context_id_t ctx_id);
+}
+
 class JumpToContext
 {
   public:
