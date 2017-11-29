@@ -21,7 +21,6 @@
 #endif /* HAVE_CONFIG_H */
 
 #include <algorithm>
-#include <cstring>
 
 #include "context_map.hh"
 #include "de_tahifi_lists_context.h"
@@ -75,14 +74,14 @@ List::ContextMap::append(const char *id, const char *description,
 }
 
 const List::ContextInfo &
-List::ContextMap::get_context_info_by_string_id(const char *id,
+List::ContextMap::get_context_info_by_string_id(const std::string &id,
                                                 context_id_t &ctx_id) const
 {
     const auto &found =
         std::find_if(contexts_.begin(), contexts_.end(),
-                     [id] (const ContextInfo &info)
+                     [&id] (const ContextInfo &info)
                      {
-                         return strcmp(info.string_id_.c_str(), id) == 0;
+                         return info.string_id_ == id;
                      });
 
     if(found != contexts_.end())

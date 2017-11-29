@@ -71,7 +71,7 @@ class AirableView: public View
 
     bool list_invalidate(ID::List list_id, ID::List replacement_id) final override;
 
-    void logged_out_from_service_notification(const char *service_id,
+    void logged_out_from_service_notification(const std::string &service_id,
                                               enum ActorID actor_id);
 
   protected:

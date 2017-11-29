@@ -28,11 +28,11 @@
 #include "de_tahifi_lists_context.h"
 #include "messages.h"
 
-void ViewFileBrowser::AirableView::logged_out_from_service_notification(const char *service_id,
+void ViewFileBrowser::AirableView::logged_out_from_service_notification(const std::string &service_id,
                                                                         enum ActorID actor_id)
 {
     msg_vinfo(MESSAGE_LEVEL_IMPORTANT, "Logged out from \"%s\" by %u\n",
-              service_id, actor_id);
+              service_id.c_str(), actor_id);
 
     List::context_id_t ctx_id;
     const auto &ctx(list_contexts_.get_context_info_by_string_id(service_id, ctx_id));
@@ -124,7 +124,7 @@ ViewFileBrowser::AirableView::process_event(UI::ViewEventID event_id,
     const bool is_login(std::get<2>(plist));
 
     if(!is_login)
-        logged_out_from_service_notification(service_id.c_str(), actor_id);
+        logged_out_from_service_notification(service_id, actor_id);
     else
         msg_vinfo(MESSAGE_LEVEL_IMPORTANT, "Logged into \"%s\" by %u\n",
                   service_id.c_str(), actor_id);
