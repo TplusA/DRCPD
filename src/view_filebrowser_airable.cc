@@ -28,9 +28,46 @@
 #include "de_tahifi_lists_context.h"
 #include "messages.h"
 
-void ViewFileBrowser::AirableView::logged_out_from_service_notification(const std::string &service_id,
-                                                                        enum ActorID actor_id)
+ViewIface::InputResult
+ViewFileBrowser::AirableView::logged_into_service_notification(const std::string &service_id,
+                                                               enum ActorID actor_id,
+                                                               const ListError &error)
 {
+    if(error.failed())
+        msg_vinfo(MESSAGE_LEVEL_IMPORTANT,
+                  "Failed logging into \"%s\" by %u (%s)\n",
+                  service_id.c_str(), actor_id, error.to_string());
+    else
+        msg_vinfo(MESSAGE_LEVEL_IMPORTANT, "Logged into \"%s\" by %u\n",
+                  service_id.c_str(), actor_id);
+
+    if(error.failed())
+        return InputResult::OK;
+
+    List::context_id_t ctx_id;
+    const auto &ctx(list_contexts_.get_context_info_by_string_id(service_id, ctx_id));
+
+    if(!ctx.is_valid() || ctx_id != context_restriction_.get_context_id())
+        return InputResult::OK;
+
+    point_to_root_directory();
+
+    return InputResult::UPDATE_NEEDED;
+}
+
+ViewIface::InputResult
+ViewFileBrowser::AirableView::logged_out_from_service_notification(const std::string &service_id,
+                                                                   enum ActorID actor_id,
+                                                                   const ListError &error)
+{
+    if(error.failed())
+    {
+        msg_vinfo(MESSAGE_LEVEL_IMPORTANT,
+                  "Failed logging out from \"%s\" by %u\n",
+                  service_id.c_str(), actor_id);
+        return InputResult::OK;
+    }
+
     msg_vinfo(MESSAGE_LEVEL_IMPORTANT, "Logged out from \"%s\" by %u\n",
               service_id.c_str(), actor_id);
 
@@ -38,15 +75,24 @@ void ViewFileBrowser::AirableView::logged_out_from_service_notification(const st
     const auto &ctx(list_contexts_.get_context_info_by_string_id(service_id, ctx_id));
 
     if(!ctx.is_valid())
-        return;
+        return InputResult::OK;
 
     const List::context_id_t current_browse_context =
         DBUS_LISTS_CONTEXT_GET(current_list_id_.get_raw_id());
 
+    InputResult result;
+
     if(current_browse_context == ctx_id)
+    {
         point_to_root_directory();
+        result = InputResult::UPDATE_NEEDED;
+    }
+    else
+        result = InputResult::OK;
 
     search_forms_.erase(ctx_id);
+
+    return result;
 }
 
 bool ViewFileBrowser::AirableView::register_audio_sources()
@@ -122,14 +168,11 @@ ViewFileBrowser::AirableView::process_event(UI::ViewEventID event_id,
     const auto &service_id(std::get<0>(plist));
     const enum ActorID actor_id(std::get<1>(plist));
     const bool is_login(std::get<2>(plist));
+    const ListError error(std::get<3>(plist));
 
-    if(!is_login)
-        logged_out_from_service_notification(service_id, actor_id);
-    else
-        msg_vinfo(MESSAGE_LEVEL_IMPORTANT, "Logged into \"%s\" by %u\n",
-                  service_id.c_str(), actor_id);
-
-    return InputResult::OK;
+    return is_login
+        ? logged_into_service_notification(service_id, actor_id, error)
+        : logged_out_from_service_notification(service_id, actor_id, error);
 }
 
 bool ViewFileBrowser::AirableView::list_invalidate(ID::List list_id, ID::List replacement_id)

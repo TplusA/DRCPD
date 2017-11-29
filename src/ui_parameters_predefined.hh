@@ -183,7 +183,8 @@ template <>
 struct ParamTraits<EventID::VIEW_AIRABLE_SERVICE_LOGIN_STATUS_UPDATE>
 {
     using PType = SpecificParameters<std::tuple<const std::string, const enum ActorID,
-                                                const bool, const std::string>>;
+                                                const bool, const ListError,
+                                                const std::string>>;
 };
 
 

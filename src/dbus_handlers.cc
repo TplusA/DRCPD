@@ -591,23 +591,16 @@ void dbussignal_airable_sec(GDBusProxy *proxy, const gchar *sender_name,
                       &service_id, &raw_actor_id, &is_login,
                       &raw_error_code, &info);
 
-        if(raw_error_code == 0)
-        {
-            const enum ActorID actor_id =
-                (raw_actor_id <= int(ACTOR_ID_LAST_ID))
-                ? ActorID(raw_actor_id)
-                : ACTOR_ID_INVALID;
+        const enum ActorID actor_id = (raw_actor_id <= int(ACTOR_ID_LAST_ID)
+                                       ? ActorID(raw_actor_id)
+                                       : ACTOR_ID_INVALID);
 
-            auto params =
-                UI::Events::mk_params<UI::EventID::VIEW_AIRABLE_SERVICE_LOGIN_STATUS_UPDATE>(
-                    service_id, actor_id, is_login, info);
-            data->event_sink_.store_event(UI::EventID::VIEW_AIRABLE_SERVICE_LOGIN_STATUS_UPDATE,
-                                          std::move(params));
-        }
-        else
-        {
-            /* ignore silently, not interesting at the moment */
-        }
+        auto params =
+            UI::Events::mk_params<UI::EventID::VIEW_AIRABLE_SERVICE_LOGIN_STATUS_UPDATE>(
+                service_id, actor_id, is_login,
+                ListError(raw_error_code), info);
+        data->event_sink_.store_event(UI::EventID::VIEW_AIRABLE_SERVICE_LOGIN_STATUS_UPDATE,
+                                      std::move(params));
     }
     else
         unknown_signal(iface_name, signal_name, sender_name);

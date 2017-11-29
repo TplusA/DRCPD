@@ -71,8 +71,12 @@ class AirableView: public View
 
     bool list_invalidate(ID::List list_id, ID::List replacement_id) final override;
 
-    void logged_out_from_service_notification(const std::string &service_id,
-                                              enum ActorID actor_id);
+    InputResult logged_into_service_notification(const std::string &service_id,
+                                                 enum ActorID actor_id,
+                                                 const ListError &error);
+    InputResult logged_out_from_service_notification(const std::string &service_id,
+                                                     enum ActorID actor_id,
+                                                     const ListError &error);
 
   protected:
     bool register_audio_sources() final override;
