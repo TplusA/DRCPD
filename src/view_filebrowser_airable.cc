@@ -427,15 +427,28 @@ void ViewFileBrowser::AirableView::log_out_from_context(List::context_id_t conte
     dbus_common_handle_error(&error, "Logout from service");
 }
 
+static inline List::context_id_t
+determine_ctx_id(bool have_audio_source,
+                 const List::context_id_t restricted_ctx,
+                 const ID::List current_list_id)
+{
+    auto result(have_audio_source ? restricted_ctx : List::ContextMap::INVALID_ID);
+
+    if(result == List::ContextMap::INVALID_ID && current_list_id.is_valid())
+        result = DBUS_LISTS_CONTEXT_GET(current_list_id.get_raw_id());
+
+    return result;
+}
+
 bool ViewFileBrowser::AirableView::write_xml(std::ostream &os, uint32_t bits,
                                              const DCP::Queue::Data &data)
 {
     if((bits & (WRITE_FLAG__IS_LOADING | WRITE_FLAG__IS_UNAVAILABLE)) == 0)
         return ViewFileBrowser::View::write_xml(os, bits, data);
 
-    const auto ctx_id(have_audio_source()
-                      ? context_restriction_.get_context_id()
-                      : List::ContextMap::INVALID_ID);
+    const auto ctx_id(determine_ctx_id(have_audio_source(),
+                                       context_restriction_.get_context_id(),
+                                       current_list_id_));
     const auto &ctx(list_contexts_[ctx_id]);
 
     os << "<text id=\"cbid\">" << int(drcp_browse_id_) << "</text>"
