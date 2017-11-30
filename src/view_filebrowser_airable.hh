@@ -88,6 +88,7 @@ class AirableView: public View
     GoToSearchForm point_to_search_form(List::context_id_t ctx_id) final override;
     void log_out_from_context(List::context_id_t context) final override;
 
+    uint32_t about_to_write_xml(const DCP::Queue::Data &data) const final override;
     bool write_xml(std::ostream &os, uint32_t bits,
                    const DCP::Queue::Data &data) final override;
 

@@ -177,10 +177,63 @@ bool ViewFileBrowser::AirableView::register_audio_sources()
     return true;
 }
 
+static void patch_event_id_for_deezer(UI::ViewEventID &event_id)
+{
+    switch(event_id)
+    {
+      case UI::ViewEventID::PLAYBACK_COMMAND_START:
+      case UI::ViewEventID::NAV_SELECT_ITEM:
+      case UI::ViewEventID::NAV_SCROLL_LINES:
+      case UI::ViewEventID::NAV_SCROLL_PAGES:
+      case UI::ViewEventID::SEARCH_COMMENCE:
+      case UI::ViewEventID::SEARCH_STORE_PARAMETERS:
+      case UI::ViewEventID::PLAYBACK_TRY_RESUME:
+        event_id = UI::ViewEventID::NOP;
+        break;
+
+      case UI::ViewEventID::NOP:
+      case UI::ViewEventID::PLAYBACK_COMMAND_STOP:
+      case UI::ViewEventID::PLAYBACK_COMMAND_PAUSE:
+      case UI::ViewEventID::PLAYBACK_PREVIOUS:
+      case UI::ViewEventID::PLAYBACK_NEXT:
+      case UI::ViewEventID::PLAYBACK_FAST_WIND_SET_SPEED:
+      case UI::ViewEventID::PLAYBACK_SEEK_STREAM_POS:
+      case UI::ViewEventID::PLAYBACK_MODE_REPEAT_TOGGLE:
+      case UI::ViewEventID::PLAYBACK_MODE_SHUFFLE_TOGGLE:
+      case UI::ViewEventID::NAV_GO_BACK_ONE_LEVEL:
+      case UI::ViewEventID::STORE_STREAM_META_DATA:
+      case UI::ViewEventID::STORE_PRELOADED_META_DATA:
+      case UI::ViewEventID::NOTIFY_AIRABLE_SERVICE_LOGIN_STATUS_UPDATE:
+      case UI::ViewEventID::NOTIFY_NOW_PLAYING:
+      case UI::ViewEventID::NOTIFY_STREAM_STOPPED:
+      case UI::ViewEventID::NOTIFY_STREAM_PAUSED:
+      case UI::ViewEventID::NOTIFY_STREAM_POSITION:
+      case UI::ViewEventID::NOTIFY_SPEED_CHANGED:
+      case UI::ViewEventID::NOTIFY_PLAYBACK_MODE_CHANGED:
+      case UI::ViewEventID::AUDIO_SOURCE_SELECTED:
+      case UI::ViewEventID::AUDIO_SOURCE_DESELECTED:
+      case UI::ViewEventID::AUDIO_PATH_CHANGED:
+        break;
+    }
+}
+
+static bool is_deezer(const List::ContextMap &list_contexts,
+                      ID::List current_list_id)
+{
+    List::context_id_t deezer_id;
+    list_contexts.get_context_info_by_string_id("deezer", deezer_id);
+
+    return (deezer_id != List::ContextMap::INVALID_ID &&
+            deezer_id == DBUS_LISTS_CONTEXT_GET(current_list_id.get_raw_id()));
+}
+
 ViewIface::InputResult
 ViewFileBrowser::AirableView::process_event(UI::ViewEventID event_id,
                                             std::unique_ptr<const UI::Parameters> parameters)
 {
+    if(is_deezer(list_contexts_, current_list_id_))
+        patch_event_id_for_deezer(event_id);
+
     if(event_id != UI::ViewEventID::NOTIFY_AIRABLE_SERVICE_LOGIN_STATUS_UPDATE)
         return ViewFileBrowser::View::process_event(event_id, std::move(parameters));
 
@@ -427,6 +480,16 @@ void ViewFileBrowser::AirableView::log_out_from_context(List::context_id_t conte
     dbus_common_handle_error(&error, "Logout from service");
 }
 
+uint32_t ViewFileBrowser::AirableView::about_to_write_xml(const DCP::Queue::Data &data) const
+{
+    uint32_t bits = ViewFileBrowser::View::about_to_write_xml(data);
+
+    if(is_deezer(list_contexts_, current_list_id_))
+        bits |= WRITE_FLAG__IS_LOCKED;
+
+    return bits;
+}
+
 static inline List::context_id_t
 determine_ctx_id(bool have_audio_source,
                  const List::context_id_t restricted_ctx,
@@ -463,6 +526,8 @@ bool ViewFileBrowser::AirableView::write_xml(std::ostream &os, uint32_t bits,
         os << XmlEscape(_("Accessing")) << "...";
     else if((bits & WRITE_FLAG__IS_UNAVAILABLE) != 0)
         os << XmlEscape(_("Unavailable"));
+    else if((bits & WRITE_FLAG__IS_LOCKED) != 0)
+        os << XmlEscape(_("Coming soon :-)"));
     else
         BUG("Airable: what are we supposed to display here?!");
 

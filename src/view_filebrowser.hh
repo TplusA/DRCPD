@@ -490,7 +490,7 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
 
     ID::List get_root_list_id() const { return root_list_id_; }
 
-    uint32_t about_to_write_xml(const DCP::Queue::Data &data) const final override;
+    uint32_t about_to_write_xml(const DCP::Queue::Data &data) const override;
 
     std::pair<const ViewID, const ScreenID::id_t>
     get_dynamic_ids(uint32_t bits) const final override
