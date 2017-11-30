@@ -443,7 +443,7 @@ determine_ctx_id(bool have_audio_source,
 bool ViewFileBrowser::AirableView::write_xml(std::ostream &os, uint32_t bits,
                                              const DCP::Queue::Data &data)
 {
-    if((bits & (WRITE_FLAG__IS_LOADING | WRITE_FLAG__IS_UNAVAILABLE)) == 0)
+    if((bits & WRITE_FLAG_GROUP__AS_MSG_NO_GET_ITEM_HINT_NEEDED) == 0)
         return ViewFileBrowser::View::write_xml(os, bits, data);
 
     const auto ctx_id(determine_ctx_id(have_audio_source(),
@@ -461,8 +461,10 @@ bool ViewFileBrowser::AirableView::write_xml(std::ostream &os, uint32_t bits,
 
     if((bits & WRITE_FLAG__IS_LOADING) != 0)
         os << XmlEscape(_("Accessing")) << "...";
-    else
+    else if((bits & WRITE_FLAG__IS_UNAVAILABLE) != 0)
         os << XmlEscape(_("Unavailable"));
+    else
+        BUG("Airable: what are we supposed to display here?!");
 
     os << "</text>";
 

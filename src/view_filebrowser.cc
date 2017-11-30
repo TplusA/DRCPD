@@ -1237,15 +1237,17 @@ bool ViewFileBrowser::View::write_xml(std::ostream &os, uint32_t bits,
        << list_contexts_[DBUS_LISTS_CONTEXT_GET(current_list_id_.get_raw_id())].string_id_.c_str()
        << "</context>";
 
-    if((bits & (WRITE_FLAG__IS_LOADING | WRITE_FLAG__IS_UNAVAILABLE)) != 0)
+    if((bits & WRITE_FLAG_GROUP__AS_MSG_NO_GET_ITEM_HINT_NEEDED) != 0)
     {
         os << "<text id=\"line0\">" << XmlEscape(_(on_screen_name_)) << "</text>";
         os << "<text id=\"line1\">";
 
         if((bits & WRITE_FLAG__IS_LOADING) != 0)
             os << XmlEscape(_("Loading")) << "...";
-        else
+        else if((bits & WRITE_FLAG__IS_UNAVAILABLE) != 0)
             os << XmlEscape(_("Unavailable"));
+        else
+            BUG("Generic: what are we supposed to display here?!");
 
         os << "</text>";
 
