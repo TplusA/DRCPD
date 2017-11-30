@@ -54,7 +54,10 @@ class String
 
     const char *get_text() const
     {
-        return is_subject_to_translation_ ? _(string_.c_str()) : string_.c_str();
+        if(!string_.empty())
+            return is_subject_to_translation_ ? _(string_.c_str()) : string_.c_str();
+        else
+            return "";
     }
 
     bool empty() const { return string_.empty(); }
