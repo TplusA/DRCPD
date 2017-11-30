@@ -136,6 +136,7 @@ void ViewFileBrowser::View::handle_enter_list_event_update_after_finish(
 
         if(ctx->get_caller_id() == List::QueryContextEnterList::CallerID::ENTER_CONTEXT_ROOT)
         {
+            auto lock(async_calls_.acquire_lock());
             log_assert(async_calls_.context_jump_.is_jumping_to_context());
 
             switch(async_calls_.context_jump_.get_state())
@@ -143,7 +144,8 @@ void ViewFileBrowser::View::handle_enter_list_event_update_after_finish(
               case JumpToContext::State::NOT_JUMPING:
               case JumpToContext::State::GET_CONTEXT_PARENT_ID:
               case JumpToContext::State::GET_CONTEXT_LIST_ID:
-                BUG("Wrong jtc state");
+                BUG("Wrong jtc state %d (see #699)",
+                    static_cast<int>(async_calls_.context_jump_.get_state()));
                 break;
 
               case JumpToContext::State::ENTER_CONTEXT_PARENT:
@@ -1699,6 +1701,7 @@ static void point_to_list_context_root__got_parent_link(DBus::AsyncCall_ &async_
 
     if(list_id.is_valid())
     {
+        calls.get_context_root_.reset();
         calls.context_jump_.put_parent_list_id(list_id);
         file_list.enter_list_async(list_id, line,
                                    List::QueryContextEnterList::CallerID::ENTER_CONTEXT_ROOT,
@@ -1765,6 +1768,8 @@ bool ViewFileBrowser::View::do_point_to_context_root_directory(List::context_id_
         [] (ViewFileBrowser::View::AsyncCalls::GetContextRoot::PromiseReturnType &values) {},
         [] () { return true; },
         "AsyncCalls::GetContextRoot", MESSAGE_LEVEL_DEBUG);
+
+    async_calls_.context_jump_.cancel();
 
     if(async_calls_.get_context_root_ == nullptr)
     {

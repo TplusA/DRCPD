@@ -300,7 +300,6 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
         {
             get_list_id_.reset();
             get_parent_id_.reset();
-            get_context_root_.reset();
         }
     };
 
