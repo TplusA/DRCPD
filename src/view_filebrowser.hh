@@ -241,9 +241,11 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
     static constexpr const uint32_t WRITE_FLAG__IS_LOADING     = 1U << 0;
     static constexpr const uint32_t WRITE_FLAG__IS_UNAVAILABLE = 1U << 1;
     static constexpr const uint32_t WRITE_FLAG__IS_EMPTY_ROOT  = 1U << 2;
+    static constexpr const uint32_t WRITE_FLAG__IS_LOCKED      = 1U << 31;
 
     static constexpr const uint32_t WRITE_FLAG_GROUP__AS_MSG_NO_GET_ITEM_HINT_NEEDED =
-        WRITE_FLAG__IS_LOADING | WRITE_FLAG__IS_UNAVAILABLE;
+        WRITE_FLAG__IS_LOADING | WRITE_FLAG__IS_UNAVAILABLE |
+        WRITE_FLAG__IS_LOCKED;
     static constexpr const uint32_t WRITE_FLAG_GROUP__AS_MSG_ANY =
         WRITE_FLAG_GROUP__AS_MSG_NO_GET_ITEM_HINT_NEEDED | WRITE_FLAG__IS_EMPTY_ROOT;
 

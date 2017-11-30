@@ -1246,6 +1246,8 @@ bool ViewFileBrowser::View::write_xml(std::ostream &os, uint32_t bits,
             os << XmlEscape(_("Loading")) << "...";
         else if((bits & WRITE_FLAG__IS_UNAVAILABLE) != 0)
             os << XmlEscape(_("Unavailable"));
+        else if((bits & WRITE_FLAG__IS_LOCKED) != 0)
+            os << XmlEscape(_("Locked"));
         else
             BUG("Generic: what are we supposed to display here?!");
 
