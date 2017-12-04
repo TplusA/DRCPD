@@ -155,6 +155,11 @@ class AudioSource
         resume_data_.crawler_data_ = std::move(data);
     }
 
+    void resume_data_update(PlainURLResumeData &&data)
+    {
+        resume_data_.plain_url_data_ = std::move(data);
+    }
+
   private:
     void set_state(AudioSourceState new_state)
     {

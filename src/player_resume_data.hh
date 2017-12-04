@@ -90,10 +90,53 @@ class CrawlerResumeData
     void invalidate() { is_defined_ = false; }
 };
 
+/*!
+ * Resume data for plain URL source.
+ */
+class PlainURLResumeData
+{
+  public:
+    struct D
+    {
+        std::string plain_stream_url_;
+
+        D() {}
+
+        explicit D(const std::string &plain_stream_url):
+            plain_stream_url_(plain_stream_url)
+        {}
+    };
+
+  private:
+    bool is_defined_;
+    D data_;
+
+  public:
+    PlainURLResumeData(const PlainURLResumeData &) = delete;
+    PlainURLResumeData(PlainURLResumeData &&) = default;
+    PlainURLResumeData &operator=(const PlainURLResumeData &) = delete;
+    PlainURLResumeData &operator=(PlainURLResumeData &&) = default;
+
+    explicit PlainURLResumeData(bool is_defined = false):
+        is_defined_(is_defined)
+    {}
+
+    explicit PlainURLResumeData(const std::string &url):
+        is_defined_(true),
+        data_(url)
+    {}
+
+    bool is_set() const { return is_defined_; }
+    const D &get() const { return data_; }
+
+    void invalidate() { is_defined_ = false; }
+};
+
 class ResumeData
 {
   public:
     CrawlerResumeData crawler_data_;
+    PlainURLResumeData plain_url_data_;
 
     ResumeData(const ResumeData &) = delete;
     ResumeData(ResumeData &&) = default;
@@ -104,6 +147,7 @@ class ResumeData
     void reset()
     {
         crawler_data_.invalidate();
+        plain_url_data_.invalidate();
     }
 };
 

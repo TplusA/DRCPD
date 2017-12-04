@@ -36,6 +36,13 @@ class View: public ViewExternalSource::Base
     {}
 
     const Player::LocalPermissionsIface &get_local_permissions() const final override;
+
+  protected:
+    std::string generate_resume_url(const Player::AudioSource &asrc) const final override
+    {
+        const auto &d(asrc.get_resume_data().plain_url_data_);
+        return d.is_set() ? d.get().plain_stream_url_ : "";
+    }
 };
 
 }

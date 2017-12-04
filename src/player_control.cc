@@ -1381,6 +1381,11 @@ void Player::Control::play_notification(ID::Stream stream_id,
             else
                 BUG("No list position for stream %u", stream_id.get_raw_id());
         }
+        else if(audio_source_ != nullptr)
+        {
+            const auto &md(player_->get_meta_data(stream_id));
+            audio_source_->resume_data_update(Player::PlainURLResumeData(md.values_[MetaData::Set::ID::INTERNAL_DRCPD_URL]));
+        }
 
         enforce_intention(player_->get_intention(), Player::StreamState::PLAYING,
                           audio_source_);
