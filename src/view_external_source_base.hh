@@ -27,7 +27,7 @@
 namespace ViewExternalSource
 {
 
-class Base: public ViewIface, public ViewSerializeBase, ViewWithAudioSourceBase
+class Base: public ViewIface, public ViewSerializeBase, public ViewWithAudioSourceBase
 {
   private:
     ViewIface *play_view_;
