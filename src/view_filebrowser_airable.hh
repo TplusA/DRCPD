@@ -50,6 +50,80 @@ class AirableView: public View
     /* collection of search form items found so far */
     std::map<List::context_id_t, std::pair<unsigned int, unsigned int>> search_forms_;
 
+    class StoredPosition
+    {
+      private:
+        ID::List list_id_;
+        unsigned int line_number_;
+        ID::List context_root_;
+        bool is_keep_alive_suppressed_;
+
+      public:
+        StoredPosition(const StoredPosition &) = delete;
+        StoredPosition(StoredPosition &&) = default;
+        StoredPosition &operator=(const StoredPosition &) = delete;
+
+        explicit StoredPosition():
+            line_number_(0),
+            is_keep_alive_suppressed_(true)
+        {}
+
+        void clear()
+        {
+            list_id_ = ID::List();
+            line_number_ = 0;
+            context_root_ = ID::List();
+            is_keep_alive_suppressed_ = true;
+        }
+
+        void set(ID::List list_id, unsigned int line_number,
+                 ID::List context_root)
+        {
+            log_assert(list_id.is_valid());
+
+            list_id_ = list_id;
+            line_number_ = line_number;
+            context_root_ = context_root;
+            is_keep_alive_suppressed_ = false;
+        }
+
+        void suppress_keep_alive()
+        {
+            is_keep_alive_suppressed_ = true;
+        }
+
+        bool is_set() const { return list_id_.is_valid(); }
+        bool is_keep_alive_suppressed() const { return is_keep_alive_suppressed_; }
+
+        ID::List get_list_id() const { return list_id_; }
+        unsigned int get_line_number() const { return line_number_; }
+        ID::List get_context_root() const { return context_root_; }
+
+        void list_invalidate(ID::List list_id, ID::List replacement_id)
+        {
+            if(!list_id.is_valid())
+                return;
+
+            if(list_id != list_id_ && list_id != context_root_)
+                return;
+
+            if(replacement_id.is_valid())
+            {
+                if(list_id == list_id_)
+                    list_id_ = replacement_id;
+
+                if(list_id == context_root_)
+                    context_root_ = replacement_id;
+            }
+            else
+                clear();
+        }
+    };
+
+    /* navigational state for the audio sources so that we can jump back to
+     * audio-specific locations when switching between audio sources */
+    std::vector<StoredPosition> audio_source_navigation_stash_;
+
   public:
     AirableView(const AirableView &) = delete;
     AirableView &operator=(const AirableView &) = delete;
@@ -81,6 +155,8 @@ class AirableView: public View
   protected:
     bool register_audio_sources() final override;
 
+    void append_referenced_lists(std::vector<ID::List> &list_ids) const final override;
+
     void cancel_and_delete_all_async_calls() final override;
     void handle_enter_list_event(List::AsyncListIface::OpResult result,
                                  const std::shared_ptr<List::QueryContextEnterList> &ctx) final override;
@@ -93,35 +169,12 @@ class AirableView: public View
                    const DCP::Queue::Data &data) final override;
 
   private:
+    bool try_jump_to_stored_position(StoredPosition &pos);
+
     void finish_async_point_to_child_directory();
 
     void audio_source_state_changed(const Player::AudioSource &audio_source,
-                                    Player::AudioSourceState prev_state)
-    {
-        switch(audio_source.get_state())
-        {
-          case Player::AudioSourceState::DESELECTED:
-          case Player::AudioSourceState::REQUESTED:
-            break;
-
-          case Player::AudioSourceState::SELECTED:
-            {
-                const auto idx(get_audio_source_index(audio_source));
-
-                if(select_audio_source(idx))
-                {
-                    if(idx > 0)
-                        set_list_context_root(audio_source_index_to_list_context(idx));
-                    else
-                        set_list_context_root(List::ContextMap::INVALID_ID);
-
-                    point_to_root_directory();
-                }
-            }
-
-            break;
-        }
-    }
+                                    Player::AudioSourceState prev_state);
 
     static List::context_id_t audio_source_index_to_list_context(size_t source_index)
     {

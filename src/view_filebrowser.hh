@@ -233,6 +233,8 @@ class ContextRestriction
 
         return true;
     }
+
+    ID::List get_root_list_id() const { return root_list_id_; }
 };
 
 class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSourceBase
@@ -278,6 +280,7 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
         std::shared_ptr<GetContextRoot> get_context_root_;
 
         JumpToContext context_jump_;
+        ID::List jump_anywhere_context_boundary_;
 
         explicit AsyncCalls()
         {
@@ -458,6 +461,9 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
      */
     virtual bool point_to_child_directory(const SearchParameters *search_parameters = nullptr);
 
+    bool point_to_any_location(ID::List list_id, unsigned int line_number,
+                               ID::List context_boundary);
+
     enum class GoToSearchForm
     {
         NOT_SUPPORTED, /*!< Search forms are not supported at all. */
@@ -551,6 +557,8 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
     void resume_request();
 
   protected:
+    virtual void append_referenced_lists(std::vector<ID::List> &list_ids) const {}
+
     virtual void handle_enter_list_event(List::AsyncListIface::OpResult result,
                                          const std::shared_ptr<List::QueryContextEnterList> &ctx)
     {

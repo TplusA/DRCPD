@@ -95,6 +95,7 @@ bool ViewFileBrowser::View::handle_enter_list_event_finish(
       case List::QueryContextEnterList::CallerID::ENTER_CHILD:
       case List::QueryContextEnterList::CallerID::ENTER_PARENT:
       case List::QueryContextEnterList::CallerID::ENTER_CONTEXT_ROOT:
+      case List::QueryContextEnterList::CallerID::ENTER_ANYWHERE:
       case List::QueryContextEnterList::CallerID::RELOAD_LIST:
         current_list_id_ = finish_async_enter_dir_op(result, ctx, async_calls_,
                                                      current_list_id_, *this);
@@ -134,33 +135,60 @@ void ViewFileBrowser::View::handle_enter_list_event_update_after_finish(
 
         navigation_.set_cursor_by_line_number(line);
 
-        if(ctx->get_caller_id() == List::QueryContextEnterList::CallerID::ENTER_CONTEXT_ROOT)
+        switch(ctx->get_caller_id())
         {
-            auto lock(async_calls_.acquire_lock());
-            log_assert(async_calls_.context_jump_.is_jumping_to_context());
-
-            switch(async_calls_.context_jump_.get_state())
+          case List::QueryContextEnterList::CallerID::ENTER_CONTEXT_ROOT:
             {
-              case JumpToContext::State::NOT_JUMPING:
-              case JumpToContext::State::GET_CONTEXT_PARENT_ID:
-              case JumpToContext::State::GET_CONTEXT_LIST_ID:
-                BUG("Wrong jtc state %d (see #699)",
-                    static_cast<int>(async_calls_.context_jump_.get_state()));
-                break;
+                auto lock(async_calls_.acquire_lock());
+                log_assert(async_calls_.context_jump_.is_jumping_to_context());
 
-              case JumpToContext::State::ENTER_CONTEXT_PARENT:
-                async_calls_.context_jump_.begin_second_step();
-                point_to_child_directory();
-                break;
+                switch(async_calls_.context_jump_.get_state())
+                {
+                  case JumpToContext::State::NOT_JUMPING:
+                  case JumpToContext::State::GET_CONTEXT_PARENT_ID:
+                  case JumpToContext::State::GET_CONTEXT_LIST_ID:
+                    BUG("Wrong jtc state %d (see #699)",
+                        static_cast<int>(async_calls_.context_jump_.get_state()));
+                    break;
 
-              case JumpToContext::State::ENTER_CONTEXT_LIST:
-                context_restriction_.set_boundary(async_calls_.context_jump_.end());
-                log_assert(context_restriction_.is_boundary(current_list_id_));
-                break;
+                  case JumpToContext::State::ENTER_CONTEXT_PARENT:
+                    async_calls_.context_jump_.begin_second_step();
+                    point_to_child_directory();
+                    break;
+
+                  case JumpToContext::State::ENTER_CONTEXT_LIST:
+                    context_restriction_.set_boundary(async_calls_.context_jump_.end());
+                    log_assert(context_restriction_.is_boundary(current_list_id_));
+                    break;
+                }
             }
-        }
-        else
+
+            break;
+
+          case List::QueryContextEnterList::CallerID::ENTER_ANYWHERE:
             log_assert(!async_calls_.context_jump_.is_jumping_to_context());
+
+            if(async_calls_.jump_anywhere_context_boundary_.is_valid())
+                context_restriction_.set_boundary(async_calls_.jump_anywhere_context_boundary_);
+            else
+                context_restriction_.release();
+
+            async_calls_.jump_anywhere_context_boundary_ = ID::List();
+            break;
+
+          case List::QueryContextEnterList::CallerID::SYNC_WRAPPER:
+          case List::QueryContextEnterList::CallerID::ENTER_ROOT:
+          case List::QueryContextEnterList::CallerID::ENTER_CHILD:
+          case List::QueryContextEnterList::CallerID::ENTER_PARENT:
+          case List::QueryContextEnterList::CallerID::RELOAD_LIST:
+          case List::QueryContextEnterList::CallerID::CRAWLER_RESTART:
+          case List::QueryContextEnterList::CallerID::CRAWLER_RESET_POSITION:
+          case List::QueryContextEnterList::CallerID::CRAWLER_RESUME_FROM_POSITION:
+          case List::QueryContextEnterList::CallerID::CRAWLER_DESCEND:
+          case List::QueryContextEnterList::CallerID::CRAWLER_ASCEND:
+            log_assert(!async_calls_.context_jump_.is_jumping_to_context());
+            break;
+        }
     }
 
     if(!current_list_id_.is_valid())
@@ -176,6 +204,7 @@ void ViewFileBrowser::View::handle_enter_list_event_update_after_finish(
           case List::QueryContextEnterList::CallerID::SYNC_WRAPPER:
           case List::QueryContextEnterList::CallerID::ENTER_CHILD:
           case List::QueryContextEnterList::CallerID::ENTER_PARENT:
+          case List::QueryContextEnterList::CallerID::ENTER_ANYWHERE:
           case List::QueryContextEnterList::CallerID::RELOAD_LIST:
             point_to_root_directory();
             break;
@@ -671,6 +700,8 @@ std::chrono::milliseconds ViewFileBrowser::View::keep_lists_alive_timer_callback
 
     if(current_list_id_.is_valid())
         list_ids.push_back(current_list_id_);
+
+    append_referenced_lists(list_ids);
 
     if(have_audio_source())
     {
@@ -2048,6 +2079,32 @@ bool ViewFileBrowser::View::point_to_child_directory(const SearchParameters *sea
                                           search_parameters->get_query().c_str());
 
     return true;
+}
+
+bool ViewFileBrowser::View::point_to_any_location(ID::List list_id,
+                                                  unsigned int line_number,
+                                                  ID::List context_boundary)
+{
+    log_assert(list_id.is_valid());
+
+    async_calls_.jump_anywhere_context_boundary_ = context_boundary;
+
+    switch(file_list_.enter_list_async(list_id, line_number,
+                                       List::QueryContextEnterList::CallerID::ENTER_ANYWHERE,
+                                       std::move(I18n::String(get_dynamic_title()))))
+    {
+      case List::AsyncListIface::OpResult::STARTED:
+      case List::AsyncListIface::OpResult::SUCCEEDED:
+        return true;
+
+      case List::AsyncListIface::OpResult::FAILED:
+      case List::AsyncListIface::OpResult::CANCELED:
+        msg_error(0, LOG_ERR, "Failed jumping to previous location %u:%u",
+                  list_id.get_raw_id(), line_number);
+        break;
+    }
+
+    return false;
 }
 
 /*!

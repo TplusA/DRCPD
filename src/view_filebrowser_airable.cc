@@ -28,6 +28,72 @@
 #include "de_tahifi_lists_context.h"
 #include "messages.h"
 
+bool ViewFileBrowser::AirableView::try_jump_to_stored_position(StoredPosition &pos)
+{
+    if(!pos.is_set())
+        return false;
+
+    if(point_to_any_location(pos.get_list_id(), pos.get_line_number(),
+                             pos.get_context_root()))
+        return true;
+
+    pos.clear();
+
+    return false;
+}
+
+void ViewFileBrowser::AirableView::append_referenced_lists(std::vector<ID::List> &list_ids) const
+{
+    for(const auto &pos : audio_source_navigation_stash_)
+    {
+        if(pos.is_set() && !pos.is_keep_alive_suppressed())
+            list_ids.push_back(pos.get_list_id());
+    }
+}
+
+void ViewFileBrowser::AirableView::audio_source_state_changed(const Player::AudioSource &audio_source,
+                                                              Player::AudioSourceState prev_state)
+{
+    switch(audio_source.get_state())
+    {
+      case Player::AudioSourceState::DESELECTED:
+        if(current_list_id_.is_valid())
+        {
+            auto &stash(audio_source_navigation_stash_[get_audio_source_index(audio_source)]);
+
+            stash.set(current_list_id_, navigation_.get_line_number_by_cursor(),
+                      context_restriction_.get_root_list_id());
+        }
+
+        break;
+
+      case Player::AudioSourceState::REQUESTED:
+        break;
+
+      case Player::AudioSourceState::SELECTED:
+        {
+            const auto idx(get_audio_source_index(audio_source));
+
+            if(select_audio_source(idx))
+            {
+                if(idx > 0)
+                    set_list_context_root(audio_source_index_to_list_context(idx));
+                else
+                    set_list_context_root(List::ContextMap::INVALID_ID);
+
+                auto &stash(audio_source_navigation_stash_[idx]);
+
+                if(try_jump_to_stored_position(stash))
+                    stash.suppress_keep_alive();
+                else
+                    point_to_root_directory();
+            }
+        }
+
+        break;
+    }
+}
+
 ViewIface::InputResult
 ViewFileBrowser::AirableView::logged_into_service_notification(const std::string &service_id,
                                                                enum ActorID actor_id,
@@ -130,6 +196,8 @@ bool ViewFileBrowser::AirableView::register_audio_sources()
         BUG("No list contexts, cannot create audio sources");
         return false;
     }
+
+    audio_source_navigation_stash_.resize(list_contexts_.size());
 
     for(const auto &ctx : list_contexts_)
     {
@@ -259,6 +327,9 @@ bool ViewFileBrowser::AirableView::list_invalidate(ID::List list_id, ID::List re
     if(is_root_list(list_id))
         search_forms_.clear();
 
+    for(auto &stash : audio_source_navigation_stash_)
+        stash.list_invalidate(list_id, replacement_id);
+
     return View::list_invalidate(list_id, replacement_id);
 }
 
@@ -370,6 +441,7 @@ void ViewFileBrowser::AirableView::handle_enter_list_event(List::AsyncListIface:
       case List::QueryContextEnterList::CallerID::SYNC_WRAPPER:
       case List::QueryContextEnterList::CallerID::ENTER_ROOT:
       case List::QueryContextEnterList::CallerID::ENTER_PARENT:
+      case List::QueryContextEnterList::CallerID::ENTER_ANYWHERE:
       case List::QueryContextEnterList::CallerID::RELOAD_LIST:
       case List::QueryContextEnterList::CallerID::CRAWLER_RESTART:
       case List::QueryContextEnterList::CallerID::CRAWLER_RESET_POSITION:

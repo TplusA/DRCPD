@@ -139,6 +139,7 @@ class ContextMap
     }
 
     bool empty() const { return contexts_.empty(); }
+    size_t size() const { return contexts_.size(); }
 
     using const_iterator = std::vector<ContextInfo>::const_iterator;
 
