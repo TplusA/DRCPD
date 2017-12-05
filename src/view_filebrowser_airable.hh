@@ -40,7 +40,7 @@ class AirableView: public View
         point_to_child_directory_;
 
         AsyncCallsDecorations():
-            point_to_child_directory_{0}
+            point_to_child_directory_{UINT_MAX}
         {}
     };
 
