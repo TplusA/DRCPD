@@ -136,29 +136,36 @@ void Playlist::CacheEnforcer::start()
 void Playlist::CacheEnforcer::stop(std::unique_ptr<CacheEnforcer> self,
                                    bool remove_override)
 {
-    std::lock_guard<std::mutex> lock(lock_);
+    if(self == nullptr)
+        return;
 
-    switch(state_)
+    std::lock_guard<std::mutex> lock(self->lock_);
+
+    CacheEnforcer *const self_raw_ptr = self.get();
+
+    switch(self->state_)
     {
       case State::CREATED:
       case State::STOPPED:
         break;
 
       case State::STARTED:
-        pointer_to_self_ = std::move(self);
+        self_raw_ptr->pointer_to_self_ = std::move(self);
         break;
     }
 
-    state_ = State::STOPPED;
+    /* dereferencing self is *unsafe* from this point on */
+    self_raw_ptr->state_ = State::STOPPED;
 
     if(remove_override)
     {
-        nav_proxy_ = list_.get_dbus_proxy();
+        self_raw_ptr->nav_proxy_ = self_raw_ptr->list_.get_dbus_proxy();
 
-        if(nav_proxy_ != nullptr && list_id_.is_valid())
-            tdbus_lists_navigation_call_force_in_cache(nav_proxy_, list_id_.get_raw_id(),
+        if(self_raw_ptr->nav_proxy_ != nullptr && self_raw_ptr->list_id_.is_valid())
+            tdbus_lists_navigation_call_force_in_cache(self_raw_ptr->nav_proxy_,
+                                                       self_raw_ptr->list_id_.get_raw_id(),
                                                        false, nullptr, nullptr, nullptr);
     }
 
-    nav_proxy_ = nullptr;
+    self_raw_ptr->nav_proxy_ = nullptr;
 }

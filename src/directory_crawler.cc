@@ -1560,8 +1560,7 @@ bool Playlist::DirectoryCrawler::stop_cache_enforcer(bool remove_override)
     msg_info("Stop keeping list %u in cache",
              cache_enforcer_->get_list_id().get_raw_id());
 
-    auto *const enforcer = cache_enforcer_.get();
-    enforcer->stop(std::move(cache_enforcer_), remove_override);
+    CacheEnforcer::stop(std::move(cache_enforcer_), remove_override);
 
     return true;
 }

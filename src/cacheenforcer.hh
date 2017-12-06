@@ -63,7 +63,7 @@ class CacheEnforcer
     }
 
     void start();
-    void stop(std::unique_ptr<CacheEnforcer> self, bool remove_override);
+    static void stop(std::unique_ptr<CacheEnforcer> self, bool remove_override);
 
     bool is_stopped() const { return state_ == State::STOPPED; }
 
