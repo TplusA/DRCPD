@@ -1,3 +1,12 @@
+2017-12-07  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 4.6 released.
+
+	* Airable: The navigational state is kept while jumping between
+	  different Airable audio sources.
+
+	* Internationalization: Add full German translation.
+
 2017-11-30  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 4.5 released.
