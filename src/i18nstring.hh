@@ -77,6 +77,33 @@ class String
     }
 };
 
+class StringView
+{
+  private:
+    const std::string &string_;
+    const bool is_subject_to_translation_;
+
+  public:
+    StringView(const StringView &) = delete;
+    StringView(StringView &&) = default;
+    StringView &operator=(const StringView &) = delete;
+
+    explicit StringView(bool is_subject_to_translation, const std::string &str):
+        string_(str),
+        is_subject_to_translation_(is_subject_to_translation)
+    {}
+
+    const char *get_text() const
+    {
+        if(!string_.empty())
+            return is_subject_to_translation_ ? _(string_.c_str()) : string_.c_str();
+        else
+            return "";
+    }
+
+    bool empty() const { return string_.empty(); }
+};
+
 }
 
 #endif /* !I18NSTRING_HH */

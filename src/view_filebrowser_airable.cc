@@ -599,7 +599,7 @@ bool ViewFileBrowser::AirableView::write_xml(std::ostream &os, uint32_t bits,
     else if((bits & WRITE_FLAG__IS_UNAVAILABLE) != 0)
         os << XmlEscape(_("Unavailable"));
     else if((bits & WRITE_FLAG__IS_LOCKED) != 0)
-        os << XmlEscape(_("Coming soon :-)"));
+        os << XmlEscape(_("For the time being, please use our app."));
     else
         BUG("Airable: what are we supposed to display here?!");
 

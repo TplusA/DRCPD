@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: drcpd 4.3\n"
 "Report-Msgid-Bugs-To: r.tiemann@ta-hifi.de\n"
-"POT-Creation-Date: 2017-10-18 12:18+0200\n"
+"POT-Creation-Date: 2017-12-07 13:37+0100\n"
 "PO-Revision-Date: 2014-10-01 15:44+0200\n"
 "Last-Translator: Robert Tiemann <r.tiemann@ta-hifi.de>\n"
 "Language-Team: English\n"
@@ -17,59 +17,110 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: src/dbuslist.cc:1017
+#: src/dbuslist.cc:1050
 msgid "Loading..."
 msgstr ""
 
-#: src/drcpd.cc:484
+#: src/drcpd.cc:515
+msgid "Error"
+msgstr ""
+
+#: src/drcpd.cc:518
 msgid "USB mass storage devices"
 msgstr ""
 
-#: src/drcpd.cc:492
+#: src/drcpd.cc:526
 msgid "Airable internet radio"
 msgstr ""
 
-#: src/drcpd.cc:499
+#: src/drcpd.cc:533
 msgid "UPnP media servers"
 msgstr ""
 
-#: src/drcpd.cc:508
+#: src/drcpd.cc:542
 msgid "Stream information"
 msgstr ""
 
-#: src/drcpd.cc:512
+#: src/drcpd.cc:546
 msgid "Search parameters"
 msgstr ""
 
-#: src/view_filebrowser.cc:501
+#: src/view_filebrowser.cc:582
 msgid "No devices found"
 msgstr ""
 
-#: src/view_filebrowser.cc:503
+#: src/view_filebrowser.cc:584
 msgid "Services not available"
 msgstr ""
 
-#: src/view_filebrowser.cc:505
+#: src/view_filebrowser.cc:586
 msgid "No servers found"
 msgstr ""
 
-#: src/view_filebrowser.cc:507
+#: src/view_filebrowser.cc:588
 msgid "empty"
 msgstr ""
 
-#: src/view_filebrowser.cc:1039
+#: src/view_filebrowser.cc:1279
 msgid "Loading"
 msgstr ""
 
-#: src/view_filebrowser.cc:1041 src/view_filebrowser_airable.cc:382
+#: src/view_filebrowser.cc:1281 src/view_filebrowser_airable.cc:600
 msgid "Unavailable"
 msgstr ""
 
-#: src/view_filebrowser_airable.cc:380
+#: src/view_filebrowser.cc:1283
+msgid "Locked"
+msgstr ""
+
+#: src/view_filebrowser.cc:1839
+#, c-format
+msgid "Please check your %s credentials."
+msgstr ""
+
+#: src/view_filebrowser.cc:1847
+msgid "Authentication error, please check your credentials."
+msgstr ""
+
+#: src/view_filebrowser.cc:1862
+msgid "Media error, something seems to be wrong with the device."
+msgstr ""
+
+#: src/view_filebrowser.cc:1867
+msgid "Networking error, please check cabling or try again later."
+msgstr ""
+
+#: src/view_filebrowser.cc:1872
+msgid "Protocol error, please try again later."
+msgstr ""
+
+#: src/view_filebrowser.cc:1886
+#, c-format
+msgid "Authentication error for \"%s\". Please check your credentials."
+msgstr ""
+
+#: src/view_filebrowser.cc:1896
+msgid "Entering directory is not allowed."
+msgstr ""
+
+#: src/view_filebrowser.cc:1901
+#, c-format
+msgid "Entering \"%s\" not is allowed."
+msgstr ""
+
+#: src/view_filebrowser_airable.cc:598
 msgid "Accessing"
 msgstr ""
 
-#: src/view_play.cc:762
+#: src/view_filebrowser_airable.cc:602
+msgid "For the time being, please use our app."
+msgstr ""
+
+#: src/view_play.cc:740
+msgid "(no data available)"
+msgstr ""
+
+#: src/view_play.cc:786
 msgid "Buffering"
 msgstr ""
 

@@ -729,16 +729,16 @@ void ViewPlay::View::process_broadcast(UI::BroadcastEventID event_id,
     }
 }
 
-static const std::string &mk_alt_track_name(const MetaData::Set &meta_data)
+static I18n::StringView mk_alt_track_name(const MetaData::Set &meta_data)
 {
     if(!meta_data.values_[MetaData::Set::INTERNAL_DRCPD_TITLE].empty())
-        return meta_data.values_[MetaData::Set::INTERNAL_DRCPD_TITLE];
+        return I18n::StringView(false, meta_data.values_[MetaData::Set::INTERNAL_DRCPD_TITLE]);
 
     if(!meta_data.values_[MetaData::Set::INTERNAL_DRCPD_URL].empty())
-        return meta_data.values_[MetaData::Set::INTERNAL_DRCPD_URL];
+        return I18n::StringView(false, meta_data.values_[MetaData::Set::INTERNAL_DRCPD_URL]);
 
-    static const std::string no_name_fallback("(no data available)");
-    return no_name_fallback;
+    static const std::string no_name_fallback(N_("(no data available)"));
+    return I18n::StringView(true, no_name_fallback);
 
 }
 
@@ -783,7 +783,7 @@ bool ViewPlay::View::write_xml(std::ostream &os, uint32_t bits,
 
     if(data.is_full_serialize_ && is_buffering)
         os << "<text id=\"track\">"
-           << XmlEscape(N_("Buffering")) << "..."
+           << XmlEscape(_("Buffering")) << "..."
            << "</text>";
     else if((update_flags & UPDATE_FLAGS_META_DATA) != 0)
     {
@@ -812,7 +812,7 @@ bool ViewPlay::View::write_xml(std::ostream &os, uint32_t bits,
                << "</text>";
         }
         os << "<text id=\"alttrack\">"
-           << XmlEscape(mk_alt_track_name(md))
+           << XmlEscape(mk_alt_track_name(md).get_text())
            << "</text>";
         os << "<text id=\"bitrate\">"
            << get_bitrate(md).c_str()
