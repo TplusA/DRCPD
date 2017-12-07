@@ -89,7 +89,7 @@ msgstr "Medienfehler, mit Ihrem Gerät scheint etwas nicht zu stimmen."
 #: src/view_filebrowser.cc:1867
 msgid "Networking error, please check cabling or try again later."
 msgstr ""
-"Netzwerkfehler, bitte Verkablung überprüfen oder später noch mal versuchen."
+"Netzwerkfehler, bitte Verkabelung überprüfen oder später noch mal versuchen."
 
 #: src/view_filebrowser.cc:1872
 msgid "Protocol error, please try again later."
