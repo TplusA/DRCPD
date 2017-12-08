@@ -120,7 +120,7 @@ msgstr "Verwenden Sie bitte vorübergehend unsere App."
 
 #: src/view_play.cc:740
 msgid "(no data available)"
-msgstr "(keine Daten verfügbar)"
+msgstr ""
 
 #: src/view_play.cc:786
 msgid "Buffering"
