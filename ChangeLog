@@ -1,3 +1,10 @@
+2017-12-08  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 4.7 released.
+
+	* Internationalization: Revert translation for one string so that a
+	  hack on the SPI slave can continue to function.
+
 2017-12-07  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 4.6 released.
