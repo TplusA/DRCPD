@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, 2017  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2017, 2018  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -143,7 +143,7 @@ std::string Playlist::DirectoryCrawler::generate_resume_url(const Player::Crawle
     const auto d(rd.get());
 
     guchar raw_error_code;
-    gchar *location_url;
+    gchar *location_url = nullptr;
     GError *error = nullptr;
     const char *what;
     const char *dbus_error_message;
