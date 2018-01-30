@@ -117,6 +117,7 @@ class View: public ViewIface, public ViewSerializeBase
                    const DCP::Queue::Data &data) override;
     void do_stop_playing();
     void plug_audio_source(Player::AudioSource &audio_source,
+                           bool with_enforced_intentions,
                            const std::string *external_player_id = nullptr);
 };
 

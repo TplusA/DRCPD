@@ -56,9 +56,10 @@ void ViewPlay::View::register_audio_source(Player::AudioSource &audio_source,
 }
 
 void ViewPlay::View::plug_audio_source(Player::AudioSource &audio_source,
+                                       bool with_enforced_intentions,
                                        const std::string *external_player_id)
 {
-    player_control_.plug(audio_source,
+    player_control_.plug(audio_source, with_enforced_intentions,
                          [this] () { do_stop_playing(); },
                          external_player_id);
 }
@@ -95,7 +96,7 @@ void ViewPlay::View::prepare_for_playing(Player::AudioSource &audio_source,
          * playing, then plug to it */
         player_control_.stop_request();
         player_control_.unplug(true);
-        plug_audio_source(audio_source);
+        plug_audio_source(audio_source, true);
         player_control_.plug(player_data_);
         player_control_.plug(crawler, permissions);
     }
@@ -210,6 +211,11 @@ static bool is_navigation_locked_for_audio_source(const std::string &asrc_id)
     return asrc_id.empty()
         ? false
         : std::find(locked_ids.begin(), locked_ids.end(), asrc_id) != locked_ids.end();
+}
+
+static bool is_external_source_overriding_intentions(const std::string &asrc_id)
+{
+    return asrc_id == "roon";
 }
 
 ViewIface::InputResult
@@ -590,7 +596,7 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
                          audio_source->id_.c_str());
 
                 audio_source->select_now();
-                plug_audio_source(*audio_source);
+                plug_audio_source(*audio_source, true);
                 player_control_.plug(player_data_);
                 player_control_.source_selected_notification(ausrc_id);
             }
@@ -676,7 +682,9 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
                 log_assert(view != nullptr);
 
                 audio_source->select_now();
-                plug_audio_source(*audio_source, &player_id);
+                plug_audio_source(*audio_source,
+                                  !is_external_source_overriding_intentions(ausrc_id),
+                                  &player_id);
                 player_control_.plug(player_data_);
                 player_control_.plug(view->get_local_permissions());
                 view_manager_->sync_activate_view_by_name(view->name_, false);
