@@ -1,3 +1,28 @@
+2018-02-06  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 4.9 released.
+
+	* Roon: Fixed handling of play/pause commands coming from our
+	  appliance on the one hand, and from the Roon app on the other hand.
+	  For instance, we tried to continue playing a stream when pause was
+	  pushed on Roon side if that stream has been paused and resume on
+	  appliance side before.
+
+	* Roon: Jump to Roon's idle screen when the appliance switches from
+	  play view with Roon playing to the inactive view. This masks frozen
+	  Roon display with wrong contents (play state is shown while the Roon
+	  app is in pause state).
+
+	* Airable: Fixed switching back and forth between TIDAL/Qobuz and
+	  Internet Radio audio sources (Airable's root directory became
+	  visible and browsable in case external music service credentials
+	  were wrong or missing).
+
+	* UI: Ignore navigational commands while Roon or App audio source is
+	  active.
+
+	* UI: Roon idle screen says, "Roon Ready" (not "Roon Ready (beta)").
+
 2018-01-30  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 4.8 released.
