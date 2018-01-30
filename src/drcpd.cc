@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2016, 2017  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016, 2017, 2018  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -538,7 +538,7 @@ static void connect_everything(ViewManager::Manager &views,
                                       "strbo.upnpcm",
                                       &views);
     static ViewSourceApp::View app("TA Control", &views);
-    static ViewSourceRoon::View roon("Roon Ready (beta)", &views);
+    static ViewSourceRoon::View roon("Roon Ready", &views);
     static ViewPlay::View play(N_("Stream information"),
                                views.NUMBER_OF_LINES_ON_DISPLAY,
                                config.maximum_bitrate_,
