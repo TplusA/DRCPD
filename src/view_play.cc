@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2016, 2017  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016, 2017, 2018  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -199,6 +199,19 @@ static void lookup_view_for_external_source(std::map<std::string, std::pair<Play
     }
 }
 
+static bool is_navigation_locked_for_audio_source(const std::string &asrc_id)
+{
+    static const std::array<const std::string, 2> locked_ids
+    {
+        "strbo.plainurl",
+        "roon",
+    };
+
+    return asrc_id.empty()
+        ? false
+        : std::find(locked_ids.begin(), locked_ids.end(), asrc_id) != locked_ids.end();
+}
+
 ViewIface::InputResult
 ViewPlay::View::process_event(UI::ViewEventID event_id,
                               std::unique_ptr<const UI::Parameters> parameters)
@@ -274,7 +287,7 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
       case UI::ViewEventID::NAV_GO_BACK_ONE_LEVEL:
       case UI::ViewEventID::NAV_SCROLL_LINES:
       case UI::ViewEventID::NAV_SCROLL_PAGES:
-        return InputResult::SHOULD_HIDE;
+        return is_navigation_locked_ ? InputResult::OK : InputResult::SHOULD_HIDE;
 
       case UI::ViewEventID::PLAYBACK_FAST_WIND_SET_SPEED:
         {
@@ -632,6 +645,8 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
             const auto &plist = params->get_specific();
             const std::string &ausrc_id(std::get<0>(plist));
             const std::string &player_id(std::get<1>(plist));
+
+            is_navigation_locked_ = is_navigation_locked_for_audio_source(ausrc_id);
 
             if(player_control_.is_active_controller_for_audio_source(ausrc_id))
                 break;

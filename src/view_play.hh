@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2016, 2017  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016, 2017, 2018  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -56,6 +56,7 @@ class View: public ViewIface, public ViewSerializeBase
     static constexpr const uint32_t UPDATE_FLAGS_META_DATA       = 1U << 3;
 
     bool is_visible_;
+    bool is_navigation_locked_;
 
     uint32_t maximum_bitrate_;
 
@@ -75,6 +76,7 @@ class View: public ViewIface, public ViewSerializeBase
         ViewIface(ViewNames::PLAYER, false, view_manager),
         ViewSerializeBase(on_screen_name, ViewID::PLAY),
         is_visible_(false),
+        is_navigation_locked_(false),
         maximum_bitrate_(maximum_bitrate_for_streams),
         player_control_([this] (uint32_t bitrate)
                         {
