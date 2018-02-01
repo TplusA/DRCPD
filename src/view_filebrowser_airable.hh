@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, 2017  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2017, 2018  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -92,7 +92,7 @@ class AirableView: public View
             is_keep_alive_suppressed_ = true;
         }
 
-        bool is_set() const { return list_id_.is_valid(); }
+        bool is_set() const { return list_id_.is_valid() && context_root_.is_valid(); }
         bool is_keep_alive_suppressed() const { return is_keep_alive_suppressed_; }
 
         ID::List get_list_id() const { return list_id_; }
