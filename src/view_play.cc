@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2016, 2017  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016, 2017, 2018  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -56,9 +56,10 @@ void ViewPlay::View::register_audio_source(Player::AudioSource &audio_source,
 }
 
 void ViewPlay::View::plug_audio_source(Player::AudioSource &audio_source,
+                                       bool with_enforced_intentions,
                                        const std::string *external_player_id)
 {
-    player_control_.plug(audio_source,
+    player_control_.plug(audio_source, with_enforced_intentions,
                          [this] () { do_stop_playing(); },
                          external_player_id);
 }
@@ -95,7 +96,7 @@ void ViewPlay::View::prepare_for_playing(Player::AudioSource &audio_source,
          * playing, then plug to it */
         player_control_.stop_request();
         player_control_.unplug(true);
-        plug_audio_source(audio_source);
+        plug_audio_source(audio_source, true);
         player_control_.plug(player_data_);
         player_control_.plug(crawler, permissions);
     }
@@ -199,6 +200,24 @@ static void lookup_view_for_external_source(std::map<std::string, std::pair<Play
     }
 }
 
+static bool is_navigation_locked_for_audio_source(const std::string &asrc_id)
+{
+    static const std::array<const std::string, 2> locked_ids
+    {
+        "strbo.plainurl",
+        "roon",
+    };
+
+    return asrc_id.empty()
+        ? false
+        : std::find(locked_ids.begin(), locked_ids.end(), asrc_id) != locked_ids.end();
+}
+
+static bool is_external_source_overriding_intentions(const std::string &asrc_id)
+{
+    return asrc_id == "roon";
+}
+
 ViewIface::InputResult
 ViewPlay::View::process_event(UI::ViewEventID event_id,
                               std::unique_ptr<const UI::Parameters> parameters)
@@ -274,7 +293,7 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
       case UI::ViewEventID::NAV_GO_BACK_ONE_LEVEL:
       case UI::ViewEventID::NAV_SCROLL_LINES:
       case UI::ViewEventID::NAV_SCROLL_PAGES:
-        return InputResult::SHOULD_HIDE;
+        return is_navigation_locked_ ? InputResult::OK : InputResult::SHOULD_HIDE;
 
       case UI::ViewEventID::PLAYBACK_FAST_WIND_SET_SPEED:
         {
@@ -577,7 +596,7 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
                          audio_source->id_.c_str());
 
                 audio_source->select_now();
-                plug_audio_source(*audio_source);
+                plug_audio_source(*audio_source, true);
                 player_control_.plug(player_data_);
                 player_control_.source_selected_notification(ausrc_id);
             }
@@ -633,6 +652,8 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
             const std::string &ausrc_id(std::get<0>(plist));
             const std::string &player_id(std::get<1>(plist));
 
+            is_navigation_locked_ = is_navigation_locked_for_audio_source(ausrc_id);
+
             if(player_control_.is_active_controller_for_audio_source(ausrc_id))
                 break;
 
@@ -661,7 +682,9 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
                 log_assert(view != nullptr);
 
                 audio_source->select_now();
-                plug_audio_source(*audio_source, &player_id);
+                plug_audio_source(*audio_source,
+                                  !is_external_source_overriding_intentions(ausrc_id),
+                                  &player_id);
                 player_control_.plug(player_data_);
                 player_control_.plug(view->get_local_permissions());
                 view_manager_->sync_activate_view_by_name(view->name_, false);

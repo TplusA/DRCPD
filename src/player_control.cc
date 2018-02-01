@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, 2017  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2017, 2018  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -295,7 +295,7 @@ static void set_audio_player_dbus_proxies(const std::string &audio_player_id,
         audio_source.set_proxies(nullptr, nullptr);
 }
 
-void Player::Control::plug(AudioSource &audio_source,
+void Player::Control::plug(AudioSource &audio_source, bool with_enforced_intentions,
                            const std::function<void(void)> &stop_playing_notification,
                            const std::string *external_player_id)
 {
@@ -306,6 +306,7 @@ void Player::Control::plug(AudioSource &audio_source,
     log_assert(stop_playing_notification != nullptr);
 
     audio_source_ = &audio_source;
+    with_enforced_intentions_ = with_enforced_intentions;
     stop_playing_notification_ = stop_playing_notification;
 
     switch(audio_source_->get_state())
@@ -384,6 +385,7 @@ void Player::Control::unplug(bool is_complete_unplug)
     if(is_complete_unplug)
     {
         audio_source_ = nullptr;
+        with_enforced_intentions_ = false;
         stop_playing_notification_ = nullptr;
     }
 
@@ -744,7 +746,8 @@ void Player::Control::pause_request()
 
 static void enforce_intention(Player::UserIntention intention,
                               Player::StreamState known_stream_state,
-                              const Player::AudioSource *audio_source_)
+                              const Player::AudioSource *audio_source_,
+                              bool really_enforce)
 {
     if(audio_source_ == nullptr ||
        audio_source_->get_state() != Player::AudioSourceState::SELECTED)
@@ -753,6 +756,9 @@ static void enforce_intention(Player::UserIntention intention,
             audio_source_ == nullptr ? "null" : "deselected");
         return;
     }
+
+    if(!really_enforce)
+        intention = Player::UserIntention::NOTHING;
 
     switch(intention)
     {
@@ -1117,7 +1123,7 @@ bool Player::Control::skip_forward_request()
 
             skip_requests_.skipped(*player_, *crawler_, false);
             enforce_intention(player_->get_intention(), streamplayer_status,
-                              audio_source_);
+                              audio_source_, with_enforced_intentions_);
 
             retval = true;
         }
@@ -1388,7 +1394,7 @@ void Player::Control::play_notification(ID::Stream stream_id,
         }
 
         enforce_intention(player_->get_intention(), Player::StreamState::PLAYING,
-                          audio_source_);
+                          audio_source_, with_enforced_intentions_);
     }
 }
 
@@ -1917,7 +1923,7 @@ void Player::Control::pause_notification(ID::Stream stream_id)
 
     if(is_active_controller())
         enforce_intention(player_->get_intention(), Player::StreamState::PAUSED,
-                          audio_source_);
+                          audio_source_, with_enforced_intentions_);
 }
 
 

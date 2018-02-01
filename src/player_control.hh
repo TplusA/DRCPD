@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, 2017  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2017, 2018  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -172,6 +172,7 @@ class Control
     LoggedLock::RecMutex lock_;
 
     AudioSource *audio_source_;
+    bool with_enforced_intentions_;
     Data *player_;
     LoggedLock::RecMutex player_dummy_lock_;
     Playlist::CrawlerIface *crawler_;
@@ -238,6 +239,7 @@ class Control
 
     explicit Control(std::function<bool(uint32_t)> &&bitrate_limiter):
         audio_source_(nullptr),
+        with_enforced_intentions_(false),
         player_(nullptr),
         crawler_(nullptr),
         permissions_(nullptr),
@@ -298,7 +300,7 @@ class Control
         return crawler_ == &crawler;
     }
 
-    void plug(AudioSource &audio_source,
+    void plug(AudioSource &audio_source, bool with_enforced_intentions,
               const std::function<void(void)> &stop_playing_notification,
               const std::string *external_player_id = nullptr);
     void plug(Data &player_data);
