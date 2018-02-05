@@ -108,6 +108,12 @@ class ViewIface
     ViewIface(const ViewIface &) = delete;
     ViewIface &operator=(const ViewIface &) = delete;
 
+    enum class FocusRequestResult
+    {
+        NOW,
+        DEFER,
+    };
+
     /*!
      * How to proceed after processing a DRC command.
      */
@@ -161,6 +167,14 @@ class ViewIface
      * added.
      */
     virtual bool late_init() { return true; }
+
+    /*!
+     * What to do on imminent focus change.
+     */
+    virtual FocusRequestResult focus_change_request(const ViewIface &previous) const
+    {
+        return FocusRequestResult::NOW;
+    }
 
     /*!
      * Code that needs to run when the view is given the focus.
