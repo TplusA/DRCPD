@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2017, 2018  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -50,7 +50,7 @@ class View: public ViewIface, public ViewSerializeBase, public Error::Sink
 
     explicit View(const char *on_screen_name,
                   ViewManager::VMIface *view_manager):
-        ViewIface(ViewNames::ERROR_SINK, false, view_manager),
+        ViewIface(ViewNames::ERROR_SINK, ViewIface::Flags(), view_manager),
         ViewSerializeBase(on_screen_name, ViewID::ERROR)
     {
         install_singleton(*this);

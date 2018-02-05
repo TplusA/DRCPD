@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, 2017  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2017, 2018  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -50,7 +50,7 @@ class View: public ViewIface, public ViewSerializeBase
 
     explicit View(const char *on_screen_name, unsigned int max_lines,
                   ViewManager::VMIface *view_manager):
-        ViewIface(ViewNames::SEARCH_OPTIONS, false, view_manager),
+        ViewIface(ViewNames::SEARCH_OPTIONS, ViewIface::Flags(), view_manager),
         ViewSerializeBase(on_screen_name, ViewID::EDIT),
         request_view_(nullptr)
     {}

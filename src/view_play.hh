@@ -73,7 +73,7 @@ class View: public ViewIface, public ViewSerializeBase
     explicit View(const char *on_screen_name, unsigned int max_lines,
                   uint32_t maximum_bitrate_for_streams,
                   ViewManager::VMIface *view_manager):
-        ViewIface(ViewNames::PLAYER, false, view_manager),
+        ViewIface(ViewNames::PLAYER, ViewIface::Flags(), view_manager),
         ViewSerializeBase(on_screen_name, ViewID::PLAY),
         is_visible_(false),
         is_navigation_locked_(false),

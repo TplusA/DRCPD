@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2016, 2017  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016, 2017, 2018  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -173,7 +173,7 @@ class Manager: public VMIface, public UI::EventStoreIface
     struct ini_file resume_configuration_file_;
 
     ViewIface *active_view_;
-    ViewIface *last_browse_view_;
+    ViewIface *return_to_view_;
     DCP::Queue &dcp_transaction_queue_;
     std::ostream *debug_stream_;
 

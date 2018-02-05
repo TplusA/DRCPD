@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2017, 2018  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -37,7 +37,8 @@ class Base: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
     explicit Base(const char *name, const char *on_screen_name,
                   const char *audio_source_name,
                   ViewManager::VMIface *view_manager):
-        ViewIface(name, true, view_manager),
+        ViewIface(name, ViewIface::Flags(ViewIface::Flags::CAN_RETURN_TO_THIS),
+                  view_manager),
         ViewSerializeBase(on_screen_name, ViewID::MESSAGE),
         play_view_(nullptr),
         default_audio_source_name_(audio_source_name)

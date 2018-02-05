@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2016, 2017  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016, 2017, 2018  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -38,7 +38,7 @@ ViewManager::Manager::Manager(UI::EventQueue &event_queue, DCP::Queue &dcp_queue
     config_manager_(config_manager),
     resume_playback_config_filename_(nullptr),
     active_view_(&nop_view),
-    last_browse_view_(nullptr),
+    return_to_view_(nullptr),
     dcp_transaction_queue_(dcp_queue),
     debug_stream_(nullptr)
 {
@@ -276,8 +276,9 @@ void ViewManager::Manager::handle_input_result(ViewIface::InputResult result,
         break;
 
       case ViewIface::InputResult::SHOULD_HIDE:
-        if(&view == active_view_ && !view.is_browse_view_)
-            activate_view(last_browse_view_, true);
+        if(&view == active_view_ &&
+           view.flags_.is_any_set(ViewIface::Flags::CAN_HIDE))
+            activate_view(return_to_view_, true);
 
         break;
     }
@@ -552,8 +553,8 @@ void ViewManager::Manager::activate_view(ViewIface *view,
                                                                DCP::Queue::Mode::SYNC_IF_POSSIBLE,
                                                                debug_stream_);
 
-    if(active_view_->is_browse_view_)
-        last_browse_view_ = active_view_;
+    if(active_view_->flags_.is_any_set(ViewIface::Flags::CAN_RETURN_TO_THIS))
+        return_to_view_ = active_view_;
 }
 
 ViewIface *ViewManager::Manager::get_view_by_name(const char *view_name)

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2016, 2017  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016, 2017, 2018  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -183,8 +183,8 @@ class ViewMock::View::Expectation
     {}
 };
 
-ViewMock::View::View(const char *name, bool is_browse_view):
-    ViewIface(name, is_browse_view, nullptr),
+ViewMock::View::View(const char *name, ViewIface::Flags &&flags):
+    ViewIface(name, std::move(flags), nullptr),
     ViewSerializeBase("The mock view", ViewID::MESSAGE),
     ignore_all_(false)
 {

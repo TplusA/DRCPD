@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2016, 2017  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016, 2017, 2018  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -356,7 +356,9 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
                   Playlist::CrawlerIface::ShuffleMode default_shuffle_mode,
                   const char *audio_source_name,
                   ViewManager::VMIface *view_manager):
-        ViewIface(name, true, view_manager),
+        ViewIface(name,
+                  ViewIface::Flags(ViewIface::Flags::CAN_RETURN_TO_THIS),
+                  view_manager),
         ViewSerializeBase(on_screen_name, ViewID::BROWSE),
         listbroker_id_(listbroker_id),
         current_list_id_(0),

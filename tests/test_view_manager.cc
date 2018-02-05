@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2016, 2017  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016, 2017, 2018  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -157,7 +157,7 @@ void test_add_nop_view_fails(void)
  */
 void test_add_view(void)
 {
-    ViewMock::View view(standard_mock_view_name, false);
+    ViewMock::View view(standard_mock_view_name, ViewIface::Flags());
 
     cut_assert_true(view.init());
     cut_assert_true(vm->add_view(&view));
@@ -169,7 +169,7 @@ void test_add_view(void)
  */
 void test_add_views_with_same_name_fails(void)
 {
-    ViewMock::View view(standard_mock_view_name, false);
+    ViewMock::View view(standard_mock_view_name, ViewIface::Flags());
 
     cut_assert_true(view.init());
     cut_assert_true(vm->add_view(&view));
@@ -185,7 +185,7 @@ void test_add_view_and_activate(void)
     auto params = UI::Events::mk_params<UI::EventID::VIEW_OPEN>(standard_mock_view_name);
     vm->store_event(UI::EventID::VIEW_OPEN, std::move(params));
 
-    ViewMock::View view(standard_mock_view_name, false);
+    ViewMock::View view(standard_mock_view_name, ViewIface::Flags());
 
     cut_assert_true(view.init());
     cut_assert_true(vm->add_view(&view));
@@ -217,7 +217,7 @@ void test_get_nonexistent_view_by_name_fails(void)
  */
 void test_get_existent_view_by_name_returns_view_interface(void)
 {
-    ViewMock::View view(standard_mock_view_name, false);
+    ViewMock::View view(standard_mock_view_name, ViewIface::Flags());
 
     cut_assert_true(view.init());
     cut_assert_true(vm->add_view(&view));
@@ -249,7 +249,7 @@ void cut_setup(void)
     mock_messages->init();
     mock_messages_singleton = mock_messages;
 
-    mock_view = new ViewMock::View(standard_mock_view_name, false);
+    mock_view = new ViewMock::View(standard_mock_view_name, ViewIface::Flags());
     cppcut_assert_not_null(mock_view);
     cut_assert_true(mock_view->init());
 
@@ -477,7 +477,10 @@ static void populate_view_manager(ViewManager::Manager &vm,
     for(size_t i = 0; i < sizeof(names) / sizeof(names[0]); ++i)
     {
         ViewMock::View *view =
-            new ViewMock::View(names[i].name, names[i].is_browse_view);
+            new ViewMock::View(names[i].name,
+                               names[i].is_browse_view
+                               ? ViewIface::Flags(ViewIface::Flags::CAN_RETURN_TO_THIS)
+                               : ViewIface::Flags());
 
         cut_assert_true(view->init());
         cut_assert_true(vm.add_view(view));
@@ -798,7 +801,7 @@ void test_input_command_with_data(void)
     mock_messages->expect_msg_vinfo_formatted(MESSAGE_LEVEL_DEBUG,
                                               "Dispatch PLAYBACK_FAST_WIND_SET_SPEED (6) to view Play (bounced)");
 
-    ViewMock::View view("Play", false);
+    ViewMock::View view("Play", ViewIface::Flags());
     cut_assert_true(view.init());
     cut_assert_true(vm->add_view(&view));
 
@@ -824,7 +827,7 @@ void test_input_command_with_missing_data(void)
     mock_messages->expect_msg_vinfo_formatted(MESSAGE_LEVEL_DEBUG,
                                               "Dispatch PLAYBACK_FAST_WIND_SET_SPEED (6) to view Play (bounced)");
 
-    ViewMock::View view("Play", false);
+    ViewMock::View view("Play", ViewIface::Flags());
     cut_assert_true(view.init());
     cut_assert_true(vm->add_view(&view));
 
@@ -1062,7 +1065,7 @@ void cut_setup(void)
     mock_messages->init();
     mock_messages_singleton = mock_messages;
 
-    mock_view = new ViewMock::View(standard_mock_view_name, false);
+    mock_view = new ViewMock::View(standard_mock_view_name, ViewIface::Flags());
     cppcut_assert_not_null(mock_view);
     cut_assert_true(mock_view->init());
 
