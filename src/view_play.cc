@@ -213,11 +213,6 @@ static bool is_navigation_locked_for_audio_source(const std::string &asrc_id)
         : std::find(locked_ids.begin(), locked_ids.end(), asrc_id) != locked_ids.end();
 }
 
-static bool is_external_source_overriding_intentions(const std::string &asrc_id)
-{
-    return asrc_id == "roon";
-}
-
 ViewIface::InputResult
 ViewPlay::View::process_event(UI::ViewEventID event_id,
                               std::unique_ptr<const UI::Parameters> parameters)
@@ -683,7 +678,7 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
 
                 audio_source->select_now();
                 plug_audio_source(*audio_source,
-                                  !is_external_source_overriding_intentions(ausrc_id),
+                                  !view->flags_.is_any_set(ViewIface::Flags::NO_ENFORCED_USER_INTENTIONS),
                                   &player_id);
                 player_control_.plug(player_data_);
                 player_control_.plug(view->get_local_permissions());

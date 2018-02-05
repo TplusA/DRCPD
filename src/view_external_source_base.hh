@@ -37,8 +37,15 @@ class Base: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
     explicit Base(const char *name, const char *on_screen_name,
                   const char *audio_source_name,
                   ViewManager::VMIface *view_manager):
-        ViewIface(name, ViewIface::Flags(ViewIface::Flags::CAN_RETURN_TO_THIS),
-                  view_manager),
+        Base(name, on_screen_name, audio_source_name, view_manager,
+             ViewIface::Flags(ViewIface::Flags::CAN_RETURN_TO_THIS))
+    {}
+
+    explicit Base(const char *name, const char *on_screen_name,
+                  const char *audio_source_name,
+                  ViewManager::VMIface *view_manager,
+                  ViewIface::Flags &&flags):
+        ViewIface(name, std::move(flags), view_manager),
         ViewSerializeBase(on_screen_name, ViewID::MESSAGE),
         play_view_(nullptr),
         default_audio_source_name_(audio_source_name)
