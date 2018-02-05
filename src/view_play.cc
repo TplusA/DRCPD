@@ -200,19 +200,6 @@ static void lookup_view_for_external_source(std::map<std::string, std::pair<Play
     }
 }
 
-static bool is_navigation_locked_for_audio_source(const std::string &asrc_id)
-{
-    static const std::array<const std::string, 2> locked_ids
-    {
-        "strbo.plainurl",
-        "roon",
-    };
-
-    return asrc_id.empty()
-        ? false
-        : std::find(locked_ids.begin(), locked_ids.end(), asrc_id) != locked_ids.end();
-}
-
 ViewIface::InputResult
 ViewPlay::View::process_event(UI::ViewEventID event_id,
                               std::unique_ptr<const UI::Parameters> parameters)
@@ -646,14 +633,6 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
             const auto &plist = params->get_specific();
             const std::string &ausrc_id(std::get<0>(plist));
             const std::string &player_id(std::get<1>(plist));
-
-            is_navigation_locked_ = is_navigation_locked_for_audio_source(ausrc_id);
-
-            if(player_control_.is_active_controller_for_audio_source(ausrc_id))
-                break;
-
-            /* this must be an audio source not owned by us (or empty string),
-             * otherwise we would already be controlling it */
             Player::AudioSource *audio_source = nullptr;
             const ViewExternalSource::Base *view = nullptr;
 
@@ -661,6 +640,15 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
                 lookup_view_for_external_source(audio_sources_with_view_,
                                                 ausrc_id, audio_source, view);
 
+            is_navigation_locked_ = view != nullptr
+                ? view->flags_.is_any_set(ViewIface::Flags::IS_PASSIVE)
+                : false;
+
+            if(player_control_.is_active_controller_for_audio_source(ausrc_id))
+                break;
+
+            /* this must be an audio source not owned by us (or empty string),
+             * otherwise we would already be controlling it */
             const bool audio_source_is_deselected =
                 audio_source == nullptr || ausrc_id.empty();
 

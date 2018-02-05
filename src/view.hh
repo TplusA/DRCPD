@@ -57,11 +57,12 @@ class ViewIface
         static constexpr uint32_t CAN_RETURN_TO_THIS          = 1U << 0;
         static constexpr uint32_t CAN_HIDE                    = 1U << 1;
         static constexpr uint32_t NO_ENFORCED_USER_INTENTIONS = 1U << 2;
+        static constexpr uint32_t IS_PASSIVE                  = 1U << 3;
 
         static constexpr uint32_t DEFAULTS = CAN_HIDE;
 
       private:
-        static constexpr uint32_t LAST = NO_ENFORCED_USER_INTENTIONS;
+        static constexpr uint32_t LAST = IS_PASSIVE;
         static constexpr uint32_t VALID_BITS_MASK = ((LAST << 1) - 1);
 
         const uint32_t flags_;
