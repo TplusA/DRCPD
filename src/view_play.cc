@@ -200,6 +200,21 @@ static void lookup_view_for_external_source(std::map<std::string, std::pair<Play
     }
 }
 
+static const ViewIface *
+lookup_view_by_audio_source(std::map<std::string, std::pair<Player::AudioSource *, const ViewIface *>> &audio_sources,
+                            const Player::AudioSource *src)
+{
+    if(src == nullptr)
+        return nullptr;
+
+    Player::AudioSource *dummy;
+    const ViewIface *result;
+
+    lookup_source_and_view(audio_sources, src->id_, dummy, result);
+
+    return result;
+}
+
 ViewIface::InputResult
 ViewPlay::View::process_event(UI::ViewEventID event_id,
                               std::unique_ptr<const UI::Parameters> parameters)
@@ -652,6 +667,10 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
             const bool audio_source_is_deselected =
                 audio_source == nullptr || ausrc_id.empty();
 
+            const auto *const view_for_deselected_audio_source =
+                lookup_view_by_audio_source(audio_sources_with_view_,
+                                            player_control_.get_plugged_audio_source());
+
             player_control_.source_deselected_notification(nullptr);
             player_control_.unplug(true);
 
@@ -676,8 +695,13 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
             {
                 /* plain deselect and unplug: either we don't know the selected
                  * source or the audio path has been shutdown completely */
-                view_manager_->sync_activate_view_by_name(ViewNames::INACTIVE,
-                                                          false);
+                if(view_for_deselected_audio_source != nullptr &&
+                   view_for_deselected_audio_source->flags_.is_any_set(ViewIface::Flags::DROP_IN_FOR_INACTIVE_VIEW))
+                    view_manager_->sync_activate_view_by_name(view_for_deselected_audio_source->name_,
+                                                              false);
+                else
+                    view_manager_->sync_activate_view_by_name(ViewNames::INACTIVE,
+                                                              false);
             }
         }
 

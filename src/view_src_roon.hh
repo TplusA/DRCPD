@@ -35,7 +35,8 @@ class View: public ViewExternalSource::Base
         Base(ViewNames::ROON, on_screen_name, "roon", view_manager,
              ViewIface::Flags(ViewIface::Flags::CAN_RETURN_TO_THIS |
                               ViewIface::Flags::NO_ENFORCED_USER_INTENTIONS |
-                              ViewIface::Flags::IS_PASSIVE))
+                              ViewIface::Flags::IS_PASSIVE |
+                              ViewIface::Flags::DROP_IN_FOR_INACTIVE_VIEW))
     {}
 
     const Player::LocalPermissionsIface &get_local_permissions() const final override;
