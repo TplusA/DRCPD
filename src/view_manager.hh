@@ -174,7 +174,6 @@ class Manager: public VMIface, public UI::EventStoreIface
 
     ViewIface *active_view_;
     ViewIface *return_to_view_;
-    ViewIface *deferred_view_;
     DCP::Queue &dcp_transaction_queue_;
     std::ostream *debug_stream_;
 
@@ -250,8 +249,7 @@ class Manager: public VMIface, public UI::EventStoreIface
                                             const std::array<bool, Configuration::DrcpdValues::NUMBER_OF_KEYS> &changed);
 
     ViewIface *get_view_by_dbus_proxy(const void *dbus_proxy);
-    void activate_view(ViewIface *view, bool enforce_reactivation,
-                       bool is_deferred_activation);
+    void activate_view(ViewIface *view, bool enforce_reactivation);
     void handle_input_result(ViewIface::InputResult result, ViewIface &view);
 
     bool do_input_bounce(const InputBouncer &bouncer, UI::ViewEventID event_id,

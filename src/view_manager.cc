@@ -25,7 +25,6 @@
 #include "view_manager.hh"
 #include "view_filebrowser.hh"
 #include "view_nop.hh"
-#include "view_deferred_defocus.hh"
 #include "ui_parameters_predefined.hh"
 #include "messages.h"
 
@@ -40,7 +39,6 @@ ViewManager::Manager::Manager(UI::EventQueue &event_queue, DCP::Queue &dcp_queue
     resume_playback_config_filename_(nullptr),
     active_view_(&nop_view),
     return_to_view_(nullptr),
-    deferred_view_(nullptr),
     dcp_transaction_queue_(dcp_queue),
     debug_stream_(nullptr)
 {
@@ -278,16 +276,9 @@ void ViewManager::Manager::handle_input_result(ViewIface::InputResult result,
         break;
 
       case ViewIface::InputResult::SHOULD_HIDE:
-        if(&view == active_view_)
-        {
-            if(deferred_view_ == nullptr)
-            {
-                if(view.flags_.is_any_set(ViewIface::Flags::CAN_HIDE))
-                    activate_view(return_to_view_, true, false);
-            }
-            else
-                activate_view(deferred_view_, true, true);
-        }
+        if(&view == active_view_ &&
+           view.flags_.is_any_set(ViewIface::Flags::CAN_HIDE))
+            activate_view(return_to_view_, true);
 
         break;
     }
@@ -545,8 +536,7 @@ static ViewIface *lookup_view_by_dbus_proxy(ViewManager::Manager::ViewsContainer
 }
 
 void ViewManager::Manager::activate_view(ViewIface *view,
-                                         bool enforce_reactivation,
-                                         bool is_deferred_activation)
+                                         bool enforce_reactivation)
 {
     if(view == nullptr)
         return;
@@ -554,57 +544,17 @@ void ViewManager::Manager::activate_view(ViewIface *view,
     if(!enforce_reactivation && view == active_view_)
         return;
 
-    auto what = is_deferred_activation
-        ? ViewIface::FocusRequestResult::NOW
-        : view->focus_change_request(*active_view_);
+    active_view_->defocus();
 
-    auto *active_as_deferred =
-        dynamic_cast<ViewDeferredDefocus::Deferred *>(active_view_);
+    active_view_ = view;
+    active_view_->focus();
 
-    switch(what)
-    {
-      case ViewIface::FocusRequestResult::NOW:
-        break;
+    dynamic_cast<ViewSerializeBase *>(active_view_)->serialize(dcp_transaction_queue_,
+                                                               DCP::Queue::Mode::SYNC_IF_POSSIBLE,
+                                                               debug_stream_);
 
-      case ViewIface::FocusRequestResult::DEFER:
-        if(active_as_deferred == nullptr)
-        {
-            BUG("Requested deferred defocus of view %s by %s, "
-                "but %s does not support this",
-                active_view_->name_, view->name_, active_view_->name_);
-            what = ViewIface::FocusRequestResult::NOW;
-        }
-
-        break;
-    }
-
-    switch(what)
-    {
-      case ViewIface::FocusRequestResult::NOW:
-        deferred_view_ = nullptr;
-
-        if(is_deferred_activation && active_as_deferred != nullptr)
-            active_as_deferred->thank_you_for_hiding();
-
-        active_view_->defocus();
-
-        active_view_ = view;
-        active_view_->focus();
-
-        dynamic_cast<ViewSerializeBase *>(active_view_)->serialize(dcp_transaction_queue_,
-                                                                   DCP::Queue::Mode::SYNC_IF_POSSIBLE,
-                                                                   debug_stream_);
-
-        if(active_view_->flags_.is_any_set(ViewIface::Flags::CAN_RETURN_TO_THIS))
-            return_to_view_ = active_view_;
-
-        break;
-
-      case ViewIface::FocusRequestResult::DEFER:
-        deferred_view_ = view;
-        active_as_deferred->please_hide_yourself_soon();
-        break;
-    }
+    if(active_view_->flags_.is_any_set(ViewIface::Flags::CAN_RETURN_TO_THIS))
+        return_to_view_ = active_view_;
 }
 
 ViewIface *ViewManager::Manager::get_view_by_name(const char *view_name)
@@ -622,7 +572,7 @@ void ViewManager::Manager::sync_activate_view_by_name(const char *view_name,
 {
     msg_info("Requested to activate view \"%s\"", view_name);
     activate_view(lookup_view_by_name(all_views_, view_name),
-                  enforce_reactivation, false);
+                  enforce_reactivation);
 }
 
 void ViewManager::Manager::sync_toggle_views_by_name(const char *view_name_a,
@@ -646,7 +596,7 @@ void ViewManager::Manager::sync_toggle_views_by_name(const char *view_name_a,
     else
         next_view = view_a;
 
-    activate_view(next_view, enforce_reactivation, false);
+    activate_view(next_view, enforce_reactivation);
 }
 
 bool ViewManager::Manager::is_active_view(const ViewIface *view) const
