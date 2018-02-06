@@ -300,6 +300,8 @@ class Control
         return crawler_ == &crawler;
     }
 
+    const AudioSource *get_plugged_audio_source() const { return audio_source_; }
+
     void plug(AudioSource &audio_source, bool with_enforced_intentions,
               const std::function<void(void)> &stop_playing_notification,
               const std::string *external_player_id = nullptr);

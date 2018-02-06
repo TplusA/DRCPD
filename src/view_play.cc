@@ -200,22 +200,19 @@ static void lookup_view_for_external_source(std::map<std::string, std::pair<Play
     }
 }
 
-static bool is_navigation_locked_for_audio_source(const std::string &asrc_id)
+static const ViewIface *
+lookup_view_by_audio_source(std::map<std::string, std::pair<Player::AudioSource *, const ViewIface *>> &audio_sources,
+                            const Player::AudioSource *src)
 {
-    static const std::array<const std::string, 2> locked_ids
-    {
-        "strbo.plainurl",
-        "roon",
-    };
+    if(src == nullptr)
+        return nullptr;
 
-    return asrc_id.empty()
-        ? false
-        : std::find(locked_ids.begin(), locked_ids.end(), asrc_id) != locked_ids.end();
-}
+    Player::AudioSource *dummy;
+    const ViewIface *result;
 
-static bool is_external_source_overriding_intentions(const std::string &asrc_id)
-{
-    return asrc_id == "roon";
+    lookup_source_and_view(audio_sources, src->id_, dummy, result);
+
+    return result;
 }
 
 ViewIface::InputResult
@@ -651,14 +648,6 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
             const auto &plist = params->get_specific();
             const std::string &ausrc_id(std::get<0>(plist));
             const std::string &player_id(std::get<1>(plist));
-
-            is_navigation_locked_ = is_navigation_locked_for_audio_source(ausrc_id);
-
-            if(player_control_.is_active_controller_for_audio_source(ausrc_id))
-                break;
-
-            /* this must be an audio source not owned by us (or empty string),
-             * otherwise we would already be controlling it */
             Player::AudioSource *audio_source = nullptr;
             const ViewExternalSource::Base *view = nullptr;
 
@@ -666,8 +655,21 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
                 lookup_view_for_external_source(audio_sources_with_view_,
                                                 ausrc_id, audio_source, view);
 
+            is_navigation_locked_ = view != nullptr
+                ? view->flags_.is_any_set(ViewIface::Flags::IS_PASSIVE)
+                : false;
+
+            if(player_control_.is_active_controller_for_audio_source(ausrc_id))
+                break;
+
+            /* this must be an audio source not owned by us (or empty string),
+             * otherwise we would already be controlling it */
             const bool audio_source_is_deselected =
                 audio_source == nullptr || ausrc_id.empty();
+
+            const auto *const view_for_deselected_audio_source =
+                lookup_view_by_audio_source(audio_sources_with_view_,
+                                            player_control_.get_plugged_audio_source());
 
             player_control_.source_deselected_notification(nullptr);
             player_control_.unplug(true);
@@ -683,7 +685,7 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
 
                 audio_source->select_now();
                 plug_audio_source(*audio_source,
-                                  !is_external_source_overriding_intentions(ausrc_id),
+                                  !view->flags_.is_any_set(ViewIface::Flags::NO_ENFORCED_USER_INTENTIONS),
                                   &player_id);
                 player_control_.plug(player_data_);
                 player_control_.plug(view->get_local_permissions());
@@ -693,8 +695,13 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
             {
                 /* plain deselect and unplug: either we don't know the selected
                  * source or the audio path has been shutdown completely */
-                view_manager_->sync_activate_view_by_name(ViewNames::INACTIVE,
-                                                          false);
+                if(view_for_deselected_audio_source != nullptr &&
+                   view_for_deselected_audio_source->flags_.is_any_set(ViewIface::Flags::DROP_IN_FOR_INACTIVE_VIEW))
+                    view_manager_->sync_activate_view_by_name(view_for_deselected_audio_source->name_,
+                                                              false);
+                else
+                    view_manager_->sync_activate_view_by_name(ViewNames::INACTIVE,
+                                                              false);
             }
         }
 
