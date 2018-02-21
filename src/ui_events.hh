@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, 2017  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2017, 2018  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -124,11 +124,10 @@ template <> struct EventTypeTraits<VManEventID>
 };
 
 template <typename T>
-static constexpr EventID mk_event_id(const T id)
+static constexpr unsigned int mk_event_raw_id(const T id)
 {
-    return static_cast<EventID>(
-                static_cast<unsigned int>(id) |
-                (static_cast<unsigned int>(EventTypeTraits<T>::event_type_id) << EVENT_TYPE_SHIFT));
+    return static_cast<unsigned int>(id) |
+           (static_cast<unsigned int>(EventTypeTraits<T>::event_type_id) << EVENT_TYPE_SHIFT);
 }
 
 template <typename T>
@@ -152,53 +151,59 @@ enum class EventID
     /* ======================================================
      * Active commands issued by the user or some other actor
      * ====================================================== */
-    PLAYBACK_COMMAND_START       = mk_event_id(ViewEventID::PLAYBACK_COMMAND_START),
-    PLAYBACK_COMMAND_STOP        = mk_event_id(ViewEventID::PLAYBACK_COMMAND_STOP),
-    PLAYBACK_COMMAND_PAUSE       = mk_event_id(ViewEventID::PLAYBACK_COMMAND_PAUSE),
-    PLAYBACK_TRY_RESUME          = mk_event_id(ViewEventID::PLAYBACK_TRY_RESUME),
-    PLAYBACK_PREVIOUS            = mk_event_id(ViewEventID::PLAYBACK_PREVIOUS),
-    PLAYBACK_NEXT                = mk_event_id(ViewEventID::PLAYBACK_NEXT),
-    PLAYBACK_FAST_WIND_SET_SPEED = mk_event_id(ViewEventID::PLAYBACK_FAST_WIND_SET_SPEED),
-    PLAYBACK_SEEK_STREAM_POS     = mk_event_id(ViewEventID::PLAYBACK_SEEK_STREAM_POS),
-    PLAYBACK_MODE_REPEAT_TOGGLE  = mk_event_id(ViewEventID::PLAYBACK_MODE_REPEAT_TOGGLE),
-    PLAYBACK_MODE_SHUFFLE_TOGGLE = mk_event_id(ViewEventID::PLAYBACK_MODE_SHUFFLE_TOGGLE),
-    AUDIO_SOURCE_SELECTED        = mk_event_id(ViewEventID::AUDIO_SOURCE_SELECTED),
-    AUDIO_SOURCE_DESELECTED      = mk_event_id(ViewEventID::AUDIO_SOURCE_DESELECTED),
-    AUDIO_PATH_CHANGED           = mk_event_id(ViewEventID::AUDIO_PATH_CHANGED),
+    PLAYBACK_COMMAND_START       = mk_event_raw_id(ViewEventID::PLAYBACK_COMMAND_START),
+    PLAYBACK_COMMAND_STOP        = mk_event_raw_id(ViewEventID::PLAYBACK_COMMAND_STOP),
+    PLAYBACK_COMMAND_PAUSE       = mk_event_raw_id(ViewEventID::PLAYBACK_COMMAND_PAUSE),
+    PLAYBACK_TRY_RESUME          = mk_event_raw_id(ViewEventID::PLAYBACK_TRY_RESUME),
+    PLAYBACK_PREVIOUS            = mk_event_raw_id(ViewEventID::PLAYBACK_PREVIOUS),
+    PLAYBACK_NEXT                = mk_event_raw_id(ViewEventID::PLAYBACK_NEXT),
+    PLAYBACK_FAST_WIND_SET_SPEED = mk_event_raw_id(ViewEventID::PLAYBACK_FAST_WIND_SET_SPEED),
+    PLAYBACK_SEEK_STREAM_POS     = mk_event_raw_id(ViewEventID::PLAYBACK_SEEK_STREAM_POS),
+    PLAYBACK_MODE_REPEAT_TOGGLE  = mk_event_raw_id(ViewEventID::PLAYBACK_MODE_REPEAT_TOGGLE),
+    PLAYBACK_MODE_SHUFFLE_TOGGLE = mk_event_raw_id(ViewEventID::PLAYBACK_MODE_SHUFFLE_TOGGLE),
+    AUDIO_SOURCE_SELECTED        = mk_event_raw_id(ViewEventID::AUDIO_SOURCE_SELECTED),
+    AUDIO_SOURCE_DESELECTED      = mk_event_raw_id(ViewEventID::AUDIO_SOURCE_DESELECTED),
+    AUDIO_PATH_CHANGED           = mk_event_raw_id(ViewEventID::AUDIO_PATH_CHANGED),
 
     /* ===================================================================
      * Active navigational commands issued by the user or some other actor
      * =================================================================== */
-    NAV_SELECT_ITEM              = mk_event_id(ViewEventID::NAV_SELECT_ITEM),
-    NAV_SCROLL_LINES             = mk_event_id(ViewEventID::NAV_SCROLL_LINES),
-    NAV_SCROLL_PAGES             = mk_event_id(ViewEventID::NAV_SCROLL_PAGES),
-    NAV_GO_BACK_ONE_LEVEL        = mk_event_id(ViewEventID::NAV_GO_BACK_ONE_LEVEL),
+    NAV_SELECT_ITEM              = mk_event_raw_id(ViewEventID::NAV_SELECT_ITEM),
+    NAV_SCROLL_LINES             = mk_event_raw_id(ViewEventID::NAV_SCROLL_LINES),
+    NAV_SCROLL_PAGES             = mk_event_raw_id(ViewEventID::NAV_SCROLL_PAGES),
+    NAV_GO_BACK_ONE_LEVEL        = mk_event_raw_id(ViewEventID::NAV_GO_BACK_ONE_LEVEL),
 
     /* ==================================
      * Other active view-related commands
      * ================================== */
-    VIEW_OPEN                    = mk_event_id(VManEventID::OPEN_VIEW),
-    VIEW_TOGGLE                  = mk_event_id(VManEventID::TOGGLE_VIEWS),
-    VIEW_SEARCH_COMMENCE         = mk_event_id(ViewEventID::SEARCH_COMMENCE),
-    VIEW_SEARCH_STORE_PARAMETERS = mk_event_id(ViewEventID::SEARCH_STORE_PARAMETERS),
-    VIEW_PLAYER_STORE_PRELOADED_META_DATA = mk_event_id(ViewEventID::STORE_PRELOADED_META_DATA),
-    VIEW_STRBO_URL_RESOLVED      = mk_event_id(BroadcastEventID::STRBO_URL_RESOLVED),
+    VIEW_OPEN                    = mk_event_raw_id(VManEventID::OPEN_VIEW),
+    VIEW_TOGGLE                  = mk_event_raw_id(VManEventID::TOGGLE_VIEWS),
+    VIEW_SEARCH_COMMENCE         = mk_event_raw_id(ViewEventID::SEARCH_COMMENCE),
+    VIEW_SEARCH_STORE_PARAMETERS = mk_event_raw_id(ViewEventID::SEARCH_STORE_PARAMETERS),
+    VIEW_PLAYER_STORE_PRELOADED_META_DATA = mk_event_raw_id(ViewEventID::STORE_PRELOADED_META_DATA),
+    VIEW_STRBO_URL_RESOLVED      = mk_event_raw_id(BroadcastEventID::STRBO_URL_RESOLVED),
 
     /* =====================
      * Passive notifications
      * ===================== */
-    CONFIGURATION_UPDATED        = mk_event_id(BroadcastEventID::CONFIGURATION_UPDATED),
-    VIEWMAN_INVALIDATE_LIST_ID   = mk_event_id(VManEventID::INVALIDATE_LIST_ID),
-    VIEWMAN_STREAM_NOW_PLAYING   = mk_event_id(VManEventID::NOTIFY_NOW_PLAYING),
-    VIEW_PLAYER_NOW_PLAYING      = mk_event_id(ViewEventID::NOTIFY_NOW_PLAYING),
-    VIEW_PLAYER_STORE_STREAM_META_DATA = mk_event_id(ViewEventID::STORE_STREAM_META_DATA),
-    VIEW_PLAYER_STREAM_STOPPED   = mk_event_id(ViewEventID::NOTIFY_STREAM_STOPPED),
-    VIEW_PLAYER_STREAM_PAUSED    = mk_event_id(ViewEventID::NOTIFY_STREAM_PAUSED),
-    VIEW_PLAYER_STREAM_POSITION  = mk_event_id(ViewEventID::NOTIFY_STREAM_POSITION),
-    VIEW_PLAYER_SPEED_CHANGED    = mk_event_id(ViewEventID::NOTIFY_SPEED_CHANGED),
-    VIEW_PLAYER_PLAYBACK_MODE_CHANGED = mk_event_id(ViewEventID::NOTIFY_PLAYBACK_MODE_CHANGED),
-    VIEW_AIRABLE_SERVICE_LOGIN_STATUS_UPDATE = mk_event_id(ViewEventID::NOTIFY_AIRABLE_SERVICE_LOGIN_STATUS_UPDATE),
+    CONFIGURATION_UPDATED        = mk_event_raw_id(BroadcastEventID::CONFIGURATION_UPDATED),
+    VIEWMAN_INVALIDATE_LIST_ID   = mk_event_raw_id(VManEventID::INVALIDATE_LIST_ID),
+    VIEWMAN_STREAM_NOW_PLAYING   = mk_event_raw_id(VManEventID::NOTIFY_NOW_PLAYING),
+    VIEW_PLAYER_NOW_PLAYING      = mk_event_raw_id(ViewEventID::NOTIFY_NOW_PLAYING),
+    VIEW_PLAYER_STORE_STREAM_META_DATA = mk_event_raw_id(ViewEventID::STORE_STREAM_META_DATA),
+    VIEW_PLAYER_STREAM_STOPPED   = mk_event_raw_id(ViewEventID::NOTIFY_STREAM_STOPPED),
+    VIEW_PLAYER_STREAM_PAUSED    = mk_event_raw_id(ViewEventID::NOTIFY_STREAM_PAUSED),
+    VIEW_PLAYER_STREAM_POSITION  = mk_event_raw_id(ViewEventID::NOTIFY_STREAM_POSITION),
+    VIEW_PLAYER_SPEED_CHANGED    = mk_event_raw_id(ViewEventID::NOTIFY_SPEED_CHANGED),
+    VIEW_PLAYER_PLAYBACK_MODE_CHANGED = mk_event_raw_id(ViewEventID::NOTIFY_PLAYBACK_MODE_CHANGED),
+    VIEW_AIRABLE_SERVICE_LOGIN_STATUS_UPDATE = mk_event_raw_id(ViewEventID::NOTIFY_AIRABLE_SERVICE_LOGIN_STATUS_UPDATE),
 };
+
+template <typename T>
+static constexpr EventID mk_event_id(const T id)
+{
+    return static_cast<EventID>(mk_event_raw_id(id));
+}
 
 class EventStoreIface
 {

@@ -66,6 +66,11 @@ struct dcp_fifo_dispatch_data_t
     files_t *files;
     ViewManager::VMIface *vm;
     Timeout::Timer timeout;
+
+    explicit dcp_fifo_dispatch_data_t(files_t &f):
+        files(&f),
+        vm(nullptr)
+    {}
 };
 
 struct parameters
@@ -628,11 +633,7 @@ int main(int argc, char *argv[])
     static GMainLoop *loop = NULL;
 
     static struct ui_events_processing_data_t ui_events_processing_data;
-
-    static struct dcp_fifo_dispatch_data_t dcp_dispatch_data =
-    {
-        .files = &files,
-    };
+    static struct dcp_fifo_dispatch_data_t dcp_dispatch_data(files);
 
     if(setup(&parameters, &dcp_dispatch_data, &loop) < 0)
         return EXIT_FAILURE;
