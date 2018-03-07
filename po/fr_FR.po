@@ -1,0 +1,135 @@
+# French translations for drcpd package.
+# Copyright (C) 2014 T+A elektroakustik GmbH & Co. KG
+# This file is distributed under the same license as the drcpd package.
+# Robert Tiemann <r.tiemann@ta-hifi.de>, 2014.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: drcpd 4.3\n"
+"Report-Msgid-Bugs-To: r.tiemann@ta-hifi.de\n"
+"POT-Creation-Date: 2017-12-07 13:37+0100\n"
+"PO-Revision-Date: 2014-10-01 15:45+0200\n"
+"Last-Translator: Robert Tiemann <r.tiemann@ta-hifi.de>\n"
+"Language-Team: French\n"
+"Language: fr_FR\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: src/dbuslist.cc:1050
+msgid "Loading..."
+msgstr "charger..."
+
+#: src/drcpd.cc:515
+msgid "Error"
+msgstr "Erreur"
+
+#: src/drcpd.cc:518
+msgid "USB mass storage devices"
+msgstr "Périphérique de stockage USB"
+
+#: src/drcpd.cc:526
+msgid "Airable internet radio"
+msgstr ""
+
+#: src/drcpd.cc:533
+msgid "UPnP media servers"
+msgstr "Serveurs média UPnP     "
+
+#: src/drcpd.cc:542
+msgid "Stream information"
+msgstr "Information en streaming"
+
+#: src/drcpd.cc:546
+msgid "Search parameters"
+msgstr "Paramètres de recherche"
+
+#: src/view_filebrowser.cc:582
+msgid "No devices found"
+msgstr "Aucun appareils trouvé"
+
+#: src/view_filebrowser.cc:584
+msgid "Services not available"
+msgstr "Services non disponibles"
+
+#: src/view_filebrowser.cc:586
+msgid "No servers found"
+msgstr "Aucun serveur trouvé"
+
+#: src/view_filebrowser.cc:588
+msgid "empty"
+msgstr "blanc"
+
+#: src/view_filebrowser.cc:1279
+msgid "Loading"
+msgstr "charger"
+
+#: src/view_filebrowser.cc:1281 src/view_filebrowser_airable.cc:600
+msgid "Unavailable"
+msgstr "Indisponible"
+
+#: src/view_filebrowser.cc:1283
+msgid "Locked"
+msgstr "Bloqué"
+
+#: src/view_filebrowser.cc:1839
+#, c-format
+msgid "Please check your %s credentials."
+msgstr "Veuillez vérifier vos données d'accès pour %s"
+
+#: src/view_filebrowser.cc:1847
+msgid "Authentication error, please check your credentials."
+msgstr "Erreur d'authentification, veuillez vérifier vos données d'accès."
+
+#: src/view_filebrowser.cc:1862
+msgid "Media error, something seems to be wrong with the device."
+msgstr "Erreur de média, quelque chose semble être en erreur avec l'appareil."
+
+#: src/view_filebrowser.cc:1867
+msgid "Networking error, please check cabling or try again later."
+msgstr ""
+"Erreur réseau, veuillez vérifier le câblage ou réessayer plus tard."
+
+#: src/view_filebrowser.cc:1872
+msgid "Protocol error, please try again later."
+msgstr "Erreur de protocole, veuillez réessayer plus tard."
+
+#: src/view_filebrowser.cc:1886
+#, c-format
+msgid "Authentication error for \"%s\". Please check your credentials."
+msgstr ""
+"Erreur d'authentification pour \"%s\". Veuillez vérifier vos données d'accès."
+
+#: src/view_filebrowser.cc:1896
+msgid "Entering directory is not allowed."
+msgstr "L'entrée dans le répertoire n'est pas autorisée."
+
+#: src/view_filebrowser.cc:1901
+#, c-format
+msgid "Entering \"%s\" not is allowed."
+msgstr "La saisie \"%s\" n'est pas autorisée."
+
+#: src/view_filebrowser_airable.cc:598
+msgid "Accessing"
+msgstr "Accéder"
+
+#: src/view_filebrowser_airable.cc:602
+msgid "For the time being, please use our app."
+msgstr "Veuillez utiliser notre application temporairement."
+
+#: src/view_play.cc:740
+msgid "(no data available)"
+msgstr ""
+
+#: src/view_play.cc:786
+msgid "Buffering"
+msgstr "Charger les données"
+
+#: po/listbrokers.txt:1
+msgid "All USB devices"
+msgstr "Tous les appareils USB"
+
+#: po/listbrokers.txt:2
+msgid "All UPnP servers"
+msgstr "Tous les serveurs UPnP"
