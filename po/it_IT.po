@@ -63,15 +63,15 @@ msgstr "vuota"
 
 #: src/view_filebrowser.cc:1279
 msgid "Loading"
-msgstr "caricamento"
+msgstr "Caricamento"
 
 #: src/view_filebrowser.cc:1281 src/view_filebrowser_airable.cc:600
 msgid "Unavailable"
-msgstr "non disponibile"
+msgstr "Non disponibile"
 
 #: src/view_filebrowser.cc:1283
 msgid "Locked"
-msgstr "bloccato"
+msgstr "Bloccato"
 
 #: src/view_filebrowser.cc:1839
 #, c-format

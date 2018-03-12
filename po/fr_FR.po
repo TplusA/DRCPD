@@ -19,7 +19,7 @@ msgstr ""
 
 #: src/dbuslist.cc:1050
 msgid "Loading..."
-msgstr "charger..."
+msgstr "Charger..."
 
 #: src/drcpd.cc:515
 msgid "Error"
@@ -35,7 +35,7 @@ msgstr ""
 
 #: src/drcpd.cc:533
 msgid "UPnP media servers"
-msgstr "Serveurs média UPnP     "
+msgstr "Serveurs média UPnP"
 
 #: src/drcpd.cc:542
 msgid "Stream information"
@@ -63,7 +63,7 @@ msgstr "blanc"
 
 #: src/view_filebrowser.cc:1279
 msgid "Loading"
-msgstr "charger"
+msgstr "Charger"
 
 #: src/view_filebrowser.cc:1281 src/view_filebrowser_airable.cc:600
 msgid "Unavailable"
