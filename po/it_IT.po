@@ -106,7 +106,7 @@ msgstr "L' inserimento della directory non è consentito."
 #: src/view_filebrowser.cc:1901
 #, c-format
 msgid "Entering \"%s\" not is allowed."
-msgstr "L' accedere di \"%s\ non è consentita."
+msgstr "L' accedere di \"%s\" non è consentita."
 
 #: src/view_filebrowser_airable.cc:598
 msgid "Accessing"
