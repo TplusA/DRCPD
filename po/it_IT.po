@@ -1,7 +1,7 @@
 # Italian translations for drcpd package.
-# Copyright (C) 2014 T+A elektroakustik GmbH & Co. KG
+# Copyright (C) 2018 T+A elektroakustik GmbH & Co. KG
 # This file is distributed under the same license as the drcpd package.
-# Robert Tiemann <r.tiemann@ta-hifi.de>, 2014.
+# Robert Tiemann <r.tiemann@ta-hifi.de>, 2018.
 #
 msgid ""
 msgstr ""
