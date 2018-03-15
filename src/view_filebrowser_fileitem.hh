@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2018  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -32,6 +32,8 @@ class FileItem: public List::TextItem
     ListItemKind kind_;
     MetaData::PreloadedSet preloaded_meta_data_;
 
+    static FileItem loading_placeholder_;
+
   public:
     FileItem(const FileItem &) = delete;
     FileItem &operator=(const FileItem &) = delete;
@@ -51,6 +53,8 @@ class FileItem: public List::TextItem
     {
         return preloaded_meta_data_;
     }
+
+    static const List::Item &get_loading_placeholder() { return loading_placeholder_; }
 };
 
 }

@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2015, 2016  T+A elektroakustik GmbH & Co. KG
+# Copyright (C) 2015, 2016, 2018  T+A elektroakustik GmbH & Co. KG
 #
 # This file is part of DRCPD.
 #
@@ -49,6 +49,7 @@ check_LTLIBRARIES = \
 
 test_list_la_SOURCES = test_list.cc dbus_dummies.cc
 test_list_la_LIBADD = \
+    $(top_builddir)/src/libviews.la \
     $(top_builddir)/src/liblist.la \
     $(top_builddir)/src/libcontextmap.la
 test_list_la_CFLAGS = $(DRCPD_DEPENDENCIES_CFLAGS) $(AM_CFLAGS)
@@ -56,6 +57,7 @@ test_list_la_CXXFLAGS = $(DRCPD_DEPENDENCIES_CFLAGS) $(AM_CXXFLAGS)
 
 test_listnav_la_SOURCES = test_listnav.cc dbus_dummies.cc
 test_listnav_la_LIBADD = \
+    $(top_builddir)/src/libviews.la \
     $(top_builddir)/src/liblist.la \
     $(top_builddir)/src/libcontextmap.la
 test_listnav_la_CFLAGS = $(DRCPD_DEPENDENCIES_CFLAGS) $(AM_CFLAGS)

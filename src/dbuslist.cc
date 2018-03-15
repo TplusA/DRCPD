@@ -1042,15 +1042,6 @@ List::DBusList::get_item_async_set_hint(unsigned int line, unsigned int count,
 List::AsyncListIface::OpResult
 List::DBusList::get_item_async(unsigned int line, const Item *&item)
 {
-    /*
-     * TODO: This object must be moved to ViewFileBrowser and must be
-     *       retrievable from there as a regular #List::Item.
-     * TODO: i18n
-     */
-    static const ViewFileBrowser::FileItem loading(_("Loading..."), 0U,
-                                                   ListItemKind(ListItemKind::LOCKED),
-                                                   MetaData::PreloadedSet());
-
     item = nullptr;
 
     if(!window_.list_id_.is_valid())
@@ -1074,7 +1065,7 @@ List::DBusList::get_item_async(unsigned int line, const Item *&item)
 
     if(is_line_loading(line))
     {
-        item = &loading;
+        item = &ViewFileBrowser::FileItem::get_loading_placeholder();
         return OpResult::STARTED;
     }
 
