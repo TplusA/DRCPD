@@ -23,6 +23,8 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
+#include <functional>
+
 #ifdef ENABLE_NLS
 #include <libintl.h>
 
@@ -38,13 +40,17 @@ namespace I18n
 
 #ifdef ENABLE_NLS
 
+void init();
 void init_language(const char *default_language_identifier);
 void switch_language(const char *language_identifier);
+void register_notifier(std::function<void(const char *)> &&notifier);
 
 #else /* !ENABLE_NLS  */
 
+static inline void init() {}
 static inline void init_language(const char *default_language_identifier) {}
 static inline void switch_language(const char *language_identifier) {}
+static inline void register_notifier(std::function<void(const char *)> &&notifier) {}
 
 #endif /* ENABLE_NLS */
 

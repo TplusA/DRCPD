@@ -245,6 +245,8 @@ static int setup(const struct parameters *parameters,
 
     log_version_info();
 
+    I18n::init();
+
     msg_vinfo(MESSAGE_LEVEL_DEBUG, "Attempting to open named pipes");
 
     struct files_t *const files = dispatch_data->files;
