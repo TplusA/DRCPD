@@ -33,7 +33,21 @@
 
 #define N_(S)   (S)
 
-void i18n_init(const char *default_language_identifier);
-void i18n_switch_language(const char *language_identifier);
+namespace I18n
+{
+
+#ifdef ENABLE_NLS
+
+void init_language(const char *default_language_identifier);
+void switch_language(const char *language_identifier);
+
+#else /* !ENABLE_NLS  */
+
+static inline void init_language(const char *default_language_identifier) {}
+static inline void switch_language(const char *language_identifier) {}
+
+#endif /* ENABLE_NLS */
+
+}
 
 #endif /* !I18N_H */

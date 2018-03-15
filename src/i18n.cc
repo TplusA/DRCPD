@@ -41,7 +41,7 @@ static void setup_environment(const char *default_language_identifier)
         setenv("LC_ALL", default_language_identifier, 1);
 }
 
-void i18n_init(const char *default_language_identifier)
+void I18n::init_language(const char *default_language_identifier)
 {
     setup_environment(default_language_identifier);
     bindtextdomain(PACKAGE, LOCALEDIR);
@@ -49,15 +49,10 @@ void i18n_init(const char *default_language_identifier)
     setlocale(LC_ALL, "");
 }
 
-void i18n_switch_language(const char *language_identifier)
+void I18n::switch_language(const char *language_identifier)
 {
     setenv("LC_ALL", language_identifier, 1);
     setlocale(LC_ALL, "");
 }
-
-#else /* !ENABLE_NLS  */
-
-void i18n_init(void) {}
-void i18n_switch_language(const char *language_identifier) {}
 
 #endif /* ENABLE_NLS */
