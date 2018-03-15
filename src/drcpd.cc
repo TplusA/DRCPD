@@ -28,7 +28,7 @@
 
 #include "configuration.hh"
 #include "configuration_i18n.hh"
-#include "i18n.h"
+#include "i18n.hh"
 #include "view_error_sink.hh"
 #include "view_inactive.hh"
 #include "view_filebrowser.hh"

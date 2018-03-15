@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2018  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -33,15 +33,7 @@
 
 #define N_(S)   (S)
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 void i18n_init(const char *default_language_identifier);
 void i18n_switch_language(const char *language_identifier);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* !I18N_H */

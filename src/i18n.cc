@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2018  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -20,12 +20,12 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-#include <stdlib.h>
-#include <locale.h>
-
-#include "i18n.h"
-
 #ifdef ENABLE_NLS
+
+#include <cstdlib>
+#include <clocale>
+
+#include "i18n.hh"
 
 static void setup_environment(const char *default_language_identifier)
 {

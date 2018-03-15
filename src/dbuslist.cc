@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2016, 2017  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016, 2017, 2018  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -26,7 +26,7 @@
 #include "de_tahifi_lists_context.h"
 #include "context_map.hh"
 #include "view_filebrowser_fileitem.hh"
-#include "i18n.h"
+#include "i18n.hh"
 #include "messages.h"
 #include "logged_lock.hh"
 
