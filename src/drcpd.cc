@@ -505,8 +505,6 @@ static void language_changed(const I18nConfigMgr &config_manager,
         lang_id = temp.c_str();
     }
 
-    msg_info("Setting system language \"%s\"", lang_id);
-
     if(is_first_call)
         I18n::init_language(lang_id);
     else
