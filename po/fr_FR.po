@@ -1,7 +1,7 @@
 # French translations for drcpd package.
 # Copyright (C) 2018 T+A elektroakustik GmbH & Co. KG
 # This file is distributed under the same license as the drcpd package.
-# Robert Tiemann <r.tiemann@ta-hifi.de>, 2018.
+# Sebastian Tieke <s.tieke@ta-hifi.de>, 2018.
 #
 msgid ""
 msgstr ""
@@ -9,7 +9,7 @@ msgstr ""
 "Report-Msgid-Bugs-To: r.tiemann@ta-hifi.de\n"
 "POT-Creation-Date: 2017-12-07 13:37+0100\n"
 "PO-Revision-Date: 2014-10-01 15:45+0200\n"
-"Last-Translator: Robert Tiemann <r.tiemann@ta-hifi.de>\n"
+"Last-Translator: Sebastian Tieke <s.tieke@ta-hifi.de>\n"
 "Language-Team: French\n"
 "Language: fr_FR\n"
 "MIME-Version: 1.0\n"
