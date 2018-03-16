@@ -38,9 +38,25 @@
 #include "messages.h"
 
 ViewFileBrowser::FileItem
-ViewFileBrowser::FileItem::loading_placeholder_(_("Loading..."), 0U,
+ViewFileBrowser::FileItem::loading_placeholder_("", 0U,
                                                 ListItemKind(ListItemKind::LOCKED),
                                                 MetaData::PreloadedSet());
+
+void ViewFileBrowser::FileItem::init_i18n()
+{
+    I18n::register_notifier(
+        [] (const char *language_identifier)
+        {
+            I18n::String temp(false, _("Loading"));
+            temp += "...";
+            loading_placeholder_.update(std::move(temp));
+        });
+}
+
+void ViewFileBrowser::init_i18n()
+{
+    ViewFileBrowser::FileItem::init_i18n();
+}
 
 List::Item *ViewFileBrowser::construct_file_item(const char *name,
                                                  ListItemKind kind,

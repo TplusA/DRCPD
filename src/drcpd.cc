@@ -246,6 +246,7 @@ static int setup(const struct parameters *parameters,
     log_version_info();
 
     I18n::init();
+    ViewFileBrowser::init_i18n();
 
     msg_vinfo(MESSAGE_LEVEL_DEBUG, "Attempting to open named pipes");
 

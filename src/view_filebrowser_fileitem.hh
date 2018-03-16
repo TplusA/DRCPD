@@ -47,6 +47,8 @@ class FileItem: public List::TextItem
         preloaded_meta_data_(std::move(meta_data))
     {}
 
+    static void init_i18n();
+
     ListItemKind get_kind() const { return kind_; }
 
     const MetaData::PreloadedSet &get_preloaded_meta_data() const
