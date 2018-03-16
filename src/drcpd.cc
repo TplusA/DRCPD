@@ -511,8 +511,6 @@ static void language_changed(const I18nConfigMgr &config_manager,
         I18n::init_language(lang_id);
     else
         I18n::switch_language(lang_id);
-
-    view_manager.language_settings_changed_notification();
 }
 
 static void connect_everything(ViewManager::Manager &views,

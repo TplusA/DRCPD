@@ -119,8 +119,6 @@ class VMIface
     virtual void deselected_notification() = 0;
     virtual void shutdown() = 0;
 
-    virtual void language_settings_changed_notification() = 0;
-
     virtual const char *get_resume_url_by_audio_source_id(const std::string &id) const = 0;
     virtual std::string move_resume_url_by_audio_source_id(const std::string &id) = 0;
 
@@ -193,8 +191,6 @@ class Manager: public VMIface, public UI::EventStoreIface
     void set_resume_playback_configuration_file(const char *filename) override;
     void deselected_notification() override;
     void shutdown() override;
-
-    void language_settings_changed_notification() override;
 
     const char *get_resume_url_by_audio_source_id(const std::string &id) const override;
     std::string move_resume_url_by_audio_source_id(const std::string &id) override;

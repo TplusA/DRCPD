@@ -91,6 +91,15 @@ bool ViewManager::Manager::invoke_late_init_functions()
             ViewManager::Manager::configuration_changed_notification(origin, changed);
         });
 
+    I18n::register_notifier(
+        [this] (const char *language_identifier)
+        {
+            if(active_view_ != nullptr)
+                dynamic_cast<ViewSerializeBase *>(active_view_)->serialize(
+                    dcp_transaction_queue_, DCP::Queue::Mode::SYNC_IF_POSSIBLE,
+                    debug_stream_);
+        });
+
     return ok;
 }
 
@@ -155,17 +164,6 @@ void ViewManager::Manager::deselected_notification()
 void ViewManager::Manager::shutdown()
 {
     deselected_notification();
-}
-
-void ViewManager::Manager::language_settings_changed_notification()
-{
-    for(auto &view : all_views_)
-        view.second->language_settings_changed_notification();
-
-    if(active_view_ != nullptr)
-        dynamic_cast<ViewSerializeBase *>(active_view_)->serialize(dcp_transaction_queue_,
-                                                                   DCP::Queue::Mode::SYNC_IF_POSSIBLE,
-                                                                   debug_stream_);
 }
 
 static const char *do_get_resume_url_by_audio_source_id(const struct ini_section *const section,

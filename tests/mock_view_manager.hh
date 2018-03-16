@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2016, 2017  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016, 2017, 2018  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -67,7 +67,6 @@ class MockViewManager: public ViewManager::VMIface, public UI::EventStoreIface
     void set_resume_playback_configuration_file(const char *filename) override;
     void deselected_notification() override;
     void shutdown() override;
-    void language_settings_changed_notification() override;
     const char *get_resume_url_by_audio_source_id(const std::string &id) const override;
     std::string move_resume_url_by_audio_source_id(const std::string &id) override;
     void serialization_result(DCP::Transaction::Result result) override;

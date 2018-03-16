@@ -281,6 +281,12 @@ void ViewFileBrowser::View::handle_get_item_event(List::AsyncListIface::OpResult
 
 bool ViewFileBrowser::View::init()
 {
+    I18n::register_notifier(
+        [this] (const char *language_identifier)
+        {
+            status_string_for_empty_root_.clear();
+        });
+
     file_list_.register_watcher(
         [this] (List::AsyncListIface::OpEvent event,
                 List::AsyncListIface::OpResult result,

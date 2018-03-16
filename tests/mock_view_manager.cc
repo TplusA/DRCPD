@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2016, 2017  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016, 2017, 2018  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -399,11 +399,6 @@ void MockViewManager::deselected_notification()
 }
 
 void MockViewManager::shutdown()
-{
-    cut_fail("Not implemented");
-}
-
-void MockViewManager::language_settings_changed_notification()
 {
     cut_fail("Not implemented");
 }
