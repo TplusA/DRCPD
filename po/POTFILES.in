@@ -1,5 +1,4 @@
 # List of source files which contain translatable strings.
-src/dbuslist.cc
 src/drcpd.cc
 src/view_filebrowser.cc
 src/view_filebrowser_airable.cc
