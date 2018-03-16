@@ -1,3 +1,15 @@
+2018-03-16  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 4.12 released.
+
+	* Internationalization: Improved handling of missing translations. In
+	  case a language is selected for which there is no translation
+	  available, the software falls back to US English. It should have
+	  done this before anyway, but it didn't quite work.
+
+	* Internationalization: Fixed dynamic translation of placeholder
+	  list item shown while loading a list ("Loading...").
+
 2018-03-12  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 4.11 released.
