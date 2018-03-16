@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2016, 2017  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016, 2017, 2018  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -36,6 +36,27 @@
 #include "xmlescape.hh"
 #include "dbus_common.h"
 #include "messages.h"
+
+ViewFileBrowser::FileItem
+ViewFileBrowser::FileItem::loading_placeholder_("", 0U,
+                                                ListItemKind(ListItemKind::LOCKED),
+                                                MetaData::PreloadedSet());
+
+void ViewFileBrowser::FileItem::init_i18n()
+{
+    I18n::register_notifier(
+        [] (const char *language_identifier)
+        {
+            I18n::String temp(false, _("Loading"));
+            temp += "...";
+            loading_placeholder_.update(std::move(temp));
+        });
+}
+
+void ViewFileBrowser::init_i18n()
+{
+    ViewFileBrowser::FileItem::init_i18n();
+}
 
 List::Item *ViewFileBrowser::construct_file_item(const char *name,
                                                  ListItemKind kind,

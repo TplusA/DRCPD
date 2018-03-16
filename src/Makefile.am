@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2015, 2016, 2017  T+A elektroakustik GmbH & Co. KG
+# Copyright (C) 2015, 2016, 2017, 2018  T+A elektroakustik GmbH & Co. KG
 #
 # This file is part of DRCPD.
 #
@@ -21,7 +21,7 @@ ACLOCAL_AMFLAGS = -I ../m4
 bin_PROGRAMS = drcpd
 
 drcpd_SOURCES = \
-    drcpd.cc i18n.h i18n.c i18nstring.hh \
+    drcpd.cc i18n.hh i18n.cc i18nstring.hh \
     messages.h messages.c messages_glib.h messages_glib.c \
     timeout.cc timeout.hh \
     os.c os.h named_pipe.c named_pipe.h fdstreambuf.hh \

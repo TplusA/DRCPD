@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2016, 2017  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016, 2017, 2018  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -140,6 +140,8 @@ class TextItem: virtual public Item
     {}
 
     const char *get_text() const { return text_.get_text(); }
+
+    void update(I18n::String &&text) { text_ = std::move(text); }
 };
 
 /*!

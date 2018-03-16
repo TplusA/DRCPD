@@ -49,6 +49,8 @@ class WaitForParametersHelper;
 namespace ViewFileBrowser
 {
 
+void init_i18n();
+
 List::Item *construct_file_item(const char *name, ListItemKind kind,
                                 const char *const *names);
 

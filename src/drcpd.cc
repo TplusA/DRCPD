@@ -28,7 +28,7 @@
 
 #include "configuration.hh"
 #include "configuration_i18n.hh"
-#include "i18n.h"
+#include "i18n.hh"
 #include "view_error_sink.hh"
 #include "view_inactive.hh"
 #include "view_filebrowser.hh"
@@ -244,6 +244,9 @@ static int setup(const struct parameters *parameters,
     }
 
     log_version_info();
+
+    I18n::init();
+    ViewFileBrowser::init_i18n();
 
     msg_vinfo(MESSAGE_LEVEL_DEBUG, "Attempting to open named pipes");
 
@@ -505,9 +508,9 @@ static void language_changed(const I18nConfigMgr &config_manager,
     msg_info("Setting system language \"%s\"", lang_id);
 
     if(is_first_call)
-        i18n_init(lang_id);
+        I18n::init_language(lang_id);
     else
-        i18n_switch_language(lang_id);
+        I18n::switch_language(lang_id);
 
     view_manager.language_settings_changed_notification();
 }

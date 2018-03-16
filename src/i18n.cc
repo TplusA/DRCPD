@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2018  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -20,12 +20,21 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-#include <stdlib.h>
-#include <locale.h>
-
-#include "i18n.h"
-
 #ifdef ENABLE_NLS
+
+#include <vector>
+#include <cstdlib>
+#include <clocale>
+
+#include "i18n.hh"
+
+static std::vector<std::function<void(const char *)>> language_changed_notifiers;
+
+static void notify_all(const char *language_identifier)
+{
+    for(const auto &fn : language_changed_notifiers)
+        fn(language_identifier);
+}
 
 static void setup_environment(const char *default_language_identifier)
 {
@@ -41,23 +50,30 @@ static void setup_environment(const char *default_language_identifier)
         setenv("LC_ALL", default_language_identifier, 1);
 }
 
-void i18n_init(const char *default_language_identifier)
+void I18n::init()
+{
+    language_changed_notifiers.clear();
+}
+
+void I18n::register_notifier(std::function<void(const char *)> &&notifier)
+{
+    language_changed_notifiers.emplace_back(std::move(notifier));
+}
+
+void I18n::init_language(const char *default_language_identifier)
 {
     setup_environment(default_language_identifier);
     bindtextdomain(PACKAGE, LOCALEDIR);
     textdomain(PACKAGE);
     setlocale(LC_ALL, "");
+    notify_all(default_language_identifier);
 }
 
-void i18n_switch_language(const char *language_identifier)
+void I18n::switch_language(const char *language_identifier)
 {
     setenv("LC_ALL", language_identifier, 1);
     setlocale(LC_ALL, "");
+    notify_all(language_identifier);
 }
-
-#else /* !ENABLE_NLS  */
-
-void i18n_init(void) {}
-void i18n_switch_language(const char *language_identifier) {}
 
 #endif /* ENABLE_NLS */

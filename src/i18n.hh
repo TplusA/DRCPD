@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2018  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -23,6 +23,8 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
+#include <functional>
+
 #ifdef ENABLE_NLS
 #include <libintl.h>
 
@@ -33,15 +35,25 @@
 
 #define N_(S)   (S)
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+namespace I18n
+{
 
-void i18n_init(const char *default_language_identifier);
-void i18n_switch_language(const char *language_identifier);
+#ifdef ENABLE_NLS
 
-#ifdef __cplusplus
+void init();
+void init_language(const char *default_language_identifier);
+void switch_language(const char *language_identifier);
+void register_notifier(std::function<void(const char *)> &&notifier);
+
+#else /* !ENABLE_NLS  */
+
+static inline void init() {}
+static inline void init_language(const char *default_language_identifier) {}
+static inline void switch_language(const char *language_identifier) {}
+static inline void register_notifier(std::function<void(const char *)> &&notifier) {}
+
+#endif /* ENABLE_NLS */
+
 }
-#endif
 
 #endif /* !I18N_H */
