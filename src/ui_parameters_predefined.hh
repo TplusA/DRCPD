@@ -63,7 +63,7 @@ struct ParamTraits<EventID::AUDIO_SOURCE_DESELECTED>
 template <>
 struct ParamTraits<EventID::AUDIO_PATH_CHANGED>
 {
-    using PType = SpecificParameters<std::tuple<const std::string, const std::string>>;
+    using PType = SpecificParameters<std::tuple<const std::string, const std::string, const bool>>;
 };
 
 template <>
