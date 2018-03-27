@@ -310,7 +310,7 @@ class Control
     void plug(const LocalPermissionsIface &permissions);
     void unplug(bool is_complete_unplug);
 
-    bool source_selected_notification(const std::string &audio_source_id);
+    bool source_selected_notification(const std::string &audio_source_id, bool is_on_hold);
     bool source_deselected_notification(const std::string *audio_source_id);
 
     void repeat_mode_toggle_request() const;

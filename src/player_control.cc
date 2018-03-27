@@ -814,7 +814,8 @@ static void enforce_intention(Player::UserIntention intention,
     }
 }
 
-bool Player::Control::source_selected_notification(const std::string &audio_source_id)
+bool Player::Control::source_selected_notification(const std::string &audio_source_id,
+                                                   bool is_on_hold)
 {
     auto locks(lock());
 
@@ -831,7 +832,7 @@ bool Player::Control::source_selected_notification(const std::string &audio_sour
         audio_source_->set_proxies(dbus_get_streamplayer_urlfifo_iface(),
                                    dbus_get_streamplayer_playback_iface());
 
-        if(player_ != nullptr)
+        if(!is_on_hold && player_ != nullptr)
         {
             switch(player_->get_intention())
             {
@@ -854,7 +855,8 @@ bool Player::Control::source_selected_notification(const std::string &audio_sour
             }
         }
 
-        msg_info("Selected audio source %s", audio_source_id.c_str());
+        msg_info("Selected audio source %s%s",
+                 audio_source_id.c_str(), is_on_hold ? " (on hold)" : "");
         return true;
     }
     else

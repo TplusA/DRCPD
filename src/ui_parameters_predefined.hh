@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, 2017  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2017, 2018  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -51,7 +51,7 @@ struct ParamTraits<EventID::CONFIGURATION_UPDATED>
 template <>
 struct ParamTraits<EventID::AUDIO_SOURCE_SELECTED>
 {
-    using PType = SpecificParameters<const std::string>;
+    using PType = SpecificParameters<std::tuple<const std::string, const bool>>;
 };
 
 template <>

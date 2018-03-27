@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2016, 2017  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016, 2017, 2018  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -106,6 +106,8 @@ static void bus_acquired(GDBusConnection *connection,
     data->configuration_write_iface = tdbus_configuration_write_skeleton_new();
     data->debug_logging_iface = tdbus_debug_logging_skeleton_new();
 
+    g_signal_connect(data->audiopath_source_iface, "handle-selected-on-hold",
+                     G_CALLBACK(dbusmethod_audiopath_source_selected_on_hold), data->handler_data);
     g_signal_connect(data->audiopath_source_iface, "handle-selected",
                      G_CALLBACK(dbusmethod_audiopath_source_selected), data->handler_data);
     g_signal_connect(data->audiopath_source_iface, "handle-deselected",
