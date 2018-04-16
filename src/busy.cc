@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, 2017  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2017, 2018  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -79,6 +79,13 @@ class GlobalBusyState
         notify_if_necessary(lock);
     }
 
+    bool set_direct(uint32_t mask)
+    {
+        LoggedLock::UniqueLock<LoggedLock::Mutex> lock(lock_);
+        busy_flags_ |= mask;
+        return notify_if_necessary(lock);
+    }
+
     bool set(uint32_t mask)
     {
         LoggedLock::UniqueLock<LoggedLock::Mutex> lock(lock_);
@@ -96,6 +103,13 @@ class GlobalBusyState
             }
         }
 
+        return notify_if_necessary(lock);
+    }
+
+    bool clear_direct(uint32_t mask)
+    {
+        LoggedLock::UniqueLock<LoggedLock::Mutex> lock(lock_);
+        busy_flags_ &= ~mask;
         return notify_if_necessary(lock);
     }
 
@@ -183,6 +197,12 @@ static uint32_t make_mask(Busy::Source src)
     return (1U << static_cast<unsigned int>(src));
 }
 
+static uint32_t make_mask(Busy::DirectSource src)
+{
+    return (1U << (static_cast<unsigned int>(src) +
+                   static_cast<unsigned int>(Busy::Source::LAST_SOURCE) + 1));
+}
+
 void Busy::init(const std::function<void(bool)> &state_changed_callback)
 {
     global_busy_state.reset();
@@ -198,6 +218,16 @@ bool Busy::set(Source src)
 bool Busy::clear(Source src)
 {
     return global_busy_state.clear(make_mask(src));
+}
+
+bool Busy::set(DirectSource src)
+{
+    return global_busy_state.set_direct(make_mask(src));
+}
+
+bool Busy::clear(DirectSource src)
+{
+    return global_busy_state.clear_direct(make_mask(src));
 }
 
 bool Busy::is_busy()

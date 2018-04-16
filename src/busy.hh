@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, 2017  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2017, 2018  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -25,6 +25,12 @@
 namespace Busy
 {
 
+/*!
+ * Busy sources with activation/deactivation counters.
+ *
+ * These are suitable for internal actions which are completely under our own
+ * control.
+ */
 enum class Source
 {
     /* stream player */
@@ -44,11 +50,32 @@ enum class Source
 
     /* specific to Airable */
     RESOLVING_AIRABLE_REDIRECT,
+
+    /* internal */
+    FIRST_SOURCE = WAITING_FOR_PLAYER,
+    LAST_SOURCE = RESOLVING_AIRABLE_REDIRECT,
+};
+
+/*!
+ * Busy sources without counters.
+ *
+ * These are suitable for externally observed actions.
+ */
+enum class DirectSource
+{
+    /* audio sources */
+    WAITING_FOR_APPLIANCE_AUDIO,
+
+    /* internal */
+    FIRST_SOURCE = WAITING_FOR_APPLIANCE_AUDIO,
+    LAST_SOURCE = WAITING_FOR_APPLIANCE_AUDIO,
 };
 
 void init(const std::function<void(bool)> &state_changed_callback);
 bool set(Source src);
 bool clear(Source src);
+bool set(DirectSource src);
+bool clear(DirectSource src);
 bool is_busy();
 
 }
