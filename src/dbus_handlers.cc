@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2016, 2017  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016, 2017, 2018  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -628,18 +628,21 @@ void dbussignal_audiopath_manager(GDBusProxy *proxy, const gchar *sender_name,
                   "Audio player %s (%s) registered (ignored)",
                   player_id, player_name);
     }
-    else if(strcmp(signal_name, "PathActivated") == 0)
+    else if(strcmp(signal_name, "PathActivated") == 0 ||
+            strcmp(signal_name, "PathDeferred") == 0)
     {
         const gchar *source_id;
         const gchar *player_id;
+        const bool is_on_hold = strcmp(signal_name, "PathDeferred") == 0;
 
         g_variant_get(parameters, "(&s&s)", &source_id, &player_id);
 
         msg_vinfo(MESSAGE_LEVEL_DIAG,
-                  "Audio path activated: %s -> %s", source_id, player_id);
+                  "Audio path activated%s: %s -> %s",
+                  is_on_hold ? " (on hold)" : "", source_id, player_id);
 
         auto params =
-            UI::Events::mk_params<UI::EventID::AUDIO_PATH_CHANGED>(source_id, player_id);
+            UI::Events::mk_params<UI::EventID::AUDIO_PATH_CHANGED>(source_id, player_id, is_on_hold);
         data->event_sink_.store_event(UI::EventID::AUDIO_PATH_CHANGED,
                                       std::move(params));
     }
@@ -660,6 +663,25 @@ static void enter_audiopath_source_handler(GDBusMethodInvocation *invocation)
               g_dbus_method_invocation_get_method_name(invocation));
 }
 
+gboolean dbusmethod_audiopath_source_selected_on_hold(tdbusaupathSource *object,
+                                                      GDBusMethodInvocation *invocation,
+                                                      const char *source_id,
+                                                      gpointer user_data)
+{
+    enter_audiopath_source_handler(invocation);
+
+    auto *data = static_cast<DBus::SignalData *>(user_data);
+
+    /* views are switched by the player as seen necessary */
+    auto params = UI::Events::mk_params<UI::EventID::AUDIO_SOURCE_SELECTED>(source_id, true);
+    data->event_sink_.store_event(UI::EventID::AUDIO_SOURCE_SELECTED,
+                                  std::move(params));
+
+    tdbus_aupath_source_complete_selected_on_hold(object, invocation);
+
+    return TRUE;
+}
+
 gboolean dbusmethod_audiopath_source_selected(tdbusaupathSource *object,
                                               GDBusMethodInvocation *invocation,
                                               const char *source_id,
@@ -670,7 +692,7 @@ gboolean dbusmethod_audiopath_source_selected(tdbusaupathSource *object,
     auto *data = static_cast<DBus::SignalData *>(user_data);
 
     /* views are switched by the player as seen necessary */
-    auto params = UI::Events::mk_params<UI::EventID::AUDIO_SOURCE_SELECTED>(source_id);
+    auto params = UI::Events::mk_params<UI::EventID::AUDIO_SOURCE_SELECTED>(source_id, false);
     data->event_sink_.store_event(UI::EventID::AUDIO_SOURCE_SELECTED,
                                   std::move(params));
 

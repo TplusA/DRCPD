@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2016, 2017  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016, 2017, 2018  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -62,6 +62,10 @@ void dbussignal_audiopath_manager(GDBusProxy *proxy, const gchar *sender_name,
                                   const gchar *signal_name, GVariant *parameters,
                                   gpointer user_data);
 
+gboolean dbusmethod_audiopath_source_selected_on_hold(tdbusaupathSource *object,
+                                                      GDBusMethodInvocation *invocation,
+                                                      const char *source_id,
+                                                      gpointer user_data);
 gboolean dbusmethod_audiopath_source_selected(tdbusaupathSource *object,
                                               GDBusMethodInvocation *invocation,
                                               const char *source_id,

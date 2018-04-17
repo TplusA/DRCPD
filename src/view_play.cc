@@ -568,11 +568,18 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
             if(params == nullptr)
                 break;
 
-            const std::string &ausrc_id(params->get_specific());
+            const auto &plist = params->get_specific();
+            const std::string &ausrc_id(std::get<0>(plist));
+            const bool is_on_hold(std::get<1>(plist));
+
+            if(is_on_hold)
+                Busy::set(Busy::DirectSource::WAITING_FOR_APPLIANCE_AUDIO);
+            else
+                Busy::clear(Busy::DirectSource::WAITING_FOR_APPLIANCE_AUDIO);
 
             if(player_control_.is_any_audio_source_plugged())
             {
-                if(player_control_.source_selected_notification(ausrc_id))
+                if(player_control_.source_selected_notification(ausrc_id, is_on_hold))
                     break;
 
                 /* source has been changed, need to switch views */
@@ -595,7 +602,7 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
                 audio_source->select_now();
                 plug_audio_source(*audio_source, true);
                 player_control_.plug(player_data_);
-                player_control_.source_selected_notification(ausrc_id);
+                player_control_.source_selected_notification(ausrc_id, is_on_hold);
             }
 
             if(view != nullptr)
@@ -612,6 +619,8 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
 
             if(params == nullptr)
                 break;
+
+            Busy::clear(Busy::DirectSource::WAITING_FOR_APPLIANCE_AUDIO);
 
             const std::string &ausrc_id(params->get_specific());
 
@@ -648,8 +657,14 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
             const auto &plist = params->get_specific();
             const std::string &ausrc_id(std::get<0>(plist));
             const std::string &player_id(std::get<1>(plist));
+            const bool is_on_hold(std::get<2>(plist));
             Player::AudioSource *audio_source = nullptr;
             const ViewExternalSource::Base *view = nullptr;
+
+            if(is_on_hold)
+                Busy::set(Busy::DirectSource::WAITING_FOR_APPLIANCE_AUDIO);
+            else
+                Busy::clear(Busy::DirectSource::WAITING_FOR_APPLIANCE_AUDIO);
 
             if(!ausrc_id.empty())
                 lookup_view_for_external_source(audio_sources_with_view_,
