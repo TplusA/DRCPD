@@ -1,3 +1,10 @@
+2018-04-17  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 4.13 released.
+
+	* Playback: Proper handling and observation of deferred audio path
+	  activation. Requires TAPSwitch v1.3 or later.
+
 2018-03-16  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 4.12 released.
