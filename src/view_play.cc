@@ -188,10 +188,7 @@ static void lookup_view_for_external_source(std::map<std::string, std::pair<Play
 
         view = dynamic_cast<const ViewExternalSource::Base *>(ausrc_and_perm.second);
 
-        if(view == nullptr)
-            BUG("View for audio source %s is not for external audio source",
-                audio_source_id.c_str());
-        else
+        if(view != nullptr)
             audio_source = ausrc_and_perm.first;
     }
     catch(const std::out_of_range &e)
