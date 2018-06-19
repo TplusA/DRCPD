@@ -65,14 +65,17 @@ void dbussignal_audiopath_manager(GDBusProxy *proxy, const gchar *sender_name,
 gboolean dbusmethod_audiopath_source_selected_on_hold(tdbusaupathSource *object,
                                                       GDBusMethodInvocation *invocation,
                                                       const char *source_id,
+                                                      GVariant *request_data,
                                                       gpointer user_data);
 gboolean dbusmethod_audiopath_source_selected(tdbusaupathSource *object,
                                               GDBusMethodInvocation *invocation,
                                               const char *source_id,
+                                              GVariant *request_data,
                                               gpointer user_data);
 gboolean dbusmethod_audiopath_source_deselected(tdbusaupathSource *object,
                                                 GDBusMethodInvocation *invocation,
                                                 const char *source_id,
+                                                GVariant *request_data,
                                                 gpointer user_data);
 
 gboolean dbusmethod_config_get_all_keys(tdbusConfigurationRead *object,

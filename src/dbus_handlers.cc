@@ -666,6 +666,7 @@ static void enter_audiopath_source_handler(GDBusMethodInvocation *invocation)
 gboolean dbusmethod_audiopath_source_selected_on_hold(tdbusaupathSource *object,
                                                       GDBusMethodInvocation *invocation,
                                                       const char *source_id,
+                                                      GVariant *request_data,
                                                       gpointer user_data)
 {
     enter_audiopath_source_handler(invocation);
@@ -685,6 +686,7 @@ gboolean dbusmethod_audiopath_source_selected_on_hold(tdbusaupathSource *object,
 gboolean dbusmethod_audiopath_source_selected(tdbusaupathSource *object,
                                               GDBusMethodInvocation *invocation,
                                               const char *source_id,
+                                              GVariant *request_data,
                                               gpointer user_data)
 {
     enter_audiopath_source_handler(invocation);
@@ -704,6 +706,7 @@ gboolean dbusmethod_audiopath_source_selected(tdbusaupathSource *object,
 gboolean dbusmethod_audiopath_source_deselected(tdbusaupathSource *object,
                                                 GDBusMethodInvocation *invocation,
                                                 const char *source_id,
+                                                GVariant *request_data,
                                                 gpointer user_data)
 {
     enter_audiopath_source_handler(invocation);

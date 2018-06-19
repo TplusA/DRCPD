@@ -315,9 +315,18 @@ void Player::Control::plug(AudioSource &audio_source, bool with_enforced_intenti
       case AudioSourceState::REQUESTED:
         msg_info("Requesting source %s", audio_source_->id_.c_str());
         audio_source_->request();
-        tdbus_aupath_manager_call_request_source(dbus_audiopath_get_manager_iface(),
-                                                 audio_source_->id_.c_str(), NULL,
-                                                 source_request_done, audio_source_);
+
+        {
+            GVariantDict empty;
+            g_variant_dict_init(&empty, nullptr);
+            GVariant *request_data = g_variant_dict_end(&empty);
+
+            tdbus_aupath_manager_call_request_source(dbus_audiopath_get_manager_iface(),
+                                                     audio_source_->id_.c_str(),
+                                                     request_data, NULL,
+                                                     source_request_done, audio_source_);
+        }
+
         break;
 
       case AudioSourceState::SELECTED:
