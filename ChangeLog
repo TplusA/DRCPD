@@ -1,3 +1,16 @@
+2018-07-13  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 4.15 released.
+
+	* Roon view: Send screen update when switching from idle source to
+	  Roon source. The Roon view was active at that time (it had to
+	  because of pending events coming from Roon), so the screen
+	  serialization was suppressed on audio source switch. We now enforce
+	  the update.
+
+	* Airable views: Fixed updating of view titles when switching back and
+	  forth between Airable audio sources.
+
 2018-06-19  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 4.14 released.
