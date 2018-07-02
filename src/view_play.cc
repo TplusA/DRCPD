@@ -701,7 +701,7 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
                                   &player_id);
                 player_control_.plug(player_data_);
                 player_control_.plug(view->get_local_permissions());
-                view_manager_->sync_activate_view_by_name(view->name_, false);
+                view_manager_->sync_activate_view_by_name(view->name_, true);
             }
             else
             {
