@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, 2017  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2017, 2018  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -62,7 +62,8 @@ void ViewFileBrowser::AirableView::audio_source_state_changed(const Player::Audi
             auto &stash(audio_source_navigation_stash_[get_audio_source_index(audio_source)]);
 
             stash.set(current_list_id_, navigation_.get_line_number_by_cursor(),
-                      context_restriction_.get_root_list_id());
+                      context_restriction_.get_root_list_id(),
+                      get_dynamic_title());
         }
 
         break;
@@ -84,7 +85,11 @@ void ViewFileBrowser::AirableView::audio_source_state_changed(const Player::Audi
                 auto &stash(audio_source_navigation_stash_[idx]);
 
                 if(try_jump_to_stored_position(stash))
+                {
+                    /* already there */
                     stash.suppress_keep_alive();
+                    set_dynamic_title(stash.get_list_title());
+                }
                 else
                     point_to_root_directory();
             }

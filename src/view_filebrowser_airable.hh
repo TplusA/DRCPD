@@ -57,6 +57,7 @@ class AirableView: public View
         unsigned int line_number_;
         ID::List context_root_;
         bool is_keep_alive_suppressed_;
+        I18n::String title_;
 
       public:
         StoredPosition(const StoredPosition &) = delete;
@@ -65,7 +66,8 @@ class AirableView: public View
 
         explicit StoredPosition():
             line_number_(0),
-            is_keep_alive_suppressed_(true)
+            is_keep_alive_suppressed_(true),
+            title_(false)
         {}
 
         void clear()
@@ -74,10 +76,11 @@ class AirableView: public View
             line_number_ = 0;
             context_root_ = ID::List();
             is_keep_alive_suppressed_ = true;
+            title_.clear();
         }
 
         void set(ID::List list_id, unsigned int line_number,
-                 ID::List context_root)
+                 ID::List context_root, const I18n::String &title)
         {
             log_assert(list_id.is_valid());
 
@@ -85,6 +88,7 @@ class AirableView: public View
             line_number_ = line_number;
             context_root_ = context_root;
             is_keep_alive_suppressed_ = false;
+            title_ = title;
         }
 
         void suppress_keep_alive()
@@ -98,6 +102,7 @@ class AirableView: public View
         ID::List get_list_id() const { return list_id_; }
         unsigned int get_line_number() const { return line_number_; }
         ID::List get_context_root() const { return context_root_; }
+        const I18n::String &get_list_title() const { return title_; }
 
         void list_invalidate(ID::List list_id, ID::List replacement_id)
         {

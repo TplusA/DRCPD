@@ -85,7 +85,9 @@ static ID::List finish_async_enter_dir_op(List::AsyncListIface::OpResult result,
     switch(result)
     {
       case List::AsyncListIface::OpResult::SUCCEEDED:
-        view.set_dynamic_title(ctx->parameters_.title_);
+        if(ctx->get_caller_id() != List::QueryContextEnterList::CallerID::ENTER_ANYWHERE)
+            view.set_dynamic_title(ctx->parameters_.title_);
+
         return ctx->parameters_.list_id_;
 
       case List::AsyncListIface::OpResult::FAILED:
