@@ -110,8 +110,8 @@ msgid "Accessing"
 msgstr "Accéder"
 
 #: src/view_filebrowser_airable.cc:602
-msgid "For the time being, please use our app."
-msgstr "Veuillez utiliser notre application temporairement."
+msgid "Please use our app."
+msgstr "Veuillez utiliser notre application."
 
 #: src/view_play.cc:770
 msgid "(no data available)"

@@ -109,7 +109,7 @@ msgid "Accessing"
 msgstr ""
 
 #: src/view_filebrowser_airable.cc:602
-msgid "For the time being, please use our app."
+msgid "Please use our app."
 msgstr ""
 
 #: src/view_play.cc:770
