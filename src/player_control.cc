@@ -454,16 +454,17 @@ static inline bool send_play_command(const Player::AudioSource *asrc)
                                      "Failed sending start playback message");
 }
 
-static inline bool send_stop_command(const Player::AudioSource *asrc)
+static inline bool send_stop_command(const Player::AudioSource *asrc,
+                                     const char *reason)
 {
     log_assert(asrc != nullptr);
 
     return send_simple_playback_command(
             asrc,
-            []
+            [reason]
             (tdbussplayPlayback *proxy, GCancellable *cancelable, GError **error) -> gboolean
             {
-                return tdbus_splay_playback_call_stop_sync(proxy, "drcpd", cancelable, error);
+                return tdbus_splay_playback_call_stop_sync(proxy, reason, cancelable, error);
             },
             "Stop playback", "Failed sending stop playback message");
 }
@@ -556,10 +557,10 @@ static void resume_paused_stream(Player::Data *player,
 }
 
 static void do_deselect_audio_source(Player::AudioSource &audio_source,
-                                     bool send_stop)
+                                     bool send_stop, const char *reason)
 {
     if(send_stop)
-        send_stop_command(&audio_source);
+        send_stop_command(&audio_source, reason);
 
     audio_source.deselected_notification();
 }
@@ -703,7 +704,7 @@ void Player::Control::jump_to_crawler_location()
                                   std::placeholders::_2));
 }
 
-void Player::Control::stop_request()
+void Player::Control::stop_request(const char *reason)
 {
     if(!is_any_audio_source_plugged())
         return;
@@ -721,7 +722,7 @@ void Player::Control::stop_request()
             player_->set_intention(UserIntention::STOPPING);
 
         if(astate == AudioSourceState::SELECTED)
-            send_stop_command(audio_source_);
+            send_stop_command(audio_source_, reason);
 
         break;
     }
@@ -785,9 +786,15 @@ static void enforce_intention(Player::UserIntention intention,
             break;
 
           case Player::StreamState::BUFFERING:
+            send_stop_command(audio_source_, "enforced by user intention while buffering");
+            break;
+
           case Player::StreamState::PLAYING:
+            send_stop_command(audio_source_, "enforced by user intention while playing");
+            break;
+
           case Player::StreamState::PAUSED:
-            send_stop_command(audio_source_);
+            send_stop_command(audio_source_, "enforced by user intention while pausing");
             break;
         }
 
@@ -859,7 +866,7 @@ bool Player::Control::source_selected_notification(const std::string &audio_sour
                 break;
 
               case UserIntention::STOPPING:
-                stop_request();
+                stop_request("audio source was selected, user intended to stop");
                 break;
 
               case UserIntention::PAUSING:
@@ -874,7 +881,8 @@ bool Player::Control::source_selected_notification(const std::string &audio_sour
     }
     else
     {
-        do_deselect_audio_source(*audio_source_, true);
+        do_deselect_audio_source(*audio_source_, true,
+                                 "different audio source was selected");
         msg_info("Deselected audio source %s because %s was selected",
                  audio_source_->id_.c_str(), audio_source_id.c_str());
         return false;
@@ -889,7 +897,8 @@ bool Player::Control::source_deselected_notification(const std::string *audio_so
        (audio_source_id != nullptr && *audio_source_id != audio_source_->id_))
         return false;
 
-    do_deselect_audio_source(*audio_source_, audio_source_id != nullptr);
+    do_deselect_audio_source(*audio_source_, audio_source_id != nullptr,
+                             "audio source was deselected");
     msg_info("Deselected audio source %s as requested",
              audio_source_->id_.c_str());
 

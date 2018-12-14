@@ -94,7 +94,7 @@ void ViewPlay::View::prepare_for_playing(Player::AudioSource &audio_source,
     {
         /* we do not own the player yet, so stop the player just in case it is
          * playing, then plug to it */
-        player_control_.stop_request();
+        player_control_.stop_request("take control over player");
         player_control_.unplug(true);
         plug_audio_source(audio_source, true);
         player_control_.plug(player_data_);
@@ -241,7 +241,7 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
         break;
 
       case UI::ViewEventID::PLAYBACK_COMMAND_STOP:
-        player_control_.stop_request();
+        player_control_.stop_request("stop command issued by user");
         break;
 
       case UI::ViewEventID::PLAYBACK_COMMAND_PAUSE:
