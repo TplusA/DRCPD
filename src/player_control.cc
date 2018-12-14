@@ -323,7 +323,7 @@ void Player::Control::plug(AudioSource &audio_source, bool with_enforced_intenti
 
             tdbus_aupath_manager_call_request_source(dbus_audiopath_get_manager_iface(),
                                                      audio_source_->id_.c_str(),
-                                                     request_data, NULL,
+                                                     request_data, nullptr,
                                                      source_request_done, audio_source_);
         }
 
@@ -434,8 +434,8 @@ static bool send_simple_playback_command(
     if(proxy == nullptr)
         return true;
 
-    GError *error = NULL;
-    sync_call(proxy, NULL, &error);
+    GError *error = nullptr;
+    sync_call(proxy, nullptr, &error);
 
     if(dbus_common_handle_error(&error, error_short) < 0)
     {
@@ -502,11 +502,11 @@ static bool send_skip_to_next_command(ID::Stream &removed_stream_from_queue,
     if(proxy != nullptr)
     {
         guint next_id;
-        GError *error = NULL;
+        GError *error = nullptr;
 
         tdbus_splay_urlfifo_call_next_sync(proxy,
                                            &skipped_id, &next_id,
-                                           &raw_play_status, NULL, &error);
+                                           &raw_play_status, nullptr, &error);
 
         if(dbus_common_handle_error(&error, "Skip to next") < 0)
         {
@@ -1258,8 +1258,8 @@ void Player::Control::rewind_request()
     if(proxy == nullptr)
         return;
 
-    GError *error = NULL;
-    tdbus_splay_playback_call_seek_sync(proxy, 0, "ms", NULL, &error);
+    GError *error = nullptr;
+    tdbus_splay_playback_call_seek_sync(proxy, 0, "ms", nullptr, &error);
 
     if(dbus_common_handle_error(&error, "Seek in stream") < 0)
         msg_error(0, LOG_NOTICE, "Failed restarting stream");
@@ -1294,7 +1294,7 @@ void Player::Control::fast_wind_set_speed_request(double speed_factor)
     }
 
     tdbus_splay_playback_call_set_speed(dbus_get_streamplayer_playback_iface(),
-                                        speed_factor, NULL, NULL, NULL);
+                                        speed_factor, nullptr, nullptr, nullptr);
 }
 
 void Player::Control::seek_stream_request(int64_t value, const std::string &units)
@@ -1328,7 +1328,7 @@ void Player::Control::seek_stream_request(int64_t value, const std::string &unit
 
     if(proxy != nullptr)
         tdbus_splay_playback_call_seek(proxy, value, units.c_str(),
-                                       NULL, NULL, NULL);
+                                       nullptr, nullptr, nullptr);
 }
 
 void Player::Control::play_notification(ID::Stream stream_id,
@@ -1619,13 +1619,13 @@ static bool send_selected_file_uri_to_streamplayer(ID::OurStream stream_id,
 
     if(urlfifo_proxy != nullptr)
     {
-        GError *error = NULL;
+        GError *error = nullptr;
         tdbus_splay_urlfifo_call_push_sync(urlfifo_proxy,
                                            stream_id.get().get_raw_id(),
                                            queued_url.c_str(), GVariantWrapper::get(stream_key),
                                            0, "ms", 0, "ms", keep_first_n,
                                            &fifo_overflow, &is_playing,
-                                           NULL, &error);
+                                           nullptr, &error);
 
         if(dbus_common_handle_error(&error, "Push stream") < 0)
         {
