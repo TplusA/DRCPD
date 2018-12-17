@@ -1,3 +1,10 @@
+2018-12-17  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 4.17 released.
+
+	* Logging: Send stop reason to stream player so that it can be emitted
+	  to the log.
+
 2018-09-20  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 4.16 released.
