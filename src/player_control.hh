@@ -320,7 +320,7 @@ class Control
      * to take direct, immediate influence on playback, so they impose requests
      * to the system */
     void play_request();
-    void stop_request();
+    void stop_request(const char *reason);
     void pause_request();
     void jump_to_crawler_location();
     bool skip_forward_request();
