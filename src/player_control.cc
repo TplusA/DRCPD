@@ -423,7 +423,7 @@ void Player::Control::unplug(bool is_complete_unplug)
 
 static bool send_simple_playback_command(
         const Player::AudioSource *asrc,
-        gboolean (*const sync_call)(tdbussplayPlayback *, GCancellable *, GError **),
+        const std::function<gboolean(tdbussplayPlayback *, GCancellable *, GError **)> &sync_call,
         const char *error_short, const char *error_long)
 {
     if(asrc == nullptr)
@@ -458,10 +458,14 @@ static inline bool send_stop_command(const Player::AudioSource *asrc)
 {
     log_assert(asrc != nullptr);
 
-    return
-        send_simple_playback_command(asrc, tdbus_splay_playback_call_stop_sync,
-                                     "Stop playback",
-                                     "Failed sending stop playback message");
+    return send_simple_playback_command(
+            asrc,
+            []
+            (tdbussplayPlayback *proxy, GCancellable *cancelable, GError **error) -> gboolean
+            {
+                return tdbus_splay_playback_call_stop_sync(proxy, "drcpd", cancelable, error);
+            },
+            "Stop playback", "Failed sending stop playback message");
 }
 
 static inline bool send_pause_command(const Player::AudioSource *asrc)
