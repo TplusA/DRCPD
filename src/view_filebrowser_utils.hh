@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2016, 2017  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016, 2017, 2019  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -50,7 +50,6 @@ class Utils
                               List::Nav &navigation,
                               ID::List list_id, unsigned int line,
                               bool reverse = false)
-        throw(List::DBusListException)
     {
         file_list.enter_list(list_id, line);
         item_flags.list_content_changed();
@@ -81,7 +80,6 @@ class Utils
                                       const SearchParameters *search_parameters,
                                       std::string &child_list_title,
                                       bool suppress_error_if_file = false)
-        throw(List::DBusListException)
     {
         if(file_list.empty())
             return ID::List();
@@ -162,7 +160,6 @@ class Utils
                                        ID::List current_list_id,
                                        unsigned int &item_id,
                                        std::string &parent_list_title)
-        throw(List::DBusListException)
     {
         Busy::set(Busy::Source::GETTING_PARENT_LINK);
 

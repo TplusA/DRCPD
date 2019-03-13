@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2016, 2017  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016, 2017, 2019  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -31,7 +31,7 @@
 extern "C" {
 #endif
 
-tdbuslistsNavigation *dbus_get_lists_navigation_iface(dbus_listbroker_id_t id);
+tdbuslistsNavigation *dbus_get_lists_navigation_iface(dbus_listbroker_id_t listbroker_id);
 tdbussplayURLFIFO *dbus_get_streamplayer_urlfifo_iface(void);
 tdbussplayPlayback *dbus_get_streamplayer_playback_iface(void);
 tdbussplayPlayback *dbus_get_roonplayer_playback_iface(void);

@@ -1,4 +1,4 @@
-dnl Copyright (C) 2015, 2016, 2017, 2018  T+A elektroakustik GmbH & Co. KG
+dnl Copyright (C) 2015--2019  T+A elektroakustik GmbH & Co. KG
 dnl
 dnl This file is part of DRCPD.
 dnl
@@ -86,8 +86,12 @@ CPPFLAGS="$save_CPPFLAGS"
 AC_LANG_POP([C++])
 ])
 
+AC_LANG_PUSH([C++])
+AC_CHECK_HEADER([doctest.h])
+AC_LANG_POP([C++])
+
 # Checks for typedefs, structures, and compiler characteristics.
-AX_CXX_COMPILE_STDCXX_11([noext])
+AX_CXX_COMPILE_STDCXX_14([noext])
 AC_CHECK_HEADER_STDBOOL
 AC_TYPE_SIZE_T
 
@@ -95,10 +99,11 @@ AC_TYPE_SIZE_T
 AC_CHECK_FUNCS([setenv setlocale])
 
 AM_CONDITIONAL([WITH_CUTTER], [test "x$ac_cv_use_cutter" = "xyes"])
+AM_CONDITIONAL([WITH_DOCTEST], [test "x$ac_cv_header_doctest_h" = "xyes"])
 AM_CONDITIONAL([WITH_VALGRIND], [test "x$enable_valgrind" = "xyes"])
 AM_CONDITIONAL([WITH_MARKDOWN], [test "x$ac_cv_prog_MARKDOWN" != "x"])
 
-AC_CONFIG_FILES([Makefile src/Makefile tests/Makefile dist/Makefile po/Makefile.in Doxyfile])
+AC_CONFIG_FILES([Makefile src/Makefile tests_new/Makefile tests/Makefile dist/Makefile po/Makefile.in Doxyfile])
 AC_CONFIG_FILES([versioninfo.cache])
 AC_CONFIG_FILES([tests/run_test.sh], [chmod +x tests/run_test.sh])
 AC_CONFIG_FILES([tests/valgrind.sh], [chmod +x tests/valgrind.sh])

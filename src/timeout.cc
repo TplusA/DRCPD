@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2019  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -15,6 +15,10 @@
  * You should have received a copy of the GNU General Public License
  * along with DRCPD.  If not, see <http://www.gnu.org/licenses/>.
  */
+
+#if HAVE_CONFIG_H
+#include <config.h>
+#endif /* HAVE_CONFIG_H */
 
 #include <glib.h>
 #include <errno.h>

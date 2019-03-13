@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2016, 2017  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016, 2017, 2019  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -249,8 +249,7 @@ class QueryContextEnterList: public QueryContext_
     static void put_result(DBus::AsyncResult &async_success,
                            AsyncListNavCheckRange::PromiseType &promise,
                            tdbuslistsNavigation *p, GAsyncResult *async_result,
-                           GError *&error, ID::List list_id)
-        throw(List::DBusListException);
+                           GError *&error, ID::List list_id);
 };
 
 /*!
@@ -604,8 +603,7 @@ class QueryContextGetItem: public QueryContext_
                            AsyncListNavGetRange::PromiseType &promise,
                            tdbuslistsNavigation *p, GAsyncResult *async_result,
                            GError *&error,
-                           ID::List list_id, bool have_meta_data)
-        throw(List::DBusListException);
+                           ID::List list_id, bool have_meta_data);
 };
 
 /*!
@@ -820,7 +818,7 @@ class DBusList: public ListIface, public AsyncListIface
         async_dbus_data_.event_watcher_ = event_handler;
     }
 
-    void clone_state(const DBusList &src) throw(List::DBusListException);
+    void clone_state(const DBusList &src);
 
     void push_cache_state()
     {
@@ -842,7 +840,7 @@ class DBusList: public ListIface, public AsyncListIface
     unsigned int get_number_of_items() const override;
     bool empty() const override;
 
-    void enter_list(ID::List list_id, unsigned int line) throw(List::DBusListException) override;
+    void enter_list(ID::List list_id, unsigned int line) override;
     OpResult enter_list_async(ID::List list_id, unsigned int line,
                               QueryContextEnterList::CallerID caller,
                               I18n::String &&dynamic_title)
@@ -851,7 +849,7 @@ class DBusList: public ListIface, public AsyncListIface
                                 std::move(dynamic_title));
     }
 
-    const Item *get_item(unsigned int line) const throw(List::DBusListException) override;
+    const Item *get_item(unsigned int line) const override;
 
     OpResult get_item_async_set_hint(unsigned int line, int count,
                                      QueryContextGetItem::CallerID caller)

@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2015, 2016, 2017, 2018  T+A elektroakustik GmbH & Co. KG
+# Copyright (C) 2015--2019  T+A elektroakustik GmbH & Co. KG
 #
 # This file is part of DRCPD.
 #
@@ -16,7 +16,7 @@
 # along with DRCPD.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-SUBDIRS = po . src dist tests
+SUBDIRS = po . src dist tests_new tests
 
 ACLOCAL_AMFLAGS = -I m4
 
@@ -48,3 +48,11 @@ versioninfo.h: versioninfo.cache
 
 .md.html:
 	$(MARKDOWN) $< >$@
+
+if WITH_DOCTEST
+doctest:
+	$(MAKE) $(AM_MAKEFLAGS) -C tests_new $@
+
+doctest-valgrind:
+	$(MAKE) $(AM_MAKEFLAGS) -C tests_new $@
+endif

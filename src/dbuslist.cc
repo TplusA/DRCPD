@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2016, 2017, 2018  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015--2019  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -33,7 +33,6 @@
 constexpr const char *ListError::names_[];
 
 void List::DBusList::clone_state(const List::DBusList &src)
-    throw(List::DBusListException)
 {
     async_dbus_data_.cancel_all();
 
@@ -55,7 +54,6 @@ bool List::DBusList::empty() const
 static unsigned int query_list_size_sync(tdbuslistsNavigation *proxy,
                                          ID::List list_id,
                                          const std::string &list_iface_name)
-    throw(List::DBusListException)
 {
     guchar error_code;
     guint first_item;
@@ -145,7 +143,6 @@ static unsigned int query_list_size_sync(tdbuslistsNavigation *proxy,
 }
 
 void List::DBusList::enter_list(ID::List list_id, unsigned int line)
-    throw(List::DBusListException)
 {
     log_assert(list_id.is_valid());
 
@@ -169,7 +166,6 @@ static bool fetch_window_sync(tdbuslistsNavigation *proxy,
                               const List::ContextMap &list_contexts,
                               ID::List list_id, unsigned int line,
                               unsigned int count, GVariant **out_list)
-    throw(List::DBusListException)
 {
     msg_info("Fetch %u lines of list %u: starting at %u (sync) [%s]",
              count, list_id.get_raw_id(), line, list_iface_name.c_str());
@@ -628,7 +624,6 @@ void List::QueryContextEnterList::put_result(DBus::AsyncResult &async_ready,
                                              tdbuslistsNavigation *p,
                                              GAsyncResult *async_result,
                                              GError *&error, ID::List list_id)
-    throw(List::DBusListException)
 {
     guchar error_code = 0;
     guint first_item = 0;
@@ -823,7 +818,6 @@ List::DBusList::get_cache_segment_state(const CacheSegment &segment,
 }
 
 const List::Item *List::DBusList::get_item(unsigned int line) const
-    throw(List::DBusListException)
 {
     log_assert(window_.list_id_.is_valid());
 
@@ -1317,7 +1311,6 @@ void List::QueryContextGetItem::put_result(DBus::AsyncResult &async_ready,
                                            GAsyncResult *async_result,
                                            GError *&error, ID::List list_id,
                                            bool have_meta_data)
-    throw(List::DBusListException)
 {
     guchar error_code;
     guint first_item;

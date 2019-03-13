@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2019  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -87,7 +87,6 @@ class ComparedString
 static bool get_casefolded_string(const List::DBusList &list,
                                   unsigned int position,
                                   ComparedString &string)
-    throw(List::DBusListException)
 {
     const List::TextItem *const item =
         dynamic_cast<const List::TextItem *>(list.get_item(position));
@@ -350,7 +349,6 @@ class BSearchState
 
     Result bsearch_top_most(const List::DBusList &list,
                             ComparedString &temp_string)
-        throw(List::DBusListException, ::Search::UnsortedException)
     {
         while(true)
         {
@@ -381,7 +379,6 @@ class BSearchState
 
     Result bsearch_bottom_most(const List::DBusList &list,
                                ComparedString &temp_string)
-        throw(List::DBusListException, ::Search::UnsortedException)
     {
         while(true)
         {
@@ -416,7 +413,6 @@ class BSearchState
   private:
     template <typename CompareTraits, typename PrefixPolicy>
     Result bsearch_boundary(const ComparedString &center_string)
-        throw(::Search::UnsortedException)
     {
         msg_vinfo(MESSAGE_LEVEL_DEBUG,
                   "BSEARCH: Center element \"%s\", length %zu",
@@ -553,7 +549,6 @@ class BSearchState
 
 ssize_t Search::binary_search_utf8(const List::DBusList &list,
                                    const std::string &query)
-    throw(Search::UnsortedException, List::DBusListException)
 {
     if(query.empty())
         return -1;

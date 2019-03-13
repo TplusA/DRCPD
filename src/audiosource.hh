@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2017, 2019  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -166,6 +166,7 @@ class AudioSource
         if(new_state == state_)
             return;
 
+        // cppcheck-suppress variableScope
         const auto prev_state = state_;
         state_ = new_state;
 
