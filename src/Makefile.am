@@ -41,7 +41,7 @@ drcpd_SOURCES = \
     configuration.hh configuration_base.hh configuration_changed.hh \
     configuration_settings.hh inifile.h configuration_drcpd.hh \
     configuration_i18n.hh \
-    ui_parameters.hh ui_parameters_predefined.hh search_parameters.hh \
+    ui_parameters.hh ui_parameters_predefined.hh guard.hh search_parameters.hh \
     player_control.hh player_control.cc \
     player_data.hh player_data.cc \
     player_stopped_reason.hh playback_modes.hh \
@@ -118,7 +118,7 @@ libviews_la_SOURCES = \
     cacheenforcer.hh cacheenforcer.cc \
     gvariantwrapper.hh gvariantwrapper.cc \
     airable_links.hh airable_links.cc \
-    ui_parameters.hh ui_parameters_predefined.hh search_parameters.hh \
+    ui_parameters.hh ui_parameters_predefined.hh guard.hh search_parameters.hh \
     playback_modes.hh \
     search_algo.hh \
     actor_id.h \
@@ -134,7 +134,7 @@ libdcp_transaction_la_CFLAGS = $(AM_CFLAGS)
 libdcp_transaction_la_CXXFLAGS = $(AM_CXXFLAGS)
 
 libdbus_handlers_la_SOURCES = \
-    dbus_handlers.h dbus_handlers.hh dbus_handlers.cc \
+    dbus_handlers.h dbus_handlers.hh dbus_handlers.cc guard.hh \
     messages_dbus.h messages_dbus.c \
     actor_id.h
 libdbus_handlers_la_CFLAGS = $(AM_CFLAGS)

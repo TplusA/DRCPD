@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2016, 2017, 2018  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015--2019  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -619,7 +619,8 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
 
             Busy::clear(Busy::DirectSource::WAITING_FOR_APPLIANCE_AUDIO);
 
-            const std::string &ausrc_id(params->get_specific());
+            const auto &plist = params->get_specific();
+            const std::string &ausrc_id(std::get<0>(plist));
 
             if(!player_control_.source_deselected_notification(&ausrc_id))
             {
