@@ -51,101 +51,99 @@ struct ParamTraits<EventID::CONFIGURATION_UPDATED>
 template <>
 struct ParamTraits<EventID::AUDIO_SOURCE_SELECTED>
 {
-    using PType = SpecificParameters<std::tuple<const std::string, const bool>>;
+    using PType = SpecificParameters<std::tuple<std::string, bool>>;
 };
 
 template <>
 struct ParamTraits<EventID::AUDIO_SOURCE_DESELECTED>
 {
-    using PType = SpecificParameters<const std::string>;
+    using PType = SpecificParameters<std::string>;
 };
 
 template <>
 struct ParamTraits<EventID::AUDIO_PATH_CHANGED>
 {
-    using PType = SpecificParameters<std::tuple<const std::string, const std::string, const bool>>;
+    using PType = SpecificParameters<std::tuple<std::string, std::string, bool>>;
 };
 
 template <>
 struct ParamTraits<EventID::PLAYBACK_FAST_WIND_SET_SPEED>
 {
-    using PType = SpecificParameters<const double>;
+    using PType = SpecificParameters<double>;
 };
 
 template <>
 struct ParamTraits<EventID::PLAYBACK_SEEK_STREAM_POS>
 {
-    using PType = SpecificParameters<std::tuple<const int64_t, const std::string>>;
+    using PType = SpecificParameters<std::tuple<int64_t, std::string>>;
 };
 
 template <>
 struct ParamTraits<EventID::NAV_SCROLL_LINES>
 {
-    using PType = SpecificParameters<const int>;
+    using PType = SpecificParameters<int>;
 };
 
 template <>
 struct ParamTraits<EventID::NAV_SCROLL_PAGES>
 {
-    using PType = SpecificParameters<const int>;
+    using PType = SpecificParameters<int>;
 };
 
 template <>
 struct ParamTraits<EventID::VIEW_OPEN>
 {
-    using PType = SpecificParameters<const std::string>;
+    using PType = SpecificParameters<std::string>;
 };
 
 template <>
 struct ParamTraits<EventID::VIEW_TOGGLE>
 {
-    using PType = SpecificParameters<std::tuple<const std::string, const std::string>>;
+    using PType = SpecificParameters<std::tuple<std::string, std::string>>;
 };
 
 template <>
 struct ParamTraits<EventID::VIEWMAN_INVALIDATE_LIST_ID>
 {
-    using PType = SpecificParameters<std::tuple<void *const, const ID::List, const ID::List>>;
+    using PType = SpecificParameters<std::tuple<void *, ID::List, ID::List>>;
 };
 
 template <>
 struct ParamTraits<EventID::VIEW_PLAYER_NOW_PLAYING>
 {
-    using PType = SpecificParameters<std::tuple<const ID::Stream, GVariantWrapper,
-                                                const bool,
-                                                MetaData::Set,
-                                                const std::string>>;
+    using PType = SpecificParameters<std::tuple<ID::Stream, GVariantWrapper,
+                                                bool, MetaData::Set,
+                                                std::string>>;
 };
 
 template <>
 struct ParamTraits<EventID::VIEW_PLAYER_STORE_PRELOADED_META_DATA>
 {
-    using PType = SpecificParameters<std::tuple<const ID::Stream, MetaData::Set>>;
+    using PType = SpecificParameters<std::tuple<ID::Stream, MetaData::Set>>;
 };
 
 template <>
 struct ParamTraits<EventID::VIEW_PLAYER_STORE_STREAM_META_DATA>
 {
-    using PType = SpecificParameters<std::tuple<const ID::Stream, MetaData::Set>>;
+    using PType = SpecificParameters<std::tuple<ID::Stream, MetaData::Set>>;
 };
 
 template <>
 struct ParamTraits<EventID::VIEW_PLAYER_STREAM_STOPPED>
 {
-    using PType = SpecificParameters<std::tuple<const ID::Stream,
-                                                const bool, const std::string>>;
+    using PType = SpecificParameters<std::tuple<ID::Stream, bool, std::string>>;
 };
 
 template <>
 struct ParamTraits<EventID::VIEW_PLAYER_STREAM_PAUSED>
 {
-    using PType = SpecificParameters<const ID::Stream>;
+    using PType = SpecificParameters<ID::Stream>;
 };
 
 template <>
 struct ParamTraits<EventID::VIEW_PLAYER_STREAM_POSITION>
 {
-    using PType = SpecificParameters<std::tuple<const ID::Stream,
+    using PType = SpecificParameters<std::tuple<ID::Stream,
                                                 std::chrono::milliseconds,
                                                 std::chrono::milliseconds>>;
 };
@@ -153,24 +151,24 @@ struct ParamTraits<EventID::VIEW_PLAYER_STREAM_POSITION>
 template <>
 struct ParamTraits<EventID::VIEW_PLAYER_SPEED_CHANGED>
 {
-    using PType = SpecificParameters<std::tuple<const ID::Stream, const double>>;
+    using PType = SpecificParameters<std::tuple<ID::Stream, double>>;
 };
 
 template <>
 struct ParamTraits<EventID::VIEW_PLAYER_PLAYBACK_MODE_CHANGED>
 {
-    using PType = SpecificParameters<std::tuple<const DBus::ReportedRepeatMode,
-                                                const DBus::ReportedShuffleMode>>;
+    using PType = SpecificParameters<std::tuple<DBus::ReportedRepeatMode,
+                                                DBus::ReportedShuffleMode>>;
 };
 
 template <>
 struct ParamTraits<EventID::VIEW_STRBO_URL_RESOLVED>
 {
-    using PType = SpecificParameters<std::tuple<const uint32_t, const ListError,
-                                                const ID::List, const unsigned int,
-                                                const ID::List, const unsigned int,
-                                                const size_t, const size_t,
-                                                const I18n::String>>;
+    using PType = SpecificParameters<std::tuple<uint32_t, ListError,
+                                                ID::List, unsigned int,
+                                                ID::List, unsigned int,
+                                                size_t, size_t,
+                                                I18n::String>>;
 };
 
 template <>
@@ -182,9 +180,8 @@ struct ParamTraits<EventID::VIEW_SEARCH_STORE_PARAMETERS>
 template <>
 struct ParamTraits<EventID::VIEW_AIRABLE_SERVICE_LOGIN_STATUS_UPDATE>
 {
-    using PType = SpecificParameters<std::tuple<const std::string, const enum ActorID,
-                                                const bool, const ListError,
-                                                const std::string>>;
+    using PType = SpecificParameters<std::tuple<std::string, enum ActorID,
+                                                bool, ListError, std::string>>;
 };
 
 
