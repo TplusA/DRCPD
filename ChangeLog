@@ -1,3 +1,10 @@
+2019-03-14  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 4.18 released.
+
+	* Playback: Proper synchronization with TAPSwitch for clean switching
+	  of audio sources.
+
 2018-12-17  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 4.17 released.
@@ -806,4 +813,4 @@
 	* First release for testing.
 
 
-Copyright 2015, 2016, 2017, 2018 T+A elektroakustik GmbH & Co. KG
+Copyright 2015, 2016, 2017, 2018, 2019 T+A elektroakustik GmbH & Co. KG
