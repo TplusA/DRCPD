@@ -33,6 +33,7 @@
 #include "gvariantwrapper.hh"
 #include "i18nstring.hh"
 #include "de_tahifi_lists_errors.hh"
+#include "guard.hh"
 
 namespace UI
 {
@@ -51,13 +52,13 @@ struct ParamTraits<EventID::CONFIGURATION_UPDATED>
 template <>
 struct ParamTraits<EventID::AUDIO_SOURCE_SELECTED>
 {
-    using PType = SpecificParameters<std::tuple<const std::string, const bool>>;
+    using PType = SpecificParameters<std::tuple<const std::string, const bool, Guard>>;
 };
 
 template <>
 struct ParamTraits<EventID::AUDIO_SOURCE_DESELECTED>
 {
-    using PType = SpecificParameters<const std::string>;
+    using PType = SpecificParameters<std::tuple<const std::string, Guard>>;
 };
 
 template <>

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2016, 2017, 2018  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015--2019  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -671,14 +671,18 @@ gboolean dbusmethod_audiopath_source_selected_on_hold(tdbusaupathSource *object,
 {
     enter_audiopath_source_handler(invocation);
 
-    auto *data = static_cast<DBus::SignalData *>(user_data);
+    Guard guard(
+        [object, invocation] ()
+        {
+            tdbus_aupath_source_complete_selected_on_hold(object, invocation);
+        });
+    auto params = UI::Events::mk_params<UI::EventID::AUDIO_SOURCE_SELECTED>(
+                        source_id, true, std::move(guard));
 
     /* views are switched by the player as seen necessary */
-    auto params = UI::Events::mk_params<UI::EventID::AUDIO_SOURCE_SELECTED>(source_id, true);
+    auto *data = static_cast<DBus::SignalData *>(user_data);
     data->event_sink_.store_event(UI::EventID::AUDIO_SOURCE_SELECTED,
                                   std::move(params));
-
-    tdbus_aupath_source_complete_selected_on_hold(object, invocation);
 
     return TRUE;
 }
@@ -691,14 +695,18 @@ gboolean dbusmethod_audiopath_source_selected(tdbusaupathSource *object,
 {
     enter_audiopath_source_handler(invocation);
 
-    auto *data = static_cast<DBus::SignalData *>(user_data);
+    Guard guard(
+        [object, invocation] ()
+        {
+            tdbus_aupath_source_complete_selected(object, invocation);
+        });
+    auto params = UI::Events::mk_params<UI::EventID::AUDIO_SOURCE_SELECTED>(
+                        source_id, true, std::move(guard));
 
     /* views are switched by the player as seen necessary */
-    auto params = UI::Events::mk_params<UI::EventID::AUDIO_SOURCE_SELECTED>(source_id, false);
+    auto *data = static_cast<DBus::SignalData *>(user_data);
     data->event_sink_.store_event(UI::EventID::AUDIO_SOURCE_SELECTED,
                                   std::move(params));
-
-    tdbus_aupath_source_complete_selected(object, invocation);
 
     return TRUE;
 }
@@ -711,14 +719,18 @@ gboolean dbusmethod_audiopath_source_deselected(tdbusaupathSource *object,
 {
     enter_audiopath_source_handler(invocation);
 
-    auto *data = static_cast<DBus::SignalData *>(user_data);
+    Guard guard(
+        [object, invocation] ()
+        {
+            tdbus_aupath_source_complete_deselected(object, invocation);
+        });
+    auto params = UI::Events::mk_params<UI::EventID::AUDIO_SOURCE_DESELECTED>(
+                        source_id, std::move(guard));
 
     /* views are switched by the player as seen necessary */
-    auto params = UI::Events::mk_params<UI::EventID::AUDIO_SOURCE_DESELECTED>(source_id);
+    auto *data = static_cast<DBus::SignalData *>(user_data);
     data->event_sink_.store_event(UI::EventID::AUDIO_SOURCE_DESELECTED,
                                   std::move(params));
-
-    tdbus_aupath_source_complete_deselected(object, invocation);
 
     return TRUE;
 }
