@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, 2017, 2018  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2017, 2018, 2019  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -192,7 +192,7 @@ template <EventID E, typename Traits = ::UI::Events::ParamTraits<E>, typename...
 static std::unique_ptr<typename Traits::PType>
 mk_params(Args&&... args)
 {
-    return std::unique_ptr<typename Traits::PType>(new typename Traits::PType(std::move(typename Traits::PType::value_type(args...))));
+    return std::make_unique<typename Traits::PType>(typename Traits::PType::value_type(std::forward<Args>(args)...));
 }
 
 template <BroadcastEventID E, typename D, typename TParams, typename Traits = ::UI::Events::ParamTraits<mk_event_id(E)>>
