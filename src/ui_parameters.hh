@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, 2017  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2017, 2019  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -66,18 +66,6 @@ class SpecificParameters: public Parameters
 
     const T &get_specific() const { return value_; }
     T &get_specific_non_const() { return value_; }
-
-    /*
-     * Ugly-fied, non-const pointer variant of
-     * #UI::SpecificParameters::get_specific().
-     *
-     * This function is meant for C-like initialization of the managed data in
-     * case there is no C++ ctor for #UI::SpecificParameters::T. In this case,
-     * the default ctor of #UI::SpecificParameters should be used to declare
-     * the object, and the data the pointer returned by this function points to
-     * should be initialized by the caller of this function.
-     */
-    T *get_pointer_to_raw_data() { return &value_; }
 };
 
 enum class EventID;
@@ -102,7 +90,6 @@ class SpecificParametersForID: public Parameters
 
     const T &get_specific() const { return value_; }
     T &get_specific_non_const() { return value_; }
-    T *get_pointer_to_raw_data() { return &value_; }
 };
 
 }
