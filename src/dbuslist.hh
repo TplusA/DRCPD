@@ -72,10 +72,7 @@ class QueryContext_
   public:
     QueryContext_ &operator=(const QueryContext_ &) = delete;
 
-    virtual ~QueryContext_()
-    {
-        cancel_sync();
-    }
+    virtual ~QueryContext_() = default;
 
     /*!
      * Start running asynchronous D-Bus operation.
@@ -121,14 +118,19 @@ class QueryContext_
      * Cancel asynchronous operation, if any, and wait for it to happen.
      *
      * \note
-     *     To make any sense, implementations of the #List::QueryContext_
-     *     interface should override this function.
+     *     Implementations of the #List::QueryContext_ interface must override
+     *     this function. An empty implementation must simply return
+     *     #DBus::CancelResult::CANCELED.
+     *
+     * \note
+     *     Implementations must call their version of \c cancel_sync() from
+     *     their destructor.
      *
      * \note
      *     Regular code should favor #List::QueryContext_::cancel() over this
      *     function.
      */
-    virtual DBus::CancelResult cancel_sync() { return DBus::CancelResult::CANCELED; }
+    virtual DBus::CancelResult cancel_sync() = 0;
 };
 
 /*!
@@ -193,6 +195,11 @@ class QueryContextEnterList: public QueryContext_
         parameters_({list_id, line, std::move(title)})
     {}
 
+    ~QueryContextEnterList()
+    {
+        cancel_sync();
+    }
+
     CallerID get_caller_id() const { return static_cast<CallerID>(caller_id_); }
 
     bool run_async(DBus::AsyncResultAvailableFunction &&result_available) final override;
@@ -249,7 +256,7 @@ class QueryContextEnterList: public QueryContext_
     }
 
   private:
-    static void put_result(DBus::AsyncResult &async_success,
+    static void put_result(DBus::AsyncResult &async_ready,
                            AsyncListNavCheckRange::PromiseType &promise,
                            tdbuslistsNavigation *p, GAsyncResult *async_result,
                            GError *&error, ID::List list_id);
@@ -511,6 +518,11 @@ class QueryContextGetItem: public QueryContext_
         proxy_(src.proxy_),
         parameters_({list_id, CacheSegment(line, count), have_meta_data, replace_index})
     {}
+
+    ~QueryContextGetItem()
+    {
+        cancel_sync();
+    }
 
     CallerID get_caller_id() const { return static_cast<CallerID>(caller_id_); }
 
@@ -878,7 +890,7 @@ class DBusList: public ListIface, public AsyncListIface
 
   private:
     CacheSegmentState get_cache_segment_state(const CacheSegment &segment,
-                                              unsigned int &size_of_cached_overlap,
+                                              unsigned int &size_of_cached_segment,
                                               unsigned int &size_of_loading_segment) const;
 
     bool is_line_cached(unsigned int line) const
@@ -898,7 +910,7 @@ class DBusList: public ListIface, public AsyncListIface
 
     bool can_scroll_to_line(unsigned int line, unsigned int prefetch_hint,
                             CacheModifications &cm,
-                            unsigned int &fetch_head, unsigned int &count,
+                            unsigned int &fetch_head, unsigned int &fetch_count,
                             unsigned int &cache_list_replace_index) const;
 
     /*!

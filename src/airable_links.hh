@@ -57,8 +57,8 @@ class RankedLink
         link_(uri)
     {}
 
-    const uint32_t get_rank() const { return rank_; }
-    const uint32_t get_bitrate() const { return bitrate_bits_per_second_; }
+    uint32_t get_rank() const { return rank_; }
+    uint32_t get_bitrate() const { return bitrate_bits_per_second_; }
     const std::string &get_stream_link() const { return link_; }
 };
 

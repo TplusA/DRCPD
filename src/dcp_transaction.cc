@@ -60,7 +60,7 @@ bool DCP::Transaction::start(bool force_async)
     return false;
 }
 
-static const char nibble_to_char(uint8_t nibble)
+static char nibble_to_char(uint8_t nibble)
 {
     if(nibble < 10)
         return '0' + nibble;

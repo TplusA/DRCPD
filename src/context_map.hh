@@ -100,7 +100,7 @@ class ContextMap
     context_id_t append(const char *id, const char *description, uint32_t flags = 0,
                         const Player::LocalPermissionsIface *permissions = nullptr);
 
-    bool exists(context_id_t id) const { return id < contexts_.size(); }
+    bool exists(const context_id_t &id) const { return id < contexts_.size(); }
     bool exists(const char *id) const { return ((*this)[id].is_valid()); }
     bool exists(const std::string &id) const { return exists(id.c_str()); }
 

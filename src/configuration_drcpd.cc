@@ -132,15 +132,18 @@ Configuration::UpdateSettings<Configuration::DrcpdValues>::insert_boxed(const ch
 
     const size_t requested_key_length(strlen(key));
 
-    for(const auto &k : DrcpdValues::all_keys)
-    {
-        if(k.name_.length() == requested_key_length &&
-           strcmp(k.name_.c_str(), key) == 0)
-        {
-            return k.unbox(*this, std::move(value));
-        }
-    }
+    const auto &found =
+        std::find_if(
+            DrcpdValues::all_keys.begin(), DrcpdValues::all_keys.end(),
+            [&key, &requested_key_length]
+            (const auto &k)
+            {
+                return k.name_.length() == requested_key_length &&
+                       strcmp(k.name_.c_str(), key) == 0;
+            });
 
-    return InsertResult::KEY_UNKNOWN;
+    return found != DrcpdValues::all_keys.end()
+        ? found->unbox(*this, std::move(value))
+        : InsertResult::KEY_UNKNOWN;
 }
 //! \endcond

@@ -29,7 +29,7 @@
 #include "metadata.hh"
 #include "messages.h"
 
-static const struct
+struct KeyToID
 {
     /*!
      * A key a sent by Streamplayer, thus GStreamer.
@@ -40,22 +40,28 @@ static const struct
      * Internally used ID for GStreamer keys.
      */
     MetaData::Set::ID id;
-}
-key_to_id[MetaData::Set::METADATA_ID_LAST + 1] =
+
+    constexpr KeyToID(const char *k, const MetaData::Set::ID i):
+        key(k),
+        id(i)
+    {}
+};
+
+static const std::array<const KeyToID, MetaData::Set::METADATA_ID_LAST + 1> key_to_id
 {
-    { "title",           MetaData::Set::TITLE, },
-    { "artist",          MetaData::Set::ARTIST, },
-    { "album",           MetaData::Set::ALBUM, },
-    { "audio-codec",     MetaData::Set::CODEC, },
-    { "bitrate",         MetaData::Set::BITRATE, },
-    { "minimum-bitrate", MetaData::Set::BITRATE_MIN, },
-    { "maximum-bitrate", MetaData::Set::BITRATE_MAX, },
-    { "nominal-bitrate", MetaData::Set::BITRATE_NOM, },
-    { "x-drcpd-title",   MetaData::Set::INTERNAL_DRCPD_TITLE, },
-    { "x-drcpd-line-1",  MetaData::Set::INTERNAL_DRCPD_OPAQUE_LINE_1, },
-    { "x-drcpd-line-2",  MetaData::Set::INTERNAL_DRCPD_OPAQUE_LINE_2, },
-    { "x-drcpd-line-3",  MetaData::Set::INTERNAL_DRCPD_OPAQUE_LINE_3, },
-    { "x-drcpd-url",     MetaData::Set::INTERNAL_DRCPD_URL, },
+    KeyToID("title",           MetaData::Set::TITLE),
+    KeyToID("artist",          MetaData::Set::ARTIST),
+    KeyToID("album",           MetaData::Set::ALBUM),
+    KeyToID("audio-codec",     MetaData::Set::CODEC),
+    KeyToID("bitrate",         MetaData::Set::BITRATE),
+    KeyToID("minimum-bitrate", MetaData::Set::BITRATE_MIN),
+    KeyToID("maximum-bitrate", MetaData::Set::BITRATE_MAX),
+    KeyToID("nominal-bitrate", MetaData::Set::BITRATE_NOM),
+    KeyToID("x-drcpd-title",   MetaData::Set::INTERNAL_DRCPD_TITLE),
+    KeyToID("x-drcpd-line-1",  MetaData::Set::INTERNAL_DRCPD_OPAQUE_LINE_1),
+    KeyToID("x-drcpd-line-2",  MetaData::Set::INTERNAL_DRCPD_OPAQUE_LINE_2),
+    KeyToID("x-drcpd-line-3",  MetaData::Set::INTERNAL_DRCPD_OPAQUE_LINE_3),
+    KeyToID("x-drcpd-url",     MetaData::Set::INTERNAL_DRCPD_URL),
 };
 
 void MetaData::Set::clear(bool keep_internals)
@@ -69,14 +75,12 @@ void MetaData::Set::clear(bool keep_internals)
 void MetaData::Set::add(const char *key, const char *value,
                         const Reformatters &reformat)
 {
-    for(const auto &entry : key_to_id)
-    {
-        if(strcmp(key, entry.key) == 0)
-        {
-            add(entry.id, value, reformat);
-            return;
-        }
-    }
+    const auto &found(std::find_if(key_to_id.begin(), key_to_id.end(),
+                                   [&key] (const auto &entry)
+                                   { return strcmp(key, entry.key) == 0; }));
+
+    if(found != key_to_id.end())
+        add(found->id, value, reformat);
 }
 
 void MetaData::Set::add(const MetaData::Set::ID key_id, const char *value,

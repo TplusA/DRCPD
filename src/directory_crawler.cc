@@ -296,7 +296,7 @@ bool Playlist::DirectoryCrawler::list_invalidate(ID::List list_id, ID::List repl
         : traversal_list_.get_list_id() == list_id;
 }
 
-bool Playlist::DirectoryCrawler::retrieve_item_information_impl(RetrieveItemInfoCallback callback)
+bool Playlist::DirectoryCrawler::retrieve_item_information_impl(/*cppcheck-suppress passedByValue*/ RetrieveItemInfoCallback callback)
 {
     if(!is_waiting_for_async_enter_list_completion_)
         return do_retrieve_item_information(callback);
@@ -1236,7 +1236,7 @@ Playlist::DirectoryCrawler::back_to_parent(const FindNextCallback &callback)
 }
 
 Playlist::CrawlerIface::FindNextFnResult
-Playlist::DirectoryCrawler::find_next_impl(FindNextCallback callback)
+Playlist::DirectoryCrawler::find_next_impl(/*cppcheck-suppress passedByValue*/ FindNextCallback callback)
 {
     find_next_callback_ = nullptr;
 

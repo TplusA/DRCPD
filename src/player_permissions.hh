@@ -79,7 +79,7 @@ class DefaultLocalPermissions: public LocalPermissionsIface
     bool can_prefetch_for_gapless() const override { return true; }
     bool can_skip_on_error()        const override { return true; }
     bool retry_if_stream_broken()   const override { return false; }
-    uint8_t maximum_number_of_prefetched_streams() const { return 5; }
+    uint8_t maximum_number_of_prefetched_streams() const override { return 5; }
 };
 
 }

@@ -383,7 +383,7 @@ class Control
                               const StreamPreplayInfo::ResolvedRedirectCallback &callback);
 
     ReplayResult replay(ID::OurStream stream_id, bool is_retry,
-                        PlayNewMode mode, bool &tool_from_queue);
+                        PlayNewMode play_new_mode, bool &took_from_queue);
     void forget_queued_and_playing(bool also_forget_playing);
 };
 

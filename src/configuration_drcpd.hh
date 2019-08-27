@@ -51,7 +51,9 @@ struct DrcpdValues
 
     uint32_t maximum_bitrate_;
 
-    DrcpdValues() {}
+    DrcpdValues():
+        DrcpdValues(0)
+    {}
 
     explicit DrcpdValues(uint32_t maximum_bitrate):
         maximum_bitrate_(maximum_bitrate)

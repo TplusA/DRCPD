@@ -75,7 +75,7 @@ class ComparedString
     }
 
     const char *get() const throw() { return string_; }
-    const size_t length() const throw() { return number_of_utf8_chars_; }
+    size_t length() const throw() { return number_of_utf8_chars_; }
 
     gunichar get_char_at(size_t idx) const throw()
     {

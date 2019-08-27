@@ -1726,7 +1726,7 @@ bool ViewFileBrowser::View::do_point_to_real_root_directory()
 static void point_to_list_context_root__got_parent_link(DBus::AsyncCall_ &async_call,
                                                         ViewFileBrowser::View::AsyncCalls &calls,
                                                         List::DBusList &file_list,
-                                                        List::context_id_t ctx_id)
+                                                        const List::context_id_t &ctx_id)
 {
     auto lock(calls.acquire_lock());
 

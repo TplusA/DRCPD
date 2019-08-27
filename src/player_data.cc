@@ -97,14 +97,14 @@ Player::StreamPreplayInfo::iter_next(tdbusAirable *proxy, const std::string *&ur
     if(async_resolve_redirect_call_ == nullptr)
         return OpResult::FAILED;
 
-    const Airable::RankedLink *const link = airable_links_[next_uri_to_try_];
-    log_assert(link != nullptr);
+    const Airable::RankedLink *const ranked_link = airable_links_[next_uri_to_try_];
+    log_assert(ranked_link != nullptr);
 
     msg_vinfo(MESSAGE_LEVEL_DIAG, "Resolving Airable redirect at %zu: \"%s\"",
-              next_uri_to_try_,  link->get_stream_link().c_str());
+              next_uri_to_try_,  ranked_link->get_stream_link().c_str());
 
     async_resolve_redirect_call_->invoke(tdbus_airable_call_resolve_redirect,
-                                         link->get_stream_link().c_str());
+                                         ranked_link->get_stream_link().c_str());
 
     return OpResult::STARTED;
 }
@@ -217,7 +217,7 @@ void Player::StreamPreplayInfoCollection::forget_stream(const ID::OurStream stre
 }
 
 Player::StreamPreplayInfo *
-Player::StreamPreplayInfoCollection::get_info_for_update(const ID::OurStream stream_id)
+Player::StreamPreplayInfoCollection::get_info_for_update(const ID::OurStream &stream_id)
 {
     auto result(stream_ppinfos_.find(stream_id));
     return (result != stream_ppinfos_.end() ? &result->second : nullptr);
@@ -286,7 +286,7 @@ ID::OurStream Player::Data::store_stream_preplay_information(const GVariantWrapp
 }
 
 Player::StreamPreplayInfo::OpResult
-Player::Data::get_first_stream_uri(const ID::OurStream stream_id,
+Player::Data::get_first_stream_uri(const ID::OurStream &stream_id,
                                    const GVariantWrapper *&stream_key,
                                    const std::string *&uri,
                                    const StreamPreplayInfo::ResolvedRedirectCallback &callback)
@@ -308,7 +308,7 @@ Player::Data::get_first_stream_uri(const ID::OurStream stream_id,
 }
 
 Player::StreamPreplayInfo::OpResult
-Player::Data::get_next_stream_uri(const ID::OurStream stream_id,
+Player::Data::get_next_stream_uri(const ID::OurStream &stream_id,
                                   const GVariantWrapper *&stream_key,
                                   const std::string *&uri,
                                   const StreamPreplayInfo::ResolvedRedirectCallback &callback)

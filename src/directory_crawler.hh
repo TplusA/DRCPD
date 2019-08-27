@@ -295,8 +295,8 @@ class DirectoryCrawler: public CrawlerIface
     static constexpr const unsigned int PREFETCHED_ITEMS_COUNT = 5;
 
   public:
-    DirectoryCrawler (const DirectoryCrawler  &) = delete;
-    DirectoryCrawler &operator=(const DirectoryCrawler  &) = delete;
+    DirectoryCrawler (const DirectoryCrawler &) = delete;
+    DirectoryCrawler &operator=(const DirectoryCrawler &) = delete;
 
     explicit DirectoryCrawler(tdbuslistsNavigation *dbus_listnav_proxy,
                               const List::ContextMap &list_contexts,

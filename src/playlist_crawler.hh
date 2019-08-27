@@ -262,7 +262,7 @@ class CrawlerIface
     bool is_busy() const { return is_crawling() && is_busy_impl(); }
     bool is_crawling() const { return crawler_state_ == CrawlerState::CRAWLING; }
 
-    FindNextFnResult find_next(FindNextCallback callback)
+    FindNextFnResult find_next(/*cppcheck-suppress passedByValue*/ FindNextCallback callback)
     {
         switch(crawler_state_)
         {
@@ -305,7 +305,7 @@ class CrawlerIface
         return find_next(nullptr);
     }
 
-    bool retrieve_item_information(RetrieveItemInfoCallback callback)
+    bool retrieve_item_information(/*cppcheck-suppress passedByValue*/ RetrieveItemInfoCallback callback)
     {
         switch(crawler_state_)
         {

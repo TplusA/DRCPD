@@ -214,11 +214,11 @@ class StreamPreplayInfoCollection
                Airable::SortedLinks &&airable_links,
                ID::List list_id, unsigned int line, unsigned int directory_depth,
                bool is_crawler_direction_reverse);
-    void forget_stream(const ID::OurStream stream_id);
+    void forget_stream(/*cppcheck-suppress passedByValue*/ const ID::OurStream stream_id);
 
-    StreamPreplayInfo *get_info_for_update(const ID::OurStream stream_id);
+    StreamPreplayInfo *get_info_for_update(const ID::OurStream &stream_id);
 
-    const StreamPreplayInfo *get_info(const ID::OurStream stream_id) const
+    const StreamPreplayInfo *get_info(const ID::OurStream &stream_id) const
     {
         return const_cast<StreamPreplayInfoCollection *>(this)->get_info_for_update(stream_id);
     }
@@ -417,17 +417,17 @@ class Data
                                                    unsigned int directory_depth,
                                                    bool is_crawler_direction_reverse);
     Player::StreamPreplayInfo::OpResult
-    get_first_stream_uri(const ID::OurStream stream_id,
+    get_first_stream_uri(const ID::OurStream &stream_id,
                          const GVariantWrapper *&stream_key,
                          const std::string *&uri,
                          const StreamPreplayInfo::ResolvedRedirectCallback &callback);
     Player::StreamPreplayInfo::OpResult
-    get_next_stream_uri(const ID::OurStream stream_id,
+    get_next_stream_uri(const ID::OurStream &stream_id,
                         const GVariantWrapper *&stream_key,
                         const std::string *&uri,
                         const StreamPreplayInfo::ResolvedRedirectCallback &callback);
 
-    const StreamPreplayInfo *get_stream_preplay_info(const ID::OurStream stream_id) const
+    const StreamPreplayInfo *get_stream_preplay_info(const ID::OurStream &stream_id) const
     {
         return preplay_info_.get_info(stream_id);
     }
@@ -462,6 +462,8 @@ class Data
     bool update_playback_speed(const ID::Stream &stream_id, double speed);
 
     void append_referenced_lists(std::vector<ID::List> &list_ids) const;
+
+    // cppcheck-suppress functionStatic
     void list_replaced_notification(ID::List old_id, ID::List new_id) const;
 };
 

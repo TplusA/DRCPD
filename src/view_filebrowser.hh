@@ -94,7 +94,7 @@ class JumpToContext
     {}
 
     void begin(ID::List source_list_id, unsigned int source_line,
-               List::context_id_t destination)
+               const List::context_id_t &destination)
     {
         log_assert(state_ == State::NOT_JUMPING);
         log_assert(destination != List::ContextMap::INVALID_ID);
@@ -186,7 +186,7 @@ class ContextRestriction
         is_blocked_(false)
     {}
 
-    void set_context_id(List::context_id_t ctx)
+    void set_context_id(const List::context_id_t &ctx)
     {
         log_assert(ctx != List::ContextMap::INVALID_ID);
         root_list_id_ = ID::List();

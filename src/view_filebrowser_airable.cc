@@ -572,7 +572,7 @@ uint32_t ViewFileBrowser::AirableView::about_to_write_xml(const DCP::Queue::Data
 
 static inline List::context_id_t
 determine_ctx_id(bool have_audio_source,
-                 const List::context_id_t restricted_ctx,
+                 const List::context_id_t &restricted_ctx,
                  const ID::List current_list_id)
 {
     auto result(have_audio_source ? restricted_ctx : List::ContextMap::INVALID_ID);

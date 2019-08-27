@@ -155,6 +155,8 @@ void List::DBusList::enter_list(ID::List list_id, unsigned int line)
         const_cast<List::DBusList *>(this)->cancel_enter_list_query();
     }
 
+    /* code above holds a lock, code below does not */
+    // cppcheck-suppress duplicateCondition
     if(list_id != window_.list_id_)
         number_of_items_ = query_list_size_sync(dbus_proxy_, list_id,
                                                 list_iface_name_);

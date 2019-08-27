@@ -24,6 +24,7 @@
 #endif /* HAVE_CONFIG_H */
 
 #include <string>
+#include <numeric>
 
 #include "view_manager.hh"
 #include "view_filebrowser.hh"
@@ -79,13 +80,12 @@ bool ViewManager::Manager::add_view(ViewIface *view)
 
 bool ViewManager::Manager::invoke_late_init_functions()
 {
-    bool ok = true;
-
-    for(auto &v : all_views_)
-    {
-        if(!v.second->late_init())
-            ok = false;
-    }
+    const bool result =
+        std::accumulate(all_views_.begin(), all_views_.end(), true,
+            [] (bool ok, auto &v)
+            {
+                return v.second->late_init() && ok;
+            });
 
     config_manager_.set_updated_notification_callback(
         [this] (const char *origin,
@@ -103,7 +103,7 @@ bool ViewManager::Manager::invoke_late_init_functions()
                     debug_stream_);
         });
 
-    return ok;
+    return result;
 }
 
 void ViewManager::Manager::set_output_stream(std::ostream &os)

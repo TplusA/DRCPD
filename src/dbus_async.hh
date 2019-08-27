@@ -198,6 +198,7 @@ class AsyncCall_: public std::enable_shared_from_this<AsyncCall_>
     {
         auto maybe_last_reference = pointer_to_self_;
         pointer_to_self_.reset();
+        maybe_last_reference.reset();
     }
 };
 

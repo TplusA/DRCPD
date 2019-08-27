@@ -58,12 +58,12 @@ class DBusListException
         is_dbus_error_(dbus_error)
     {}
 
-    const bool is_dbus_error() const noexcept
+    bool is_dbus_error() const noexcept
     {
         return is_dbus_error_;
     }
 
-    const ListError::Code get() const noexcept
+    ListError::Code get() const noexcept
     {
         return error_.get();
     }
