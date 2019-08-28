@@ -1,3 +1,31 @@
+2020-02-19  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 5.0 released.
+
+	* D-Bus: Rewritten list navigation code. All potentially long-running
+	  sycnhronous D-Bus method invocations were replaced by a completely
+	  asynchronously working mechanism. The new code cannot trigger D-Bus
+	  timeouts anymore (unless there is a true communication error) and
+	  makes many things explicit (object to represent state and
+	  expectations) which were implicit before (semi-globals, state
+	  scattered across processes and D-Bus method call states).
+
+	  A lot of code had to be changed or entirely rewritten, so this
+	  version is expected to contain quite some bugs.
+
+	* D-Bus: Rewritten streamplayer synchronization code. There were many
+	  situations in which our old code full of guesswork was unable to
+	  synchronize with streamplayer queue states. It worked before because
+	  of the way list navigation and thus list playback worked, but the
+	  change of communication style rendered the previous synchronization
+	  useless in many places.
+
+	* Build system: Support Meson.
+
+	* Licensing: Changed license from GPLv3+ to GPLv2+.
+
+	* Misc: Fixed many compiler and cppcheck warnings/bugs.
+
 2019-03-14  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 4.18 released.
@@ -813,4 +841,4 @@
 	* First release for testing.
 
 
-Copyright 2015, 2016, 2017, 2018, 2019 T+A elektroakustik GmbH & Co. KG
+Copyright 2015--2020 T+A elektroakustik GmbH & Co. KG
