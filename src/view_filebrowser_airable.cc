@@ -404,7 +404,8 @@ void ViewFileBrowser::AirableView::finish_async_point_to_child_directory()
                       "Failed finding search form in context %s, "
                       "got hard %s error: %s",
                       ctx.string_id_.c_str(),
-                      e.is_dbus_error() ? "D-Bus" : "list retrieval", e.what());
+                      e.get_internal_detail_string_or_fallback("list retrieval"),
+                      e.what());
 
             break;
         }

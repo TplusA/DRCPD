@@ -22,6 +22,7 @@
 #ifndef DBUSLIST_EXCEPTION_HH
 #define DBUSLIST_EXCEPTION_HH
 
+#include "gerrorwrapper.hh"
 #include "de_tahifi_lists_errors.hh"
 
 /*!
@@ -37,30 +38,72 @@ namespace List
 
 class DBusListException
 {
+  public:
+    enum class InternalDetail
+    {
+        UNKNOWN,
+        UNEXPECTED_SUCCESS,     /* another flavor of "unknown" */
+        DBUS_NO_REPLY,
+    };
+
   private:
     const ListError error_;
-    const bool is_dbus_error_;
+    const InternalDetail detail_;
 
   public:
     DBusListException(const DBusListException &) = delete;
     DBusListException &operator=(const DBusListException &) = delete;
     DBusListException(DBusListException &&) = default;
 
-    constexpr explicit DBusListException(ListError error,
-                                         bool dbus_error = false) noexcept:
+    constexpr explicit DBusListException(ListError error) noexcept:
         error_(error),
-        is_dbus_error_(dbus_error)
+        detail_(InternalDetail::UNKNOWN)
     {}
 
-    constexpr explicit DBusListException(ListError::Code error,
-                                         bool dbus_error = false) noexcept:
+    constexpr explicit DBusListException(ListError::Code error) noexcept:
         error_(error),
-        is_dbus_error_(dbus_error)
+        detail_(InternalDetail::UNKNOWN)
     {}
 
-    bool is_dbus_error() const noexcept
+    constexpr explicit DBusListException(InternalDetail detail) noexcept:
+        error_(ListError::Code::INTERNAL),
+        detail_(detail)
+    {}
+
+    explicit DBusListException(const GErrorWrapper &error) noexcept:
+        error_(ListError::Code::INTERNAL),
+        detail_(error.failed()
+                ? (error->domain == G_DBUS_ERROR && error->code == G_DBUS_ERROR_NO_REPLY
+                   ? InternalDetail::DBUS_NO_REPLY
+                   : InternalDetail::UNKNOWN)
+                : InternalDetail::UNEXPECTED_SUCCESS)
+    {}
+
+    InternalDetail get_detail() const noexcept
     {
-        return is_dbus_error_;
+        return error_ == ListError::Code::INTERNAL
+            ? detail_
+            : InternalDetail::UNKNOWN;
+    }
+
+    const char *get_internal_detail_string_or_fallback(const char *fallback) const
+    {
+        if(error_ != ListError::Code::INTERNAL)
+            return fallback;
+
+        switch(detail_)
+        {
+          case InternalDetail::UNKNOWN:
+            break;
+
+          case InternalDetail::UNEXPECTED_SUCCESS:
+            return "internal (blank GLib error struct)";
+
+          case InternalDetail::DBUS_NO_REPLY:
+            return "internal (D-Bus no reply, timeout)";
+        }
+
+        return "internal (unknown)";
     }
 
     ListError::Code get() const noexcept

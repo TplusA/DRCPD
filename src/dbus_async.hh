@@ -27,6 +27,7 @@
 
 #include <gio/gio.h>
 
+#include "gerrorwrapper.hh"
 #include "logged_lock.hh"
 #include "busy.hh"
 #include "messages.h"
@@ -214,7 +215,7 @@ class AsyncCall: public DBus::AsyncCall_
     using ToProxyFunction = std::function<ProxyType *(GObject *)>;
     using PutResultFunction = std::function<void(AsyncResult &,
                                                  PromiseType &, ProxyType *,
-                                                 GAsyncResult *, GError *&)>;
+                                                 GAsyncResult *, GErrorWrapper &)>;
     using DestroyResultFunction = std::function<void(PromiseReturnType &)>;
 
   private:
@@ -225,7 +226,7 @@ class AsyncCall: public DBus::AsyncCall_
     DestroyResultFunction destroy_result_fn_;
     std::function<bool(void)> may_continue_fn_;
 
-    GError *error_;
+    GErrorWrapper error_;
 
     std::promise<PromiseReturnType> promise_;
     PromiseReturnType return_value_;
@@ -260,8 +261,8 @@ class AsyncCall: public DBus::AsyncCall_
      *     around the specific \c _finish() function that must be called to
      *     finish an asynchronous D-Bus method call. Specifically, this
      *     function \e must (1) call the D-Bus method's \c _finish() function
-     *     to obtain the results, using the passed \c GAsyncResult and
-     *     \c GError pointers as parameters; (2) assign either
+     *     to obtain the results, using the passed \c GAsyncResult pointer and
+     *     #GErrorWrapper object as parameters; (2) assign either
      *     #AsyncResult::READY or #AsyncResult::FAILED to the passed
      *     #AsyncResult reference, depending on the return value of
      *     \c _finish(); (3) pack the results returned by the \c _finish()
@@ -305,18 +306,11 @@ class AsyncCall: public DBus::AsyncCall_
         result_available_fn_(result_available),
         destroy_result_fn_(destroy_result),
         may_continue_fn_(may_continue),
-        error_(nullptr),
         have_reported_result_(false)
     {}
 
     virtual ~AsyncCall()
     {
-        if(error_ != nullptr)
-        {
-            g_error_free(error_);
-            error_ = nullptr;
-        }
-
         destroy_result_fn_(return_value_);
     }
 
@@ -478,8 +472,7 @@ class AsyncCall: public DBus::AsyncCall_
                 }
             }
 
-            if(error_ != nullptr)
-                msg_error(0, LOG_ERR, "Async D-Bus error: %s", error_->message);
+            error_.log_failure("Async D-Bus call ready");
         }
 
         if(!have_reported_result_)

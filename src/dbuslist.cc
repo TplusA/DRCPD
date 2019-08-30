@@ -24,7 +24,6 @@
 #endif /* HAVE_CONFIG_H */
 
 #include "dbuslist.hh"
-#include "dbus_common.h"
 #include "de_tahifi_lists_errors.hh"
 #include "de_tahifi_lists_context.h"
 #include "context_map.hh"
@@ -32,6 +31,7 @@
 #include "i18n.hh"
 #include "messages.h"
 #include "logged_lock.hh"
+#include "gerrorwrapper.hh"
 
 constexpr const char *ListError::names_[];
 
@@ -61,20 +61,20 @@ static unsigned int query_list_size_sync(tdbuslistsNavigation *proxy,
     guchar error_code;
     guint first_item;
     guint size;
-    GError *gerror = NULL;
+    GErrorWrapper gerror;
 
     tdbus_lists_navigation_call_check_range_sync(proxy,
                                                  list_id.get_raw_id(), 0, 0,
                                                  &error_code, &first_item,
-                                                 &size, NULL, &gerror);
+                                                 &size, NULL, gerror.await());
 
-    if(dbus_common_handle_error(&gerror, "Check range") < 0)
+    if(gerror.log_failure("Check range"))
     {
         msg_error(0, LOG_NOTICE,
                   "Failed obtaining size of list %u (sync) [%s]",
                   list_id.get_raw_id(), list_iface_name.c_str());
 
-        throw List::DBusListException(ListError::Code::INTERNAL, true);
+        throw List::DBusListException(gerror);
     }
 
     const ListError error(error_code);
@@ -177,39 +177,35 @@ static bool fetch_window_sync(tdbuslistsNavigation *proxy,
 
     guchar error_code;
     guint first_item;
-    gboolean success;
     bool have_meta_data;
+    GErrorWrapper dbus_error;
 
     const uint32_t list_flags(list_contexts[DBUS_LISTS_CONTEXT_GET(list_id.get_raw_id())].get_flags());
 
     if((list_flags & List::ContextInfo::HAS_EXTERNAL_META_DATA) != 0)
     {
-        GError *error = NULL;
-        success =
-            tdbus_lists_navigation_call_get_range_with_meta_data_sync(
-                proxy, list_id.get_raw_id(), line, count,
-                &error_code, &first_item, out_list, NULL, NULL);
-        dbus_common_handle_error(&error, "Get range with meta data");
+        tdbus_lists_navigation_call_get_range_with_meta_data_sync(
+            proxy, list_id.get_raw_id(), line, count,
+            &error_code, &first_item, out_list, NULL, dbus_error.await());
+        dbus_error.log_failure("Get range with meta data");
         have_meta_data = true;
     }
     else
     {
-        GError *error = NULL;
-        success =
-            tdbus_lists_navigation_call_get_range_sync(
-                proxy, list_id.get_raw_id(), line, count,
-                &error_code, &first_item, out_list, NULL, NULL);
-        dbus_common_handle_error(&error, "Get range");
+        tdbus_lists_navigation_call_get_range_sync(
+            proxy, list_id.get_raw_id(), line, count,
+            &error_code, &first_item, out_list, NULL, dbus_error.await());
+        dbus_error.log_failure("Get range");
         have_meta_data = false;
     }
 
-    if(!success)
+    if(dbus_error.failed())
     {
         msg_error(0, LOG_NOTICE,
                   "Failed obtaining contents of list %u [%s]",
                   list_id.get_raw_id(), list_iface_name.c_str());
 
-        throw List::DBusListException(ListError::Code::INTERNAL, true);
+        throw List::DBusListException(dbus_error);
     }
 
     const ListError error(error_code);
@@ -628,7 +624,7 @@ void List::QueryContextEnterList::put_result(DBus::AsyncResult &async_ready,
                                              AsyncListNavCheckRange::PromiseType &promise,
                                              tdbuslistsNavigation *p,
                                              GAsyncResult *async_result,
-                                             GError *&error, ID::List list_id)
+                                             GErrorWrapper &error, ID::List list_id)
 {
     guchar error_code = 0;
     guint first_item = 0;
@@ -637,12 +633,12 @@ void List::QueryContextEnterList::put_result(DBus::AsyncResult &async_ready,
     async_ready =
         tdbus_lists_navigation_call_check_range_finish(p, &error_code,
                                                        &first_item, &size,
-                                                       async_result, &error)
+                                                       async_result, error.await())
         ? DBus::AsyncResult::READY
         : DBus::AsyncResult::FAILED;
 
     if(async_ready == DBus::AsyncResult::FAILED)
-        throw List::DBusListException(ListError::Code::INTERNAL, true);
+        throw List::DBusListException(error);
 
     const ListError list_error(error_code);
 
@@ -1314,7 +1310,7 @@ void List::QueryContextGetItem::put_result(DBus::AsyncResult &async_ready,
                                            AsyncListNavGetRange::PromiseType &promise,
                                            tdbuslistsNavigation *p,
                                            GAsyncResult *async_result,
-                                           GError *&error, ID::List list_id,
+                                           GErrorWrapper &error, ID::List list_id,
                                            bool have_meta_data)
 {
     guchar error_code;
@@ -1323,14 +1319,14 @@ void List::QueryContextGetItem::put_result(DBus::AsyncResult &async_ready,
 
     const bool dbus_ok = have_meta_data
         ? tdbus_lists_navigation_call_get_range_with_meta_data_finish(
-              p, &error_code, &first_item, &out_list, async_result, &error)
+              p, &error_code, &first_item, &out_list, async_result, error.await())
         : tdbus_lists_navigation_call_get_range_finish(
-              p, &error_code, &first_item, &out_list, async_result, &error);
+              p, &error_code, &first_item, &out_list, async_result, error.await());
 
     async_ready = dbus_ok ? DBus::AsyncResult::READY : DBus::AsyncResult::FAILED;
 
     if(async_ready == DBus::AsyncResult::FAILED)
-        throw List::DBusListException(ListError::Code::INTERNAL, true);
+        throw List::DBusListException(error);
 
     const ListError list_error(error_code);
 

@@ -37,21 +37,21 @@ mk_async_resolve_redirect(tdbusAirable *proxy,
         [] (GObject *source_object) { return TDBUS_AIRABLE(source_object); },
         [] (DBus::AsyncResult &async_ready,
             Player::AsyncResolveRedirect::PromiseType &promise,
-            tdbusAirable *p, GAsyncResult *async_result, GError *&error)
+            tdbusAirable *p, GAsyncResult *async_result, GErrorWrapper &error)
         {
             guchar error_code = 0;
             gchar *uri = NULL;
 
             async_ready =
                 tdbus_airable_call_resolve_redirect_finish(
-                    p, &error_code, &uri, async_result, &error)
+                    p, &error_code, &uri, async_result, error.await())
                 ? DBus::AsyncResult::READY
                 : DBus::AsyncResult::FAILED;
 
             if(async_ready == DBus::AsyncResult::FAILED)
                 msg_error(0, LOG_NOTICE,
                           "Async D-Bus method call failed: %s",
-                          error != nullptr ? error->message : "*NULL*");
+                          error.failed() ? error->message : "*NULL*");
 
             promise.set_value(std::move(std::make_tuple(error_code, uri)));
         },

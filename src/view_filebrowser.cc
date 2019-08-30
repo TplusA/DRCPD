@@ -454,13 +454,13 @@ bool ViewFileBrowser::View::sync_with_list_broker(bool is_first_call)
     GVariant *empty_list = g_variant_new("au", NULL);
     guint64 expiry_ms;
     GVariant *dummy = NULL;
-    GError *error = NULL;
+    GErrorWrapper error;
 
     tdbus_lists_navigation_call_keep_alive_sync(file_list_.get_dbus_proxy(),
                                                 empty_list, &expiry_ms,
-                                                &dummy, NULL, &error);
+                                                &dummy, NULL, error.await());
 
-    if(dbus_common_handle_error(&error, "Keep alive on sync") < 0)
+    if(error.log_failure("Keep alive on sync"))
     {
         msg_error(0, LOG_ERR, "Failed querying gc expiry time (%s)", name_);
         expiry_ms = 0;
@@ -472,9 +472,9 @@ bool ViewFileBrowser::View::sync_with_list_broker(bool is_first_call)
 
     tdbus_lists_navigation_call_get_list_contexts_sync(file_list_.get_dbus_proxy(),
                                                        &out_contexts, NULL,
-                                                       &error);
+                                                       error.await());
 
-    if(dbus_common_handle_error(&error, "Get list contexts") < 0)
+    if(error.log_failure("Get list contexts"))
     {
         msg_error(0, LOG_ERR, "Failed querying list contexts (%s)", name_);
         list_contexts_.clear();
@@ -661,7 +661,8 @@ bool ViewFileBrowser::View::point_to_item(const ViewIface &view,
     {
         msg_error(0, LOG_ERR,
                   "Failed start searching for string, got hard %s error: %s",
-                  e.is_dbus_error() ? "D-Bus" : "list retrieval", e.what());
+                  e.get_internal_detail_string_or_fallback("list retrieval"),
+                  e.what());
         return false;
     }
 
@@ -681,7 +682,8 @@ bool ViewFileBrowser::View::point_to_item(const ViewIface &view,
     {
         msg_error(0, LOG_ERR,
                   "Binary search failed, got hard %s error: %s",
-                  e.is_dbus_error() ? "D-Bus" : "list retrieval", e.what());
+                  e.get_internal_detail_string_or_fallback("list retrieval"),
+                  e.what());
         return false;
     }
 
@@ -753,14 +755,14 @@ std::chrono::milliseconds ViewFileBrowser::View::keep_lists_alive_timer_callback
     GVariant *keep_list = g_variant_builder_end(&builder);
     GVariant *unknown_ids_list = NULL;
     guint64 expiry_ms;
-    GError *error = NULL;
+    GErrorWrapper error;
 
     tdbus_lists_navigation_call_keep_alive_sync(file_list_.get_dbus_proxy(),
                                                 keep_list, &expiry_ms,
                                                 &unknown_ids_list,
-                                                NULL, &error);
+                                                NULL, error.await());
 
-    if(dbus_common_handle_error(&error, "Periodic keep alive") < 0)
+    if(error.log_failure("Periodic keep alive"))
     {
         msg_error(0, LOG_ERR, "Failed sending keep alive");
         expiry_ms = 0;
@@ -1667,7 +1669,7 @@ mk_get_list_id(tdbuslistsNavigation *proxy,
             (DBus::AsyncResult &async_ready,
              ViewFileBrowser::View::AsyncCalls::GetListId::PromiseType &promise,
              tdbuslistsNavigation *p, GAsyncResult *async_result,
-             GError *&error)
+             GErrorWrapper &error)
         {
             guchar error_code;
             guint child_list_id;
@@ -1679,16 +1681,16 @@ mk_get_list_id(tdbuslistsNavigation *proxy,
                  ? tdbus_lists_navigation_call_get_list_id_finish(
                         p, &error_code, &child_list_id, &child_list_title,
                         &child_list_title_translatable,
-                        async_result, &error)
+                        async_result, error.await())
                  : tdbus_lists_navigation_call_get_parameterized_list_id_finish(
                         p, &error_code, &child_list_id, &child_list_title,
                         &child_list_title_translatable,
-                        async_result, &error))
+                        async_result, error.await()))
                 ? DBus::AsyncResult::READY
                 : DBus::AsyncResult::FAILED;
 
             if(async_ready == DBus::AsyncResult::FAILED)
-                throw List::DBusListException(ListError::Code::INTERNAL, true);
+                throw List::DBusListException(error);
 
             promise.set_value(std::make_tuple(error_code, child_list_id, child_list_title,
                                               child_list_title_translatable));
@@ -1803,7 +1805,7 @@ bool ViewFileBrowser::View::do_point_to_context_root_directory(List::context_id_
         [] (DBus::AsyncResult &async_ready,
             ViewFileBrowser::View::AsyncCalls::GetContextRoot::PromiseType &promise,
             tdbuslistsNavigation *p, GAsyncResult *async_result,
-            GError *&error)
+            GErrorWrapper &error)
         {
             guint parent_list_id;
             guint parent_item_id;
@@ -1813,12 +1815,12 @@ bool ViewFileBrowser::View::do_point_to_context_root_directory(List::context_id_
             async_ready = tdbus_lists_navigation_call_get_root_link_to_context_finish(
                                 p, &parent_list_id, &parent_item_id,
                                 &parent_list_title, &parent_list_title_translatable,
-                                async_result, &error)
+                                async_result, error.await())
                 ? DBus::AsyncResult::READY
                 : DBus::AsyncResult::FAILED;
 
             if(async_ready == DBus::AsyncResult::FAILED)
-                throw List::DBusListException(ListError::Code::INTERNAL, true);
+                throw List::DBusListException(error);
 
             promise.set_value(std::make_tuple(parent_list_id, parent_item_id, parent_list_title,
                                               parent_list_title_translatable));
@@ -2218,7 +2220,7 @@ bool ViewFileBrowser::View::point_to_parent_link()
         [] (DBus::AsyncResult &async_ready,
             ViewFileBrowser::View::AsyncCalls::GetParentId::PromiseType &promise,
             tdbuslistsNavigation *p, GAsyncResult *async_result,
-            GError *&error)
+            GErrorWrapper &error)
         {
             guint parent_list_id;
             guint parent_item_id;
@@ -2226,18 +2228,15 @@ bool ViewFileBrowser::View::point_to_parent_link()
             gboolean parent_list_title_translatable;
 
             async_ready =
-                tdbus_lists_navigation_call_get_parent_link_finish(p,
-                                                                   &parent_list_id,
-                                                                   &parent_item_id,
-                                                                   &parent_list_title,
-                                                                   &parent_list_title_translatable,
-                                                                   async_result,
-                                                                   &error)
+                tdbus_lists_navigation_call_get_parent_link_finish(
+                    p, &parent_list_id, &parent_item_id, &parent_list_title,
+                    &parent_list_title_translatable, async_result,
+                    error.await())
                 ? DBus::AsyncResult::READY
                 : DBus::AsyncResult::FAILED;
 
             if(async_ready == DBus::AsyncResult::FAILED)
-                throw List::DBusListException(ListError::Code::INTERNAL, true);
+                throw List::DBusListException(error);
 
             promise.set_value(std::make_tuple(parent_list_id, parent_item_id, parent_list_title,
                                               parent_list_title_translatable));

@@ -259,7 +259,7 @@ class QueryContextEnterList: public QueryContext_
     static void put_result(DBus::AsyncResult &async_ready,
                            AsyncListNavCheckRange::PromiseType &promise,
                            tdbuslistsNavigation *p, GAsyncResult *async_result,
-                           GError *&error, ID::List list_id);
+                           GErrorWrapper &error, ID::List list_id);
 };
 
 /*!
@@ -617,7 +617,7 @@ class QueryContextGetItem: public QueryContext_
     static void put_result(DBus::AsyncResult &async_ready,
                            AsyncListNavGetRange::PromiseType &promise,
                            tdbuslistsNavigation *p, GAsyncResult *async_result,
-                           GError *&error,
+                           GErrorWrapper &error,
                            ID::List list_id, bool have_meta_data);
 };
 

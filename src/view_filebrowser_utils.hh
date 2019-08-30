@@ -94,7 +94,7 @@ class Utils
 
         if(search_parameters == nullptr)
         {
-            GError *error = NULL;
+            GErrorWrapper error;
 
             tdbus_lists_navigation_call_get_list_id_sync(file_list.get_dbus_proxy(),
                                                          current_list_id.get_raw_id(),
@@ -102,35 +102,35 @@ class Utils
                                                          &error_code,
                                                          &list_id, &list_title,
                                                          &list_title_translatable,
-                                                         NULL, &error);
+                                                         NULL, error.await());
 
-            if(dbus_common_handle_error(&error, "Get list ID") < 0)
+            if(error.log_failure("Get list ID"))
             {
                 msg_vinfo(MESSAGE_LEVEL_IMPORTANT,
                           "Failed obtaining ID for item %u in list %u",
                           navigation.get_cursor(), current_list_id.get_raw_id());
 
-                throw List::DBusListException(ListError::Code::INTERNAL, true);
+                throw List::DBusListException(error);
             }
         }
         else
         {
-            GError *error = NULL;
+            GErrorWrapper error;
 
             tdbus_lists_navigation_call_get_parameterized_list_id_sync(
                     file_list.get_dbus_proxy(), current_list_id.get_raw_id(),
                     navigation.get_cursor(),
                     search_parameters->get_query().c_str(),
                     &error_code, &list_id, &list_title, &list_title_translatable,
-                    NULL, &error);
+                    NULL, error.await());
 
-            if(dbus_common_handle_error(&error, "Get parametrized list ID") < 0)
+            if(error.log_failure("Get parametrized list ID"))
             {
                 msg_vinfo(MESSAGE_LEVEL_IMPORTANT,
                           "Failed obtaining ID for search form in list %u",
                           current_list_id.get_raw_id());
 
-                throw List::DBusListException(ListError::Code::INTERNAL, true);
+                throw List::DBusListException(error);
             }
         }
 
@@ -169,15 +169,15 @@ class Utils
         guint list_id;
         gchar *list_title = NULL;
         gboolean list_title_translatable = FALSE;
-        GError *error = NULL;
+        GErrorWrapper error;
 
         tdbus_lists_navigation_call_get_parent_link_sync(file_list.get_dbus_proxy(),
                                                          current_list_id.get_raw_id(),
                                                          &list_id, &item_id, &list_title,
                                                          &list_title_translatable,
-                                                         NULL, &error);
+                                                         NULL, error.await());
 
-        if(dbus_common_handle_error(&error, "Get parent link") < 0)
+        if(error.log_failure("Get parent link"))
         {
             Busy::clear(Busy::Source::GETTING_PARENT_LINK);
 
@@ -185,7 +185,7 @@ class Utils
                       "Failed obtaining parent for list %u",
                       current_list_id.get_raw_id());
 
-            throw List::DBusListException(ListError::Code::INTERNAL, true);
+            throw List::DBusListException(error);
         }
 
         Busy::clear(Busy::Source::GETTING_PARENT_LINK);

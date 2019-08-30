@@ -49,7 +49,7 @@ drcpd_SOURCES = \
     player_data.hh player_data.cc \
     player_stopped_reason.hh playback_modes.hh \
     playlist_crawler.hh directory_crawler.hh cacheenforcer.hh \
-    gvariantwrapper.hh \
+    gvariantwrapper.hh gerrorwrapper.hh \
     airable_links.hh \
     metadata.hh metadata_preloaded.hh \
     idtypes.hh stream_id.h stream_id.hh context_map.hh \
@@ -86,7 +86,7 @@ drcpd_LDADD = $(noinst_LTLIBRARIES) $(DRCPD_DEPENDENCIES_LIBS)
 
 drcpd_LDFLAGS = $(LTLIBINTL)
 
-liblist_la_SOURCES = list.hh ramlist.hh ramlist.cc dbuslist.hh dbuslist_exception.hh dbuslist.cc idtypes.hh stream_id.h stream_id.hh
+liblist_la_SOURCES = list.hh ramlist.hh ramlist.cc dbuslist.hh dbuslist_exception.hh dbuslist.cc idtypes.hh stream_id.h stream_id.hh gerrorwrapper.hh
 liblist_la_CFLAGS = $(AM_CFLAGS)
 liblist_la_CXXFLAGS = $(AM_CXXFLAGS)
 
@@ -119,7 +119,7 @@ libviews_la_SOURCES = \
     idtypes.hh stream_id.h stream_id.hh screen_ids.hh \
     playlist_crawler.hh directory_crawler.cc directory_crawler.hh \
     cacheenforcer.hh cacheenforcer.cc \
-    gvariantwrapper.hh gvariantwrapper.cc \
+    gvariantwrapper.hh gvariantwrapper.cc gerrorwrapper.hh \
     airable_links.hh airable_links.cc \
     ui_parameters.hh ui_parameters_predefined.hh guard.hh search_parameters.hh \
     playback_modes.hh \

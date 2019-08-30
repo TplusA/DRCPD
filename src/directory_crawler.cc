@@ -102,13 +102,13 @@ uint32_t Playlist::DirectoryCrawler::recover_state_from_url_request(const std::s
 {
     guchar raw_error_code;
     guint cookie;
-    GError *error = nullptr;
+    GErrorWrapper error;
 
     tdbus_lists_navigation_call_realize_location_sync(dbus_proxy_, url.c_str(),
                                                       &raw_error_code, &cookie,
-                                                      nullptr, &error);
+                                                      nullptr, error.await());
 
-    if(dbus_common_handle_error(&error, "Realize location") < 0)
+    if(error.log_failure("Realize location"))
         return 0;
 
     const ListError list_error(raw_error_code);
@@ -147,7 +147,7 @@ std::string Playlist::DirectoryCrawler::generate_resume_url(const Player::Crawle
 
     guchar raw_error_code;
     gchar *location_url = nullptr;
-    GError *error = nullptr;
+    GErrorWrapper error;
     const char *what;
     const char *dbus_error_message;
 
@@ -155,29 +155,25 @@ std::string Playlist::DirectoryCrawler::generate_resume_url(const Player::Crawle
     {
         what = "key";
         dbus_error_message = "Get location key";
-        tdbus_lists_navigation_call_get_location_key_sync(dbus_proxy_,
-                                                          d.current_list_id_.get_raw_id(),
-                                                          d.current_line_ + 1,
-                                                          TRUE,
-                                                          &raw_error_code, &location_url,
-                                                          nullptr, &error);
+        tdbus_lists_navigation_call_get_location_key_sync(
+                dbus_proxy_, d.current_list_id_.get_raw_id(),
+                d.current_line_ + 1, TRUE, &raw_error_code, &location_url,
+                nullptr, error.await());
     }
     else
     {
         what = "trace";
         dbus_error_message = "Get location trace";
-        tdbus_lists_navigation_call_get_location_trace_sync(dbus_proxy_,
-                                                            d.current_list_id_.get_raw_id(),
-                                                            d.current_line_ + 1,
-                                                            d.reference_list_id_.get_raw_id(),
-                                                            d.reference_line_ + 1,
-                                                            &raw_error_code, &location_url,
-                                                            nullptr, &error);
+        tdbus_lists_navigation_call_get_location_trace_sync(
+                dbus_proxy_, d.current_list_id_.get_raw_id(),
+                d.current_line_ + 1, d.reference_list_id_.get_raw_id(),
+                d.reference_line_ + 1, &raw_error_code, &location_url,
+                nullptr, error.await());
     }
 
     ListError list_error;
 
-    if(dbus_common_handle_error(&error, dbus_error_message) < 0)
+    if(error.log_failure(dbus_error_message))
         list_error = ListError::INTERNAL;
     else
         list_error = ListError(raw_error_code);
@@ -540,7 +536,7 @@ mk_async_get_uris(tdbuslistsNavigation *proxy,
         [] (GObject *source_object) { return TDBUS_LISTS_NAVIGATION(source_object); },
         [] (DBus::AsyncResult &async_ready,
             Playlist::DirectoryCrawler::AsyncGetURIs::PromiseType &promise,
-            tdbuslistsNavigation *p, GAsyncResult *async_result, GError *&error)
+            tdbuslistsNavigation *p, GAsyncResult *async_result, GErrorWrapper &error)
         {
             guchar error_code = 0;
             gchar **uri_list = NULL;
@@ -549,14 +545,14 @@ mk_async_get_uris(tdbuslistsNavigation *proxy,
             async_ready =
                 tdbus_lists_navigation_call_get_uris_finish(p, &error_code, &uri_list,
                                                             &image_stream_key,
-                                                            async_result, &error)
+                                                            async_result, error.await())
                 ? DBus::AsyncResult::READY
                 : DBus::AsyncResult::FAILED;
 
             if(async_ready == DBus::AsyncResult::FAILED)
                 msg_error(0, LOG_NOTICE,
                           "Async D-Bus method call failed: %s",
-                          error != nullptr ? error->message : "*NULL*");
+                          error.failed() ? error->message : "*NULL*");
 
             promise.set_value(std::move(std::make_tuple(error_code, uri_list,
                                                         std::move(GVariantWrapper(image_stream_key,
@@ -591,7 +587,7 @@ mk_async_get_stream_links(tdbuslistsNavigation *proxy,
         [] (GObject *source_object) { return TDBUS_LISTS_NAVIGATION(source_object); },
         [] (DBus::AsyncResult &async_ready,
             Playlist::DirectoryCrawler::AsyncGetStreamLinks::PromiseType &promise,
-            tdbuslistsNavigation *p, GAsyncResult *async_result, GError *&error)
+            tdbuslistsNavigation *p, GAsyncResult *async_result, GErrorWrapper &error)
         {
             guchar error_code = 0;
             GVariant *link_list = NULL;
@@ -600,20 +596,21 @@ mk_async_get_stream_links(tdbuslistsNavigation *proxy,
             async_ready =
                 tdbus_lists_navigation_call_get_ranked_stream_links_finish(
                     p, &error_code, &link_list, &image_stream_key,
-                    async_result, &error)
+                    async_result, error.await())
                 ? DBus::AsyncResult::READY
                 : DBus::AsyncResult::FAILED;
 
             if(async_ready == DBus::AsyncResult::FAILED)
                 msg_error(0, LOG_NOTICE,
                           "Async D-Bus method call failed: %s",
-                          error != nullptr ? error->message : "*NULL*");
+                          error.failed() ? error->message : "*NULL*");
 
-            promise.set_value(std::move(std::make_tuple(error_code,
-                                                        std::move(GVariantWrapper(link_list,
-                                                                                  GVariantWrapper::Transfer::JUST_MOVE)),
-                                                        std::move(GVariantWrapper(image_stream_key,
-                                                                                  GVariantWrapper::Transfer::JUST_MOVE)))));
+            promise.set_value(std::move(std::make_tuple(
+                error_code,
+                std::move(GVariantWrapper(link_list,
+                                          GVariantWrapper::Transfer::JUST_MOVE)),
+                std::move(GVariantWrapper(image_stream_key,
+                                          GVariantWrapper::Transfer::JUST_MOVE)))));
         },
         std::move(result_available_fn),
         [] (Playlist::DirectoryCrawler::AsyncGetStreamLinks::PromiseReturnType &values) {},
