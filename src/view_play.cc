@@ -32,7 +32,7 @@
 #include "audiosource.hh"
 #include "ui_parameters_predefined.hh"
 #include "dbus_iface_proxies.hh"
-#include "dbus_common.h"
+#include "gerrorwrapper.hh"
 #include "xmlescape.hh"
 #include "messages.h"
 
@@ -147,15 +147,15 @@ static void send_current_stream_info_to_dcpd(const Player::Data &player_data)
         return;
     }
 
-    GError *error = NULL;
+    GErrorWrapper error;
 
     tdbus_dcpd_playback_call_set_stream_info_sync(
             DBus::get_dcpd_playback_iface(), stream_id.get_raw_id(),
             md.values_[MetaData::Set::ID::INTERNAL_DRCPD_TITLE].c_str(),
             md.values_[MetaData::Set::ID::INTERNAL_DRCPD_URL].c_str(),
-            NULL, &error);
+            NULL, error.await());
 
-    if(dbus_common_handle_error(&error, "Set stream info") < 0)
+    if(error.log_failure("Set stream info"))
         msg_error(0, LOG_NOTICE, "Failed sending stream information to dcpd");
 }
 

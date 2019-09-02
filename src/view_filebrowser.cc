@@ -37,7 +37,7 @@
 #include "ui_parameters_predefined.hh"
 #include "de_tahifi_lists_context.h"
 #include "xmlescape.hh"
-#include "dbus_common.h"
+#include "gerrorwrapper.hh"
 #include "messages.h"
 
 ViewFileBrowser::FileItem

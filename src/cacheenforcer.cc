@@ -24,7 +24,7 @@
 #endif /* HAVE_CONFIG_H */
 
 #include "cacheenforcer.hh"
-#include "dbus_common.h"
+#include "gerrorwrapper.hh"
 
 static uint32_t compute_enforcer_refresh_seconds(guint64 timeout_ms)
 {
@@ -55,12 +55,12 @@ void Playlist::CacheEnforcer::process_dbus(GObject *source_object,
     log_assert(enforcer.nav_proxy_ != nullptr);
 
     guint64 list_expiry_ms = 0;
-    GError *error = nullptr;
+    GErrorWrapper error;
 
     tdbus_lists_navigation_call_force_in_cache_finish(enforcer.nav_proxy_,
                                                       &list_expiry_ms,
-                                                      res, &error);
-    if(dbus_common_handle_error(&error, "Force list into cache") < 0)
+                                                      res, error.await());
+    if(error.log_failure("Force list into cache"))
         enforcer.state_ = State::STOPPED;
     else if(list_expiry_ms == 0)
     {

@@ -29,7 +29,7 @@
 #include "dbus_iface.hh"
 #include "dbus_iface_proxies.hh"
 #include "dbus_handlers.h"
-#include "dbus_common.h"
+#include "gerrorwrapper.hh"
 #include "messages.h"
 #include "messages_dbus.h"
 
@@ -90,11 +90,10 @@ static gpointer process_dbus(gpointer user_data)
 static void try_export_iface(GDBusConnection *connection,
                              GDBusInterfaceSkeleton *iface)
 {
-    GError *error = nullptr;
-
-    g_dbus_interface_skeleton_export(iface, connection, "/de/tahifi/Drcpd", &error);
-
-    dbus_common_handle_error(&error, "Export interface");
+    GErrorWrapper error;
+    g_dbus_interface_skeleton_export(iface, connection, "/de/tahifi/Drcpd",
+                                     error.await());
+    error.log_failure("Export interface");
 }
 
 static void bus_acquired(GDBusConnection *connection,
@@ -142,12 +141,12 @@ static void created_debug_config_proxy(GObject *source_object, GAsyncResult *res
                                        gpointer user_data)
 {
     auto &data = *static_cast<DBusData *>(user_data);
-    GError *error = nullptr;
+    GErrorWrapper error;
 
     data.debug_logging_config_proxy =
-        tdbus_debug_logging_config_proxy_new_finish(res, &error);
+        tdbus_debug_logging_config_proxy_new_finish(res, error.await());
 
-    if(dbus_common_handle_error(&error, "Create debug logging proxy") == 0)
+    if(!error.log_failure("Create debug logging proxy"))
         g_signal_connect(data.debug_logging_config_proxy, "g-signal",
                          G_CALLBACK(msg_dbus_handle_global_debug_level_changed),
                          nullptr);
@@ -157,12 +156,12 @@ static void dcpd_appeared(GDBusConnection *connection, const gchar *name,
                           const gchar *name_owner, gpointer user_data)
 {
     auto &data = *static_cast<DBusData *>(user_data);
-    GError *error = nullptr;
+    GErrorWrapper error;
 
-    if(dbus_common_handle_error(&error, "Create configuration proxy") == 0)
-        tdbus_configuration_proxy_call_register(data.configuration_proxy,
-                                                "drcpd", "/de/tahifi/Drcpd",
-                                                nullptr, nullptr, nullptr);
+    tdbus_configuration_proxy_call_register(data.configuration_proxy,
+                                            "drcpd", "/de/tahifi/Drcpd",
+                                            nullptr, nullptr, error.await());
+    error.log_failure("Register configuration proxy");
 
     g_bus_unwatch_name(data.bus_watch_dcpd);
     data.bus_watch_dcpd = 0;
@@ -172,37 +171,37 @@ static void connect_signals_dcpd(GDBusConnection *connection,
                                  DBusData &data, GDBusProxyFlags flags,
                                  const char *bus_name, const char *object_path)
 {
-    GError *error = nullptr;
+    GErrorWrapper error;
 
     data.dcpd_playback_proxy =
         tdbus_dcpd_playback_proxy_new_sync(connection, flags,
                                            bus_name, object_path,
-                                           nullptr, &error);
-    dbus_common_handle_error(&error, "Create playback proxy");
+                                           nullptr, error.await());
+    error.log_failure("Create playback proxy");
 
     data.dcpd_views_proxy =
         tdbus_dcpd_views_proxy_new_sync(connection, flags,
                                         bus_name, object_path,
-                                        nullptr, &error);
-    dbus_common_handle_error(&error, "Create views proxy");
+                                        nullptr, error.await());
+    error.log_failure("Create views proxy");
 
     data.dcpd_list_navigation_proxy =
         tdbus_dcpd_list_navigation_proxy_new_sync(connection, flags,
                                                   bus_name, object_path,
-                                                  nullptr, &error);
-    dbus_common_handle_error(&error, "Create own navigation proxy");
+                                                  nullptr, error.await());
+    error.log_failure("Create own navigation proxy");
 
     data.dcpd_list_item_proxy =
         tdbus_dcpd_list_item_proxy_new_sync(connection, flags,
                                             bus_name, object_path,
-                                            nullptr, &error);
-    dbus_common_handle_error(&error, "Create list item proxy");
+                                            nullptr, error.await());
+    error.log_failure("Create list item proxy");
 
     data.configuration_proxy =
         tdbus_configuration_proxy_proxy_new_sync(connection, flags,
                                                  bus_name, object_path,
-                                                 nullptr, &error);
-    dbus_common_handle_error(&error, "Create configuration proxy");
+                                                 nullptr, error.await());
+    error.log_failure("Create configuration proxy");
 
     data.debug_logging_config_proxy = nullptr;
     tdbus_debug_logging_config_proxy_new(connection, flags,
@@ -222,12 +221,12 @@ static void connect_signals_list_broker(GDBusConnection *connection,
                                         const char *bus_name,
                                         const char *object_path)
 {
-    GError *error = nullptr;
+    GErrorWrapper error;
 
     proxy = tdbus_lists_navigation_proxy_new_sync(connection, flags,
                                                   bus_name, object_path,
-                                                  nullptr, &error);
-    dbus_common_handle_error(&error, "Create list broker navigation proxy");
+                                                  nullptr, error.await());
+    error.log_failure("Create list broker navigation proxy");
 }
 
 static void connect_signals_streamplayer(GDBusConnection *connection,
@@ -236,19 +235,19 @@ static void connect_signals_streamplayer(GDBusConnection *connection,
                                          const char *bus_name,
                                          const char *object_path)
 {
-    GError *error = nullptr;
+    GErrorWrapper error;
 
     data.splay_urlfifo_proxy =
         tdbus_splay_urlfifo_proxy_new_sync(connection, flags,
                                            bus_name, object_path,
-                                           nullptr, &error);
-    dbus_common_handle_error(&error, "Create URL FIFO proxy");
+                                           nullptr, error.await());
+    error.log_failure("Create URL FIFO proxy");
 
     data.splay_playback_proxy =
         tdbus_splay_playback_proxy_new_sync(connection, flags,
                                             bus_name, object_path,
-                                            nullptr, &error);
-    dbus_common_handle_error(&error, "Create stream player proxy");
+                                            nullptr, error.await());
+    error.log_failure("Create stream player proxy");
 }
 
 static void connect_signals_roonplayer(GDBusConnection *connection,
@@ -257,13 +256,13 @@ static void connect_signals_roonplayer(GDBusConnection *connection,
                                        const char *bus_name,
                                        const char *object_path)
 {
-    GError *error = nullptr;
+    GErrorWrapper error;
 
     data.roonplayer_playback_proxy =
         tdbus_splay_playback_proxy_new_sync(connection, flags,
                                             bus_name, object_path,
-                                            nullptr, &error);
-    dbus_common_handle_error(&error, "Create Roon player proxy");
+                                            nullptr, error.await());
+    error.log_failure("Create Roon player proxy");
 }
 
 static void connect_signals_airable(GDBusConnection *connection,
@@ -272,12 +271,12 @@ static void connect_signals_airable(GDBusConnection *connection,
                                     const char *bus_name,
                                     const char *object_path)
 {
-    GError *error = nullptr;
+    GErrorWrapper error;
 
     proxy = tdbus_airable_proxy_new_sync(connection, flags,
                                          bus_name, object_path,
-                                         nullptr, &error);
-    dbus_common_handle_error(&error, "Create Airable proxy");
+                                         nullptr, error.await());
+    error.log_failure("Create Airable proxy");
 }
 
 static void connect_signals_audiopath(GDBusConnection *connection,
@@ -286,12 +285,12 @@ static void connect_signals_audiopath(GDBusConnection *connection,
                                       const char *bus_name,
                                       const char *object_path)
 {
-    GError *error = nullptr;
+    GErrorWrapper error;
 
     proxy = tdbus_aupath_manager_proxy_new_sync(connection, flags,
                                                 bus_name, object_path,
-                                                nullptr, &error);
-    dbus_common_handle_error(&error, "Create audio path manager proxy");
+                                                nullptr, error.await());
+    error.log_failure("Create audio path manager proxy");
 }
 
 static void name_acquired(GDBusConnection *connection,

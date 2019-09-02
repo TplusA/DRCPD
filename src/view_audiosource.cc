@@ -27,6 +27,7 @@
 
 #include "view_audiosource.hh"
 #include "dbus_iface_proxies.hh"
+#include "gerrorwrapper.hh"
 
 void ViewWithAudioSourceBase::enumerate_audio_source_resume_urls(const ViewWithAudioSourceBase::EnumURLsCallback &cb) const
 {
@@ -46,17 +47,17 @@ void ViewWithAudioSourceBase::audio_source_registered(GObject *source_object,
                                                       GAsyncResult *res,
                                                       gpointer user_data)
 {
-    GError *error = nullptr;
+    GErrorWrapper error;
     tdbus_aupath_manager_call_register_source_finish(TDBUS_AUPATH_MANAGER(source_object),
-                                                     res, &error);
+                                                     res, error.await());
 
-    if(error != nullptr)
+    if(error.failed())
     {
         msg_error(0, LOG_ERR,
                   "Failed registering audio source %s: %s",
                   static_cast<const Player::AudioSource *>(user_data)->id_.c_str(),
                   error->message);
-        g_error_free(error);
+        error.noticed();
     }
 }
 

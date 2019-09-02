@@ -552,13 +552,13 @@ ViewFileBrowser::AirableView::point_to_search_form(List::context_id_t ctx_id)
 
 void ViewFileBrowser::AirableView::log_out_from_context(List::context_id_t context)
 {
-    GError *error = NULL;
+    GErrorWrapper error;
     const auto &ctx(list_contexts_[context]);
     tdbus_airable_call_external_service_logout_sync(DBus::get_airable_sec_iface(),
                                                     ctx.string_id_.c_str(), "",
                                                     true, ACTOR_ID_LOCAL_UI,
-                                                    NULL, &error);
-    dbus_common_handle_error(&error, "Logout from service");
+                                                    NULL, error.await());
+    error.log_failure("Logout from service");
 }
 
 uint32_t ViewFileBrowser::AirableView::about_to_write_xml(const DCP::Queue::Data &data) const

@@ -23,7 +23,6 @@
 #define VIEW_FILEBROWSER_UTILS_HH
 
 #include "dbuslist.hh"
-#include "dbus_common.h"
 #include "de_tahifi_lists_errors.hh"
 #include "listnav.hh"
 #include "search_parameters.hh"

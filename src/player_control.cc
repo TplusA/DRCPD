@@ -30,7 +30,7 @@
 #include "directory_crawler.hh"
 #include "audiosource.hh"
 #include "dbus_iface_proxies.hh"
-#include "dbus_common.h"
+#include "gerrorwrapper.hh"
 #include "view_play.hh"
 #include "messages.h"
 
@@ -245,19 +245,19 @@ static void source_request_done(GObject *source_object, GAsyncResult *res,
 {
     auto *audio_source = static_cast<Player::AudioSource *>(user_data);
 
-    GError *error = nullptr;
+    GErrorWrapper error;
     gchar *player_id = nullptr;
     gboolean switched = FALSE;
 
     tdbus_aupath_manager_call_request_source_finish(TDBUS_AUPATH_MANAGER(source_object),
                                                     &player_id, &switched,
-                                                    res, &error);
+                                                    res, error.await());
 
-    if(error != nullptr)
+    if(error.failed())
     {
         msg_error(0, LOG_EMERG, "Requesting audio source %s failed: %s",
                   audio_source->id_.c_str(), error->message);
-        g_error_free(error);
+        error.noticed();
 
         /* keep audio source state the way it is and leave state switching to
          * the \c de.tahifi.AudioPath.Source() methods */
@@ -437,10 +437,10 @@ static bool send_simple_playback_command(
     if(proxy == nullptr)
         return true;
 
-    GError *error = nullptr;
-    sync_call(proxy, nullptr, &error);
+    GErrorWrapper error;
+    sync_call(proxy, nullptr, error.await());
 
-    if(dbus_common_handle_error(&error, error_short) < 0)
+    if(error.log_failure(error_short))
     {
         msg_error(0, LOG_NOTICE, "%s", error_long);
         return false;
@@ -510,13 +510,13 @@ static bool send_skip_to_next_command(ID::Stream &removed_stream_from_queue,
     if(proxy != nullptr)
     {
         guint next_id;
-        GError *error = nullptr;
+        GErrorWrapper error;
 
         tdbus_splay_urlfifo_call_next_sync(proxy,
                                            &skipped_id, &next_id,
-                                           &raw_play_status, nullptr, &error);
+                                           &raw_play_status, nullptr, error.await());
 
-        if(dbus_common_handle_error(&error, "Skip to next") < 0)
+        if(error.log_failure("Skip to next"))
         {
             msg_error(0, LOG_NOTICE, "Failed sending skip track message");
             return false;
@@ -1274,10 +1274,10 @@ void Player::Control::rewind_request()
     if(proxy == nullptr)
         return;
 
-    GError *error = nullptr;
-    tdbus_splay_playback_call_seek_sync(proxy, 0, "ms", nullptr, &error);
+    GErrorWrapper error;
+    tdbus_splay_playback_call_seek_sync(proxy, 0, "ms", nullptr, error.await());
 
-    if(dbus_common_handle_error(&error, "Seek in stream") < 0)
+    if(error.log_failure("Seek in stream"))
         msg_error(0, LOG_NOTICE, "Failed restarting stream");
 }
 
@@ -1635,15 +1635,15 @@ static bool send_selected_file_uri_to_streamplayer(ID::OurStream stream_id,
 
     if(urlfifo_proxy != nullptr)
     {
-        GError *error = nullptr;
+        GErrorWrapper error;
         tdbus_splay_urlfifo_call_push_sync(urlfifo_proxy,
                                            stream_id.get().get_raw_id(),
                                            queued_url.c_str(), GVariantWrapper::get(stream_key),
                                            0, "ms", 0, "ms", keep_first_n,
                                            &fifo_overflow, &is_playing,
-                                           nullptr, &error);
+                                           nullptr, error.await());
 
-        if(dbus_common_handle_error(&error, "Push stream") < 0)
+        if(error.log_failure("Push stream"))
         {
             msg_error(0, LOG_NOTICE, "Failed queuing URI to streamplayer");
             return false;

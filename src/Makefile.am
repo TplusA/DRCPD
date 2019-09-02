@@ -29,7 +29,6 @@ drcpd_SOURCES = \
     timeout.cc timeout.hh \
     os.c os.h named_pipe.c named_pipe.h fdstreambuf.hh \
     dbus_iface.cc dbus_iface.hh dbus_iface_proxies.hh dbus_handlers.hh \
-    dbus_common.c dbus_common.h \
     dbus_async.hh \
     list.hh ramlist.hh dbuslist.hh dbuslist_exception.hh listnav.hh \
     view.hh view_serialize.hh view_audiosource.hh view_names.hh view_nop.hh \
