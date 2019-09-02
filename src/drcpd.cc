@@ -41,7 +41,7 @@
 #include "view_manager.hh"
 #include "view_play.hh"
 #include "view_search.hh"
-#include "dbus_iface.h"
+#include "dbus_iface.hh"
 #include "dbus_handlers.hh"
 #include "busy.hh"
 #include "messages.h"
@@ -523,7 +523,7 @@ static void connect_everything(ViewManager::Manager &views,
     static ViewFileBrowser::View fs(ViewNames::BROWSER_FILESYSTEM,
                                     N_("USB mass storage devices"), 1,
                                     views.NUMBER_OF_LINES_ON_DISPLAY,
-                                    DBUS_LISTBROKER_ID_FILESYSTEM,
+                                    DBus::ListbrokerID::FILESYSTEM,
                                     Playlist::CrawlerIface::RecursiveMode::DEPTH_FIRST,
                                     Playlist::CrawlerIface::ShuffleMode::FORWARD,
                                     "strbo.usb",
@@ -531,14 +531,14 @@ static void connect_everything(ViewManager::Manager &views,
     static ViewFileBrowser::AirableView tunein(ViewNames::BROWSER_INETRADIO,
                                                N_("Airable internet radio"), 3,
                                                views.NUMBER_OF_LINES_ON_DISPLAY,
-                                               DBUS_LISTBROKER_ID_TUNEIN,
+                                               DBus::ListbrokerID::TUNEIN,
                                                Playlist::CrawlerIface::RecursiveMode::DEPTH_FIRST,
                                                Playlist::CrawlerIface::ShuffleMode::FORWARD,
                                                &views);
     static ViewFileBrowser::View upnp(ViewNames::BROWSER_UPNP,
                                       N_("UPnP media servers"), 4,
                                       views.NUMBER_OF_LINES_ON_DISPLAY,
-                                      DBUS_LISTBROKER_ID_UPNP,
+                                      DBus::ListbrokerID::UPNP,
                                       Playlist::CrawlerIface::RecursiveMode::DEPTH_FIRST,
                                       Playlist::CrawlerIface::ShuffleMode::FORWARD,
                                       "strbo.upnpcm",
@@ -676,7 +676,7 @@ int main(int argc, char *argv[])
     ui_events_processing_data.vm = &view_manager;
     dcp_dispatch_data.vm = &view_manager;
 
-    if(dbus_setup(parameters.connect_to_session_dbus, &dbus_signal_data) < 0)
+    if(DBus::setup(parameters.connect_to_session_dbus, &dbus_signal_data) < 0)
         return EXIT_FAILURE;
 
     g_unix_signal_add(SIGINT, signal_handler, loop);
@@ -691,7 +691,7 @@ int main(int argc, char *argv[])
 
     fd_sbuf.set_fd(-1);
     shutdown(view_manager, &files);
-    dbus_shutdown();
+    DBus::shutdown();
 
     return EXIT_SUCCESS;
 }

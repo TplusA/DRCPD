@@ -28,7 +28,7 @@ drcpd_SOURCES = \
     messages.h messages.c messages_glib.h messages_glib.c \
     timeout.cc timeout.hh \
     os.c os.h named_pipe.c named_pipe.h fdstreambuf.hh \
-    dbus_iface.c dbus_iface.h dbus_iface_deep.h dbus_handlers.hh \
+    dbus_iface.cc dbus_iface.hh dbus_iface_proxies.hh dbus_handlers.hh \
     dbus_common.c dbus_common.h \
     dbus_async.hh \
     list.hh ramlist.hh dbuslist.hh dbuslist_exception.hh listnav.hh \

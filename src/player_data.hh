@@ -31,7 +31,7 @@
 #include "airable_dbus.h"
 #include "airable_links.hh"
 #include "logged_lock.hh"
-#include "dbus_iface_deep.h"
+#include "dbus_iface_proxies.hh"
 #include "gvariantwrapper.hh"
 
 namespace Player
@@ -315,7 +315,7 @@ class Data
         stream_position_(-1),
         stream_duration_(-1),
         playback_speed_(1.0),
-        airable_proxy_(dbus_get_airable_sec_iface())
+        airable_proxy_(DBus::get_airable_sec_iface())
     {
         LoggedLock::configure(lock_, "Player::Data", MESSAGE_LEVEL_DEBUG);
     }

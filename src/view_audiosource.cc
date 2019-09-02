@@ -26,7 +26,7 @@
 #include <string>
 
 #include "view_audiosource.hh"
-#include "dbus_iface_deep.h"
+#include "dbus_iface_proxies.hh"
 
 void ViewWithAudioSourceBase::enumerate_audio_source_resume_urls(const ViewWithAudioSourceBase::EnumURLsCallback &cb) const
 {
@@ -63,7 +63,7 @@ void ViewWithAudioSourceBase::audio_source_registered(GObject *source_object,
 void ViewWithAudioSourceBase::register_own_source_with_audio_path_manager(size_t idx,
                                                                           const char *description)
 {
-    tdbus_aupath_manager_call_register_source(dbus_audiopath_get_manager_iface(),
+    tdbus_aupath_manager_call_register_source(DBus::audiopath_get_manager_iface(),
                                               audio_sources_[idx].id_.c_str(),
                                               description,
                                               "strbo",

@@ -138,7 +138,7 @@ class AirableView: public View
 
     explicit AirableView(const char *name, const char *on_screen_name,
                          uint8_t drcp_browse_id, unsigned int max_lines,
-                         dbus_listbroker_id_t listbroker_id,
+                         DBus::ListbrokerID listbroker_id,
                          Playlist::CrawlerIface::RecursiveMode default_recursive_mode,
                          Playlist::CrawlerIface::ShuffleMode default_shuffle_mode,
                          ViewManager::VMIface *view_manager):

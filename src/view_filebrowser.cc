@@ -649,7 +649,7 @@ bool ViewFileBrowser::View::point_to_item(const ViewIface &view,
                                           const SearchParameters &search_parameters)
 {
     List::DBusList search_list(std::move(std::string(name_) + " search"),
-                               dbus_get_lists_navigation_iface(listbroker_id_),
+                               DBus::get_lists_navigation_iface(listbroker_id_),
                                list_contexts_, 1, construct_file_item);
 
     try

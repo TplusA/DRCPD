@@ -19,10 +19,10 @@
  * MA  02110-1301, USA.
  */
 
-#ifndef DBUS_IFACE_DEEP_H
-#define DBUS_IFACE_DEEP_H
+#ifndef DBUS_IFACE_PROXIES_HH
+#define DBUS_IFACE_PROXIES_HH
 
-#include "dbus_iface.h"
+#include "dbus_iface.hh"
 #include "dcpd_dbus.h"
 #include "lists_dbus.h"
 #include "streamplayer_dbus.h"
@@ -30,20 +30,17 @@
 #include "audiopath_dbus.h"
 #include "configuration_dbus.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+namespace DBus
+{
 
-tdbuslistsNavigation *dbus_get_lists_navigation_iface(dbus_listbroker_id_t listbroker_id);
-tdbussplayURLFIFO *dbus_get_streamplayer_urlfifo_iface(void);
-tdbussplayPlayback *dbus_get_streamplayer_playback_iface(void);
-tdbussplayPlayback *dbus_get_roonplayer_playback_iface(void);
-tdbusdcpdPlayback *dbus_get_dcpd_playback_iface(void);
-tdbusAirable *dbus_get_airable_sec_iface(void);
-tdbusaupathManager *dbus_audiopath_get_manager_iface(void);
+tdbuslistsNavigation *get_lists_navigation_iface(ListbrokerID listbroker_id);
+tdbussplayURLFIFO *get_streamplayer_urlfifo_iface();
+tdbussplayPlayback *get_streamplayer_playback_iface();
+tdbussplayPlayback *get_roonplayer_playback_iface();
+tdbusdcpdPlayback *get_dcpd_playback_iface();
+tdbusAirable *get_airable_sec_iface();
+tdbusaupathManager *audiopath_get_manager_iface();
 
-#ifdef __cplusplus
 }
-#endif
 
-#endif /* !DBUS_IFACE_DEEP_H */
+#endif /* !DBUS_IFACE_PROXIES_HH */

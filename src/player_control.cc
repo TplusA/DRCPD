@@ -29,7 +29,7 @@
 #include "player_stopped_reason.hh"
 #include "directory_crawler.hh"
 #include "audiosource.hh"
-#include "dbus_iface_deep.h"
+#include "dbus_iface_proxies.hh"
 #include "dbus_common.h"
 #include "view_play.hh"
 #include "messages.h"
@@ -289,11 +289,11 @@ static void set_audio_player_dbus_proxies(const std::string &audio_player_id,
                                           Player::AudioSource &audio_source)
 {
     if(audio_player_id == "strbo")
-        audio_source.set_proxies(dbus_get_streamplayer_urlfifo_iface(),
-                                 dbus_get_streamplayer_playback_iface());
+        audio_source.set_proxies(DBus::get_streamplayer_urlfifo_iface(),
+                                 DBus::get_streamplayer_playback_iface());
     else if(audio_player_id == "roon")
         audio_source.set_proxies(nullptr,
-                                 dbus_get_roonplayer_playback_iface());
+                                 DBus::get_roonplayer_playback_iface());
     else
         audio_source.set_proxies(nullptr, nullptr);
 }
@@ -324,7 +324,7 @@ void Player::Control::plug(AudioSource &audio_source, bool with_enforced_intenti
             g_variant_dict_init(&empty, nullptr);
             GVariant *request_data = g_variant_dict_end(&empty);
 
-            tdbus_aupath_manager_call_request_source(dbus_audiopath_get_manager_iface(),
+            tdbus_aupath_manager_call_request_source(DBus::audiopath_get_manager_iface(),
                                                      audio_source_->id_.c_str(),
                                                      request_data, nullptr,
                                                      source_request_done, audio_source_);
@@ -852,8 +852,8 @@ bool Player::Control::source_selected_notification(const std::string &audio_sour
     if(audio_source_id == audio_source_->id_)
     {
         audio_source_->selected_notification();
-        audio_source_->set_proxies(dbus_get_streamplayer_urlfifo_iface(),
-                                   dbus_get_streamplayer_playback_iface());
+        audio_source_->set_proxies(DBus::get_streamplayer_urlfifo_iface(),
+                                   DBus::get_streamplayer_playback_iface());
 
         if(!is_on_hold && player_ != nullptr)
         {
@@ -1309,7 +1309,7 @@ void Player::Control::fast_wind_set_speed_request(double speed_factor)
         return;
     }
 
-    tdbus_splay_playback_call_set_speed(dbus_get_streamplayer_playback_iface(),
+    tdbus_splay_playback_call_set_speed(DBus::get_streamplayer_playback_iface(),
                                         speed_factor, nullptr, nullptr, nullptr);
 }
 

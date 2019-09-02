@@ -34,8 +34,8 @@
 #include "player_resumer.hh"
 #include "timeout.hh"
 #include "dbuslist.hh"
-#include "dbus_iface.h"
-#include "dbus_iface_deep.h"
+#include "dbus_iface.hh"
+#include "dbus_iface_proxies.hh"
 
 class WaitForParametersHelper;
 
@@ -312,7 +312,7 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
     };
 
   private:
-    dbus_listbroker_id_t listbroker_id_;
+    DBus::ListbrokerID listbroker_id_;
 
     ID::List root_list_id_;
     std::string status_string_for_empty_root_;
@@ -356,7 +356,7 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
 
     explicit View(const char *name, const char *on_screen_name,
                   uint8_t drcp_browse_id, unsigned int max_lines,
-                  dbus_listbroker_id_t listbroker_id,
+                  DBus::ListbrokerID listbroker_id,
                   Playlist::CrawlerIface::RecursiveMode default_recursive_mode,
                   Playlist::CrawlerIface::ShuffleMode default_shuffle_mode,
                   const char *audio_source_name,
@@ -368,14 +368,14 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
         listbroker_id_(listbroker_id),
         current_list_id_(0),
         file_list_(std::move(std::string(name) + " view"),
-                   dbus_get_lists_navigation_iface(listbroker_id_),
+                   DBus::get_lists_navigation_iface(listbroker_id_),
                    list_contexts_, max_lines,
                    construct_file_item),
         item_flags_(&file_list_),
         navigation_(max_lines, List::Nav::WrapMode::FULL_WRAP, item_flags_),
         play_view_(nullptr),
         default_audio_source_name_(audio_source_name),
-        crawler_(dbus_get_lists_navigation_iface(listbroker_id_),
+        crawler_(DBus::get_lists_navigation_iface(listbroker_id_),
                  list_contexts_, construct_file_item),
         default_recursive_mode_(default_recursive_mode),
         default_shuffle_mode_(default_shuffle_mode),

@@ -19,36 +19,29 @@
  * MA  02110-1301, USA.
  */
 
-#ifndef DBUS_IFACE_H
-#define DBUS_IFACE_H
-
-#include <stdbool.h>
+#ifndef DBUS_IFACE_HH
+#define DBUS_IFACE_HH
 
 /*!
  * \addtogroup dbus DBus handling
  */
 /*!@{*/
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-typedef enum
+namespace DBus
 {
-    DBUS_LISTBROKER_ID_FILESYSTEM,
-    DBUS_LISTBROKER_ID_TUNEIN,
-    DBUS_LISTBROKER_ID_UPNP,
-}
-dbus_listbroker_id_t;
 
-int dbus_setup(bool connect_to_session_bus,
-               void *dbus_signal_data_for_dbus_handlers);
-void dbus_shutdown(void);
+enum class ListbrokerID
+{
+    FILESYSTEM,
+    TUNEIN,
+    UPNP,
+};
 
-#ifdef __cplusplus
+int setup(bool connect_to_session_bus, void *dbus_signal_data_for_dbus_handlers);
+void shutdown();
+
 }
-#endif
 
 /*!@}*/
 
-#endif /* !DBUS_IFACE_H */
+#endif /* !DBUS_IFACE_HH */
