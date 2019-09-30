@@ -23,12 +23,12 @@
 #define DBUS_IFACE_PROXIES_HH
 
 #include "dbus_iface.hh"
-#include "dcpd_dbus.h"
-#include "lists_dbus.h"
-#include "streamplayer_dbus.h"
-#include "airable_dbus.h"
-#include "audiopath_dbus.h"
-#include "configuration_dbus.h"
+#include "de_tahifi_dcpd.h"
+#include "de_tahifi_lists.h"
+#include "de_tahifi_streamplayer.h"
+#include "de_tahifi_airable.h"
+#include "de_tahifi_audiopath.h"
+#include "de_tahifi_configuration.h"
 
 namespace DBus
 {

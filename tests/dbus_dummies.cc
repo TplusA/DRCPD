@@ -29,7 +29,7 @@
 /*
  * Prototypes for the dummies used in here.
  */
-#include "lists_dbus.h"
+#include "de_tahifi_lists.h"
 
 /*
  * Dummy for the linker.

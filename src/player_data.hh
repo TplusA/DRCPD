@@ -28,7 +28,7 @@
 #include "metadata.hh"
 #include "dbus_async.hh"
 #include "playback_modes.hh"
-#include "airable_dbus.h"
+#include "de_tahifi_airable.h"
 #include "airable_links.hh"
 #include "logged_lock.hh"
 #include "dbus_iface_proxies.hh"
