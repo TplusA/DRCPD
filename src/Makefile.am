@@ -162,101 +162,101 @@ liblistsearch_la_CFLAGS = $(CRELAXEDWARNINGS)
 liblistsearch_la_CXXFLAGS = $(CXXRELAXEDWARNINGS)
 
 nodist_libdrcpd_dbus_client_la_SOURCES = \
-    dcpd_dbus.c dcpd_dbus.h \
-    lists_dbus.c lists_dbus.h \
-    streamplayer_dbus.c streamplayer_dbus.h \
-    airable_dbus.c airable_dbus.h \
-    audiopath_dbus.c audiopath_dbus.h \
-    configuration_dbus.c configuration_dbus.h \
-    debug_dbus.c debug_dbus.h
+    de_tahifi_dcpd.c de_tahifi_dcpd.h \
+    de_tahifi_lists.c de_tahifi_lists.h \
+    de_tahifi_streamplayer.c de_tahifi_streamplayer.h \
+    de_tahifi_airable.c de_tahifi_airable.h \
+    de_tahifi_audiopath.c de_tahifi_audiopath.h \
+    de_tahifi_configuration.c de_tahifi_configuration.h \
+    de_tahifi_debug.c de_tahifi_debug.h
 libdrcpd_dbus_client_la_CFLAGS = $(CRELAXEDWARNINGS)
 libdrcpd_dbus_client_la_CXXFLAGS = $(CXXRELAXEDWARNINGS)
 
 BUILT_SOURCES = \
     $(nodist_libdrcpd_dbus_client_la_SOURCES) \
-    de_tahifi_dcpd.h \
-    de_tahifi_dcpd.md \
-    dcpd_dbus.stamp \
-    de_tahifi_lists.h \
-    de_tahifi_lists.md \
-    lists_dbus.stamp \
-    de_tahifi_streamplayer.h \
-    de_tahifi_streamplayer.md \
-    streamplayer_dbus.stamp \
-    de_tahifi_airable.h \
-    de_tahifi_airable.md \
-    airable_dbus.stamp \
-    de_tahifi_configuration.h \
-    de_tahifi_configuration.md \
-    audiopath_dbus.stamp \
-    de_tahifi_audiopath.h \
-    de_tahifi_audiopath.md \
-    configuration_dbus.stamp \
-    de_tahifi_debug.h \
-    de_tahifi_debug.md \
-    debug_dbus.stamp
+    de_tahifi_dcpd-doc.h \
+    de_tahifi_dcpd-doc.md \
+    de_tahifi_dcpd.stamp \
+    de_tahifi_lists-doc.h \
+    de_tahifi_lists-doc.md \
+    de_tahifi_lists.stamp \
+    de_tahifi_streamplayer-doc.h \
+    de_tahifi_streamplayer-doc.md \
+    de_tahifi_streamplayer.stamp \
+    de_tahifi_airable-doc.h \
+    de_tahifi_airable-doc.md \
+    de_tahifi_airable.stamp \
+    de_tahifi_configuration-doc.h \
+    de_tahifi_configuration-doc.md \
+    de_tahifi_configuration.stamp \
+    de_tahifi_audiopath-doc.h \
+    de_tahifi_audiopath-doc.md \
+    de_tahifi_audiopath.stamp \
+    de_tahifi_debug-doc.h \
+    de_tahifi_debug-doc.md \
+    de_tahifi_debug.stamp
 
 CLEANFILES = $(BUILT_SOURCES)
 
-de_tahifi_dcpd.h: dcpd_dbus.stamp
-de_tahifi_dcpd.md: dcpd_dbus.stamp
-dcpd_dbus.c: dcpd_dbus.stamp
-dcpd_dbus.h: dcpd_dbus.stamp
-dcpd_dbus.stamp: $(DBUS_IFACES)/de_tahifi_dcpd.xml
-	$(GDBUS_CODEGEN) --generate-c-code=dcpd_dbus --c-namespace tdbus_dcpd --interface-prefix de.tahifi.Dcpd. $<
-	$(DBUS_IFACES)/extract_documentation.py -i $< -o de_tahifi_dcpd.md -H de_tahifi_dcpd.h -c tdbus_dcpd -s de.tahifi.Dcpd. -n 'DCPD' -x methods
+de_tahifi_dcpd-doc.h: de_tahifi_dcpd.stamp
+de_tahifi_dcpd-doc.md: de_tahifi_dcpd.stamp
+de_tahifi_dcpd.c: de_tahifi_dcpd.stamp
+de_tahifi_dcpd.h: de_tahifi_dcpd.stamp
+de_tahifi_dcpd.stamp: $(DBUS_IFACES)/de_tahifi_dcpd.xml
+	$(GDBUS_CODEGEN) --generate-c-code=de_tahifi_dcpd --c-namespace tdbus_dcpd --interface-prefix de.tahifi.Dcpd. $<
+	$(DBUS_IFACES)/extract_documentation.py -i $< -o de_tahifi_dcpd-doc.md -H de_tahifi_dcpd-doc.h -c tdbus_dcpd -s de.tahifi.Dcpd. -n 'DCPD' -x methods
 	touch $@
 
-de_tahifi_lists.h: lists_dbus.stamp
-de_tahifi_lists.md: lists_dbus.stamp
-lists_dbus.c: lists_dbus.stamp
-lists_dbus.h: lists_dbus.stamp
-lists_dbus.stamp: $(DBUS_IFACES)/de_tahifi_lists.xml
-	$(GDBUS_CODEGEN) --generate-c-code=lists_dbus --c-namespace tdbus_lists --interface-prefix de.tahifi.Lists. $<
-	$(DBUS_IFACES)/extract_documentation.py -i $< -o de_tahifi_lists.md -H de_tahifi_lists.h -c tdbus_lists -s de.tahifi.Lists. -n 'Lists'
+de_tahifi_lists-doc.h: de_tahifi_lists.stamp
+de_tahifi_lists-doc.md: de_tahifi_lists.stamp
+de_tahifi_lists.c: de_tahifi_lists.stamp
+de_tahifi_lists.h: de_tahifi_lists.stamp
+de_tahifi_lists.stamp: $(DBUS_IFACES)/de_tahifi_lists.xml
+	$(GDBUS_CODEGEN) --generate-c-code=de_tahifi_lists --c-namespace tdbus_lists --interface-prefix de.tahifi.Lists. $<
+	$(DBUS_IFACES)/extract_documentation.py -i $< -o de_tahifi_lists-doc.md -H de_tahifi_lists-doc.h -c tdbus_lists -s de.tahifi.Lists. -n 'Lists'
 	touch $@
 
-de_tahifi_streamplayer.h: streamplayer_dbus.stamp
-de_tahifi_streamplayer.md: streamplayer_dbus.stamp
-streamplayer_dbus.c: streamplayer_dbus.stamp
-streamplayer_dbus.h: streamplayer_dbus.stamp
-streamplayer_dbus.stamp: $(DBUS_IFACES)/de_tahifi_streamplayer.xml
-	$(GDBUS_CODEGEN) --generate-c-code=streamplayer_dbus --c-namespace tdbus_splay --interface-prefix de.tahifi.Streamplayer. $<
-	$(DBUS_IFACES)/extract_documentation.py -i $< -o de_tahifi_streamplayer.md -H de_tahifi_streamplayer.h -c tdbus_splay -s de.tahifi.Streamplayer. -n 'Streamplayer'
+de_tahifi_streamplayer-doc.h: de_tahifi_streamplayer.stamp
+de_tahifi_streamplayer-doc.md: de_tahifi_streamplayer.stamp
+de_tahifi_streamplayer.c: de_tahifi_streamplayer.stamp
+de_tahifi_streamplayer.h: de_tahifi_streamplayer.stamp
+de_tahifi_streamplayer.stamp: $(DBUS_IFACES)/de_tahifi_streamplayer.xml
+	$(GDBUS_CODEGEN) --generate-c-code=de_tahifi_streamplayer --c-namespace tdbus_splay --interface-prefix de.tahifi.Streamplayer. $<
+	$(DBUS_IFACES)/extract_documentation.py -i $< -o de_tahifi_streamplayer-doc.md -H de_tahifi_streamplayer-doc.h -c tdbus_splay -s de.tahifi.Streamplayer. -n 'Streamplayer'
 	touch $@
 
-de_tahifi_airable.h: airable_dbus.stamp
-de_tahifi_airable.md: airable_dbus.stamp
-airable_dbus.c: airable_dbus.stamp
-airable_dbus.h: airable_dbus.stamp
-airable_dbus.stamp: $(DBUS_IFACES)/de_tahifi_airable.xml
-	$(GDBUS_CODEGEN) --generate-c-code=airable_dbus --c-namespace tdbus --interface-prefix de.tahifi. $<
-	$(DBUS_IFACES)/extract_documentation.py -i $< -o de_tahifi_airable.md -H de_tahifi_airable.h -c tdbus -s de.tahifi. -n "$(PACKAGE_NAME) (Airable HTTP session security)"
+de_tahifi_airable-doc.h: de_tahifi_airable.stamp
+de_tahifi_airable-doc.md: de_tahifi_airable.stamp
+de_tahifi_airable.c: de_tahifi_airable.stamp
+de_tahifi_airable.h: de_tahifi_airable.stamp
+de_tahifi_airable.stamp: $(DBUS_IFACES)/de_tahifi_airable.xml
+	$(GDBUS_CODEGEN) --generate-c-code=de_tahifi_airable --c-namespace tdbus --interface-prefix de.tahifi. $<
+	$(DBUS_IFACES)/extract_documentation.py -i $< -o de_tahifi_airable-doc.md -H de_tahifi_airable-doc.h -c tdbus -s de.tahifi. -n "$(PACKAGE_NAME) (Airable HTTP session security)"
 	touch $@
 
-de_tahifi_audiopath.h: audiopath_dbus.stamp
-de_tahifi_audiopath.md: audiopath_dbus.stamp
-audiopath_dbus.c: audiopath_dbus.stamp
-audiopath_dbus.h: audiopath_dbus.stamp
-audiopath_dbus.stamp: $(DBUS_IFACES)/de_tahifi_audiopath.xml
-	$(GDBUS_CODEGEN) --generate-c-code=audiopath_dbus --c-namespace tdbus_aupath --interface-prefix de.tahifi.AudioPath. $<
-	$(DBUS_IFACES)/extract_documentation.py -i $< -o de_tahifi_audiopath.md -H de_tahifi_audiopath.h -c tdbus_aupath -s de.tahifi.AudioPath. -n 'Audio Paths'
+de_tahifi_audiopath-doc.h: de_tahifi_audiopath.stamp
+de_tahifi_audiopath-doc.md: de_tahifi_audiopath.stamp
+de_tahifi_audiopath.c: de_tahifi_audiopath.stamp
+de_tahifi_audiopath.h: de_tahifi_audiopath.stamp
+de_tahifi_audiopath.stamp: $(DBUS_IFACES)/de_tahifi_audiopath.xml
+	$(GDBUS_CODEGEN) --generate-c-code=de_tahifi_audiopath --c-namespace tdbus_aupath --interface-prefix de.tahifi.AudioPath. $<
+	$(DBUS_IFACES)/extract_documentation.py -i $< -o de_tahifi_audiopath-doc.md -H de_tahifi_audiopath-doc.h -c tdbus_aupath -s de.tahifi.AudioPath. -n 'Audio Paths'
 	touch $@
 
-de_tahifi_configuration.h: configuration_dbus.stamp
-de_tahifi_configuration.md: configuration_dbus.stamp
-configuration_dbus.c: configuration_dbus.stamp
-configuration_dbus.h: configuration_dbus.stamp
-configuration_dbus.stamp: $(DBUS_IFACES)/de_tahifi_configuration.xml
-	$(GDBUS_CODEGEN) --generate-c-code=configuration_dbus --c-namespace tdbus --interface-prefix de.tahifi. $<
-	$(DBUS_IFACES)/extract_documentation.py -i $< -o de_tahifi_configuration.md -H de_tahifi_configuration.h -c tdbus -s de.tahifi. -n "Configuration"
+de_tahifi_configuration-doc.h: de_tahifi_configuration.stamp
+de_tahifi_configuration-doc.md: de_tahifi_configuration.stamp
+de_tahifi_configuration.c: de_tahifi_configuration.stamp
+de_tahifi_configuration.h: de_tahifi_configuration.stamp
+de_tahifi_configuration.stamp: $(DBUS_IFACES)/de_tahifi_configuration.xml
+	$(GDBUS_CODEGEN) --generate-c-code=de_tahifi_configuration --c-namespace tdbus --interface-prefix de.tahifi. $<
+	$(DBUS_IFACES)/extract_documentation.py -i $< -o de_tahifi_configuration-doc.md -H de_tahifi_configuration-doc.h -c tdbus -s de.tahifi. -n "Configuration"
 	touch $@
 
-de_tahifi_debug.h: debug_dbus.stamp
-de_tahifi_debug.md: debug_dbus.stamp
-debug_dbus.c: debug_dbus.stamp
-debug_dbus.h: debug_dbus.stamp
-debug_dbus.stamp: $(DBUS_IFACES)/de_tahifi_debug.xml
-	$(GDBUS_CODEGEN) --generate-c-code=debug_dbus --c-namespace tdbus_debug --interface-prefix de.tahifi.Debug. $<
-	$(DBUS_IFACES)/extract_documentation.py -i $< -o de_tahifi_debug.md -H de_tahifi_debug.h -c tdbus_debug -s de.tahifi.Debug. -n "Introspection"
+de_tahifi_debug-doc.h: de_tahifi_debug.stamp
+de_tahifi_debug-doc.md: de_tahifi_debug.stamp
+de_tahifi_debug.c: de_tahifi_debug.stamp
+de_tahifi_debug.h: de_tahifi_debug.stamp
+de_tahifi_debug.stamp: $(DBUS_IFACES)/de_tahifi_debug.xml
+	$(GDBUS_CODEGEN) --generate-c-code=de_tahifi_debug --c-namespace tdbus_debug --interface-prefix de.tahifi.Debug. $<
+	$(DBUS_IFACES)/extract_documentation.py -i $< -o de_tahifi_debug-doc.md -H de_tahifi_debug-doc.h -c tdbus_debug -s de.tahifi.Debug. -n "Introspection"
 	touch $@

@@ -28,7 +28,7 @@
 #include <string>
 
 #include "list.hh"
-#include "lists_dbus.h"
+#include "de_tahifi_lists.h"
 #include "ramlist.hh"
 #include "i18nstring.hh"
 #include "context_map.hh"
