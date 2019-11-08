@@ -421,6 +421,39 @@ class ConditionVariable
                   pthread_self(), name_, lock.get_mutex_name());
     }
 
+    template <class Rep, class Period, class Predicate>
+    bool wait_for(UniqueLock<Mutex> &lock,
+                  const std::chrono::duration<Rep, Period>& rel_time,
+                  Predicate pred)
+    {
+        if(lock.get_mutex_owner() != pthread_self())
+            LOGGED_LOCK_BUG("Cond %s: <%08lx> waiting for %llu ticks with "
+                            "foreign mutex owned by <%08lx>",
+                            name_, pthread_self(),
+                            static_cast<unsigned long long>(rel_time.count()),
+                            lock.get_mutex_owner());
+
+        msg_vinfo(log_level_, "<%08lx> Cond %s: wait for %s for %llu ticks",
+                  pthread_self(), name_, lock.get_mutex_name(),
+                  static_cast<unsigned long long>(rel_time.count()));
+        lock.clear_mutex_owner();
+        const bool result =
+            var_.wait_for(lock.get_raw_unique_lock(), rel_time, pred);
+        lock.set_mutex_owner();
+
+        if(result)
+            msg_vinfo(log_level_,
+                      "<%08lx> Cond %s: successfully waited for %s",
+                      pthread_self(), name_, lock.get_mutex_name());
+        else
+            msg_vinfo(log_level_,
+                      "<%08lx> Cond %s: waited for %s, *timed out* after %llu ticks",
+                      pthread_self(), name_, lock.get_mutex_name(),
+                      static_cast<unsigned long long>(rel_time.count()));
+
+        return result;
+    }
+
     void notify_all()
     {
         msg_vinfo(log_level_, "<%08lx> Cond %s: notify all", pthread_self(), name_);
