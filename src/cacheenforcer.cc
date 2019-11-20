@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017, 2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2017, 2019, 2020  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -49,15 +49,12 @@ void Playlist::CacheEnforcer::process_dbus(GObject *source_object,
                                            GAsyncResult *res, gpointer user_data)
 {
     auto &enforcer = *static_cast<Playlist::CacheEnforcer *>(user_data);
-
-    std::lock_guard<std::mutex> lock(enforcer.lock_);
-
-    log_assert(enforcer.nav_proxy_ != nullptr);
+    std::unique_lock<std::mutex> lock(enforcer.lock_);
 
     guint64 list_expiry_ms = 0;
     GErrorWrapper error;
 
-    tdbus_lists_navigation_call_force_in_cache_finish(enforcer.nav_proxy_,
+    tdbus_lists_navigation_call_force_in_cache_finish(TDBUS_LISTS_NAVIGATION(source_object),
                                                       &list_expiry_ms,
                                                       res, error.await());
     if(error.log_failure("Force list into cache"))
@@ -68,8 +65,6 @@ void Playlist::CacheEnforcer::process_dbus(GObject *source_object,
                   enforcer.list_id_.get_raw_id());
         enforcer.state_ = State::STOPPED;
     }
-
-    enforcer.nav_proxy_ = nullptr;
 
     switch(enforcer.state_)
     {
@@ -84,7 +79,15 @@ void Playlist::CacheEnforcer::process_dbus(GObject *source_object,
         break;
 
       case State::STOPPED:
-        enforcer.pointer_to_self_ = nullptr;
+        {
+            /* we need to keep the lock which we have acquired at the top of
+             * this function in valid state, making sure to destroy the
+             * referenced object only after the lock has been released */
+            // cppcheck-suppress unreadVariable
+            auto last_ref = std::move(enforcer.pointer_to_self_);
+            lock.unlock();
+        }
+
         break;
     }
 }
@@ -92,8 +95,7 @@ void Playlist::CacheEnforcer::process_dbus(GObject *source_object,
 gboolean Playlist::CacheEnforcer::process_timer(gpointer user_data)
 {
     auto &enforcer = *static_cast<Playlist::CacheEnforcer *>(user_data);
-
-    std::lock_guard<std::mutex> lock(enforcer.lock_);
+    std::unique_lock<std::mutex> lock(enforcer.lock_);
 
     enforcer.timer_id_ = 0;
 
@@ -105,16 +107,16 @@ gboolean Playlist::CacheEnforcer::process_timer(gpointer user_data)
         /* fall-through */
 
       case State::STARTED:
-        log_assert(enforcer.nav_proxy_ == nullptr);
-        enforcer.nav_proxy_ = enforcer.list_.get_dbus_proxy();
-
-        if(enforcer.nav_proxy_ != nullptr)
         {
-            tdbus_lists_navigation_call_force_in_cache(enforcer.nav_proxy_,
-                                                       enforcer.list_id_.get_raw_id(),
-                                                       true, nullptr,
-                                                       process_dbus, user_data);
-            break;
+            auto *proxy = enforcer.list_.get_dbus_proxy();
+
+            if(proxy != nullptr)
+            {
+                tdbus_lists_navigation_call_force_in_cache(
+                    proxy, enforcer.list_id_.get_raw_id(), true, nullptr,
+                    process_dbus, user_data);
+                break;
+            }
         }
 
         msg_error(0, LOG_ERR, "No D-Bus proxy, cannot force list into cache");
@@ -123,7 +125,15 @@ gboolean Playlist::CacheEnforcer::process_timer(gpointer user_data)
         /* fall-through */
 
       case State::STOPPED:
-        enforcer.pointer_to_self_ = nullptr;
+        {
+            /* we need to keep the lock which we have acquired at the top of
+             * this function in valid state, making sure to destroy the
+             * referenced object only after the lock has been released */
+            // cppcheck-suppress unreadVariable
+            auto last_ref = std::move(enforcer.pointer_to_self_);
+            lock.unlock();
+        }
+
         break;
     }
 
@@ -162,13 +172,11 @@ void Playlist::CacheEnforcer::stop(std::unique_ptr<CacheEnforcer> self,
 
     if(remove_override)
     {
-        self_raw_ptr->nav_proxy_ = self_raw_ptr->list_.get_dbus_proxy();
+        auto *proxy = self_raw_ptr->list_.get_dbus_proxy();
 
-        if(self_raw_ptr->nav_proxy_ != nullptr && self_raw_ptr->list_id_.is_valid())
-            tdbus_lists_navigation_call_force_in_cache(self_raw_ptr->nav_proxy_,
-                                                       self_raw_ptr->list_id_.get_raw_id(),
-                                                       false, nullptr, nullptr, nullptr);
+        if(proxy != nullptr && self_raw_ptr->list_id_.is_valid())
+            tdbus_lists_navigation_call_force_in_cache(
+                proxy, self_raw_ptr->list_id_.get_raw_id(), false, nullptr,
+                nullptr, nullptr);
     }
-
-    self_raw_ptr->nav_proxy_ = nullptr;
 }

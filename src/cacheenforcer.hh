@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017, 2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2017, 2019, 2020  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -46,7 +46,6 @@ class CacheEnforcer
     ID::List list_id_;
 
     guint timer_id_;
-    tdbuslistsNavigation *nav_proxy_;
 
   public:
     CacheEnforcer(const CacheEnforcer &) = delete;
@@ -56,12 +55,12 @@ class CacheEnforcer
         state_(State::CREATED),
         list_(list),
         list_id_(list_id),
-        timer_id_(0),
-        nav_proxy_(nullptr)
+        timer_id_(0)
     {}
 
     ~CacheEnforcer()
     {
+        log_assert(state_ != State::STARTED);
         log_assert(pointer_to_self_ == nullptr);
     }
 
