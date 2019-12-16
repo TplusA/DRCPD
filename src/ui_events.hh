@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, 2017, 2018, 2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016--2020  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -78,6 +78,7 @@ enum class ViewEventID
     AUDIO_SOURCE_SELECTED,
     AUDIO_SOURCE_DESELECTED,
     AUDIO_PATH_CHANGED,
+    STRBO_URL_RESOLVED,
     PLAYBACK_TRY_RESUME,
 
     LAST_VIEW_EVENT_ID = PLAYBACK_TRY_RESUME,
@@ -90,9 +91,8 @@ enum class BroadcastEventID
 {
     NOP,
     CONFIGURATION_UPDATED,
-    STRBO_URL_RESOLVED,
 
-    LAST_EVENT_ID = STRBO_URL_RESOLVED,
+    LAST_EVENT_ID = CONFIGURATION_UPDATED,
 };
 
 /*!
@@ -103,6 +103,10 @@ enum class VManEventID
     NOP,
     OPEN_VIEW,
     TOGGLE_VIEWS,
+    DATA_COOKIE_AVAILABLE,
+    DATA_COOKIE_ERROR,
+    CRAWLER_OPERATION_COMPLETED,
+    CRAWLER_OPERATION_YIELDED,
     INVALIDATE_LIST_ID,
     NOTIFY_NOW_PLAYING,
 };
@@ -184,12 +188,16 @@ enum class EventID
     VIEW_SEARCH_COMMENCE         = mk_event_raw_id(ViewEventID::SEARCH_COMMENCE),
     VIEW_SEARCH_STORE_PARAMETERS = mk_event_raw_id(ViewEventID::SEARCH_STORE_PARAMETERS),
     VIEW_PLAYER_STORE_PRELOADED_META_DATA = mk_event_raw_id(ViewEventID::STORE_PRELOADED_META_DATA),
-    VIEW_STRBO_URL_RESOLVED      = mk_event_raw_id(BroadcastEventID::STRBO_URL_RESOLVED),
+    VIEW_STRBO_URL_RESOLVED      = mk_event_raw_id(ViewEventID::STRBO_URL_RESOLVED),
 
     /* =====================
      * Passive notifications
      * ===================== */
     CONFIGURATION_UPDATED        = mk_event_raw_id(BroadcastEventID::CONFIGURATION_UPDATED),
+    VIEWMAN_RNF_DATA_AVAILABLE   = mk_event_raw_id(VManEventID::DATA_COOKIE_AVAILABLE),
+    VIEWMAN_RNF_DATA_ERROR       = mk_event_raw_id(VManEventID::DATA_COOKIE_ERROR),
+    VIEWMAN_CRAWLER_OP_COMPLETED = mk_event_raw_id(VManEventID::CRAWLER_OPERATION_COMPLETED),
+    VIEWMAN_CRAWLER_OP_YIELDED   = mk_event_raw_id(VManEventID::CRAWLER_OPERATION_YIELDED),
     VIEWMAN_INVALIDATE_LIST_ID   = mk_event_raw_id(VManEventID::INVALIDATE_LIST_ID),
     VIEWMAN_STREAM_NOW_PLAYING   = mk_event_raw_id(VManEventID::NOTIFY_NOW_PLAYING),
     VIEW_PLAYER_NOW_PLAYING      = mk_event_raw_id(ViewEventID::NOTIFY_NOW_PLAYING),
@@ -220,7 +228,7 @@ class EventStoreIface
     virtual ~EventStoreIface() {}
 
     virtual void store_event(EventID event_id,
-                             std::unique_ptr<const Parameters> parameters = nullptr) = 0;
+                             std::unique_ptr<Parameters> parameters = nullptr) = 0;
 };
 
 }

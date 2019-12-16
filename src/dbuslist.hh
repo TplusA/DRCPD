@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2016, 2017, 2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015--2017, 2019, 2020  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -22,18 +22,14 @@
 #ifndef DBUSLIST_HH
 #define DBUSLIST_HH
 
-#include <memory>
-#include <functional>
-#include <tuple>
-#include <string>
-
 #include "list.hh"
 #include "de_tahifi_lists.h"
 #include "ramlist.hh"
+#include "cache_segment.hh"
 #include "i18nstring.hh"
 #include "context_map.hh"
 #include "messages.h"
-#include "dbuslist_exception.hh"
+#include "rnfcall_get_range.hh"
 #include "dbus_async.hh"
 #include "de_tahifi_lists_item_kinds.hh"
 #include "logged_lock.hh"
@@ -151,9 +147,8 @@ class QueryContextEnterList: public QueryContext_
         ENTER_CONTEXT_ROOT,
         ENTER_ANYWHERE,
         RELOAD_LIST,
-        CRAWLER_RESTART,
         CRAWLER_RESET_POSITION,
-        CRAWLER_RESUME_FROM_POSITION,
+        CRAWLER_FIRST_ENTRY,
         CRAWLER_DESCEND,
         CRAWLER_ASCEND,
     };
@@ -303,322 +298,19 @@ struct CacheModifications
     }
 };
 
-class CacheSegment
-{
-  public:
-    unsigned int line_;
-    unsigned int count_;
-
-    CacheSegment(const CacheSegment &) = delete;
-    CacheSegment(CacheSegment &&) = default;
-    CacheSegment &operator=(const CacheSegment &) = default;
-
-    explicit CacheSegment(unsigned int line, unsigned int count):
-        line_(line),
-        count_(count)
-    {}
-
-    enum Intersection
-    {
-        DISJOINT,
-        EQUAL,
-        TOP_REMAINS,
-        BOTTOM_REMAINS,
-        CENTER_REMAINS,
-        INCLUDED_IN_OTHER,
-    };
-
-    Intersection intersection(const CacheSegment &other, unsigned int &size) const
-    {
-        /* special cases for empty intervals */
-        if(count_ == 0)
-        {
-            size = 0;
-
-            if(other.count_ == 0)
-                return (line_ == other.line_) ? EQUAL : DISJOINT;
-            else
-                return other.contains_line(line_) ? INCLUDED_IN_OTHER : DISJOINT;
-        }
-        else if(other.count_ == 0)
-        {
-            size = 0;
-            return contains_line(other.line_) ? CENTER_REMAINS : DISJOINT;
-        }
-
-        /* neither interval is empty, i.e., both counts are positive */
-        if(line_ == other.line_)
-        {
-            /* equal start lines */
-            if(count_ < other.count_)
-            {
-                size = count_;
-                return INCLUDED_IN_OTHER;
-            }
-            else if(count_ > other.count_)
-            {
-                size = other.count_;
-                return TOP_REMAINS;
-            }
-            else
-            {
-                size = count_;
-                return EQUAL;
-            }
-        }
-
-        /* have two non-empty intervals with different start lines */
-        const unsigned int beyond_this_end = line_ + count_;
-        const unsigned int beyond_other_end = other.line_ + other.count_;
-
-        if(line_ < other.line_)
-        {
-            /* this interval starts before the other interval */
-            if(beyond_this_end <= other.line_)
-            {
-                size = 0;
-                return DISJOINT;
-            }
-            else if(beyond_this_end <= beyond_other_end)
-            {
-                size = beyond_this_end - other.line_;
-                return BOTTOM_REMAINS;
-            }
-            else
-            {
-                size = other.count_;
-                return CENTER_REMAINS;
-            }
-        }
-        else
-        {
-            /* this interval starts after the other interval */
-            if(beyond_other_end <= line_)
-            {
-                size = 0;
-                return DISJOINT;
-            }
-            else if(beyond_other_end < beyond_this_end)
-            {
-                size = beyond_other_end - line_;
-                return TOP_REMAINS;
-            }
-            else
-            {
-                size = count_;
-                return INCLUDED_IN_OTHER;
-            }
-        }
-    }
-
-    bool contains_line(unsigned int line) const
-    {
-        return line >= line_ && line < line_ + count_;
-    }
-};
-
-enum class CacheSegmentState
-{
-    /*! Nothing in cache yet, nothing loading. */
-    EMPTY,
-
-    /*! The whole segment is being loaded, nothing cached yet. */
-    LOADING,
-
-    /*! Top segment is loading, bottom half is empty. */
-    LOADING_TOP_EMPTY_BOTTOM,
-
-    /*! Bottom segment is loading, top half is empty. */
-    LOADING_BOTTOM_EMPTY_TOP,
-
-    /*! Loading in center, mix of other states at top and bottom. */
-    LOADING_CENTER,
-
-    /*! Segment is completely in cache. */
-    CACHED,
-
-    /*! Only top of segment is cached, bottom half is already loading. */
-    CACHED_TOP_LOADING_BOTTOM,
-
-    /*! Only bottom of segment is cached, top half is already loading. */
-    CACHED_BOTTOM_LOADING_TOP,
-
-    /*! Top segment is cached, bottom half is empty. */
-    CACHED_TOP_EMPTY_BOTTOM,
-
-    /*! Bottom segment is cached, top half is empty. */
-    CACHED_BOTTOM_EMPTY_TOP,
-
-    /*! Top segment is cached, center is loading, bottom half is empty. */
-    CACHED_TOP_LOADING_CENTER_EMPTY_BOTTOM,
-
-    /*! Bottom segment is cached, center is loading, top half is empty. */
-    CACHED_BOTTOM_LOADING_CENTER_EMPTY_TOP,
-
-    /*! Cached in center, mix of other states at top and bottom. */
-    CACHED_CENTER,
-};
-
 /*!
  * Context for getting a D-Bus list item asynchronously.
  */
-class QueryContextGetItem: public QueryContext_
+class QueryContextGetItem: public DBusRNF::ContextData
 {
-  private:
-    tdbuslistsNavigation *proxy_;
-
   public:
-    enum class CallerID
-    {
-        SERIALIZE,
-        SERIALIZE_DEBUG,
-        CRAWLER_FIND_MARKED,
-        CRAWLER_FIND_NEXT,
-    };
+    unsigned int cache_list_replace_index_;
 
-    const struct
-    {
-        ID::List list_id_;
-        CacheSegment loading_segment_;
-        bool have_meta_data_;
-        unsigned int cache_list_replace_index_;
-    }
-    parameters_;
-
-    using AsyncListNavGetRange =
-        DBus::AsyncCall<tdbuslistsNavigation, std::tuple<guchar, guint, GVariant *>,
-                        Busy::Source::GETTING_LIST_RANGE>;
-
-    std::shared_ptr<AsyncListNavGetRange> async_call_;
-
-    QueryContextGetItem(const QueryContextGetItem &) = delete;
-    QueryContextGetItem &operator=(const QueryContextGetItem &) = delete;
-
-    explicit QueryContextGetItem(AsyncListIface &result_receiver,
-                                 unsigned short caller_id,
-                                 tdbuslistsNavigation *proxy,
-                                 ID::List list_id,
-                                 unsigned int line, unsigned int count,
-                                 bool have_meta_data,
-                                 unsigned int replace_index):
-        QueryContext_(result_receiver, caller_id),
-        proxy_(proxy),
-        parameters_({list_id, CacheSegment(line, count), have_meta_data, replace_index})
+    explicit QueryContextGetItem(unsigned int replace_index,
+                                 ContextData::NotificationFunction &&notify):
+        DBusRNF::ContextData(std::move(notify)),
+        cache_list_replace_index_(replace_index)
     {}
-
-    /*!
-     * Constructor for restarting the call with different parameters.
-     */
-    explicit QueryContextGetItem(const QueryContextGetItem &src,
-                                 ID::List list_id,
-                                 unsigned int line, unsigned int count,
-                                 bool have_meta_data,
-                                 unsigned int replace_index):
-        QueryContext_(src),
-        proxy_(src.proxy_),
-        parameters_({list_id, CacheSegment(line, count), have_meta_data, replace_index})
-    {}
-
-    ~QueryContextGetItem()
-    {
-        cancel_sync();
-    }
-
-    CallerID get_caller_id() const { return static_cast<CallerID>(caller_id_); }
-
-    bool run_async(DBus::AsyncResultAvailableFunction &&result_available) final override;
-    bool synchronize(DBus::AsyncResult &result) final override;
-
-    static List::AsyncListIface::OpResult
-    restart_if_necessary(std::shared_ptr<QueryContextGetItem> &ctx,
-                         ID::List invalidated_list_id, ID::List replacement_id);
-
-    DBus::CancelResult cancel(bool will_be_restarted = false) final override
-    {
-        if(async_call_ != nullptr)
-            return async_call_->cancel(will_be_restarted);
-        else
-            return DBus::CancelResult::NOT_RUNNING;
-    }
-
-    DBus::CancelResult cancel_sync() final override
-    {
-        const DBus::CancelResult ret = cancel();
-
-        switch(ret)
-        {
-          case DBus::CancelResult::CANCELED:
-            break;
-
-          case DBus::CancelResult::BLOCKED_RECURSIVE_CALL:
-          case DBus::CancelResult::NOT_RUNNING:
-            return ret;
-        }
-
-        try
-        {
-            DBus::AsyncResult dummy;
-
-            synchronize(dummy);
-        }
-        catch(const List::DBusListException &e)
-        {
-            BUG("Got list exception while synchronizing get-item cancel: %s",
-                e.what());
-        }
-        catch(const std::exception &e)
-        {
-            BUG("Got std exception while synchronizing get-item cancel: %s",
-                e.what());
-        }
-        catch(...)
-        {
-            BUG("Got unknown exception while synchronizing enter-list cancel");
-        }
-
-        return ret;
-    }
-
-    CacheSegmentState get_cache_segment_state(const CacheSegment &segment,
-                                              unsigned int &size_of_loading_segment) const
-    {
-        CacheSegmentState retval = CacheSegmentState::EMPTY;
-
-        switch(segment.intersection(parameters_.loading_segment_, size_of_loading_segment))
-        {
-          case CacheSegment::DISJOINT:
-            break;
-
-          case CacheSegment::EQUAL:
-          case CacheSegment::INCLUDED_IN_OTHER:
-            retval = CacheSegmentState::LOADING;
-            break;
-
-          case CacheSegment::TOP_REMAINS:
-            retval = CacheSegmentState::LOADING_TOP_EMPTY_BOTTOM;
-            break;
-
-          case CacheSegment::BOTTOM_REMAINS:
-            retval = CacheSegmentState::LOADING_BOTTOM_EMPTY_TOP;
-            break;
-
-          case CacheSegment::CENTER_REMAINS:
-            retval = CacheSegmentState::LOADING_CENTER;
-            break;
-        }
-
-        if(size_of_loading_segment > 0)
-            return retval;
-
-        return CacheSegmentState::EMPTY;
-    }
-
-  private:
-    static void put_result(DBus::AsyncResult &async_ready,
-                           AsyncListNavGetRange::PromiseType &promise,
-                           tdbuslistsNavigation *p, GAsyncResult *async_result,
-                           GErrorWrapper &error,
-                           ID::List list_id, bool have_meta_data);
 };
 
 /*!
@@ -631,21 +323,21 @@ class DBusList: public ListIface, public AsyncListIface
                                            const char *const *names);
 
     using AsyncWatcher =
-        std::function<void(OpEvent, OpResult, const std::shared_ptr<QueryContext_> &)>;
+        std::function<void(OpEvent, OpResult, std::shared_ptr<QueryContext_>)>;
 
   private:
     const std::string list_iface_name_;
+    DBusRNF::CookieManagerIface &cm_;
     tdbuslistsNavigation *const dbus_proxy_;
 
     struct AsyncDBusData
     {
         LoggedLock::RecMutex lock_;
-        LoggedLock::ConditionVariable query_done_;
 
         AsyncWatcher event_watcher_;
 
         std::shared_ptr<QueryContextEnterList> enter_list_query_;
-        std::shared_ptr<QueryContextGetItem> get_item_query_;
+        std::shared_ptr<DBusRNF::GetRangeCallBase> get_item_query_;
 
         bool is_canceling_;
 
@@ -653,14 +345,59 @@ class DBusList: public ListIface, public AsyncListIface
             is_canceling_(false)
         {
             LoggedLock::configure(lock_, "DBusListAsyncData", MESSAGE_LEVEL_DEBUG);
-            LoggedLock::configure(query_done_, "DBusListAsyncDone", MESSAGE_LEVEL_DEBUG);
         }
 
-        DBus::CancelResult cancel_enter_list_query() { return cancel_query_sync(enter_list_query_); }
-        DBus::CancelResult cancel_get_item_query()   { return cancel_query_sync(get_item_query_); }
+        /*!
+         * Stop entering list.
+         *
+         * Must be called while holding #List::DBusList::AsyncDBusData::lock_.
+         */
+        DBus::CancelResult cancel_enter_list_query()
+        {
+            auto local_ref(enter_list_query_);
+
+            if(local_ref == nullptr)
+                return DBus::CancelResult::NOT_RUNNING;
+
+            const auto ret = local_ref->cancel_sync();
+
+            switch(ret)
+            {
+              case DBus::CancelResult::NOT_RUNNING:
+              case DBus::CancelResult::BLOCKED_RECURSIVE_CALL:
+                break;
+
+              case DBus::CancelResult::CANCELED:
+                enter_list_query_ = nullptr;
+                break;
+            }
+
+            return ret;
+        }
+
+        /*!
+         * Stop loading items.
+         *
+         * Must be called while holding #List::DBusList::AsyncDBusData::lock_.
+         */
+        DBus::CancelResult cancel_get_item_query()
+        {
+            std::lock_guard<LoggedLock::RecMutex> lock(lock_);
+
+            auto local_ref(std::move(get_item_query_));
+
+            if(local_ref == nullptr)
+                return DBus::CancelResult::NOT_RUNNING;
+
+            return local_ref->abort_request()
+                ? DBus::CancelResult::CANCELED
+                : DBus::CancelResult::NOT_RUNNING;
+        }
 
         DBus::CancelResult cancel_all()
         {
+            std::lock_guard<LoggedLock::RecMutex> lock(lock_);
+
             if(is_canceling_)
                 return DBus::CancelResult::BLOCKED_RECURSIVE_CALL;
 
@@ -682,30 +419,7 @@ class DBusList: public ListIface, public AsyncListIface
             return DBus::CancelResult::BLOCKED_RECURSIVE_CALL;
         }
 
-      private:
-        template <typename QueryContextType>
-        static DBus::CancelResult cancel_query_sync(std::shared_ptr<QueryContextType> &ctx)
-        {
-            auto local_ref(ctx);
-
-            if(local_ref == nullptr)
-                return DBus::CancelResult::NOT_RUNNING;
-
-            const auto ret = local_ref->cancel_sync();
-
-            switch(ret)
-            {
-              case DBus::CancelResult::NOT_RUNNING:
-              case DBus::CancelResult::BLOCKED_RECURSIVE_CALL:
-                break;
-
-              case DBus::CancelResult::CANCELED:
-                ctx.reset();
-                break;
-            }
-
-            return ret;
-        }
+        std::string get_description_get_item();
     };
 
     AsyncDBusData async_dbus_data_;
@@ -801,10 +515,12 @@ class DBusList: public ListIface, public AsyncListIface
     DBusList &operator=(const DBusList &) = delete;
 
     explicit DBusList(std::string &&list_iface_name,
+                      DBusRNF::CookieManagerIface &cm,
                       tdbuslistsNavigation *nav_proxy,
                       const List::ContextMap &list_contexts,
                       unsigned int prefetch, NewItemFn new_item_fn):
         list_iface_name_(std::move(list_iface_name)),
+        cm_(cm),
         dbus_proxy_(nav_proxy),
         list_contexts_(list_contexts),
         number_of_prefetched_items_(prefetch),
@@ -825,7 +541,7 @@ class DBusList: public ListIface, public AsyncListIface
      * #List::QueryContextEnterList).)
      *
      * Note that the callback may be called from different contexts, depending
-     * on the event. The callback function must be sure to provide correct
+     * on the event. The callback function must make sure to provide correct
      * synchronization.
      */
     void register_watcher(const AsyncWatcher &event_handler)
@@ -849,6 +565,11 @@ class DBusList: public ListIface, public AsyncListIface
         window_stash_is_in_use_ = false;
     }
 
+    std::string get_description_get_item()
+    {
+        return async_dbus_data_.get_description_get_item();
+    }
+
     const std::string &get_list_iface_name() const override { return list_iface_name_; }
     const std::string &get_async_list_iface_name() const override { return list_iface_name_; }
 
@@ -866,13 +587,11 @@ class DBusList: public ListIface, public AsyncListIface
 
     const Item *get_item(unsigned int line) const override;
 
-    OpResult get_item_async_set_hint(unsigned int line, int count,
-                                     QueryContextGetItem::CallerID caller)
-    {
-        return get_item_async_set_hint(line, count, static_cast<unsigned short>(caller));
-    }
-
     OpResult get_item_async(unsigned int line, const Item *&item) override;
+
+    OpResult get_item_async_set_hint(unsigned int line, unsigned int count,
+                                     DBusRNF::StatusWatcher &&status_watcher,
+                                     HintItemDoneNotification &&hinted_fn) override;
 
     bool cancel_all_async_calls() final override;
 
@@ -885,6 +604,8 @@ class DBusList: public ListIface, public AsyncListIface
     {
         return get_context_info_by_list_id(window_.list_id_);
     }
+
+    DBusRNF::CookieManagerIface &get_cookie_manager() const { return cm_; }
 
     tdbuslistsNavigation *get_dbus_proxy() const { return dbus_proxy_; }
 
@@ -901,7 +622,7 @@ class DBusList: public ListIface, public AsyncListIface
     bool is_line_loading(unsigned int line) const
     {
         if(async_dbus_data_.get_item_query_ != nullptr)
-            return async_dbus_data_.get_item_query_->parameters_.loading_segment_.contains_line(line);
+            return async_dbus_data_.get_item_query_->loading_segment_.contains_line(line);
         else
             return false;
     }
@@ -922,39 +643,22 @@ class DBusList: public ListIface, public AsyncListIface
     OpResult load_segment_in_background(const CacheSegment &prefetch_segment,
                                         int keep_cache_entries,
                                         unsigned int current_number_of_loading_items,
-                                        unsigned short caller_id);
+                                        DBusRNF::StatusWatcher &&status_watcher,
+                                        HintItemDoneNotification &&hinted_fn);
 
     /*!
      * Little helper that calls the event watcher.
      */
     void notify_watcher(OpEvent event, OpResult result,
-                        const std::shared_ptr<QueryContext_> &ctx)
+                        std::shared_ptr<QueryContext_> ctx)
     {
         if(async_dbus_data_.event_watcher_ != nullptr)
-            async_dbus_data_.event_watcher_(event, result, ctx);
+            async_dbus_data_.event_watcher_(event, result, std::move(ctx));
     }
 
-    OpResult enter_list_async(ID::List list_id, unsigned int line, unsigned short caller_id,
+    OpResult enter_list_async(ID::List list_id, unsigned int line,
+                              unsigned short caller_id,
                               I18n::String &&dynamic_title) override;
-    OpResult get_item_async_set_hint(unsigned int line, unsigned int count,
-                                     unsigned short caller_id) override;
-
-
-    /*!
-     * Stop entering list.
-     *
-     * Must be called while holding  #List::DBusList::AsyncDBusData::lock_ of
-     * the embedded #List::DBusList::async_dbus_data_ structure.
-     */
-    void cancel_enter_list_query() { async_dbus_data_.cancel_enter_list_query(); }
-
-    /*!
-     * Stop loading items.
-     *
-     * Must be called while holding  #List::DBusList::AsyncDBusData::lock_ of
-     * the embedded #List::DBusList::async_dbus_data_ structure.
-     */
-    void cancel_get_item_query() { async_dbus_data_.cancel_get_item_query(); }
 
     /*!
      * Modify visible part of list represented by #List::DBusList::CacheData.
@@ -987,15 +691,17 @@ class DBusList: public ListIface, public AsyncListIface
      * Must be called while holding #List::DBusList::AsyncDBusData::lock_ of
      * the embedded #List::DBusList::async_dbus_data_ structure.
      */
-    void enter_list_async_handle_done();
+    void enter_list_async_handle_done(std::shared_ptr<QueryContextEnterList> q);
 
     /*!
-     * Internal function called by #async_done_notification().
+     * Internal function notified by #List::QueryContextGetItem.
      *
      * Must be called while holding #List::DBusList::AsyncDBusData::lock_ of
      * the embedded #List::DBusList::async_dbus_data_ structure.
      */
-    void get_item_async_handle_done();
+    void get_item_result_available_notification(
+            HintItemDoneNotification &&hinted_fn,
+            std::shared_ptr<DBusRNF::GetRangeCallBase> call);
 };
 
 };

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, 2017, 2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2017, 2019, 2020  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -22,12 +22,12 @@
 #ifndef UI_EVENT_QUEUE_HH
 #define UI_EVENT_QUEUE_HH
 
-#include <functional>
-#include <deque>
-
 #include "ui_events.hh"
 #include "logged_lock.hh"
 #include "messages.h"
+
+#include <functional>
+#include <deque>
 
 namespace UI
 {
@@ -51,13 +51,13 @@ class ViewInput: public BaseEvent
 {
   public:
     const ViewEventID event_id_;
-    std::unique_ptr<const UI::Parameters> parameters_;
+    std::unique_ptr<UI::Parameters> parameters_;
 
     ViewInput(const ViewInput &) = delete;
     ViewInput &operator=(const ViewInput &) = delete;
 
     explicit ViewInput(EventID event_id,
-                       std::unique_ptr<const UI::Parameters> parameters):
+                       std::unique_ptr<UI::Parameters> parameters):
         event_id_(to_event_type<ViewEventID>(event_id)),
         parameters_(std::move(parameters))
     {}
@@ -67,13 +67,13 @@ class Broadcast: public BaseEvent
 {
   public:
     const BroadcastEventID event_id_;
-    std::unique_ptr<const UI::Parameters> parameters_;
+    std::unique_ptr<UI::Parameters> parameters_;
 
     Broadcast(const Broadcast &) = delete;
     Broadcast &operator=(const Broadcast &) = delete;
 
     explicit Broadcast(EventID event_id,
-                       std::unique_ptr<const UI::Parameters> parameters):
+                       std::unique_ptr<UI::Parameters> parameters):
         event_id_(to_event_type<BroadcastEventID>(event_id)),
         parameters_(std::move(parameters))
     {}
@@ -83,13 +83,13 @@ class ViewMan: public BaseEvent
 {
   public:
     const VManEventID event_id_;
-    std::unique_ptr<const UI::Parameters> parameters_;
+    std::unique_ptr<UI::Parameters> parameters_;
 
     ViewMan(const ViewMan &) = delete;
     ViewMan &operator=(const ViewMan &) = delete;
 
     explicit ViewMan(EventID event_id,
-                     std::unique_ptr<const UI::Parameters> parameters):
+                     std::unique_ptr<UI::Parameters> parameters):
         event_id_(to_event_type<VManEventID>(event_id)),
         parameters_(std::move(parameters))
     {}

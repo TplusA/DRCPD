@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015--2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015--2020  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -21,9 +21,6 @@
 
 #ifndef VIEW_HH
 #define VIEW_HH
-
-#include <memory>
-#include <chrono>
 
 #include "ui_events.hh"
 
@@ -96,18 +93,35 @@ class ViewIface
      *
      * \param name
      *     Internal name for selection over D-Bus and debugging.
+     *
      * \param flags
      *     Any properties specific to this view.
+     *
      * \param view_manager
      *     If the view needs to manage other views, then the view manager must
-     *     be passed here. Pass \c nullptr if the view does not use the view
+     *     be passed here. Use the other ctor if the view does not use the view
      *     manager.
      */
     explicit constexpr ViewIface(const char *name, ViewIface::Flags &&flags,
-                                 ViewManager::VMIface *view_manager):
+                                 ViewManager::VMIface &view_manager):
         name_(name),
         flags_(std::move(flags)),
-        view_manager_(view_manager)
+        view_manager_(&view_manager)
+    {}
+
+    /*!
+     * Common ctor for all views with no need for a view manager.
+     *
+     * \param name
+     *     Internal name for selection over D-Bus and debugging.
+     *
+     * \param flags
+     *     Any properties specific to this view.
+     */
+    explicit constexpr ViewIface(const char *name, ViewIface::Flags &&flags):
+        name_(name),
+        flags_(std::move(flags)),
+        view_manager_(nullptr)
     {}
 
   public:
@@ -186,13 +200,13 @@ class ViewIface
      * unnoticed. Errors are supposed to be handled by the views themselves.
      */
     virtual InputResult process_event(UI::ViewEventID event_id,
-                                      std::unique_ptr<const UI::Parameters> parameters) = 0;
+                                      std::unique_ptr<UI::Parameters> parameters) = 0;
 
     /*
      * Process broadcast event.
      */
     virtual void process_broadcast(UI::BroadcastEventID event_id,
-                                   const UI::Parameters *parameters) = 0;
+                                   UI::Parameters *parameters) = 0;
 };
 
 /*!@}*/

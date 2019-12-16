@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015--2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015--2020  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -28,10 +28,13 @@
 #include "de_tahifi_lists_context.h"
 #include "context_map.hh"
 #include "view_filebrowser_fileitem.hh"
+#include "main_context.hh"
 #include "i18n.hh"
 #include "messages.h"
 #include "logged_lock.hh"
-#include "gerrorwrapper.hh"
+#include "rnfcall_get_range.hh"
+
+#include <sstream>
 
 constexpr const char *ListError::names_[];
 
@@ -66,7 +69,7 @@ static unsigned int query_list_size_sync(tdbuslistsNavigation *proxy,
     tdbus_lists_navigation_call_check_range_sync(proxy,
                                                  list_id.get_raw_id(), 0, 0,
                                                  &error_code, &first_item,
-                                                 &size, NULL, gerror.await());
+                                                 &size, nullptr, gerror.await());
 
     if(gerror.log_failure("Check range"))
     {
@@ -152,7 +155,7 @@ void List::DBusList::enter_list(ID::List list_id, unsigned int line)
     if(list_id != window_.list_id_)
     {
         std::lock_guard<LoggedLock::RecMutex> lock((const_cast<List::DBusList *>(this)->async_dbus_data_).lock_);
-        const_cast<List::DBusList *>(this)->cancel_enter_list_query();
+        const_cast<List::DBusList *>(this)->async_dbus_data_.cancel_enter_list_query();
     }
 
     /* code above holds a lock, code below does not */
@@ -166,76 +169,48 @@ void List::DBusList::enter_list(ID::List list_id, unsigned int line)
     window_.clear_for_line(list_id, line);
 }
 
-static bool fetch_window_sync(tdbuslistsNavigation *proxy,
-                              const std::string &list_iface_name,
-                              const List::ContextMap &list_contexts,
-                              ID::List list_id, unsigned int line,
-                              unsigned int count, GVariant **out_list)
+static DBusRNF::GetRangeResult
+fetch_window_sync(DBusRNF::CookieManagerIface &cm, tdbuslistsNavigation *proxy,
+                  const std::string &list_iface_name,
+                  const List::ContextMap &list_contexts,
+                  ID::List list_id, unsigned int line, unsigned int count)
 {
     msg_info("Fetch %u lines of list %u: starting at %u (sync) [%s]",
              count, list_id.get_raw_id(), line, list_iface_name.c_str());
-
-    guchar error_code;
-    guint first_item;
-    bool have_meta_data;
-    GErrorWrapper dbus_error;
 
     const uint32_t list_flags(list_contexts[DBUS_LISTS_CONTEXT_GET(list_id.get_raw_id())].get_flags());
 
     if((list_flags & List::ContextInfo::HAS_EXTERNAL_META_DATA) != 0)
     {
-        tdbus_lists_navigation_call_get_range_with_meta_data_sync(
-            proxy, list_id.get_raw_id(), line, count,
-            &error_code, &first_item, out_list, NULL, dbus_error.await());
-        dbus_error.log_failure("Get range with meta data");
-        have_meta_data = true;
+        DBusRNF::GetRangeWithMetaDataCall call(
+            cm, proxy, list_iface_name, list_id,
+            List::CacheSegment(line, count), nullptr, nullptr);
+
+        call.request();
+        call.fetch_blocking();
+        return call.get_result_locked();
     }
     else
     {
-        tdbus_lists_navigation_call_get_range_sync(
-            proxy, list_id.get_raw_id(), line, count,
-            &error_code, &first_item, out_list, NULL, dbus_error.await());
-        dbus_error.log_failure("Get range");
-        have_meta_data = false;
+        DBusRNF::GetRangeCall call(
+            cm, proxy, list_iface_name, list_id,
+            List::CacheSegment(line, count), nullptr, nullptr);
+
+        call.request();
+        call.fetch_blocking();
+        return call.get_result_locked();
     }
-
-    if(dbus_error.failed())
-    {
-        msg_error(0, LOG_NOTICE,
-                  "Failed obtaining contents of list %u [%s]",
-                  list_id.get_raw_id(), list_iface_name.c_str());
-
-        throw List::DBusListException(dbus_error);
-    }
-
-    const ListError error(error_code);
-
-    if(error_code != ListError::Code::OK)
-    {
-        /* method error, stop trying */
-        msg_error(0, LOG_INFO, "Error reading list %u: %s [%s]",
-                  list_id.get_raw_id(), error.to_string(),
-                  list_iface_name.c_str());
-
-        if(*out_list != nullptr)
-            g_variant_unref(*out_list);
-
-        throw List::DBusListException(error);
-    }
-
-    log_assert(g_variant_type_is_array(g_variant_get_type(*out_list)));
-
-    return have_meta_data;
 }
 
 static void fill_cache_list_generic(List::RamList &items,
                                     List::DBusList::NewItemFn new_item_fn,
                                     unsigned int cache_list_index,
-                                    bool replace_mode, GVariant *dbus_data)
+                                    bool replace_mode,
+                                    const GVariantWrapper &dbus_data)
 {
     GVariantIter iter;
 
-    if(g_variant_iter_init(&iter, dbus_data) <= 0)
+    if(g_variant_iter_init(&iter, GVariantWrapper::get(dbus_data)) <= 0)
         return;
 
     const gchar *name;
@@ -256,11 +231,11 @@ static void fill_cache_list_with_meta_data(List::RamList &items,
                                            const std::string &list_iface_name,
                                            unsigned int cache_list_index,
                                            bool replace_mode,
-                                           GVariant *dbus_data)
+                                           const GVariantWrapper &dbus_data)
 {
     GVariantIter iter;
 
-    if(g_variant_iter_init(&iter, dbus_data) <= 0)
+    if(g_variant_iter_init(&iter, GVariantWrapper::get(dbus_data)) <= 0)
         return;
 
     const gchar *names[3];
@@ -399,8 +374,8 @@ List::DBusList::enter_list_async(ID::List list_id, unsigned int line,
 
     LoggedLock::UniqueLock<LoggedLock::RecMutex> lock(async_dbus_data_.lock_);
 
-    cancel_enter_list_query();
-    cancel_get_item_query();
+    async_dbus_data_.cancel_enter_list_query();
+    async_dbus_data_.cancel_get_item_query();
 
     async_dbus_data_.enter_list_query_ =
         std::make_shared<QueryContextEnterList>(*this, caller_id,
@@ -414,10 +389,9 @@ List::DBusList::enter_list_async(ID::List list_id, unsigned int line,
     }
 
     if(!async_dbus_data_.enter_list_query_->run_async(
-            std::bind(&List::DBusList::async_done_notification,
-                      this, std::placeholders::_1)))
+            [this] (DBus::AsyncCall_ &c) { async_done_notification(c); }))
     {
-        async_dbus_data_.enter_list_query_.reset();
+        async_dbus_data_.enter_list_query_ = nullptr;
         return OpResult::FAILED;
     }
 
@@ -427,9 +401,8 @@ List::DBusList::enter_list_async(ID::List list_id, unsigned int line,
     return OpResult::STARTED;
 }
 
-void List::DBusList::enter_list_async_handle_done()
+void List::DBusList::enter_list_async_handle_done(std::shared_ptr<QueryContextEnterList> q)
 {
-    auto q = async_dbus_data_.enter_list_query_;
     const ID::List list_id(q->parameters_.list_id_.get_raw_id());
     DBus::AsyncResult async_result;
 
@@ -466,10 +439,58 @@ void List::DBusList::enter_list_async_handle_done()
                   list_id.get_raw_id(), list_iface_name_.c_str());
     }
 
-    async_dbus_data_.enter_list_query_.reset();
-    async_dbus_data_.query_done_.notify_all();
-
     notify_watcher(OpEvent::ENTER_LIST, op_result, q);
+}
+
+static List::AsyncListIface::OpResult
+restart_if_necessary(std::shared_ptr<DBusRNF::GetRangeCallBase> &call,
+                     ID::List invalidated_list_id, ID::List replacement_id)
+{
+    if(call == nullptr)
+        return List::AsyncListIface::OpResult::SUCCEEDED;
+
+    if(invalidated_list_id != call->list_id_)
+        return List::AsyncListIface::OpResult::SUCCEEDED;
+
+    if(!call->abort_request())
+        return List::AsyncListIface::OpResult::FAILED;
+
+    if(!replacement_id.is_valid())
+        return List::AsyncListIface::OpResult::CANCELED;
+
+    auto new_call(call->clone_modified(replacement_id));
+
+    if(new_call == nullptr)
+    {
+        msg_out_of_memory("RNF call (restart get item)");
+        return List::AsyncListIface::OpResult::FAILED;
+    }
+
+    switch(new_call->request())
+    {
+      case DBusRNF::CallState::WAIT_FOR_NOTIFICATION:
+        call = new_call;
+        return List::AsyncListIface::OpResult::SUCCEEDED;
+
+      case DBusRNF::CallState::RESULT_FETCHED:
+        call = new_call;
+        return List::AsyncListIface::OpResult::SUCCEEDED;
+
+      case DBusRNF::CallState::ABORTING:
+      case DBusRNF::CallState::ABORTED_BY_LIST_BROKER:
+        call = nullptr;
+        return List::AsyncListIface::OpResult::CANCELED;
+
+      case DBusRNF::CallState::INITIALIZED:
+      case DBusRNF::CallState::READY_TO_FETCH:
+      case DBusRNF::CallState::FAILED:
+      case DBusRNF::CallState::ABOUT_TO_DESTROY:
+        break;
+    }
+
+    BUG("Restarting request ended up in unexpected state");
+    call = nullptr;
+    return List::AsyncListIface::OpResult::FAILED;
 }
 
 void List::DBusList::list_invalidate(ID::List list_id, ID::List replacement_id)
@@ -486,8 +507,7 @@ void List::DBusList::list_invalidate(ID::List list_id, ID::List replacement_id)
 
     QueryContextEnterList::restart_if_necessary(async_dbus_data_.enter_list_query_,
                                                 list_id, replacement_id);
-    QueryContextGetItem::restart_if_necessary(async_dbus_data_.get_item_query_,
-                                              list_id, replacement_id);
+    restart_if_necessary(async_dbus_data_.get_item_query_, list_id, replacement_id);
 }
 
 const List::ContextInfo &List::DBusList::get_context_info_by_list_id(ID::List id) const
@@ -502,10 +522,10 @@ bool List::QueryContextEnterList::run_async(DBus::AsyncResultAvailableFunction &
     async_call_ = std::make_shared<AsyncListNavCheckRange>(
         proxy_,
         [] (GObject *source_object) { return TDBUS_LISTS_NAVIGATION(source_object); },
-        std::bind(put_result,
-                  std::placeholders::_1, std::placeholders::_2,
-                  std::placeholders::_3, std::placeholders::_4,
-                  std::placeholders::_5, parameters_.list_id_),
+        [this]
+        (auto &ready, auto &promise, tdbuslistsNavigation *p,
+         GAsyncResult *result, GErrorWrapper &error)
+        { put_result(ready, promise, p, result, error, parameters_.list_id_); },
         std::move(result_available),
         [] (AsyncListNavCheckRange::PromiseReturnType &values) {},
         [] () { return true; },
@@ -539,12 +559,12 @@ bool List::QueryContextEnterList::synchronize(DBus::AsyncResult &result)
             if(async_call_->success())
                 return true;
 
-            async_call_.reset();
+            async_call_ = nullptr;
         }
         catch(const List::DBusListException &e)
         {
             result = DBus::AsyncResult::FAILED;
-            async_call_.reset();
+            async_call_ = nullptr;
             throw;
         }
     }
@@ -584,7 +604,7 @@ cancel_and_restart(std::shared_ptr<QueryContextType> &ctx,
 
     if(!ctx->run_async(std::move(async_local_ref->get_result_available_fn())))
     {
-        ctx.reset();
+        ctx = nullptr;
         return List::AsyncListIface::OpResult::FAILED;
     }
 
@@ -605,9 +625,10 @@ List::QueryContextEnterList::restart_if_necessary(std::shared_ptr<QueryContextEn
     make_query_fn([&ctx_local_ref, replacement_id] ()
         {
             auto new_ctx =
-                std::make_shared<QueryContextEnterList>(*ctx_local_ref, replacement_id,
-                                                        ctx_local_ref->parameters_.line_,
-                                                        std::move(I18n::String(ctx_local_ref->parameters_.title_)));
+                std::make_shared<QueryContextEnterList>(
+                    *ctx_local_ref, replacement_id,
+                    ctx_local_ref->parameters_.line_,
+                    std::move(I18n::String(ctx_local_ref->parameters_.title_)));
 
             if(new_ctx == nullptr)
                 msg_out_of_memory("asynchronous context (restart enter list)");
@@ -751,7 +772,7 @@ List::DBusList::get_cache_segment_state(const CacheSegment &segment,
         return cached_state;
     }
 
-    auto loading_state =
+    const auto loading_state =
         async_dbus_data_.get_item_query_->get_cache_segment_state(segment, size_of_loading_segment);
 
     switch(loading_state)
@@ -810,8 +831,7 @@ List::DBusList::get_cache_segment_state(const CacheSegment &segment,
       case CacheSegmentState::CACHED_TOP_LOADING_CENTER_EMPTY_BOTTOM:
       case CacheSegmentState::CACHED_BOTTOM_LOADING_CENTER_EMPTY_TOP:
       case CacheSegmentState::CACHED_CENTER:
-        BUG("Unexpected loading state %u [%s]",
-            static_cast<unsigned int>(loading_state), list_iface_name_.c_str());
+        cached_state = loading_state;
         break;
     }
 
@@ -844,31 +864,34 @@ const List::Item *List::DBusList::get_item(unsigned int line) const
         cache_modifications.set(line);
     }
 
-    GVariant *out_list;
-
-    const bool have_meta_data =
-        fetch_window_sync(dbus_proxy_, list_iface_name_, list_contexts_,
-                          window_.list_id_,
-                          fetch_head, fetch_count, &out_list);
-
-    log_assert(g_variant_n_children(out_list) == fetch_count);
-
-    /* Shall I burn in hell for this? */
     auto *nonconst_this = const_cast<List::DBusList *>(this);
 
-    nonconst_this->apply_cache_modifications(cache_modifications);
+    try
+    {
+        const auto window_data(
+            fetch_window_sync(nonconst_this->cm_,
+                              dbus_proxy_, list_iface_name_, list_contexts_,
+                              window_.list_id_, fetch_head, fetch_count));
 
-    if(have_meta_data)
-        fill_cache_list_with_meta_data(nonconst_this->window_.items_,
-                                       new_item_fn_, list_iface_name_,
-                                       cache_list_replace_index,
-                                       !window_.items_.empty(), out_list);
-    else
-        fill_cache_list_generic(nonconst_this->window_.items_,
-                                new_item_fn_, cache_list_replace_index,
-                                !window_.items_.empty(), out_list);
+        log_assert(g_variant_n_children(GVariantWrapper::get(window_data.list_)) == fetch_count);
 
-    g_variant_unref(out_list);
+        nonconst_this->apply_cache_modifications(cache_modifications);
+
+        if(window_data.have_meta_data_)
+            fill_cache_list_with_meta_data(nonconst_this->window_.items_,
+                                           new_item_fn_, list_iface_name_,
+                                           cache_list_replace_index,
+                                           !window_.items_.empty(),
+                                           window_data.list_);
+        else
+            fill_cache_list_generic(nonconst_this->window_.items_,
+                                    new_item_fn_, cache_list_replace_index,
+                                    !window_.items_.empty(), window_data.list_);
+    }
+    catch(...)
+    {
+        return nullptr;
+    }
 
     nonconst_this->window_.valid_segment_.line_ = window_.first_item_line_;
     nonconst_this->window_.valid_segment_.count_ = window_.items_.get_number_of_items();
@@ -880,10 +903,10 @@ List::AsyncListIface::OpResult
 List::DBusList::load_segment_in_background(const CacheSegment &prefetch_segment,
                                            int keep_cache_entries,
                                            unsigned int current_number_of_loading_items,
-                                           unsigned short caller_id)
-
+                                           DBusRNF::StatusWatcher &&status_watcher,
+                                           HintItemDoneNotification &&hinted_fn)
 {
-    cancel_get_item_query();
+    async_dbus_data_.cancel_get_item_query();
 
     CacheModifications cm;
     unsigned int fetch_head;
@@ -919,12 +942,47 @@ List::DBusList::load_segment_in_background(const CacheSegment &prefetch_segment,
 
     const uint32_t list_flags(list_contexts_[DBUS_LISTS_CONTEXT_GET(window_.list_id_.get_raw_id())].get_flags());
 
-    async_dbus_data_.get_item_query_ =
-        std::make_shared<QueryContextGetItem>(*this, caller_id,
-                                              dbus_proxy_, window_.list_id_,
-                                              fetch_head, fetch_count,
-                                              (list_flags & List::ContextInfo::HAS_EXTERNAL_META_DATA) != 0,
-                                              cache_list_replace_index);
+    auto ctx =
+        std::make_unique<QueryContextGetItem>(
+            cache_list_replace_index,
+            // #DBusRNF::ContextData::NotificationFunction
+            [this, h = std::move(hinted_fn)]
+            (DBusRNF::CallBase &call, DBusRNF::CallState)
+            {
+                LoggedLock::UniqueLock<LoggedLock::RecMutex> l(async_dbus_data_.lock_);
+
+                if(&call != async_dbus_data_.get_item_query_.get())
+                {
+                    BUG("Got done notification for unknown GetItem call");
+                    return;
+                }
+
+                auto *fn_object = new std::function<void()>(
+                    [this, h = std::move(h), q = async_dbus_data_.get_item_query_]
+                    () mutable
+                    {
+                        LoggedLock::UniqueLock<LoggedLock::RecMutex> ll(async_dbus_data_.lock_);
+                        get_item_result_available_notification(std::move(h),
+                                                               std::move(q));
+                    });
+
+                /* we need to defer this because the function we need to call
+                 * will destroy the object which has called us */
+                MainContext::deferred_call(fn_object, false);
+            });
+
+    if((list_flags & List::ContextInfo::HAS_EXTERNAL_META_DATA) == 0)
+        async_dbus_data_.get_item_query_ =
+            std::make_shared<DBusRNF::GetRangeCall>(
+                cm_, dbus_proxy_, list_iface_name_, window_.list_id_,
+                List::CacheSegment(fetch_head, fetch_count), std::move(ctx),
+                std::move(status_watcher));
+    else
+        async_dbus_data_.get_item_query_ =
+            std::make_shared<DBusRNF::GetRangeWithMetaDataCall>(
+                cm_, dbus_proxy_, list_iface_name_, window_.list_id_,
+                List::CacheSegment(fetch_head, fetch_count), std::move(ctx),
+                std::move(status_watcher));
 
     if(async_dbus_data_.get_item_query_ == nullptr)
     {
@@ -932,25 +990,39 @@ List::DBusList::load_segment_in_background(const CacheSegment &prefetch_segment,
         return OpResult::FAILED;
     }
 
-    if(!async_dbus_data_.get_item_query_->run_async(
-            std::bind(&List::DBusList::async_done_notification,
-                      this, std::placeholders::_1)))
+    switch(async_dbus_data_.get_item_query_->request())
     {
-        async_dbus_data_.get_item_query_.reset();
-        return OpResult::FAILED;
+      case DBusRNF::CallState::WAIT_FOR_NOTIFICATION:
+        apply_cache_modifications(cm);
+        return OpResult::STARTED;
+
+      case DBusRNF::CallState::RESULT_FETCHED:
+        apply_cache_modifications(cm);
+        return OpResult::SUCCEEDED;
+
+      case DBusRNF::CallState::INITIALIZED:
+      case DBusRNF::CallState::READY_TO_FETCH:
+        BUG("GetRangeCallBase ended up in unexpected state");
+        break;
+
+      case DBusRNF::CallState::ABORTING:
+      case DBusRNF::CallState::ABORTED_BY_LIST_BROKER:
+        async_dbus_data_.get_item_query_ = nullptr;
+        return OpResult::CANCELED;
+
+      case DBusRNF::CallState::FAILED:
+      case DBusRNF::CallState::ABOUT_TO_DESTROY:
+        break;
     }
 
-    apply_cache_modifications(cm);
-
-    notify_watcher(OpEvent::GET_ITEM, OpResult::STARTED,
-                   async_dbus_data_.get_item_query_);
-
-    return OpResult::STARTED;
+    async_dbus_data_.get_item_query_ = nullptr;
+    return OpResult::FAILED;
 }
 
 List::AsyncListIface::OpResult
 List::DBusList::get_item_async_set_hint(unsigned int line, unsigned int count,
-                                        unsigned short caller_id)
+                                        DBusRNF::StatusWatcher &&status_watcher,
+                                        HintItemDoneNotification &&hinted_fn)
 {
     if(!window_.list_id_.is_valid())
     {
@@ -998,7 +1070,8 @@ List::DBusList::get_item_async_set_hint(unsigned int line, unsigned int count,
       case CacheSegmentState::LOADING_BOTTOM_EMPTY_TOP:
         /* need to wipe out everything and restart loading everything */
         retval = load_segment_in_background(prefetch_segment, 0, 0,
-                                            caller_id);
+                                            std::move(status_watcher),
+                                            std::move(hinted_fn));
         break;
 
       case CacheSegmentState::CACHED:
@@ -1018,7 +1091,8 @@ List::DBusList::get_item_async_set_hint(unsigned int line, unsigned int count,
          * canceled and ignored */
         retval = load_segment_in_background(prefetch_segment, size_of_cached_overlap,
                                             size_of_loading_segment,
-                                            caller_id);
+                                            std::move(status_watcher),
+                                            std::move(hinted_fn));
         break;
 
       case CacheSegmentState::CACHED_BOTTOM_EMPTY_TOP:
@@ -1027,7 +1101,8 @@ List::DBusList::get_item_async_set_hint(unsigned int line, unsigned int count,
          * canceled and ignored */
         retval = load_segment_in_background(prefetch_segment, -size_of_cached_overlap,
                                             size_of_loading_segment,
-                                            caller_id);
+                                            std::move(status_watcher),
+                                            std::move(hinted_fn));
         break;
     }
 
@@ -1084,63 +1159,69 @@ bool List::DBusList::cancel_all_async_calls()
     return false;
 }
 
-void List::DBusList::get_item_async_handle_done()
+void List::DBusList::get_item_result_available_notification(
+        HintItemDoneNotification &&hinted_fn,
+        std::shared_ptr<DBusRNF::GetRangeCallBase> call)
 {
-    auto q = async_dbus_data_.get_item_query_;
-    DBus::AsyncResult async_result;
+    log_assert(call != nullptr);
 
-    try
-    {
-        q->synchronize(async_result);
-    }
-    catch(const List::DBusListException &e)
-    {
-        async_result = DBus::AsyncResult::FAILED;
-        msg_error(0, LOG_ERR, "List error %u: %s [%s]",
-                  e.get(), e.what(), list_iface_name_.c_str());
-    }
+    if(call == async_dbus_data_.get_item_query_)
+        async_dbus_data_.get_item_query_ = nullptr;
 
     OpResult op_result;
 
-    if(async_result == DBus::AsyncResult::DONE)
+    try
     {
-        op_result = OpResult::SUCCEEDED;
+        const auto &ctx(call->get_data<QueryContextGetItem>());
+        auto result(call->get_result_locked());
 
-        const auto &result(q->async_call_->get_result(async_result));
-
-        if(q->parameters_.have_meta_data_)
-            fill_cache_list_with_meta_data(window_.items_, new_item_fn_, list_iface_name_,
-                                           q->parameters_.cache_list_replace_index_,
-                                           !window_.items_.empty(),
-                                           std::get<2>(result));
+        if(result.have_meta_data_)
+            fill_cache_list_with_meta_data(
+                window_.items_, new_item_fn_, list_iface_name_,
+                ctx.cache_list_replace_index_, !window_.items_.empty(),
+                result.list_);
         else
-            fill_cache_list_generic(window_.items_, new_item_fn_,
-                                    q->parameters_.cache_list_replace_index_,
-                                    !window_.items_.empty(),
-                                    std::get<2>(result));
+            fill_cache_list_generic(
+                window_.items_, new_item_fn_,
+                ctx.cache_list_replace_index_, !window_.items_.empty(),
+                result.list_);
 
         window_.valid_segment_.line_ = window_.first_item_line_;
         window_.valid_segment_.count_ = window_.items_.get_number_of_items();
-    }
-    else
-    {
-        op_result = (async_result == DBus::AsyncResult::CANCELED
-                     ? OpResult::CANCELED
-                     : OpResult::FAILED);
 
+        op_result = OpResult::SUCCEEDED;
+    }
+    catch(const DBusRNF::AbortedError &)
+    {
+        op_result = OpResult::CANCELED;
+    }
+    catch(const List::DBusListException &e)
+    {
+        op_result = OpResult::FAILED;
+        msg_error(0, LOG_ERR, "List error %u: %s [%s]",
+                  e.get(), e.what(), list_iface_name_.c_str());
+    }
+    catch(const std::exception &e)
+    {
+        op_result = OpResult::FAILED;
+        msg_error(0, LOG_ERR, "List error: %s [%s]",
+                  e.what(), list_iface_name_.c_str());
+    }
+    catch(...)
+    {
+        op_result = OpResult::FAILED;
+        msg_error(0, LOG_ERR, "List error [%s]", list_iface_name_.c_str());
+    }
+
+    if(op_result != OpResult::SUCCEEDED)
         msg_error(0, LOG_NOTICE,
                   "%s obtaining lines %u through %u of list %u [%s]",
                   op_result == OpResult::FAILED ? "Failed" : "Canceled",
-                  q->parameters_.loading_segment_.line_,
-                  q->parameters_.loading_segment_.line_ + q->parameters_.loading_segment_.count_ - 1,
-                  q->parameters_.list_id_.get_raw_id(),
-                  list_iface_name_.c_str());
-    }
+                  call->loading_segment_.line_,
+                  call->loading_segment_.line_ + call->loading_segment_.count_ - 1,
+                  call->list_id_.get_raw_id(), list_iface_name_.c_str());
 
-    async_dbus_data_.get_item_query_.reset();
-    async_dbus_data_.query_done_.notify_all();
-
-    notify_watcher(OpEvent::GET_ITEM, op_result, q);
+    hinted_fn(op_result);
 }
 
 void List::DBusList::apply_cache_modifications(const CacheModifications &cm)
@@ -1208,145 +1289,6 @@ void List::DBusList::apply_cache_modifications(const CacheModifications &cm)
     window_.first_item_line_ = cm.new_first_line_;
 }
 
-bool List::QueryContextGetItem::run_async(DBus::AsyncResultAvailableFunction &&result_available)
-{
-    log_assert(async_call_ == nullptr);
-
-    async_call_ = std::make_shared<AsyncListNavGetRange>(
-        proxy_,
-        [] (GObject *source_object) { return TDBUS_LISTS_NAVIGATION(source_object); },
-        std::bind(put_result,
-                  std::placeholders::_1, std::placeholders::_2,
-                  std::placeholders::_3, std::placeholders::_4,
-                  std::placeholders::_5,
-                  parameters_.list_id_, parameters_.have_meta_data_),
-        std::move(result_available),
-        [] (AsyncListNavGetRange::PromiseReturnType &values)
-        {
-            if(std::get<2>(values) != nullptr)
-                g_variant_unref(std::get<2>(values));
-        },
-        [] () { return true; },
-        "AsyncListNavGetRange", MESSAGE_LEVEL_DEBUG);
-
-    if(async_call_ == nullptr)
-    {
-        msg_out_of_memory("asynchronous D-Bus invocation");
-        return false;
-    }
-
-    async_call_->invoke(parameters_.have_meta_data_
-                        ? tdbus_lists_navigation_call_get_range_with_meta_data
-                        : tdbus_lists_navigation_call_get_range,
-                        parameters_.list_id_.get_raw_id(),
-                        parameters_.loading_segment_.line_,
-                        parameters_.loading_segment_.count_);
-
-    return true;
-}
-
-bool List::QueryContextGetItem::synchronize(DBus::AsyncResult &result)
-{
-    if(async_call_ == nullptr)
-        result = DBus::AsyncResult::INITIALIZED;
-    else
-    {
-        try
-        {
-            result = async_call_->wait_for_result();
-
-            if(async_call_ == nullptr)
-                return DBus::AsyncCall_::is_success(result);
-
-            if(async_call_->success())
-                return true;
-
-            async_call_.reset();
-        }
-        catch(const List::DBusListException &e)
-        {
-            result = DBus::AsyncResult::FAILED;
-            async_call_.reset();
-            throw;
-        }
-    }
-
-    return false;
-}
-
-List::AsyncListIface::OpResult
-List::QueryContextGetItem::restart_if_necessary(std::shared_ptr<QueryContextGetItem> &ctx,
-                                                ID::List invalidated_list_id,
-                                                ID::List replacement_id)
-{
-    const std::shared_ptr<QueryContextGetItem> ctx_local_ref(ctx);
-
-    if(ctx == nullptr)
-        return List::AsyncListIface::OpResult::SUCCEEDED;
-
-    const std::function<std::shared_ptr<QueryContextGetItem>(void)>
-    make_query_fn([&ctx_local_ref, replacement_id] ()
-        {
-            auto new_ctx =
-                std::make_shared<QueryContextGetItem>(*ctx_local_ref,
-                                                      replacement_id,
-                                                      ctx_local_ref->parameters_.loading_segment_.line_,
-                                                      ctx_local_ref->parameters_.loading_segment_.count_,
-                                                      ctx_local_ref->parameters_.have_meta_data_,
-                                                      ctx_local_ref->parameters_.cache_list_replace_index_);
-
-            if(new_ctx == nullptr)
-                msg_out_of_memory("asynchronous context (restart get item)");
-
-            return new_ctx;
-        });
-
-    return cancel_and_restart(ctx, ctx_local_ref,
-                              invalidated_list_id, replacement_id,
-                              ctx->parameters_.list_id_, make_query_fn);
-}
-
-void List::QueryContextGetItem::put_result(DBus::AsyncResult &async_ready,
-                                           AsyncListNavGetRange::PromiseType &promise,
-                                           tdbuslistsNavigation *p,
-                                           GAsyncResult *async_result,
-                                           GErrorWrapper &error, ID::List list_id,
-                                           bool have_meta_data)
-{
-    guchar error_code;
-    guint first_item;
-    GVariant *out_list = nullptr;
-
-    const bool dbus_ok = have_meta_data
-        ? tdbus_lists_navigation_call_get_range_with_meta_data_finish(
-              p, &error_code, &first_item, &out_list, async_result, error.await())
-        : tdbus_lists_navigation_call_get_range_finish(
-              p, &error_code, &first_item, &out_list, async_result, error.await());
-
-    async_ready = dbus_ok ? DBus::AsyncResult::READY : DBus::AsyncResult::FAILED;
-
-    if(async_ready == DBus::AsyncResult::FAILED)
-        throw List::DBusListException(error);
-
-    const ListError list_error(error_code);
-
-    if(error_code != ListError::Code::OK)
-    {
-        /* method error, stop trying */
-        msg_error(0, LOG_INFO, "Error reading list %u: %s",
-                  list_id.get_raw_id(), list_error.to_string());
-
-        if(out_list != nullptr)
-            g_variant_unref(out_list);
-
-        throw List::DBusListException(list_error);
-    }
-
-    log_assert(g_variant_type_is_array(g_variant_get_type(out_list)));
-
-    promise.set_value(std::make_tuple(error_code, first_item, out_list));
-}
-
 void List::DBusList::async_done_notification(DBus::AsyncCall_ &async_call)
 {
     LoggedLock::UniqueLock<LoggedLock::RecMutex> lock(async_dbus_data_.lock_);
@@ -1354,23 +1296,31 @@ void List::DBusList::async_done_notification(DBus::AsyncCall_ &async_call)
     if(async_dbus_data_.enter_list_query_ != nullptr)
     {
         if(&async_call == async_dbus_data_.enter_list_query_->async_call_.get())
-            enter_list_async_handle_done();
-    }
-    else if(async_dbus_data_.get_item_query_ != nullptr)
-    {
-        if(&async_call == async_dbus_data_.get_item_query_->async_call_.get())
-            get_item_async_handle_done();
+        {
+            auto c(std::move(async_dbus_data_.enter_list_query_));
+            async_dbus_data_.enter_list_query_ = nullptr;
+            enter_list_async_handle_done(c);
+        }
     }
     else
     {
         if(dynamic_cast<QueryContextEnterList::AsyncListNavCheckRange *>(&async_call) != nullptr)
             BUG("Unexpected async enter-line done notification [%s]",
                 list_iface_name_.c_str());
-        else if(dynamic_cast<QueryContextGetItem::AsyncListNavGetRange *>(&async_call) != nullptr)
-            BUG("Unexpected async get-item done notification [%s]",
-                list_iface_name_.c_str());
         else
             BUG("Unexpected UNKNOWN async done notification [%s]",
                 list_iface_name_.c_str());
     }
+}
+
+std::string List::DBusList::AsyncDBusData::get_description_get_item()
+{
+    std::lock_guard<LoggedLock::RecMutex> lock(lock_);
+
+    if(get_item_query_ == nullptr)
+        return "";
+
+    std::ostringstream os;
+    os << get_item_query_.get() << " " << get_item_query_->get_description();
+    return os.str();
 }

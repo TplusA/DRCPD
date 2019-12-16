@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2016, 2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016, 2019, 2020  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -200,8 +200,25 @@ class Nav
     const NavItemFilterIface &item_filter_;
 
   public:
-    Nav(const Nav &) = delete;
+    Nav(const Nav &) = default;
     Nav &operator=(const Nav &) = delete;
+
+    Nav &operator=(Nav &&src)
+    {
+        if(this == &src)
+            return *this;
+
+        cursor_ = src.cursor_;
+        first_displayed_item_ = src.first_displayed_item_;
+        selected_line_number_ = src.selected_line_number_;
+        wrap_mode_ = src.wrap_mode_;
+
+        src.cursor_ = 0;
+        src.first_displayed_item_ = 0;
+        src.selected_line_number_ = 0;
+        src.cursor_ = 0;
+        return *this;
+    }
 
     explicit Nav(unsigned int max_display_lines, WrapMode initial_wrap_mode,
                  const NavItemFilterIface &item_filter):
@@ -412,6 +429,11 @@ class Nav
     unsigned int get_cursor()
     {
         check_selection();
+        return cursor_;
+    }
+
+    unsigned int get_cursor_unchecked() const
+    {
         return cursor_;
     }
 

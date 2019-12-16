@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, 2017, 2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2017, 2019, 2020  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -53,10 +53,17 @@ enum class CancelResult
     NOT_RUNNING,
 };
 
+class AsyncCall_;
+
+namespace AsyncCallPool
+{
+    void register_call(std::shared_ptr<AsyncCall_> call);
+    void unregister_call(std::shared_ptr<AsyncCall_> call);
+};
+
 class AsyncCall_: public std::enable_shared_from_this<AsyncCall_>
 {
   private:
-    std::shared_ptr<AsyncCall_> pointer_to_self_;
     LoggedLock::RecMutex lock_;
     bool is_canceling_;
 
@@ -83,8 +90,6 @@ class AsyncCall_: public std::enable_shared_from_this<AsyncCall_>
     {
         g_object_unref(G_OBJECT(cancellable_));
         cancellable_ = nullptr;
-
-        log_assert(pointer_to_self_ == nullptr);
     }
 
     CancelResult cancel(bool will_be_restarted)
@@ -192,19 +197,17 @@ class AsyncCall_: public std::enable_shared_from_this<AsyncCall_>
     }
 
     virtual bool do_cancel(bool will_be_restarted) = 0;
-
-    void async_op_started() { pointer_to_self_ = shared_from_this(); }
-
-    void async_op_done()
-    {
-        auto maybe_last_reference = pointer_to_self_;
-        pointer_to_self_.reset();
-        maybe_last_reference.reset();
-    }
 };
 
 using AsyncResultAvailableFunction = std::function<void(AsyncCall_ &async_call)>;
 
+/*!
+ * Asynchronous D-Bus call wrapper.
+ *
+ * \bug This class complicates matters and its use should be limited.
+ *
+ * \todo We need to get rid of this class.
+ */
 template <typename ProxyType, typename ReturnType, Busy::Source BusySourceID>
 class AsyncCall: public DBus::AsyncCall_
 {
@@ -322,7 +325,7 @@ class AsyncCall: public DBus::AsyncCall_
         Busy::set(BusySourceID);
         call_state_ = AsyncResult::IN_PROGRESS;
         have_reported_result_ = false;
-        async_op_started();
+        AsyncCallPool::register_call(shared_from_this());
         dbus_method(proxy_, args..., cancellable_, async_ready_trampoline, this);
     }
 
@@ -372,7 +375,9 @@ class AsyncCall: public DBus::AsyncCall_
             /* operation is canceled on low level (GLib), but GLib has not
              * called us back yet because it didn't have the chance to
              * process the cancelable up to now, leaving us in an
-             * intermediate state---report ready state directly */
+             * intermediate state---report ready state directly so that the
+             * #DBus::AsyncCall::result_available_fn_ callback can be called
+             * before this function returns */
             return ready(nullptr, nullptr, false);
         }
 
@@ -404,24 +409,24 @@ class AsyncCall: public DBus::AsyncCall_
   public:
     static void cancel_and_delete(std::shared_ptr<AsyncCall> &call)
     {
-        if(call == nullptr)
-            return;
-
-        auto lock_this(call->lock());
-
-        call->cancel(false);
-
-        try
+        if(call != nullptr)
         {
-            call->wait_for_result();
-        }
-        catch(...)
-        {
-            /* ignore exceptions because we will clean up anyway */
+            std::shared_ptr<AsyncCall> maybe_last_ref = call;
+            auto lock_this(call->lock());
+
+            call->cancel(false);
+
+            try
+            {
+                call->wait_for_result();
+            }
+            catch(...)
+            {
+                /* ignore exceptions because we will clean up anyway */
+            }
         }
 
-        lock_this.unlock();
-        call.reset();
+        call = nullptr;
     }
 
     const PromiseReturnType &get_result(AsyncResult &async_result) const
@@ -443,15 +448,13 @@ class AsyncCall: public DBus::AsyncCall_
         async->ready(async->to_proxy_fn_(source_object), res, true);
     }
 
-    AsyncResult ready(ProxyType *proxy, GAsyncResult *res, bool is_done)
+    AsyncResult ready_locked(ProxyType *proxy, GAsyncResult *res, bool is_done)
     {
         auto lock_this(lock());
 
         if(g_cancellable_is_cancelled(cancellable_))
-        {
             call_state_ =
                 is_canceled_for_restart_ ? AsyncResult::RESTARTED : AsyncResult::CANCELED;
-        }
         else
         {
             try
@@ -488,7 +491,15 @@ class AsyncCall: public DBus::AsyncCall_
 
         lock_this.unlock();
 
-        async_op_done();
+        return call_state_copy;
+    }
+
+    AsyncResult ready(ProxyType *proxy, GAsyncResult *res, bool is_done)
+    {
+        const auto call_state_copy(ready_locked(proxy, res, is_done));
+
+        if(proxy != nullptr)
+            AsyncCallPool::unregister_call(shared_from_this());
 
         /*
          * WARNING:

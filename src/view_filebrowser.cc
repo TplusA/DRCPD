@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015--2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015--2020  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -23,22 +23,18 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-#include <cstring>
-
-#include "view_filebrowser_fileitem.hh"
 #include "view_filebrowser.hh"
+#include "view_filebrowser_fileitem.hh"
 #include "view_search.hh"
 #include "view_play.hh"
 #include "view_manager.hh"
-#include "view_names.hh"
 #include "error_sink.hh"
+#include "main_context.hh"
 #include "player_permissions_airable.hh"
 #include "search_algo.hh"
 #include "ui_parameters_predefined.hh"
 #include "de_tahifi_lists_context.h"
-#include "xmlescape.hh"
-#include "gerrorwrapper.hh"
-#include "messages.h"
+#include "rnfcall_get_location_trace.hh"
 
 ViewFileBrowser::FileItem
 ViewFileBrowser::FileItem::loading_placeholder_("", 0U,
@@ -131,9 +127,8 @@ bool ViewFileBrowser::View::handle_enter_list_event_finish(
 
         break;
 
-      case List::QueryContextEnterList::CallerID::CRAWLER_RESTART:
       case List::QueryContextEnterList::CallerID::CRAWLER_RESET_POSITION:
-      case List::QueryContextEnterList::CallerID::CRAWLER_RESUME_FROM_POSITION:
+      case List::QueryContextEnterList::CallerID::CRAWLER_FIRST_ENTRY:
       case List::QueryContextEnterList::CallerID::CRAWLER_DESCEND:
       case List::QueryContextEnterList::CallerID::CRAWLER_ASCEND:
         BUG("Wrong caller ID in %s()", __PRETTY_FUNCTION__);
@@ -149,7 +144,7 @@ void ViewFileBrowser::View::handle_enter_list_event_update_after_finish(
 {
     if(result == List::AsyncListIface::OpResult::SUCCEEDED)
     {
-        item_flags_.list_content_changed();
+        item_filter_.list_content_changed();
 
         const unsigned int lines = navigation_.get_total_number_of_visible_items();
         unsigned int line = ctx->parameters_.line_;
@@ -207,9 +202,8 @@ void ViewFileBrowser::View::handle_enter_list_event_update_after_finish(
           case List::QueryContextEnterList::CallerID::ENTER_CHILD:
           case List::QueryContextEnterList::CallerID::ENTER_PARENT:
           case List::QueryContextEnterList::CallerID::RELOAD_LIST:
-          case List::QueryContextEnterList::CallerID::CRAWLER_RESTART:
           case List::QueryContextEnterList::CallerID::CRAWLER_RESET_POSITION:
-          case List::QueryContextEnterList::CallerID::CRAWLER_RESUME_FROM_POSITION:
+          case List::QueryContextEnterList::CallerID::CRAWLER_FIRST_ENTRY:
           case List::QueryContextEnterList::CallerID::CRAWLER_DESCEND:
           case List::QueryContextEnterList::CallerID::CRAWLER_ASCEND:
             log_assert(!async_calls_.context_jump_.is_jumping_to_context());
@@ -235,9 +229,8 @@ void ViewFileBrowser::View::handle_enter_list_event_update_after_finish(
             point_to_root_directory();
             break;
 
-          case List::QueryContextEnterList::CallerID::CRAWLER_RESTART:
           case List::QueryContextEnterList::CallerID::CRAWLER_RESET_POSITION:
-          case List::QueryContextEnterList::CallerID::CRAWLER_RESUME_FROM_POSITION:
+          case List::QueryContextEnterList::CallerID::CRAWLER_FIRST_ENTRY:
           case List::QueryContextEnterList::CallerID::CRAWLER_DESCEND:
           case List::QueryContextEnterList::CallerID::CRAWLER_ASCEND:
             BUG("Wrong caller ID in %s()", __PRETTY_FUNCTION__);
@@ -252,32 +245,34 @@ void ViewFileBrowser::View::handle_enter_list_event_update_after_finish(
     }
 }
 
-void ViewFileBrowser::View::handle_get_item_event(List::AsyncListIface::OpResult result,
-                                                  const std::shared_ptr<List::QueryContextGetItem> &ctx)
+void ViewFileBrowser::View::serialized_item_state_changed(
+        const DBusRNF::GetRangeCallBase &call,
+        DBusRNF::CallState state, bool is_for_debug)
 {
-    switch(result)
+    switch(state)
     {
-      case List::AsyncListIface::OpResult::STARTED:
-      case List::AsyncListIface::OpResult::CANCELED:
+      case DBusRNF::CallState::INITIALIZED:
+      case DBusRNF::CallState::WAIT_FOR_NOTIFICATION:
+      case DBusRNF::CallState::READY_TO_FETCH:
+      case DBusRNF::CallState::RESULT_FETCHED:
+      case DBusRNF::CallState::ABORTING:
+      case DBusRNF::CallState::ABORTED_BY_LIST_BROKER:
         return;
 
-      case List::AsyncListIface::OpResult::FAILED:
+      case DBusRNF::CallState::FAILED:
         if(current_list_id_.is_valid())
             list_invalidate(current_list_id_, ID::List());
 
         break;
 
-      case List::AsyncListIface::OpResult::SUCCEEDED:
-        switch(ctx->get_caller_id())
+      case DBusRNF::CallState::ABOUT_TO_DESTROY:
         {
-          case List::QueryContextGetItem::CallerID::SERIALIZE:
-          case List::QueryContextGetItem::CallerID::SERIALIZE_DEBUG:
-            view_manager_->serialize_view_if_active(this, DCP::Queue::Mode::FORCE_ASYNC);
-            break;
-
-          case List::QueryContextGetItem::CallerID::CRAWLER_FIND_MARKED:
-          case List::QueryContextGetItem::CallerID::CRAWLER_FIND_NEXT:
-            break;
+            auto *fn_object = new std::function<void()>(
+                [this]
+                {
+                    view_manager_->serialize_view_if_active(this, DCP::Queue::Mode::FORCE_ASYNC);
+                });
+            MainContext::deferred_call(fn_object, false);
         }
 
         break;
@@ -302,10 +297,6 @@ bool ViewFileBrowser::View::init()
               case List::AsyncListIface::OpEvent::ENTER_LIST:
                 handle_enter_list_event(result, std::static_pointer_cast<List::QueryContextEnterList>(ctx));
                 return;
-
-              case List::AsyncListIface::OpEvent::GET_ITEM:
-                handle_get_item_event(result, std::static_pointer_cast<List::QueryContextGetItem>(ctx));
-                return;
             }
 
             BUG("Asynchronous event %u not handled", static_cast<unsigned int>(event));
@@ -313,7 +304,9 @@ bool ViewFileBrowser::View::init()
 
     (void)point_to_root_directory();
 
-    return crawler_.init();
+    crawler_.init_dbus_list_watcher();
+
+    return true;
 }
 
 static std::chrono::milliseconds
@@ -495,13 +488,11 @@ bool ViewFileBrowser::View::sync_with_list_broker(bool is_first_call)
 }
 
 static void handle_resume_request(std::unique_ptr<Player::Resumer> &resumer,
-                                  const Player::AudioSource &asrc,
-                                  Playlist::DirectoryCrawler &crawler)
+                                  const Player::AudioSource &asrc)
 {
     switch(asrc.get_state())
     {
       case Player::AudioSourceState::DESELECTED:
-        crawler.recover_state_from_url_abort(resumer->get_cookie());
         resumer = nullptr;
         break;
 
@@ -509,25 +500,10 @@ static void handle_resume_request(std::unique_ptr<Player::Resumer> &resumer,
         break;
 
       case Player::AudioSourceState::SELECTED:
-        switch(resumer->get_state())
-        {
-          case Player::Resumer::RequestState::INITIALIZED:
-            break;
-
-          case Player::Resumer::RequestState::WAITING_FOR_AUDIO_SOURCE:
+        if(resumer == nullptr)
+            BUG("Have no resumer object");
+        else
             resumer->audio_source_available_notification();
-
-            /* fall-through */
-
-          case Player::Resumer::RequestState::HAVE_AUDIO_SOURCE:
-            if(!resumer->set_cookie(crawler.recover_state_from_url_request(resumer->get_url())))
-                resumer = nullptr;
-
-            break;
-
-          case Player::Resumer::RequestState::WAITING_FOR_LIST_BROKER:
-            break;
-        }
 
         break;
     }
@@ -539,7 +515,7 @@ void ViewFileBrowser::View::focus()
         (void)point_to_root_directory();
 
     if(resumer_ != nullptr)
-        handle_resume_request(resumer_, get_audio_source(), crawler_);
+        handle_resume_request(resumer_, get_audio_source());
 }
 
 static inline void stop_waiting_for_search_parameters(ViewIface &view)
@@ -553,10 +529,7 @@ void ViewFileBrowser::View::defocus()
     stop_waiting_for_search_parameters(*search_parameters_view_);
 
     if(resumer_ != nullptr)
-    {
-        crawler_.recover_state_from_url_abort(resumer_->get_cookie());
         resumer_ = nullptr;
-    }
 }
 
 static bool request_search_parameters_from_user(ViewManager::VMIface &vm,
@@ -642,13 +615,14 @@ bool ViewFileBrowser::View::is_fetching_directory()
 {
     auto lock(lock_async_calls());
 
-    return async_calls_.get_list_id_ != nullptr;
+    return async_calls_.get_get_list_id() != nullptr;
 }
 
 bool ViewFileBrowser::View::point_to_item(const ViewIface &view,
                                           const SearchParameters &search_parameters)
 {
     List::DBusList search_list(std::move(std::string(name_) + " search"),
+                               file_list_.get_cookie_manager(),
                                DBus::get_lists_navigation_iface(listbroker_id_),
                                list_contexts_, 1, construct_file_item);
 
@@ -909,59 +883,138 @@ static ViewIface::InputResult move_up_multi(List::Nav &navigation,
     return moved ? ViewIface::InputResult::UPDATE_NEEDED : ViewIface::InputResult::OK;
 }
 
-void ViewFileBrowser::View::try_resume_from_arguments(ID::List ref_list_id,
-                                                      unsigned int ref_line,
-                                                      ID::List list_id,
-                                                      unsigned int current_line,
-                                                      unsigned int directory_depth,
-                                                      const I18n::String &list_title)
+std::string ViewFileBrowser::View::generate_resume_url(const Player::AudioSource &asrc) const
 {
-    Playlist::DirectoryCrawler::MarkedPosition start_pos(
-        ref_list_id.is_valid() ? ref_list_id : list_id,
-        ref_list_id.is_valid() ? ref_line    : current_line);
+    const auto &rd(asrc.get_resume_data().crawler_data_);
+    std::string result;
 
-    auto crawler_lock(crawler_.lock());
+    if(!rd.is_set())
+        return result;
 
-    if(!crawler_.set_start_position(std::move(start_pos),
-                                    Playlist::DirectoryCrawler::MarkedPosition(
-                                        list_id, current_line, directory_depth,
-                                        Playlist::DirectoryCrawler::Direction::FORWARD)))
-        return;
+    const auto d(rd.get());
 
-    if(!crawler_.configure_and_resume(default_recursive_mode_,
-                                      default_shuffle_mode_, true,
-                                      I18n::String(list_title)))
-        return;
+    const char *what;
+    ListError list_error;
 
-    static_cast<ViewPlay::View *>(play_view_)->prepare_for_playing(
-                    get_audio_source(), crawler_,
-                    ViewPlay::PlayMode::RESUME, get_local_permissions());
+    if(d.current_list_id_ == d.reference_list_id_)
+    {
+        what = "key";
 
-    if(crawler_.is_attached_to_player())
-        view_manager_->sync_activate_view_by_name(ViewNames::PLAYER, true);
+        guchar raw_error_code;
+        gchar *location_url = nullptr;
+        GErrorWrapper error;
+
+        tdbus_lists_navigation_call_get_location_key_sync(
+            file_list_.get_dbus_proxy(), d.current_list_id_.get_raw_id(),
+            d.current_line_ + 1, TRUE, &raw_error_code, &location_url,
+            nullptr, error.await());
+
+        if(error.log_failure("Get location key"))
+            list_error = ListError::INTERNAL;
+        else
+            list_error = ListError(raw_error_code);
+
+        if(!list_error.failed())
+            result = location_url;
+
+        if(location_url != nullptr)
+            g_free(location_url);
+    }
+    else
+    {
+        what = "trace";
+
+        try
+        {
+            DBusRNF::GetLocationTraceCall call(
+                file_list_.get_cookie_manager(), file_list_.get_dbus_proxy(),
+                d.current_list_id_, d.current_line_ + 1,
+                d.reference_list_id_, d.reference_line_ + 1, nullptr, nullptr);
+
+            call.request();
+            call.fetch_blocking();
+            auto r(call.get_result_locked());
+            list_error = std::get<0>(r);
+            result = std::move(std::get<1>(r));
+        }
+        catch(const List::DBusListException &e)
+        {
+            list_error = e.get();
+        }
+        catch(...)
+        {
+            list_error = ListError::INTERNAL;
+        }
+    }
+
+    if(list_error.failed())
+        msg_error(0, LOG_ERR,
+                  "Failed getting location %s for audio source %s (%s)",
+                  what, asrc.id_.c_str(), list_error.to_string());
+    else if(result.empty())
+        msg_error(0, LOG_ERR,
+                  "Location %s for audio source %s is empty",
+                  what, asrc.id_.c_str());
+
+    return result;
 }
 
-static void try_resume_from_file_begin(ViewManager::VMIface &view_manager,
-                                       const Player::AudioSource &asrc,
-                                       std::unique_ptr<Player::Resumer> &resumer,
-                                       Playlist::DirectoryCrawler &crawler)
+void ViewFileBrowser::View::try_resume_from_arguments(
+        std::string &&debug_description,
+        Playlist::Crawler::Handle crawler_handle,
+        ID::List ref_list_id, unsigned int ref_line,
+        ID::List list_id, unsigned int current_line,
+        unsigned int directory_depth, I18n::String &&list_title)
 {
-    resumer.reset(new Player::Resumer());
+    auto ref_point =
+        std::make_shared<Playlist::Crawler::DirectoryCrawler::Cursor>(
+            crawler_.mk_cursor(ref_list_id.is_valid() ? ref_list_id : list_id,
+                               ref_list_id.is_valid() ? ref_line    : current_line,
+                               0));
+    auto start_pos =
+        std::make_unique<Playlist::Crawler::DirectoryCrawler::Cursor>(
+            crawler_.mk_cursor(list_id, current_line, directory_depth));
+    auto find_op =
+        crawler_.mk_op_find_next(
+            std::move(debug_description),
+            crawler_defaults_.recursive_mode_, crawler_defaults_.direction_,
+            std::move(start_pos), std::move(list_title));
+
+    static_cast<ViewPlay::View *>(play_view_)->prepare_for_playing(
+        get_audio_source(),
+        [this, &crawler_handle, &ref_point] () -> Playlist::Crawler::Handle
+        {
+            if(crawler_handle == nullptr)
+                return crawler_.activate(
+                        std::move(ref_point),
+                        std::make_unique<Playlist::Crawler::DefaultSettings>(crawler_defaults_));
+
+            crawler_handle->set_reference_point(std::move(ref_point));
+            return std::move(crawler_handle);
+        },
+        std::move(find_op), get_local_permissions());
+}
+
+std::unique_ptr<Player::Resumer>
+ViewFileBrowser::View::try_resume_from_file_begin(const Player::AudioSource &asrc)
+{
+    auto url(std::move(view_manager_->move_resume_url_by_audio_source_id(asrc.id_)));
+
+    if(url.empty())
+        return nullptr;
+
+    auto resumer = std::make_unique<Player::Resumer>(
+        std::move(url),
+        file_list_.get_cookie_manager(), file_list_.get_dbus_proxy(),
+        crawler_.activate_without_reference_point(
+            std::make_unique<Playlist::Crawler::DefaultSettings>(crawler_defaults_)),
+        event_sink_);
 
     if(resumer == nullptr)
-    {
         msg_out_of_memory("resumer state machine");
-        return;
-    }
 
-    if(!resumer->set_url(std::move(view_manager.move_resume_url_by_audio_source_id(asrc.id_))))
-    {
-        resumer = nullptr;
-        return;
-    }
-
-    auto crawler_lock(crawler.lock());
-    handle_resume_request(resumer, asrc, crawler);
+    handle_resume_request(resumer, asrc);
+    return resumer;
 }
 
 void ViewFileBrowser::View::resume_request()
@@ -974,17 +1027,47 @@ void ViewFileBrowser::View::resume_request()
     if(asrc.get_resume_data().crawler_data_.is_set())
     {
         const auto &rd(asrc.get_resume_data().crawler_data_.get());
-        try_resume_from_arguments(rd.reference_list_id_, rd.reference_line_,
+        try_resume_from_arguments("Find item for resuming from stored data",
+                                  nullptr,
+                                  rd.reference_list_id_, rd.reference_line_,
                                   rd.current_list_id_, rd.current_line_,
-                                  rd.directory_depth_, rd.list_title_);
+                                  rd.directory_depth_,
+                                  I18n::String(rd.list_title_));
     }
     else
-        try_resume_from_file_begin(*view_manager_, asrc, resumer_, crawler_);
+        resumer_ = try_resume_from_file_begin(asrc);
+}
+
+static void initiate_playback_from_selected_position(
+        ViewPlay::View &play_view, Player::AudioSource &audio_source,
+        const Player::LocalPermissionsIface &permissions,
+        Playlist::Crawler::DirectoryCrawler &crawler,
+        const Playlist::Crawler::DefaultSettings &settings,
+        ID::List list_id, unsigned int line)
+{
+    using Cursor = Playlist::Crawler::DirectoryCrawler::Cursor;
+
+    auto find_op =
+        crawler.mk_op_find_next(
+            "Find first item for direct playback",
+            settings.recursive_mode_, Playlist::Crawler::Direction::FORWARD,
+            std::make_unique<Cursor>(crawler.mk_cursor(list_id, line, 0)),
+            I18n::String(false));
+
+    play_view.prepare_for_playing(
+        audio_source,
+        [&crawler, &settings, list_id, line] ()
+        {
+            return crawler.activate(
+                std::make_shared<Cursor>(crawler.mk_cursor(list_id, line, 0)),
+                std::make_unique<Playlist::Crawler::DefaultSettings>(settings));
+        },
+        std::move(find_op), permissions);
 }
 
 ViewIface::InputResult
 ViewFileBrowser::View::process_event(UI::ViewEventID event_id,
-                                     std::unique_ptr<const UI::Parameters> parameters)
+                                     std::unique_ptr<UI::Parameters> parameters)
 {
     WaitForParametersHelper wait_helper(
         waiting_for_search_parameters_,
@@ -1119,14 +1202,15 @@ ViewFileBrowser::View::process_event(UI::ViewEventID event_id,
                 return InputResult::OK;
             }
 
-            if(have_audio_source() &&
-               crawler_.set_start_position(file_list_, navigation_.get_line_number_by_cursor()) &&
-               crawler_.configure_and_restart(default_recursive_mode_, default_shuffle_mode_))
-                static_cast<ViewPlay::View *>(play_view_)->prepare_for_playing(
-                        get_audio_source(), crawler_,
-                        ViewPlay::PlayMode::FRESH_START, permissions);
+            if(have_audio_source())
+                initiate_playback_from_selected_position(
+                    *static_cast<ViewPlay::View *>(play_view_),
+                    get_audio_source(), permissions,
+                    crawler_, crawler_defaults_,
+                    file_list_.get_list_id(),
+                    navigation_.get_line_number_by_cursor());
 
-            if(crawler_.is_attached_to_player())
+            if(crawler_.is_active())
                 view_manager_->sync_activate_view_by_name(ViewNames::PLAYER, true);
         }
 
@@ -1142,11 +1226,43 @@ ViewFileBrowser::View::process_event(UI::ViewEventID event_id,
                 return InputResult::OK;
             }
 
-            if(crawler_.get_active_direction() != Playlist::CrawlerIface::Direction::NONE)
-                return InputResult::OK;
-
             if(have_audio_source())
                 resume_request();
+        }
+
+        break;
+
+      case UI::ViewEventID::STRBO_URL_RESOLVED:
+        {
+            auto res = std::move(resumer_);
+            if(res == nullptr)
+                break;
+
+            try
+            {
+                auto loc(res->get());
+
+                if(loc.error_.failed())
+                {
+                    msg_error(0, LOG_NOTICE,
+                              "Failed resolving URL \"%s\" for resuming playback (%s)",
+                              res->get_url().c_str(), loc.error_.to_string());
+                    break;
+                }
+
+                if(have_audio_source())
+                    try_resume_from_arguments("Find item for resuming by StrBo URL",
+                                              std::move(res->get_crawler_handle()),
+                                              loc.ref_list_id_, loc.ref_item_index_,
+                                              loc.list_id_, loc.item_index_,
+                                              loc.trace_length_, std::move(loc.title_));
+            }
+            catch(...)
+            {
+                msg_error(0, LOG_NOTICE,
+                          "Got exception while resolving URL \"%s\"",
+                          res->get_url().c_str());
+            }
         }
 
         break;
@@ -1217,66 +1333,12 @@ ViewFileBrowser::View::process_event(UI::ViewEventID event_id,
 }
 
 void ViewFileBrowser::View::process_broadcast(UI::BroadcastEventID event_id,
-                                              const UI::Parameters *parameters)
+                                              UI::Parameters *parameters)
 {
     switch(event_id)
     {
       case UI::BroadcastEventID::NOP:
       case UI::BroadcastEventID::CONFIGURATION_UPDATED:
-        break;
-
-      case UI::BroadcastEventID::STRBO_URL_RESOLVED:
-        {
-            const auto params =
-                UI::Events::downcast<UI::BroadcastEventID::STRBO_URL_RESOLVED>(parameters);
-
-            if(params == nullptr)
-                break;
-
-            const auto &plist = params->get_specific();
-
-            /* not active */
-            if(resumer_ == nullptr)
-                break;
-
-            /* not interested */
-            if(resumer_->get_cookie() != std::get<0>(plist))
-                break;
-
-            /* handle it... */
-            auto res = std::move(resumer_);
-
-            switch(res->get_state())
-            {
-              case Player::Resumer::RequestState::INITIALIZED:
-              case Player::Resumer::RequestState::WAITING_FOR_AUDIO_SOURCE:
-              case Player::Resumer::RequestState::HAVE_AUDIO_SOURCE:
-                res = nullptr;
-                break;
-
-              case Player::Resumer::RequestState::WAITING_FOR_LIST_BROKER:
-                break;
-            }
-
-            /* wrong state */
-            if(res == nullptr)
-                break;
-
-            /* failed */
-            if(std::get<1>(plist).failed())
-            {
-                msg_error(0, LOG_NOTICE,
-                          "Failed resolving URL \"%s\" for resuming playback (%s)",
-                          res->get_url().c_str(), std::get<1>(plist).to_string());
-                break;
-            }
-
-            if(have_audio_source())
-                try_resume_from_arguments(std::get<4>(plist), std::get<5>(plist),
-                                          std::get<2>(plist), std::get<3>(plist),
-                                          std::get<6>(plist), std::get<8>(plist));
-        }
-
         break;
     }
 }
@@ -1323,10 +1385,17 @@ bool ViewFileBrowser::View::write_xml(std::ostream &os, uint32_t bits,
         return true;
     }
 
-    switch(file_list_.get_item_async_set_hint(*(navigation_.begin()),
-                                              std::min(navigation_.get_total_number_of_visible_items(),
-                                                       navigation_.maximum_number_of_displayed_lines_),
-                                              List::QueryContextGetItem::CallerID::SERIALIZE))
+    switch(file_list_.get_item_async_set_hint(
+                *(navigation_.begin()),
+                std::min(navigation_.get_total_number_of_visible_items(),
+                         navigation_.maximum_number_of_displayed_lines_),
+                [this] (const auto &call, auto state, bool is_detached)
+                {
+                    serialized_item_state_changed(
+                        static_cast<const DBusRNF::GetRangeCallBase &>(call),
+                        state, false);
+                },
+                nullptr))
     {
       case List::AsyncListIface::OpResult::STARTED:
       case List::AsyncListIface::OpResult::SUCCEEDED:
@@ -1464,10 +1533,17 @@ void ViewFileBrowser::View::serialize(DCP::Queue &queue, DCP::Queue::Mode mode,
         return;
     }
 
-    switch(file_list_.get_item_async_set_hint(*(navigation_.begin()),
-                                              std::min(navigation_.get_total_number_of_visible_items(),
-                                                       navigation_.maximum_number_of_displayed_lines_),
-                                              List::QueryContextGetItem::CallerID::SERIALIZE_DEBUG))
+    switch(file_list_.get_item_async_set_hint(
+                *(navigation_.begin()),
+                std::min(navigation_.get_total_number_of_visible_items(),
+                         navigation_.maximum_number_of_displayed_lines_),
+                [this] (const auto &call, auto state, bool is_detached)
+                {
+                    serialized_item_state_changed(
+                        static_cast<const DBusRNF::GetRangeCallBase &>(call),
+                        state, true);
+                },
+                nullptr))
     {
       case List::AsyncListIface::OpResult::STARTED:
       case List::AsyncListIface::OpResult::SUCCEEDED:
@@ -1543,14 +1619,11 @@ bool ViewFileBrowser::View::list_invalidate(ID::List list_id, ID::List replaceme
 
     file_list_.list_invalidate(list_id, replacement_id);
 
-    if(crawler_.is_attached_to_player())
+    if(crawler_.list_invalidate(list_id, replacement_id) &&
+       have_audio_source())
     {
-        if(crawler_.list_invalidate(list_id, replacement_id) &&
-           have_audio_source())
-        {
-            auto *const pview = static_cast<ViewPlay::View *>(play_view_);
-            pview->stop_playing(get_audio_source());
-        }
+        auto *const pview = static_cast<ViewPlay::View *>(play_view_);
+        pview->stop_playing(get_audio_source());
     }
 
     if(have_lost_root_list)
@@ -1591,135 +1664,176 @@ bool ViewFileBrowser::View::list_invalidate(ID::List list_id, ID::List replaceme
     return false;
 }
 
+bool ViewFileBrowser::View::data_cookie_set_pending(
+        uint32_t cookie,
+        DBusRNF::CookieManagerIface::NotifyByCookieFn &&notify,
+        DBusRNF::CookieManagerIface::FetchByCookieFn &&fetch)
+{
+    if(pending_cookies_.add(cookie, std::move(notify), std::move(fetch)))
+        return true;
+
+    BUG("Duplicate cookie %u", cookie);
+    return false;
+}
+
+bool ViewFileBrowser::View::data_cookie_abort(uint32_t cookie)
+{
+    GVariantBuilder b;
+    g_variant_builder_init(&b, reinterpret_cast<const GVariantType *>("a(ub)"));
+    g_variant_builder_add(&b, "(ub)", cookie, FALSE);
+
+    GErrorWrapper error;
+    tdbus_lists_navigation_call_data_abort_sync(
+        file_list_.get_dbus_proxy(), g_variant_builder_end(&b),
+        nullptr, error.await());
+
+    return !error.log_failure("Abort data cookie");
+}
+
+void ViewFileBrowser::View::data_cookies_available_announcement(
+        const std::vector<uint32_t> &cookies)
+{
+    for(const uint32_t c : cookies)
+        pending_cookies_.available(c);
+}
+
+void ViewFileBrowser::View::data_cookies_error_announcement(
+        const std::vector<std::pair<uint32_t, ListError>> &cookies)
+{
+    for(const auto &ce : cookies)
+        pending_cookies_.available(ce.first, ce.second);
+}
+
+bool ViewFileBrowser::View::data_cookies_available(std::vector<uint32_t> &&cookies)
+{
+    if(cookies.empty())
+        return false;
+
+    for(const uint32_t c : cookies)
+    {
+        try
+        {
+            pending_cookies_.finish(c);
+        }
+        catch(const std::exception &e)
+        {
+            BUG("Exception while finishing cookie %u: %s", c, e.what());
+        }
+    }
+
+    return true;
+}
+
+bool ViewFileBrowser::View::data_cookies_error(std::vector<std::pair<uint32_t, ListError>> &&cookies)
+{
+    if(cookies.empty())
+        return false;
+
+    for(const auto &ce : cookies)
+    {
+        try
+        {
+            pending_cookies_.finish(std::get<0>(ce), std::get<1>(ce));
+        }
+        catch(const std::exception &e)
+        {
+            BUG("Exception while finishing faulty cookie %u, error %u: %s",
+                std::get<0>(ce), std::get<1>(ce).get_raw_code(), e.what());
+        }
+    }
+
+    return true;
+}
+
 /*!
  * Chained from #ViewFileBrowser::View::point_to_root_directory().
  */
-static void point_to_root_directory__got_list_id(DBus::AsyncCall_ &async_call,
-                                                 ViewFileBrowser::View::AsyncCalls &calls,
-                                                 List::DBusList &file_list)
+static void point_to_root_directory__got_list_id(
+        DBusRNF::GetListIDCall &call, ViewFileBrowser::View::AsyncCalls &calls,
+        List::DBusList &file_list)
 {
     auto lock(calls.acquire_lock());
 
-    if(&async_call != calls.get_list_id_.get())
+    if(&call != calls.get_get_list_id().get())
         return;
-
-    DBus::AsyncResult async_result;
 
     try
     {
-        async_result = calls.get_list_id_->wait_for_result();
+        auto result(calls.get_get_list_id()->get_result_unlocked());
+
+        if(result.error_ != ListError::Code::OK)
+            msg_error(0, LOG_NOTICE,
+                      "Got error for root list ID, error code %s",
+                      result.error_.to_string());
+        else if(!result.list_id_.is_valid())
+            BUG("Got invalid list ID for root list, but no error code");
+        else
+            file_list.enter_list_async(result.list_id_, 0,
+                                       List::QueryContextEnterList::CallerID::ENTER_ROOT,
+                                       std::move(result.title_));
+
+        calls.delete_get_list_id();
     }
     catch(const List::DBusListException &e)
     {
-        async_result = DBus::AsyncResult::FAILED;
+        msg_error(0, LOG_ERR,
+                  "Failed obtaining ID for root list: %s error: %s",
+                  e.get_internal_detail_string_or_fallback("async call"),
+                  e.what());
+    }
+    catch(const std::exception &e)
+    {
         msg_error(0, LOG_ERR, "Failed obtaining ID for root list: %s", e.what());
     }
-
-    if(!calls.get_list_id_->success() ||
-       async_result != DBus::AsyncResult::DONE)
+    catch(...)
     {
-        calls.get_list_id_.reset();
-        return;
+        msg_error(0, LOG_ERR, "Failed obtaining ID for root list");
     }
-
-    const auto &result(calls.get_list_id_->get_result(async_result));
-
-    const ListError error(std::get<0>(result));
-    const ID::List id(std::get<1>(result));
-    gchar *const title(std::get<2>(result));
-    const gboolean title_translatable(std::get<3>(result));
-
-    if(error != ListError::Code::OK)
-    {
-        msg_error(0, LOG_NOTICE,
-                  "Got error for root list ID, error code %s", error.to_string());
-        goto error_exit;
-    }
-
-    if(!id.is_valid())
-    {
-        BUG("Got invalid list ID for root list, but no error code");
-        goto error_exit;
-    }
-
-    file_list.enter_list_async(id, 0, List::QueryContextEnterList::CallerID::ENTER_ROOT,
-                               std::move(I18n::String(title_translatable,
-                                                      title != nullptr ? title : "")));
-
-    g_free(title);
-
-    return;
-
-error_exit:
-    calls.get_list_id_.reset();
-    g_free(title);
-}
-
-static std::shared_ptr<ViewFileBrowser::View::AsyncCalls::GetListId>
-mk_get_list_id(tdbuslistsNavigation *proxy,
-               DBus::AsyncResultAvailableFunction &&result_available_fn,
-               const SearchParameters *search_parameters = nullptr)
-{
-    const bool is_simple_get_list = (search_parameters == nullptr);
-
-    return std::make_shared<ViewFileBrowser::View::AsyncCalls::GetListId>(
-        proxy,
-        [] (GObject *source_object) { return TDBUS_LISTS_NAVIGATION(source_object); },
-        [is_simple_get_list]
-            (DBus::AsyncResult &async_ready,
-             ViewFileBrowser::View::AsyncCalls::GetListId::PromiseType &promise,
-             tdbuslistsNavigation *p, GAsyncResult *async_result,
-             GErrorWrapper &error)
-        {
-            guchar error_code;
-            guint child_list_id;
-            gchar *child_list_title;
-            gboolean child_list_title_translatable;
-
-            async_ready =
-                (is_simple_get_list
-                 ? tdbus_lists_navigation_call_get_list_id_finish(
-                        p, &error_code, &child_list_id, &child_list_title,
-                        &child_list_title_translatable,
-                        async_result, error.await())
-                 : tdbus_lists_navigation_call_get_parameterized_list_id_finish(
-                        p, &error_code, &child_list_id, &child_list_title,
-                        &child_list_title_translatable,
-                        async_result, error.await()))
-                ? DBus::AsyncResult::READY
-                : DBus::AsyncResult::FAILED;
-
-            if(async_ready == DBus::AsyncResult::FAILED)
-                throw List::DBusListException(error);
-
-            promise.set_value(std::make_tuple(error_code, child_list_id, child_list_title,
-                                              child_list_title_translatable));
-        },
-        std::move(result_available_fn),
-        [] (ViewFileBrowser::View::AsyncCalls::GetListId::PromiseReturnType &values) {},
-        [] () { return true; },
-        "AsyncCalls::GetListId", MESSAGE_LEVEL_DEBUG);
 }
 
 bool ViewFileBrowser::View::do_point_to_real_root_directory()
 {
-    async_calls_.get_list_id_ =
-        mk_get_list_id(file_list_.get_dbus_proxy(),
-            [this] (DBus::AsyncCall_ &async_call)
+    auto chain_call =
+        std::make_unique<DBusRNF::Chain<DBusRNF::GetListIDCall>>(
+            [this] (auto &call, DBusRNF::CallState)
             {
-                point_to_root_directory__got_list_id(async_call, async_calls_,
+                point_to_root_directory__got_list_id(call, async_calls_,
                                                      file_list_);
             });
 
-    if(async_calls_.get_list_id_ == nullptr)
+    auto call(async_calls_.set_call(std::make_shared<DBusRNF::GetListIDCall>(
+        file_list_.get_cookie_manager(), file_list_.get_dbus_proxy(),
+        ID::List(), 0, std::move(chain_call), nullptr)));
+
+    if(call == nullptr)
     {
         msg_out_of_memory("async go to root");
         return false;
     }
 
-    async_calls_.get_list_id_->invoke(tdbus_lists_navigation_call_get_list_id, 0, 0);
+    switch(call->request())
+    {
+      case DBusRNF::CallState::WAIT_FOR_NOTIFICATION:
+      case DBusRNF::CallState::RESULT_FETCHED:
+        return true;
 
-    return true;
+      case DBusRNF::CallState::ABORTING:
+        break;
+
+      case DBusRNF::CallState::INITIALIZED:
+      case DBusRNF::CallState::READY_TO_FETCH:
+      case DBusRNF::CallState::ABOUT_TO_DESTROY:
+        BUG("GetListIDCall for root ended up in unexpected state");
+        async_calls_.delete_get_list_id();
+        break;
+
+      case DBusRNF::CallState::ABORTED_BY_LIST_BROKER:
+      case DBusRNF::CallState::FAILED:
+        async_calls_.delete_get_list_id();
+        break;
+    }
+
+    return false;
 }
 
 /*!
@@ -1969,80 +2083,71 @@ static bool sink_point_to_child_error(ListError::Code error,
 /*!
  * Chained from #ViewFileBrowser::View::point_to_child_directory().
  */
-static void point_to_child_directory__got_list_id(DBus::AsyncCall_ &async_call,
-                                                  ViewFileBrowser::View::AsyncCalls &calls,
-                                                  List::DBusList &file_list,
-                                                  ID::List list_id, unsigned int line,
-                                                  const std::string &child_name,
-                                                  const List::ContextMap &list_contexts)
+static void point_to_child_directory__got_list_id(
+        DBusRNF::GetListIDCallBase &call, ViewFileBrowser::View::AsyncCalls &calls,
+        List::DBusList &file_list, const std::string &child_name,
+        const List::ContextMap &list_contexts)
 {
     auto lock(calls.acquire_lock());
 
-    if(&async_call != calls.get_list_id_.get())
+    if(&call != calls.get_get_list_id().get())
         return;
-
-    DBus::AsyncResult async_result;
 
     try
     {
-        async_result = calls.get_list_id_->wait_for_result();
+        auto result(call.get_result_unlocked());
+
+        if(!sink_point_to_child_error(result.error_.get(), child_name,
+                                      calls.context_jump_, list_contexts))
+        {
+            if(!result.list_id_.is_valid())
+                BUG("Got invalid list ID for child list, but no error code");
+            else
+            {
+                List::QueryContextEnterList::CallerID caller_id;
+
+                if(calls.context_jump_.is_jumping_to_context())
+                {
+                    calls.context_jump_.put_context_list_id(result.list_id_);
+                    caller_id =
+                        List::QueryContextEnterList::CallerID::ENTER_CONTEXT_ROOT;
+                }
+                else
+                    caller_id = List::QueryContextEnterList::CallerID::ENTER_CHILD;
+
+                file_list.enter_list_async(result.list_id_, 0, caller_id,
+                                           std::move(result.title_));
+            }
+        }
     }
     catch(const List::DBusListException &e)
     {
-        async_result = DBus::AsyncResult::FAILED;
-        msg_error(0, LOG_ERR, "Failed obtaining ID for item %u in list %u: %s",
-                  line, list_id.get_raw_id(), e.what());
+        msg_error(0, LOG_ERR,
+                  "Failed obtaining ID for item %u in list %u: error %s: %s",
+                  call.item_index_, call.list_id_.get_raw_id(),
+                  e.get_internal_detail_string_or_fallback("async call"),
+                  e.what());
         sink_point_to_child_error(e.get(), child_name,
                                   calls.context_jump_, list_contexts);
     }
-
-    if(!calls.get_list_id_->success() ||
-       async_result != DBus::AsyncResult::DONE)
+    catch(const std::exception &e)
     {
-        calls.get_list_id_.reset();
-        calls.context_jump_.cancel();
-        return;
+        msg_error(0, LOG_ERR,
+                  "Failed obtaining ID for item %u in list %u: %s",
+                  call.item_index_, call.list_id_.get_raw_id(), e.what());
+        sink_point_to_child_error(ListError::INTERNAL, child_name,
+                                  calls.context_jump_, list_contexts);
+    }
+    catch(...)
+    {
+        msg_error(0, LOG_ERR,
+                  "Failed obtaining ID for item %u in list %u",
+                  call.item_index_, call.list_id_.get_raw_id());
+        sink_point_to_child_error(ListError::INTERNAL, child_name,
+                                  calls.context_jump_, list_contexts);
     }
 
-    const auto &result(calls.get_list_id_->get_result(async_result));
-
-    const ListError error(std::get<0>(result));
-    const ID::List id(std::get<1>(result));
-    gchar *const title(std::get<2>(result));
-    const gboolean title_translatable(std::get<3>(result));
-
-    if(sink_point_to_child_error(error.get(), child_name,
-                                 calls.context_jump_, list_contexts))
-        goto error_exit;
-
-    if(!id.is_valid())
-    {
-        BUG("Got invalid list ID for child list, but no error code");
-        goto error_exit;
-    }
-
-    List::QueryContextEnterList::CallerID caller_id;
-
-    if(calls.context_jump_.is_jumping_to_context())
-    {
-        calls.context_jump_.put_context_list_id(id);
-        caller_id = List::QueryContextEnterList::CallerID::ENTER_CONTEXT_ROOT;
-    }
-    else
-        caller_id = List::QueryContextEnterList::CallerID::ENTER_CHILD;
-
-    file_list.enter_list_async(id, 0, caller_id,
-                               std::move(I18n::String(title_translatable,
-                                                      title != nullptr ? title : "")));
-
-    g_free(title);
-
-    return;
-
-error_exit:
-    calls.get_list_id_.reset();
-    calls.context_jump_.cancel();
-    g_free(title);
+    calls.delete_get_list_id();
 }
 
 static std::string get_child_name(List::DBusList &file_list, unsigned int line)
@@ -2082,35 +2187,55 @@ bool ViewFileBrowser::View::point_to_child_directory(const SearchParameters *sea
 
     cancel_and_delete_all_async_calls();
 
-    async_calls_.get_list_id_ =
-        mk_get_list_id(file_list_.get_dbus_proxy(),
-            [this] (DBus::AsyncCall_ &async_call)
+    auto chain_call =
+        std::make_unique<DBusRNF::Chain<DBusRNF::GetListIDCallBase>>(
+            [this] (auto &call, DBusRNF::CallState)
             {
-                point_to_child_directory__got_list_id(async_call,
-                                                      async_calls_, file_list_,
-                                                      current_list_id_,
-                                                      navigation_.get_cursor(),
-                                                      get_child_name(file_list_,
-                                                                     navigation_.get_cursor()),
-                                                      list_contexts_);
-            },
-            search_parameters);
+                point_to_child_directory__got_list_id(
+                    call, async_calls_, file_list_,
+                    get_child_name(file_list_, call.item_index_),
+                    list_contexts_);
+            });
 
-    if(async_calls_.get_list_id_ == nullptr)
+    auto call(search_parameters == nullptr
+        ? async_calls_.set_call(std::make_shared<DBusRNF::GetListIDCall>(
+            file_list_.get_cookie_manager(), file_list_.get_dbus_proxy(),
+            current_list_id_, navigation_.get_cursor(),
+            std::move(chain_call), nullptr))
+        : async_calls_.set_call(std::make_shared<DBusRNF::GetParameterizedListIDCall>(
+            file_list_.get_cookie_manager(), file_list_.get_dbus_proxy(),
+            current_list_id_, navigation_.get_cursor(),
+            std::string(search_parameters->get_query()),
+            std::move(chain_call), nullptr)));
+
+    if(call == nullptr)
     {
         msg_out_of_memory("async go to child");
         return false;
     }
 
-    if(search_parameters == nullptr)
-        async_calls_.get_list_id_->invoke(tdbus_lists_navigation_call_get_list_id,
-                                          current_list_id_.get_raw_id(),
-                                          navigation_.get_cursor());
-    else
-        async_calls_.get_list_id_->invoke(tdbus_lists_navigation_call_get_parameterized_list_id,
-                                          current_list_id_.get_raw_id(),
-                                          navigation_.get_cursor(),
-                                          search_parameters->get_query().c_str());
+    switch(call->request())
+    {
+      case DBusRNF::CallState::WAIT_FOR_NOTIFICATION:
+      case DBusRNF::CallState::RESULT_FETCHED:
+        return true;
+
+      case DBusRNF::CallState::ABORTING:
+        break;
+
+      case DBusRNF::CallState::INITIALIZED:
+      case DBusRNF::CallState::READY_TO_FETCH:
+      case DBusRNF::CallState::ABOUT_TO_DESTROY:
+        BUG("%s for child ended up in unexpected state",
+            search_parameters == nullptr ? "GetListIDCall" : "GetParameterizedListIDCall");
+        async_calls_.delete_get_list_id();
+        break;
+
+      case DBusRNF::CallState::ABORTED_BY_LIST_BROKER:
+      case DBusRNF::CallState::FAILED:
+        async_calls_.delete_get_list_id();
+        break;
+    }
 
     return true;
 }
@@ -2144,10 +2269,9 @@ bool ViewFileBrowser::View::point_to_any_location(ID::List list_id,
 /*!
  * Chained from #ViewFileBrowser::View::point_to_parent_link().
  */
-static void point_to_parent_link__got_parent_link(DBus::AsyncCall_ &async_call,
-                                                  ViewFileBrowser::View::AsyncCalls &calls,
-                                                  List::DBusList &file_list,
-                                                  ID::List child_list_id)
+static void point_to_parent_link__got_parent_link(
+        DBus::AsyncCall_ &async_call, ViewFileBrowser::View::AsyncCalls &calls,
+        List::DBusList &file_list, ID::List child_list_id)
 {
     auto lock(calls.acquire_lock());
 

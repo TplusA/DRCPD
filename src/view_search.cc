@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, 2017, 2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2017, 2019, 2020  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -53,7 +53,7 @@ static bool sanitize_search_parameters(const SearchParameters &params)
 
 ViewIface::InputResult
 ViewSearch::View::process_event(UI::ViewEventID event_id,
-                                std::unique_ptr<const UI::Parameters> parameters)
+                                std::unique_ptr<UI::Parameters> parameters)
 {
     if(event_id == UI::ViewEventID::SEARCH_STORE_PARAMETERS)
     {

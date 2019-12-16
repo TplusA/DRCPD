@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017, 2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2017, 2019, 2020  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -22,96 +22,94 @@
 #ifndef PLAYER_RESUMER_HH
 #define PLAYER_RESUMER_HH
 
-#include <string>
+#include "rnfcall_realize_location.hh"
+#include "playlist_crawler.hh"
 
-#include "messages.h"
+#include <string>
 
 namespace Player
 {
 
+/*!
+ * Synchronization of realizing a list location and audio source selection.
+ */
 class Resumer
 {
-  public:
-    enum class RequestState
-    {
-        INITIALIZED,
-        WAITING_FOR_AUDIO_SOURCE,
-        HAVE_AUDIO_SOURCE,
-        WAITING_FOR_LIST_BROKER,
-    };
-
   private:
-    RequestState state_;
-    std::string url_;
-    uint32_t cookie_;
+    DBusRNF::RealizeLocationCall call_;
+    bool is_audio_source_available_;
+    bool already_notified_;
+    Playlist::Crawler::Handle ch_;
+    UI::EventStoreIface &event_sink_;
 
   public:
     Resumer(const Resumer &) = delete;
     Resumer &operator=(const Resumer &) = delete;
 
-    explicit Resumer():
-        state_(RequestState::INITIALIZED),
-        cookie_(0)
-    {}
+    explicit Resumer(std::string &&location_key, DBusRNF::CookieManagerIface &cm,
+                     tdbuslistsNavigation *nav_proxy, Playlist::Crawler::Handle ch,
+                     UI::EventStoreIface &event_sink):
+        call_(cm, nav_proxy, std::move(location_key), nullptr,
+              [this] (const auto &, auto state, bool) { call_state_changed(state); }),
+        is_audio_source_available_(false),
+        already_notified_(false),
+        ch_(std::move(ch)),
+        event_sink_(event_sink)
+    {
+        Busy::set(Busy::Source::RESUMING_PLAYBACK);
+    }
 
     ~Resumer()
     {
-        switch(state_)
-        {
-          case RequestState::INITIALIZED:
-            break;
-
-          case RequestState::WAITING_FOR_AUDIO_SOURCE:
-          case RequestState::HAVE_AUDIO_SOURCE:
-          case RequestState::WAITING_FOR_LIST_BROKER:
-            Busy::clear(Busy::Source::RESUMING_PLAYBACK);
-            break;
-        }
+        call_.abort_request();
+        Busy::clear(Busy::Source::RESUMING_PLAYBACK);
     }
 
-    RequestState get_state() const { return state_; }
-
-    bool set_url(const char *url)
-    {
-        log_assert(state_ == RequestState::INITIALIZED);
-        return url != nullptr ? set_url(std::move(std::string(url))) : false;
-    }
-
-    bool set_url(std::string &&url)
-    {
-        log_assert(state_ == RequestState::INITIALIZED);
-
-        if(url.empty())
-            return false;
-
-        Busy::set(Busy::Source::RESUMING_PLAYBACK);
-        url_ = std::move(url);
-        state_ = RequestState::WAITING_FOR_AUDIO_SOURCE;
-
-        return true;
-    }
+    const std::string &get_url() const { return call_.get_url(); }
 
     void audio_source_available_notification()
     {
-        log_assert(state_ == RequestState::WAITING_FOR_AUDIO_SOURCE);
-        state_ = RequestState::HAVE_AUDIO_SOURCE;
+        if(is_audio_source_available_)
+            return;
+
+        is_audio_source_available_ = true;
+        call_.request();
     }
 
-    bool set_cookie(uint32_t cookie)
+    DBusRNF::RealizeLocationResult get()
     {
-        log_assert(state_ == RequestState::HAVE_AUDIO_SOURCE);
-
-        if(cookie == 0)
-            return false;
-
-        cookie_ = cookie;
-        state_ = RequestState::WAITING_FOR_LIST_BROKER;
-
-        return true;
+        call_.fetch();
+        return call_.get_result_locked();
     }
 
-    const std::string &get_url() const { return url_; }
-    uint32_t get_cookie() const { return cookie_; }
+    Playlist::Crawler::Handle get_crawler_handle() { return std::move(ch_); }
+
+  private:
+    void call_state_changed(DBusRNF::CallState state)
+    {
+        switch(state)
+        {
+          case DBusRNF::CallState::INITIALIZED:
+          case DBusRNF::CallState::WAIT_FOR_NOTIFICATION:
+          case DBusRNF::CallState::ABORTING:
+            break;
+
+          case DBusRNF::CallState::READY_TO_FETCH:
+            event_sink_.store_event(UI::EventID::VIEW_STRBO_URL_RESOLVED);
+            already_notified_ = true;
+            break;
+
+          case DBusRNF::CallState::RESULT_FETCHED:
+          case DBusRNF::CallState::ABORTED_BY_LIST_BROKER:
+          case DBusRNF::CallState::FAILED:
+            if(!already_notified_)
+                event_sink_.store_event(UI::EventID::VIEW_STRBO_URL_RESOLVED);
+            break;
+
+          case DBusRNF::CallState::ABOUT_TO_DESTROY:
+            break;
+        }
+    }
 };
 
 }

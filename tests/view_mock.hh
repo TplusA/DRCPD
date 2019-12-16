@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015--2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015--2020  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -47,10 +47,10 @@ class View: public ViewIface, public ViewSerializeBase
     void check() const;
 
     using CheckViewEventParametersFn =
-        void (*)(std::unique_ptr<const UI::Parameters> expected_parameters,
-                 std::unique_ptr<const UI::Parameters> actual_parameters);
+        void (*)(std::unique_ptr<UI::Parameters> expected_parameters,
+                 std::unique_ptr<UI::Parameters> actual_parameters);
     using CheckBroadcastEventParametersFn =
-        void (*)(std::unique_ptr<const UI::Parameters> expected_parameters,
+        void (*)(std::unique_ptr<UI::Parameters> expected_parameters,
                  const UI::Parameters *actual_parameters);
 
     void expect_focus();
@@ -58,12 +58,12 @@ class View: public ViewIface, public ViewSerializeBase
     void expect_process_event(InputResult retval, UI::ViewEventID event_id,
                               bool expect_parameters);
     void expect_process_event_with_callback(InputResult retval, UI::ViewEventID event_id,
-                                            std::unique_ptr<const UI::Parameters> expected_parameters,
+                                            std::unique_ptr<UI::Parameters> expected_parameters,
                                             CheckViewEventParametersFn check_params_callback);
     void expect_process_broadcast(UI::BroadcastEventID event_id,
                                   bool expect_parameters);
     void expect_process_broadcast_with_callback(UI::BroadcastEventID event_id,
-                                                std::unique_ptr<const UI::Parameters> expected_parameters,
+                                                std::unique_ptr<UI::Parameters> expected_parameters,
                                                 CheckBroadcastEventParametersFn check_params_callback);
     void expect_serialize(std::ostream &os);
     void expect_update(std::ostream &os);
@@ -73,9 +73,9 @@ class View: public ViewIface, public ViewSerializeBase
     void focus() override;
     void defocus() override;
     InputResult process_event(UI::ViewEventID event_id,
-                              std::unique_ptr<const UI::Parameters> parameters) override;
+                              std::unique_ptr<UI::Parameters> parameters) override;
     void process_broadcast(UI::BroadcastEventID event_id,
-                           const UI::Parameters *parameters) override;
+                           UI::Parameters *parameters) override;
     void serialize(DCP::Queue &queue, DCP::Queue::Mode mode, std::ostream *debug_os) override;
     void update(DCP::Queue &queue, DCP::Queue::Mode mode, std::ostream *debug_os) override;
 

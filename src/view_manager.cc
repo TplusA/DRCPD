@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015--2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015--2020  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -23,14 +23,16 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-#include <string>
-#include <numeric>
+#include <glib.h>
 
 #include "view_manager.hh"
 #include "view_filebrowser.hh"
 #include "view_nop.hh"
 #include "ui_parameters_predefined.hh"
 #include "messages.h"
+
+#include <string>
+#include <numeric>
 
 static ViewNop::View nop_view;
 
@@ -285,23 +287,80 @@ void ViewManager::Manager::handle_input_result(ViewIface::InputResult result,
     }
 }
 
+void ViewManager::Manager::notify_main_thread_if_necessary(
+        UI::EventID event_id, const UI::Parameters *const parameters)
+{
+    switch(UI::to_event_type<UI::VManEventID>(event_id))
+    {
+      case UI::VManEventID::DATA_COOKIE_AVAILABLE:
+        {
+            const auto params =
+                UI::Events::downcast<UI::VManEventID::DATA_COOKIE_AVAILABLE>(parameters);
+
+            if(params == nullptr)
+                break;
+
+            const auto &plist = params->get_specific();
+            auto *const proxy = std::get<0>(plist);
+            auto *const view =
+                dynamic_cast<ViewFileBrowser::View *>(get_view_by_dbus_proxy(proxy));
+            if(view == nullptr)
+                BUG("Could not find view for D-Bus proxy (data cookies available announcement)");
+            else
+                view->data_cookies_available_announcement(std::get<1>(plist));
+        }
+
+        break;
+
+      case UI::VManEventID::DATA_COOKIE_ERROR:
+        {
+            const auto params =
+                UI::Events::downcast<UI::VManEventID::DATA_COOKIE_ERROR>(parameters);
+
+            if(params == nullptr)
+                break;
+
+            const auto &plist = params->get_specific();
+            auto *const proxy = std::get<0>(plist);
+            auto *const view =
+                dynamic_cast<ViewFileBrowser::View *>(get_view_by_dbus_proxy(proxy));
+            if(view == nullptr)
+                BUG("Could not find view for D-Bus proxy (data cookies error announcement)");
+            else
+                view->data_cookies_error_announcement(std::get<1>(plist));
+        }
+
+        break;
+
+      case UI::VManEventID::NOP:
+      case UI::VManEventID::OPEN_VIEW:
+      case UI::VManEventID::TOGGLE_VIEWS:
+      case UI::VManEventID::CRAWLER_OPERATION_COMPLETED:
+      case UI::VManEventID::CRAWLER_OPERATION_YIELDED:
+      case UI::VManEventID::INVALIDATE_LIST_ID:
+      case UI::VManEventID::NOTIFY_NOW_PLAYING:
+        break;
+    }
+}
+
 void ViewManager::Manager::store_event(UI::EventID event_id,
-                                       std::unique_ptr<const UI::Parameters> parameters)
+                                       std::unique_ptr<UI::Parameters> parameters)
 {
     std::unique_ptr<UI::Events::BaseEvent> ev;
 
     switch(UI::get_event_type_id(event_id))
     {
       case UI::EventTypeID::INPUT_EVENT:
-        ev.reset(new UI::Events::ViewInput(event_id, std::move(parameters)));
+        ev = std::make_unique<UI::Events::ViewInput>(event_id, std::move(parameters));
         break;
 
       case UI::EventTypeID::BROADCAST_EVENT:
-        ev.reset(new UI::Events::Broadcast(event_id, std::move(parameters)));
+        ev = std::make_unique<UI::Events::Broadcast>(event_id, std::move(parameters));
         break;
 
       case UI::EventTypeID::VIEW_MANAGER_EVENT:
-        ev.reset(new UI::Events::ViewMan(event_id, std::move(parameters)));
+        notify_main_thread_if_necessary(event_id, parameters.get());
+        ev = std::make_unique<UI::Events::ViewMan>(event_id, std::move(parameters));
         break;
     }
 
@@ -343,6 +402,7 @@ static void log_event_dispatch(const UI::ViewEventID event_id,
         "AUDIO_SOURCE_SELECTED",
         "AUDIO_SOURCE_DESELECTED",
         "AUDIO_PATH_CHANGED",
+        "STRBO_URL_RESOLVED",
         "PLAYBACK_TRY_RESUME",
     };
 
@@ -363,7 +423,6 @@ static void log_event_dispatch(const UI::BroadcastEventID event_id,
     {
         "NOP",
         "CONFIGURATION_UPDATED",
-        "STRBO_URL_RESOLVED",
     };
 
     static_assert(events[events.size() - 1] != nullptr, "Table too short");
@@ -374,7 +433,7 @@ static void log_event_dispatch(const UI::BroadcastEventID event_id,
 }
 
 void ViewManager::Manager::dispatch_event(UI::ViewEventID event_id,
-                                          std::unique_ptr<const UI::Parameters> parameters)
+                                          std::unique_ptr<UI::Parameters> parameters)
 {
     static constexpr const InputBouncer::Item global_bounce_table_data[] =
     {
@@ -412,7 +471,7 @@ void ViewManager::Manager::dispatch_event(UI::ViewEventID event_id,
 }
 
 void ViewManager::Manager::dispatch_event(UI::BroadcastEventID event_id,
-                                          std::unique_ptr<const UI::Parameters> parameters)
+                                          std::unique_ptr<UI::Parameters> parameters)
 {
     for(auto &view : all_views_)
     {
@@ -422,7 +481,7 @@ void ViewManager::Manager::dispatch_event(UI::BroadcastEventID event_id,
 }
 
 void ViewManager::Manager::dispatch_event(UI::VManEventID event_id,
-                                          std::unique_ptr<const UI::Parameters> parameters)
+                                          std::unique_ptr<UI::Parameters> parameters)
 {
     switch(event_id)
     {
@@ -455,6 +514,80 @@ void ViewManager::Manager::dispatch_event(UI::VManEventID event_id,
 
         break;
 
+      case UI::VManEventID::DATA_COOKIE_AVAILABLE:
+        {
+            auto params =
+                UI::Events::downcast<UI::VManEventID::DATA_COOKIE_AVAILABLE>(parameters);
+
+            if(params == nullptr)
+                break;
+
+            auto &plist = params->get_specific_non_const();
+            auto *const proxy = std::get<0>(plist);
+            auto *const view =
+                dynamic_cast<ViewFileBrowser::View *>(get_view_by_dbus_proxy(proxy));
+
+            if(view == nullptr)
+                BUG("Could not find view for D-Bus proxy (data cookies available)");
+            else if(view->data_cookies_available(std::move(std::get<1>(plist))))
+                update_view_if_active(view, DCP::Queue::Mode::FORCE_ASYNC);
+        }
+
+        break;
+
+      case UI::VManEventID::DATA_COOKIE_ERROR:
+        {
+            auto params =
+                UI::Events::downcast<UI::VManEventID::DATA_COOKIE_ERROR>(parameters);
+
+            if(params == nullptr)
+                break;
+
+            auto &plist = params->get_specific_non_const();
+            auto *const proxy = std::get<0>(plist);
+            auto *const view =
+                dynamic_cast<ViewFileBrowser::View *>(get_view_by_dbus_proxy(proxy));
+
+            if(view == nullptr)
+                BUG("Could not find view for D-Bus proxy (data cookies error)");
+            else if(view->data_cookies_error(std::move(std::get<1>(plist))))
+                update_view_if_active(view, DCP::Queue::Mode::FORCE_ASYNC);
+        }
+
+        break;
+
+      case UI::VManEventID::CRAWLER_OPERATION_COMPLETED:
+        {
+            auto params =
+                UI::Events::downcast<UI::VManEventID::CRAWLER_OPERATION_COMPLETED>(parameters);
+
+            if(params == nullptr)
+                break;
+
+            auto &plist = params->get_specific_non_const();
+
+            Playlist::Crawler::Iface::EventStoreFuns::completed(
+                std::get<0>(plist), std::move(std::get<1>(plist)));
+        }
+
+        break;
+
+      case UI::VManEventID::CRAWLER_OPERATION_YIELDED:
+        {
+            auto params =
+                UI::Events::downcast<UI::VManEventID::CRAWLER_OPERATION_YIELDED>(parameters);
+
+            if(params == nullptr)
+                break;
+
+            auto &plist = params->get_specific_non_const();
+
+            Playlist::Crawler::Iface::EventStoreFuns::yielded(
+                std::get<0>(plist), std::move(std::get<1>(plist)));
+        }
+
+        break;
+
       case UI::VManEventID::INVALIDATE_LIST_ID:
         {
             const auto params =
@@ -469,7 +602,7 @@ void ViewManager::Manager::dispatch_event(UI::VManEventID event_id,
                 dynamic_cast<ViewFileBrowser::View *>(get_view_by_dbus_proxy(proxy));
 
             if(view == nullptr)
-                BUG("Could not find view for D-Bus proxy");
+                BUG("Could not find view for D-Bus proxy (list invalidation)");
             else if(view->list_invalidate(std::get<1>(plist), std::get<2>(plist)))
                 update_view_if_active(view, DCP::Queue::Mode::FORCE_ASYNC);
         }
@@ -484,7 +617,7 @@ void ViewManager::Manager::dispatch_event(UI::VManEventID event_id,
 
 bool ViewManager::Manager::do_input_bounce(const ViewManager::InputBouncer &bouncer,
                                            UI::ViewEventID event_id,
-                                           std::unique_ptr<const UI::Parameters> &parameters)
+                                           std::unique_ptr<UI::Parameters> &parameters)
 {
     const auto *item = bouncer.find(event_id);
 
@@ -662,6 +795,75 @@ void ViewManager::Manager::busy_state_notification(bool is_busy)
     view->add_base_update_flags(ViewSerializeBase::UPDATE_FLAGS_BASE_BUSY_FLAG);
     view->update(dcp_transaction_queue_, DCP::Queue::Mode::FORCE_ASYNC,
                  debug_stream_);
+}
+
+bool ViewManager::Manager::set_pending_cookie(
+        const void *proxy, uint32_t cookie,
+        DBusRNF::CookieManagerIface::NotifyByCookieFn &&notify,
+        DBusRNF::CookieManagerIface::FetchByCookieFn &&fetch)
+{
+    if(cookie == 0)
+    {
+        BUG("Attempted to store invalid cookie");
+        return false;
+    }
+
+    if(fetch == nullptr)
+    {
+        BUG("Fetch function for cookie not given");
+        return false;
+    }
+
+    auto *const view =
+        dynamic_cast<ViewFileBrowser::View *>(get_view_by_dbus_proxy(proxy));
+
+    if(view == nullptr)
+    {
+        BUG("No file browser view for given proxy, cannot set cookie %u", cookie);
+        return false;
+    }
+
+    return view->data_cookie_set_pending(cookie, std::move(notify), std::move(fetch));
+}
+
+bool ViewManager::Manager::abort_cookie(const void *proxy, uint32_t cookie)
+{
+    if(cookie == 0)
+    {
+        BUG("Attempted to drop invalid cookie");
+        return false;
+    }
+
+    auto *const view =
+        dynamic_cast<ViewFileBrowser::View *>(get_view_by_dbus_proxy(proxy));
+
+    if(view == nullptr)
+    {
+        BUG("No file browser view for given proxy, cannot drop cookie %u", cookie);
+        return false;
+    }
+
+    return view->data_cookie_abort(cookie);
+}
+
+void ViewManager::Manager::invalidate_cookie(const void *proxy, uint32_t cookie)
+{
+    if(cookie == 0)
+    {
+        BUG("Attempted to invalidate invalid cookie");
+        return;
+    }
+
+    auto *const view =
+        dynamic_cast<ViewFileBrowser::View *>(get_view_by_dbus_proxy(proxy));
+
+    if(view == nullptr)
+    {
+        BUG("No file browser view for given proxy, cannot invalidate cookie %u", cookie);
+        return;
+    }
+
+    view->data_cookie_drop(cookie);
 }
 
 void ViewManager::Manager::configuration_changed_notification(

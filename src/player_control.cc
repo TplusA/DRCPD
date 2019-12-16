@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, 2017, 2018, 2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016--2020  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -32,6 +32,7 @@
 #include "dbus_iface_proxies.hh"
 #include "gerrorwrapper.hh"
 #include "view_play.hh"
+#include "view_filebrowser_fileitem.hh"
 #include "messages.h"
 
 enum class StreamExpected
@@ -52,193 +53,6 @@ enum class ExpectedPlayingCheckMode
     STOPPED_WITH_ERROR,
     SKIPPED,
 };
-
-bool Player::Skipper::set_intention_for_skipping(Player::Data &data)
-{
-    switch(data.get_intention())
-    {
-      case Player::UserIntention::NOTHING:
-      case Player::UserIntention::STOPPING:
-        break;
-
-      case Player::UserIntention::PAUSING:
-        data.set_intention(Player::UserIntention::SKIPPING_PAUSED);
-        return true;
-
-      case Player::UserIntention::LISTENING:
-        data.set_intention(Player::UserIntention::SKIPPING_LIVE);
-        return true;
-
-      case Player::UserIntention::SKIPPING_PAUSED:
-      case Player::UserIntention::SKIPPING_LIVE:
-        return true;
-    }
-
-    return false;
-}
-
-void Player::Skipper::set_intention_from_skipping(Player::Data &data)
-{
-    switch(data.get_intention())
-    {
-      case Player::UserIntention::NOTHING:
-      case Player::UserIntention::STOPPING:
-      case Player::UserIntention::PAUSING:
-      case Player::UserIntention::LISTENING:
-        break;
-
-      case Player::UserIntention::SKIPPING_PAUSED:
-        data.set_intention(Player::UserIntention::PAUSING);
-        break;
-
-      case Player::UserIntention::SKIPPING_LIVE:
-        data.set_intention(Player::UserIntention::LISTENING);
-        break;
-    }
-}
-
-bool Player::Skipper::stop_skipping(Player::Data &data, Playlist::CrawlerIface &crawler)
-{
-    reset();
-    set_intention_from_skipping(data);
-
-    return crawler.set_direction_forward();
-}
-
-static inline bool should_reject_skip_request(const Player::Data &data)
-{
-    switch(data.get_current_stream_state())
-    {
-      case Player::StreamState::STOPPED:
-        return true;
-
-      case Player::StreamState::BUFFERING:
-      case Player::StreamState::PLAYING:
-      case Player::StreamState::PAUSED:
-        break;
-    }
-
-    return false;
-}
-
-Player::Skipper::SkipState
-Player::Skipper::forward_request(Player::Data &data, Playlist::CrawlerIface &crawler,
-                                 Player::UserIntention &previous_intention)
-{
-    if(should_reject_skip_request(data))
-        return REJECTED;
-
-    previous_intention = data.get_intention();
-
-    if(pending_skip_requests_ >= MAX_PENDING_SKIP_REQUESTS)
-        return REJECTED;
-
-    if(pending_skip_requests_ == 0)
-    {
-        if(is_skipping_)
-        {
-            ++pending_skip_requests_;
-            return SKIPPING;
-        }
-        else
-        {
-            if(!set_intention_for_skipping(data))
-                return REJECTED;
-
-            is_skipping_ = true;
-            crawler.set_direction_forward();
-
-            return FIRST_SKIP_REQUEST;
-        }
-    }
-
-    if(++pending_skip_requests_ == 0)
-    {
-        stop_skipping(data, crawler);
-        return BACK_TO_NORMAL;
-    }
-
-    return SKIPPING;
-}
-
-Player::Skipper::SkipState
-Player::Skipper::backward_request(Player::Data &data, Playlist::CrawlerIface &crawler,
-                                  Player::UserIntention &previous_intention)
-{
-    if(should_reject_skip_request(data))
-        return REJECTED;
-
-    previous_intention = data.get_intention();
-
-    if(pending_skip_requests_ <= -MAX_PENDING_SKIP_REQUESTS)
-        return REJECTED;
-
-    if(pending_skip_requests_ == 0)
-    {
-        if(is_skipping_)
-        {
-            --pending_skip_requests_;
-            return SKIPPING;
-        }
-        else
-        {
-            if(!set_intention_for_skipping(data))
-                return REJECTED;
-
-            is_skipping_ = true;
-            crawler.set_direction_backward();
-
-            return FIRST_SKIP_REQUEST;
-        }
-    }
-
-    if(--pending_skip_requests_ == 0)
-    {
-        stop_skipping(data, crawler);
-        return BACK_TO_NORMAL;
-    }
-
-    return SKIPPING;
-}
-
-Player::Skipper::SkippedResult
-Player::Skipper::skipped(Data &data, Playlist::CrawlerIface &crawler,
-                         bool keep_skipping)
-{
-    if(pending_skip_requests_ == 0)
-    {
-        if(is_skipping_)
-            crawler.mark_current_position();
-        else
-        {
-            BUG("Got skipped notification, but not skipping");
-            keep_skipping = false;
-        }
-
-        return (keep_skipping
-                ? !crawler.is_crawling_forward()
-                : stop_skipping(data, crawler))
-            ? SkippedResult::DONE_BACKWARD
-            : SkippedResult::DONE_FORWARD;
-    }
-
-    log_assert(is_skipping_);
-
-    crawler.mark_current_position();
-
-    if(pending_skip_requests_ > 0)
-    {
-        --pending_skip_requests_;
-        crawler.set_direction_forward();
-        return SkippedResult::SKIPPING_FORWARD;
-    }
-    else
-    {
-        ++pending_skip_requests_;
-        crawler.set_direction_backward();
-        return SkippedResult::SKIPPING_BACKWARD;
-    }
-}
 
 static void source_request_done(GObject *source_object, GAsyncResult *res,
                                 gpointer user_data)
@@ -280,7 +94,7 @@ static void source_request_done(GObject *source_object, GAsyncResult *res,
 
 bool Player::Control::is_active_controller_for_audio_source(const std::string &audio_source_id) const
 {
-    return player_ != nullptr &&
+    return player_data_ != nullptr &&
            is_any_audio_source_plugged() &&
            audio_source_id == audio_source_->id_;
 }
@@ -299,18 +113,18 @@ static void set_audio_player_dbus_proxies(const std::string &audio_player_id,
 }
 
 void Player::Control::plug(AudioSource &audio_source, bool with_enforced_intentions,
-                           const std::function<void(void)> &stop_playing_notification,
+                           const std::function<void()> &finished_playing_notification,
                            const std::string *external_player_id)
 {
     log_assert(!is_any_audio_source_plugged());
-    log_assert(stop_playing_notification_ == nullptr);
-    log_assert(crawler_ == nullptr);
+    log_assert(finished_playing_notification_ == nullptr);
+    log_assert(ch_ == nullptr);
     log_assert(permissions_ == nullptr);
-    log_assert(stop_playing_notification != nullptr);
+    log_assert(finished_playing_notification != nullptr);
 
     audio_source_ = &audio_source;
     with_enforced_intentions_ = with_enforced_intentions;
-    stop_playing_notification_ = stop_playing_notification;
+    finished_playing_notification_ = finished_playing_notification;
 
     switch(audio_source_->get_state())
     {
@@ -342,52 +156,63 @@ void Player::Control::plug(AudioSource &audio_source, bool with_enforced_intenti
         set_audio_player_dbus_proxies(*external_player_id, *audio_source_);
 }
 
-void Player::Control::plug(Player::Data &player_data)
+void Player::Control::plug(Data &player_data)
 {
-    log_assert(player_ == nullptr);
-    log_assert(crawler_ == nullptr);
+    log_assert(player_data_ == nullptr);
+    log_assert(ch_ == nullptr);
     log_assert(permissions_ == nullptr);
 
-    player_ = &player_data;
-    player_->attached_to_player_notification();
+    player_data_ = &player_data;
+    player_data_->attached_to_player_notification();
 }
 
-void Player::Control::plug(Playlist::CrawlerIface &crawler,
-                           const LocalPermissionsIface &permissions)
+void Player::Control::plug(
+        const std::function<Playlist::Crawler::Handle()> &get_crawler_handle,
+        const LocalPermissionsIface &permissions)
 {
     plug(permissions);
-
-    crawler_ = &crawler;
-
-    auto crawler_lock(crawler_->lock());
-    crawler_->attached_to_player_notification();
+    ch_.reset();
+    ch_ = get_crawler_handle();
 }
 
 void Player::Control::plug(const LocalPermissionsIface &permissions)
 {
-    crawler_ = nullptr;
+    ch_ = nullptr;
     permissions_ = &permissions;
-    skip_requests_.reset();
-    queued_streams_.clear();
-    prefetch_state_ = PrefetchState::NOT_PREFETCHING;
+    skip_requests_.reset(nullptr);
+    prefetch_next_item_op_ = nullptr;
+    prefetch_next_uris_op_ = nullptr;
     retry_data_.reset();
 }
 
 void Player::Control::forget_queued_and_playing(bool also_forget_playing)
 {
-    if(player_ != nullptr)
-    {
-        for(const auto &id : queued_streams_)
-            player_->forget_stream(id.get());
-
-        if(also_forget_playing && retry_data_.get_stream_id().get().is_valid())
-            player_->forget_stream(retry_data_.get_stream_id().get());
-    }
-
-    queued_streams_.clear();
+    if(player_data_ != nullptr)
+        player_data_->remove_all_queued_streams(also_forget_playing);
 
     if(also_forget_playing)
         retry_data_.reset();
+}
+
+static void cancel_prefetch_ops(
+        std::shared_ptr<Playlist::Crawler::FindNextOpBase> &find_next,
+        std::shared_ptr<Playlist::Crawler::GetURIsOpBase> &get_uris,
+        Playlist::Crawler::Handle &ch)
+{
+    if(find_next != nullptr)
+    {
+        find_next->cancel();
+        find_next = nullptr;
+    }
+
+    if(get_uris != nullptr)
+    {
+        get_uris->cancel();
+        get_uris = nullptr;
+    }
+
+    if(ch != nullptr)
+        ch->clear_bookmark(Playlist::Crawler::Bookmark::PREFETCH_CURSOR);
 }
 
 void Player::Control::unplug(bool is_complete_unplug)
@@ -398,30 +223,27 @@ void Player::Control::unplug(bool is_complete_unplug)
     {
         audio_source_ = nullptr;
         with_enforced_intentions_ = false;
-        stop_playing_notification_ = nullptr;
+        finished_playing_notification_ = nullptr;
     }
 
     forget_queued_and_playing(true);
 
-    if(player_ != nullptr)
+    if(player_data_ != nullptr)
     {
-        player_->detached_from_player_notification(is_complete_unplug);
+        player_data_->detached_from_player_notification(is_complete_unplug);
 
         if(is_complete_unplug)
-            player_ = nullptr;
+            player_data_ = nullptr;
     }
 
-    if(crawler_ != nullptr)
-    {
-        auto crawler_lock(crawler_->lock());
-        crawler_->detached_from_player_notification(is_complete_unplug);
-
-        if(is_complete_unplug)
-            crawler_ = nullptr;
-    }
+    skip_requests_.reset(nullptr);
+    cancel_prefetch_ops(prefetch_next_item_op_, prefetch_next_uris_op_, ch_);
 
     if(is_complete_unplug)
+    {
         permissions_ = nullptr;
+        ch_ = nullptr;
+    }
 }
 
 static bool send_simple_playback_command(
@@ -467,7 +289,8 @@ static inline bool send_stop_command(const Player::AudioSource *asrc,
             [reason]
             (tdbussplayPlayback *proxy, GCancellable *cancelable, GError **error) -> gboolean
             {
-                return tdbus_splay_playback_call_stop_sync(proxy, reason, cancelable, error);
+                return tdbus_splay_playback_call_stop_sync(proxy, reason,
+                                                           cancelable, error);
             },
             "Stop playback", "Failed sending stop playback message");
 }
@@ -496,72 +319,17 @@ static inline bool send_simple_skip_backward_command(const Player::AudioSource *
                                      "Failed sending skip backward message");
 }
 
-static bool send_skip_to_next_command(ID::Stream &removed_stream_from_queue,
-                                      Player::StreamState &play_status,
-                                      const Player::AudioSource *asrc)
+static void do_deselect_audio_source(
+        Player::AudioSource &audio_source, bool send_stop,
+        std::shared_ptr<Playlist::Crawler::FindNextOpBase> &saved_find_next_op,
+        const char *reason)
 {
-    if(asrc == nullptr)
-        return true;
-
-    auto *proxy = asrc->get_urlfifo_proxy();
-    guint skipped_id = UINT32_MAX;
-    guchar raw_play_status = UCHAR_MAX;
-
-    if(proxy != nullptr)
+    if(saved_find_next_op != nullptr)
     {
-        guint next_id;
-        GErrorWrapper error;
-
-        tdbus_splay_urlfifo_call_next_sync(proxy,
-                                           &skipped_id, &next_id,
-                                           &raw_play_status, nullptr, error.await());
-
-        if(error.log_failure("Skip to next"))
-        {
-            msg_error(0, LOG_NOTICE, "Failed sending skip track message");
-            return false;
-        }
+        saved_find_next_op->cancel();
+        saved_find_next_op = nullptr;
     }
 
-    removed_stream_from_queue = (skipped_id != UINT32_MAX
-                                 ? ID::Stream::make_from_raw_id(skipped_id)
-                                 : ID::Stream::make_invalid());
-
-    switch(raw_play_status)
-    {
-      case 0:
-        play_status = Player::StreamState::STOPPED;
-        break;
-
-      case 1:
-        play_status = Player::StreamState::PLAYING;
-        break;
-
-      case 2:
-        play_status = Player::StreamState::PAUSED;
-        break;
-
-      default:
-        BUG("Received unknown play status %u from streamplayer",
-            raw_play_status);
-        play_status = Player::StreamState::STOPPED;
-        break;
-    }
-
-    return true;
-}
-
-static void resume_paused_stream(Player::Data *player,
-                                 const Player::AudioSource *asrc)
-{
-    if(player != nullptr &&
-       player->get_current_stream_state() == Player::StreamState::PAUSED)
-        send_play_command(asrc);
-}
-
-static void do_deselect_audio_source(Player::AudioSource &audio_source,
-                                     bool send_stop, const char *reason)
-{
     if(send_stop)
         send_stop_command(&audio_source, reason);
 
@@ -572,11 +340,11 @@ void Player::Control::repeat_mode_toggle_request() const
 {
     if(permissions_ != nullptr && !permissions_->can_toggle_repeat())
     {
-        msg_error(EPERM, LOG_INFO, "Ignoring repeat mode toggle request");
+        msg_error(EPERM, LOG_NOTICE, "Ignoring repeat mode toggle request");
         return;
     }
 
-    if(crawler_ != nullptr)
+    if(ch_ != nullptr)
     {
         msg_error(ENOSYS, LOG_NOTICE,
                   "Repeat mode not implemented yet (see ticket #250)");
@@ -607,11 +375,11 @@ void Player::Control::shuffle_mode_toggle_request() const
 {
     if(permissions_ != nullptr && !permissions_->can_toggle_shuffle())
     {
-        msg_error(EPERM, LOG_INFO, "Ignoring shuffle mode toggle request");
+        msg_error(EPERM, LOG_NOTICE, "Ignoring shuffle mode toggle request");
         return;
     }
 
-    if(crawler_ != nullptr)
+    if(ch_ != nullptr)
     {
         msg_error(ENOSYS, LOG_NOTICE,
                   "Shuffle mode not implemented yet (see tickets #27, #40, #80)");
@@ -638,11 +406,17 @@ void Player::Control::shuffle_mode_toggle_request() const
                                                    nullptr, nullptr, nullptr);
 }
 
-void Player::Control::play_request()
+static void not_attached_bug(const char *what, bool and_crawler = false)
+{
+    BUG("%s, but not attached to player%s anymore",
+        what, and_crawler ? " and/or crawler" : "");
+}
+
+void Player::Control::play_request(std::shared_ptr<Playlist::Crawler::FindNextOpBase> find_op)
 {
     if(permissions_ != nullptr && !permissions_->can_play())
     {
-        msg_error(EPERM, LOG_INFO, "Ignoring play request");
+        msg_error(EPERM, LOG_NOTICE, "Ignoring play request");
         return;
     }
 
@@ -658,53 +432,230 @@ void Player::Control::play_request()
 
       case AudioSourceState::REQUESTED:
       case AudioSourceState::SELECTED:
-        player_->set_intention(UserIntention::LISTENING);
+        player_data_->set_intention(UserIntention::LISTENING);
 
         if(astate == AudioSourceState::REQUESTED)
+        {
+            /* save this one for later when audio source selection is done,
+             * used in #Player::Control::source_selected_notification() and
+             * #Player::Control::source_deselected_notification() */
+            audio_source_selected_find_op_ = std::move(find_op);
             return;
+        }
 
         break;
     }
 
-    switch(player_->get_current_stream_state())
+    if(find_op != nullptr)
     {
-      case Player::StreamState::BUFFERING:
-      case Player::StreamState::PLAYING:
+        log_assert(ch_ != nullptr);
+        prefetch_next_item_op_ = find_op;
+
+        /* so we first need to go to our entry point as prescribed by
+         * \p find_op, then find out its details, and then play it */
+        find_op->set_completion_callback(
+            [this] (auto &op) { return found_item_for_playing(op); },
+            Playlist::Crawler::OperationBase::CompletionCallbackFilter::SUPPRESS_CANCELED);
+        ch_->run(std::move(find_op));
+        return;
+    }
+
+    switch(player_data_->get_player_state())
+    {
+      case PlayerState::BUFFERING:
+      case PlayerState::PLAYING:
         break;
 
-      case Player::StreamState::STOPPED:
-        {
-            auto crawler_lock(crawler_->lock());
-            crawler_->set_direction_forward();
-            crawler_->find_next(std::bind(&Player::Control::async_list_entry_for_playing,
-                                          this,
-                                          std::placeholders::_1,
-                                          std::placeholders::_2));
-        }
-
-        break;
-
-      case Player::StreamState::PAUSED:
-        resume_paused_stream(player_, audio_source_);
+      case PlayerState::STOPPED:
+      case PlayerState::PAUSED:
+        send_play_command(audio_source_);
         break;
     }
 }
 
-void Player::Control::jump_to_crawler_location()
+static void set_intention_after_skipping(Player::Data &data)
 {
-    if(!is_active_controller())
-        return;
+    switch(data.get_intention())
+    {
+      case Player::UserIntention::NOTHING:
+      case Player::UserIntention::STOPPING:
+      case Player::UserIntention::PAUSING:
+      case Player::UserIntention::LISTENING:
+        break;
 
-    if(crawler_ == nullptr)
-        return;
+      case Player::UserIntention::SKIPPING_PAUSED:
+        data.set_intention(Player::UserIntention::PAUSING);
+        break;
 
-    auto crawler_lock(crawler_->lock());
+      case Player::UserIntention::SKIPPING_LIVE:
+        data.set_intention(Player::UserIntention::LISTENING);
+        break;
+    }
+}
 
-    crawler_->set_direction_forward();
-    crawler_->find_next(std::bind(&Player::Control::async_list_entry_for_playing,
-                                  this,
-                                  std::placeholders::_1,
-                                  std::placeholders::_2));
+bool Player::Control::found_item_for_playing(Playlist::Crawler::FindNextOpBase &op)
+{
+    auto locks(lock());
+
+    if(op.is_op_canceled())
+        return false;
+
+    log_assert(&op == prefetch_next_item_op_.get());
+    prefetch_next_item_op_ = nullptr;
+
+    bool stop = true;
+
+    if(op.is_op_failure())
+        BUG("Hard error: should be reported");
+    else
+    {
+        using PositionalState =
+            Playlist::Crawler::FindNextOpBase::PositionalState;
+
+        switch(op.result_.pos_state_)
+        {
+          case PositionalState::SOMEWHERE_IN_LIST:
+            stop = false;
+            break;
+
+          case PositionalState::UNKNOWN:
+          case PositionalState::REACHED_START_OF_LIST:
+          case PositionalState::REACHED_END_OF_LIST:
+            break;
+        }
+    }
+
+    if(player_data_ == nullptr)
+    {
+        not_attached_bug("Found list item for playing");
+        return false;
+    }
+
+    if(stop)
+    {
+        skip_requests_.reset(nullptr);
+
+        set_intention_after_skipping(*player_data_);
+
+        if(finished_playing_notification_ != nullptr)
+            finished_playing_notification_();
+
+        return false;
+    }
+
+    auto pos(op.extract_position());
+    pos->sync_request_with_pos();
+
+    ch_->bookmark(Playlist::Crawler::Bookmark::ABOUT_TO_PLAY, pos->clone());
+
+    prefetch_next_uris_op_ =
+        Playlist::Crawler::DirectoryCrawler::get_crawler(*ch_)
+        .mk_op_get_uris(
+            "Fetch item's URIs for direct playing",
+            std::move(pos), std::move(op.result_.meta_data_),
+            [this, d = op.direction_] (auto &op_inner)
+            { return found_item_uris_for_playing(op_inner, d); },
+            Playlist::Crawler::OperationBase::CompletionCallbackFilter::SUPPRESS_CANCELED);
+
+    ch_->run(prefetch_next_uris_op_);
+
+    return false;
+}
+
+bool Player::Control::found_item_uris_for_playing(
+        Playlist::Crawler::GetURIsOpBase &op,
+        Playlist::Crawler::Direction from_direction)
+{
+    auto locks(lock());
+
+    if(op.is_op_canceled())
+        return false;
+
+    log_assert(&op == prefetch_next_uris_op_.get());
+    prefetch_next_uris_op_ = nullptr;
+
+    if(player_data_ == nullptr)
+    {
+        not_attached_bug("Found item information for playing");
+        return false;
+    }
+
+    if(op.is_op_failure() || op.has_no_uris())
+    {
+        /* skip this one, maybe the next one will work */
+        if(permissions_->can_skip_on_error())
+        {
+            switch(from_direction)
+            {
+              case Playlist::Crawler::Direction::FORWARD:
+                skip_forward_request();
+                break;
+
+              case Playlist::Crawler::Direction::BACKWARD:
+                skip_backward_request();
+                break;
+
+              case Playlist::Crawler::Direction::NONE:
+                break;
+            }
+        }
+
+        return false;
+    }
+
+    switch(player_data_->get_intention())
+    {
+      case UserIntention::NOTHING:
+      case UserIntention::STOPPING:
+        /* so we have prefetched something for nothing---such is life */
+        break;
+
+      case UserIntention::PAUSING:
+        switch(queue_item_from_op(op, from_direction,
+                                  &Player::Control::async_redirect_resolved_for_playing,
+                                  InsertMode::REPLACE_ALL,
+                                  PlayNewMode::SEND_PAUSE_COMMAND_IF_IDLE))
+        {
+          case QueuedStream::OpResult::SUCCEEDED:
+            start_prefetch_next_item("found URIs for first stream",
+                                     Playlist::Crawler::Bookmark::ABOUT_TO_PLAY,
+                                     Playlist::Crawler::Direction::FORWARD);
+            break;
+
+          case QueuedStream::OpResult::STARTED:
+          case QueuedStream::OpResult::FAILED:
+          case QueuedStream::OpResult::CANCELED:
+            break;
+        }
+
+        break;
+
+      case UserIntention::LISTENING:
+        switch(queue_item_from_op(op, from_direction,
+                                  &Player::Control::async_redirect_resolved_for_playing,
+                                  InsertMode::REPLACE_ALL,
+                                  PlayNewMode::SEND_PLAY_COMMAND_IF_IDLE))
+
+        {
+          case QueuedStream::OpResult::SUCCEEDED:
+            send_play_command(audio_source_);
+            break;
+
+          case QueuedStream::OpResult::STARTED:
+          case QueuedStream::OpResult::FAILED:
+          case QueuedStream::OpResult::CANCELED:
+            break;
+        }
+
+        break;
+
+      case UserIntention::SKIPPING_PAUSED:
+      case UserIntention::SKIPPING_LIVE:
+        MSG_UNREACHABLE();
+        break;
+    }
+
+    return false;
 }
 
 void Player::Control::stop_request(const char *reason)
@@ -722,7 +673,7 @@ void Player::Control::stop_request(const char *reason)
       case AudioSourceState::REQUESTED:
       case AudioSourceState::SELECTED:
         if(is_active_controller())
-            player_->set_intention(UserIntention::STOPPING);
+            player_data_->set_intention(UserIntention::STOPPING);
 
         if(astate == AudioSourceState::SELECTED)
             send_stop_command(audio_source_, reason);
@@ -735,7 +686,7 @@ void Player::Control::pause_request()
 {
     if(permissions_ != nullptr && !permissions_->can_pause())
     {
-        msg_error(EPERM, LOG_INFO, "Ignoring pause request");
+        msg_error(EPERM, LOG_NOTICE, "Ignoring pause request");
         return;
     }
 
@@ -752,7 +703,7 @@ void Player::Control::pause_request()
       case AudioSourceState::REQUESTED:
       case AudioSourceState::SELECTED:
         if(is_active_controller())
-            player_->set_intention(UserIntention::PAUSING);
+            player_data_->set_intention(UserIntention::PAUSING);
 
         if(astate == AudioSourceState::SELECTED)
             send_pause_command(audio_source_);
@@ -762,7 +713,7 @@ void Player::Control::pause_request()
 }
 
 static void enforce_intention(Player::UserIntention intention,
-                              Player::StreamState known_stream_state,
+                              Player::PlayerState known_player_state,
                               const Player::AudioSource *audio_source_,
                               bool really_enforce)
 {
@@ -783,20 +734,20 @@ static void enforce_intention(Player::UserIntention intention,
         break;
 
       case Player::UserIntention::STOPPING:
-        switch(known_stream_state)
+        switch(known_player_state)
         {
-          case Player::StreamState::STOPPED:
+          case Player::PlayerState::STOPPED:
             break;
 
-          case Player::StreamState::BUFFERING:
+          case Player::PlayerState::BUFFERING:
             send_stop_command(audio_source_, "enforced by user intention while buffering");
             break;
 
-          case Player::StreamState::PLAYING:
+          case Player::PlayerState::PLAYING:
             send_stop_command(audio_source_, "enforced by user intention while playing");
             break;
 
-          case Player::StreamState::PAUSED:
+          case Player::PlayerState::PAUSED:
             send_stop_command(audio_source_, "enforced by user intention while pausing");
             break;
         }
@@ -805,15 +756,15 @@ static void enforce_intention(Player::UserIntention intention,
 
       case Player::UserIntention::PAUSING:
       case Player::UserIntention::SKIPPING_PAUSED:
-        switch(known_stream_state)
+        switch(known_player_state)
         {
-          case Player::StreamState::STOPPED:
-          case Player::StreamState::BUFFERING:
-          case Player::StreamState::PLAYING:
+          case Player::PlayerState::STOPPED:
+          case Player::PlayerState::BUFFERING:
+          case Player::PlayerState::PLAYING:
             send_pause_command(audio_source_);
             break;
 
-          case Player::StreamState::PAUSED:
+          case Player::PlayerState::PAUSED:
             break;
         }
 
@@ -821,15 +772,15 @@ static void enforce_intention(Player::UserIntention intention,
 
       case Player::UserIntention::LISTENING:
       case Player::UserIntention::SKIPPING_LIVE:
-        switch(known_stream_state)
+        switch(known_player_state)
         {
-          case Player::StreamState::STOPPED:
-          case Player::StreamState::PAUSED:
+          case Player::PlayerState::STOPPED:
+          case Player::PlayerState::PAUSED:
             send_play_command(audio_source_);
             break;
 
-          case Player::StreamState::BUFFERING:
-          case Player::StreamState::PLAYING:
+          case Player::PlayerState::BUFFERING:
+          case Player::PlayerState::PLAYING:
             break;
         }
 
@@ -855,9 +806,9 @@ bool Player::Control::source_selected_notification(const std::string &audio_sour
         audio_source_->set_proxies(DBus::get_streamplayer_urlfifo_iface(),
                                    DBus::get_streamplayer_playback_iface());
 
-        if(!is_on_hold && player_ != nullptr)
+        if(!is_on_hold && player_data_ != nullptr)
         {
-            switch(player_->get_intention())
+            switch(player_data_->get_intention())
             {
               case UserIntention::NOTHING:
               case UserIntention::SKIPPING_PAUSED:
@@ -865,7 +816,7 @@ bool Player::Control::source_selected_notification(const std::string &audio_sour
                 break;
 
               case UserIntention::LISTENING:
-                play_request();
+                play_request(std::move(audio_source_selected_find_op_));
                 break;
 
               case UserIntention::STOPPING:
@@ -885,6 +836,7 @@ bool Player::Control::source_selected_notification(const std::string &audio_sour
     else
     {
         do_deselect_audio_source(*audio_source_, true,
+                                 audio_source_selected_find_op_,
                                  "different audio source was selected");
         msg_info("Deselected audio source %s because %s was selected",
                  audio_source_->id_.c_str(), audio_source_id.c_str());
@@ -901,6 +853,7 @@ bool Player::Control::source_deselected_notification(const std::string *audio_so
         return false;
 
     do_deselect_audio_source(*audio_source_, audio_source_id != nullptr,
+                             audio_source_selected_find_op_,
                              "audio source was deselected");
     msg_info("Deselected audio source %s as requested",
              audio_source_->id_.c_str());
@@ -923,7 +876,7 @@ static StreamExpected is_stream_expected(const ID::OurStream our_stream_id,
     }
 
     if(!stream_id.is_valid())
-        return StreamExpected::INVALID_ID;;
+        return StreamExpected::INVALID_ID;
 
     if(!ID::OurStream::compatible_with(stream_id))
         return StreamExpected::UNEXPECTEDLY_NOT_OURS;
@@ -934,58 +887,10 @@ static StreamExpected is_stream_expected(const ID::OurStream our_stream_id,
     return StreamExpected::OURS_AS_EXPECTED;
 }
 
-static StreamExpected is_stream_expected_to_start(const std::deque<ID::OurStream> &queued,
-                                                  const ID::Stream &stream_id)
-{
-    const auto our_stream_id =
-        queued.empty() ? ID::OurStream::make_invalid() : queued.front();
-
-    StreamExpected result = is_stream_expected(our_stream_id, stream_id);
-
-    switch(result)
-    {
-      case StreamExpected::OURS_AS_EXPECTED:
-        result = StreamExpected::OURS_QUEUED;
-        break;
-
-      case StreamExpected::EMPTY_AS_EXPECTED:
-      case StreamExpected::NOT_OURS:
-        break;
-
-      case StreamExpected::UNEXPECTEDLY_NOT_OURS:
-        msg_info("Stream in streamplayer queue (%u) is not ours (expected %u)",
-                 stream_id.get_raw_id(), our_stream_id.get().get_raw_id());
-        break;
-
-      case StreamExpected::UNEXPECTEDLY_OURS:
-        if(!queued.empty())
-            BUG("Out of sync: playing our stream %u that we don't know about",
-                stream_id.get_raw_id());
-
-        break;
-
-      case StreamExpected::OURS_WRONG_ID:
-        BUG("Out of sync: next stream ID should be %u, but streamplayer says it's %u",
-            our_stream_id.get().get_raw_id(), stream_id.get_raw_id());
-        break;
-
-      case StreamExpected::INVALID_ID:
-        BUG("Out of sync: expected stream %u, but have invalid playing stream",
-            our_stream_id.get().get_raw_id());
-        break;
-
-      case StreamExpected::OURS_QUEUED:
-        BUG("Unexpected stream expectation for playing");
-        break;
-    }
-
-    return result;
-}
-
-static StreamExpected is_stream_expected_playing(const ID::OurStream current_stream_id,
-                                                 const std::deque<ID::OurStream> &queued,
-                                                 const ID::Stream &stream_id,
-                                                 ExpectedPlayingCheckMode mode)
+static StreamExpected
+is_stream_expected_playing(const Player::QueuedStreams &queued,
+                           const ID::Stream &stream_id,
+                           ExpectedPlayingCheckMode mode)
 {
     const char *mode_name = nullptr;
 
@@ -1004,7 +909,8 @@ static StreamExpected is_stream_expected_playing(const ID::OurStream current_str
         break;
     }
 
-    StreamExpected result = is_stream_expected(current_stream_id, stream_id);
+    StreamExpected result =
+        is_stream_expected(queued.get_current_stream_id(), stream_id);
 
     switch(result)
     {
@@ -1019,12 +925,12 @@ static StreamExpected is_stream_expected_playing(const ID::OurStream current_str
       case StreamExpected::UNEXPECTEDLY_NOT_OURS:
         msg_info("%s foreign stream %u, expected our stream %u",
                  mode_name, stream_id.get_raw_id(),
-                 current_stream_id.get().get_raw_id());
+                 queued.get_current_stream_id().get().get_raw_id());
         break;
 
       case StreamExpected::UNEXPECTEDLY_OURS:
       case StreamExpected::OURS_WRONG_ID:
-        if(!queued.empty() && queued.front().get() == stream_id)
+        if(queued.is_next(stream_id))
         {
             result = StreamExpected::OURS_QUEUED;
             break;
@@ -1038,14 +944,15 @@ static StreamExpected is_stream_expected_playing(const ID::OurStream current_str
             else
                 BUG("Out of sync: %s stream ID should be %u, but streamplayer says it's %u",
                     mode_name,
-                    current_stream_id.get().get_raw_id(), stream_id.get_raw_id());
+                    queued.get_current_stream_id().get().get_raw_id(),
+                    stream_id.get_raw_id());
         }
 
         break;
 
       case StreamExpected::INVALID_ID:
         BUG("Out of sync: %s invalid stream, expected stream %u",
-            mode_name, current_stream_id.get().get_raw_id());
+            mode_name, queued.get_current_stream_id().get().get_raw_id());
         break;
 
       case StreamExpected::OURS_QUEUED:
@@ -1056,20 +963,11 @@ static StreamExpected is_stream_expected_playing(const ID::OurStream current_str
     return result;
 }
 
-bool Player::Control::skip_forward_request()
+bool Player::Control::skip_request_prepare(
+        UserIntention previous_intention,
+        Skipper::RunNewFindNextOp &run_new_find_next_fn,
+        Skipper::SkipperDoneCallback &done_fn)
 {
-    if(player_ == nullptr || crawler_ == nullptr)
-    {
-        send_simple_skip_forward_command(audio_source_);
-        return false;
-    }
-
-    if(permissions_ != nullptr && !permissions_->can_skip_forward())
-    {
-        msg_error(EPERM, LOG_INFO, "Ignoring skip forward request");
-        return false;
-    }
-
     if(!is_any_audio_source_plugged())
         return false;
 
@@ -1083,107 +981,186 @@ bool Player::Control::skip_forward_request()
         break;
     }
 
-    auto crawler_lock(crawler_->lock());
+    run_new_find_next_fn =
+        [this]
+        (std::string &&debug_description,
+         std::unique_ptr<Playlist::Crawler::CursorBase> mark_here,
+         Playlist::Crawler::Direction direction,
+         Playlist::Crawler::FindNextOpBase::CompletionCallback &&cc,
+         Playlist::Crawler::OperationBase::CompletionCallbackFilter filter)
+            -> std::shared_ptr<Playlist::Crawler::FindNextOpBase>
+        {
+            const auto lock_ctrl(lock());
 
-    bool should_find_next = false;
-    bool retval = false;
+            cancel_prefetch_ops(prefetch_next_item_op_, prefetch_next_uris_op_, ch_);
 
-    UserIntention previous_intention;
-    switch(skip_requests_.forward_request(*player_, *crawler_, previous_intention))
+            if(ch_ == nullptr)
+                return nullptr;
+
+            if(mark_here == nullptr)
+                return nullptr;
+
+            ch_->bookmark(Playlist::Crawler::Bookmark::SKIP_CURSOR,
+                          std::move(mark_here));
+
+            auto op =
+                Playlist::Crawler::DirectoryCrawler::get_crawler(*ch_)
+                .mk_op_find_next(
+                    std::move(debug_description),
+                    ch_->get_settings<Playlist::Crawler::DefaultSettings>().recursive_mode_,
+                    direction, Playlist::Crawler::Bookmark::SKIP_CURSOR,
+                    I18n::String(false), std::move(cc), filter,
+                    Playlist::Crawler::FindNextOpBase::FindMode::FIND_NEXT);
+
+            if(op != nullptr && ch_->run(op))
+                return op;
+
+            return nullptr;
+        };
+
+    done_fn =
+        [this, previous_intention]
+        (std::shared_ptr<Playlist::Crawler::FindNextOpBase> op)
+        {
+            auto locks(lock());
+
+            if(player_data_ == nullptr || ch_ == nullptr)
+                return false;
+
+            if(op->is_op_canceled())
+                return false;
+
+            player_data_->set_intention(previous_intention);
+
+            bool found = true;
+            using PositionalState = Playlist::Crawler::FindNextOpBase::PositionalState;
+
+            switch(op->result_.pos_state_)
+            {
+              case PositionalState::SOMEWHERE_IN_LIST:
+              case PositionalState::UNKNOWN:
+                break;
+
+              case PositionalState::REACHED_START_OF_LIST:
+                found = op->direction_ != Playlist::Crawler::Direction::BACKWARD;
+                break;
+
+              case PositionalState::REACHED_END_OF_LIST:
+                found = op->direction_ != Playlist::Crawler::Direction::FORWARD;
+                break;
+            }
+
+            if(found)
+            {
+                if(prefetch_next_item_op_ != nullptr)
+                    prefetch_next_item_op_->cancel();
+
+                prefetch_next_item_op_ = std::move(op);
+
+                auto op_ref = prefetch_next_item_op_;
+                return found_item_for_playing(*op_ref);
+            }
+
+            skip_requests_.reset(
+                [this] () -> std::shared_ptr<Playlist::Crawler::FindNextOpBase>
+                {
+                    auto inner_op =
+                        Playlist::Crawler::DirectoryCrawler::get_crawler(*ch_)
+                        .mk_op_find_next(
+                            "Jump back to currently playing item",
+                            Playlist::Crawler::FindNextOpBase::RecursiveMode::FLAT,
+                            Playlist::Crawler::Direction::NONE,
+                            Playlist::Crawler::Bookmark::CURRENTLY_PLAYING,
+                            I18n::String(false),
+                            [this] (auto &)
+                            {
+                                skip_requests_.reset(nullptr);
+                                return false;
+                            },
+                            Playlist::Crawler::OperationBase::CompletionCallbackFilter::SUPPRESS_CANCELED,
+                            Playlist::Crawler::FindNextOpBase::FindMode::FIND_FIRST);
+
+                    if(inner_op != nullptr && ch_->run(inner_op))
+                        return inner_op;
+
+                    return nullptr;
+                });
+
+            return false;
+        };
+
+    return true;
+}
+
+void Player::Control::skip_forward_request()
+{
+    if(player_data_ == nullptr || ch_ == nullptr)
     {
-      case Skipper::REJECTED:
-      case Skipper::BACK_TO_NORMAL:
-      case Skipper::SKIPPING:
+        send_simple_skip_forward_command(audio_source_);
+        return;
+    }
+
+    if(permissions_ != nullptr && !permissions_->can_skip_forward())
+    {
+        msg_error(EPERM, LOG_NOTICE, "Ignoring skip forward request");
+        return;
+    }
+
+    const auto intention(player_data_->get_intention());
+    const Playlist::Crawler::CursorBase *reference_position;
+
+    switch(intention)
+    {
+      case Player::UserIntention::NOTHING:
+      case Player::UserIntention::STOPPING:
+        return;
+
+      case Player::UserIntention::PAUSING:
+      case Player::UserIntention::LISTENING:
+        reference_position =
+            ch_->get_bookmark(Playlist::Crawler::Bookmark::ABOUT_TO_PLAY,
+                              Playlist::Crawler::Bookmark::CURRENTLY_PLAYING);
         break;
 
-      case Skipper::FIRST_SKIP_REQUEST:
-        if(!crawler_->resume_crawler())
-            break;
-
-        if(!queued_streams_.empty())
-        {
-            /* stream player should have something in queue */
-            auto skipped_stream_id(ID::Stream::make_invalid());
-            Player::StreamState streamplayer_status;
-
-            if(!send_skip_to_next_command(skipped_stream_id,
-                                          streamplayer_status, audio_source_))
-            {
-                player_->set_intention(previous_intention);
-                break;
-            }
-
-            switch(is_stream_expected_playing(retry_data_.get_stream_id(),
-                                              queued_streams_, skipped_stream_id,
-                                              ExpectedPlayingCheckMode::SKIPPED))
-            {
-              case StreamExpected::OURS_AS_EXPECTED:
-                break;
-
-              case StreamExpected::OURS_QUEUED:
-                player_->forget_stream(queued_streams_.front().get());
-                queued_streams_.pop_front();
-                break;
-
-              case StreamExpected::OURS_WRONG_ID:
-                if(queued_streams_.front().get() == skipped_stream_id)
-                break;
-
-              case StreamExpected::EMPTY_AS_EXPECTED:
-                break;
-
-              case StreamExpected::NOT_OURS:
-              case StreamExpected::UNEXPECTEDLY_NOT_OURS:
-              case StreamExpected::UNEXPECTEDLY_OURS:
-              case StreamExpected::INVALID_ID:
-                BUG("Unexpected expectation result while skipping (1): current %u, skipped %u",
-                    retry_data_.get_stream_id().get().get_raw_id(),
-                    skipped_stream_id.get_raw_id());
-                break;
-            }
-
-            if(retry_data_.get_stream_id().get().is_valid())
-            {
-                player_->forget_stream(retry_data_.get_stream_id().get());
-                retry_data_.reset();
-            }
-
-            skip_requests_.skipped(*player_, *crawler_, false);
-            enforce_intention(player_->get_intention(), streamplayer_status,
-                              audio_source_, with_enforced_intentions_);
-
-            retval = true;
-        }
-        else
-            should_find_next = true;
-
+      case Player::UserIntention::SKIPPING_PAUSED:
+      case Player::UserIntention::SKIPPING_LIVE:
+        reference_position =
+            ch_->get_bookmark(Playlist::Crawler::Bookmark::SKIP_CURSOR);
         break;
     }
 
-    if(should_find_next)
+    Skipper::RunNewFindNextOp run_new_find_next_fn;
+    Skipper::SkipperDoneCallback done_fn;
+
+    if(!skip_request_prepare(intention, run_new_find_next_fn, done_fn))
+        return;
+
+    switch(skip_requests_.forward_request(
+                *player_data_, reference_position,
+                std::move(run_new_find_next_fn), std::move(done_fn)))
     {
-        switch(crawler_->find_next(std::bind(&Player::Control::async_list_entry_to_skip,
-                                             this,
-                                             std::placeholders::_1,
-                                             std::placeholders::_2)))
-        {
-          case Playlist::CrawlerIface::FindNextFnResult::SEARCHING:
-          case Playlist::CrawlerIface::FindNextFnResult::STOPPED_AT_START_OF_LIST:
-          case Playlist::CrawlerIface::FindNextFnResult::STOPPED_AT_END_OF_LIST:
-            break;
+      case Skipper::RequestResult::FIRST_SKIP_REQUEST_PENDING:
+      case Skipper::RequestResult::SKIPPING:
+      case Skipper::RequestResult::BACK_TO_NORMAL:
+      case Skipper::RequestResult::REJECTED:
+        break;
 
-          case Playlist::CrawlerIface::FindNextFnResult::FAILED:
-            player_->set_intention(previous_intention);
-            break;
-        }
+      case Skipper::RequestResult::FIRST_SKIP_REQUEST_SUPPRESSED:
+        /* stream player should have something in queue, so we ask it directly
+         * to skip */
+        MSG_UNREACHABLE();
+        player_data_->set_intention(intention);
+        break;
+
+      case Skipper::RequestResult::FAILED:
+        player_data_->set_intention(intention);
+        break;
     }
-
-    return retval;
 }
 
 void Player::Control::skip_backward_request()
 {
-    if(player_ == nullptr || crawler_ == nullptr)
+    if(player_data_ == nullptr || ch_ == nullptr)
     {
         send_simple_skip_backward_command(audio_source_);
         return;
@@ -1191,53 +1168,56 @@ void Player::Control::skip_backward_request()
 
     if(permissions_ != nullptr && !permissions_->can_skip_backward())
     {
-        msg_error(EPERM, LOG_INFO, "Ignoring skip backward request");
+        msg_error(EPERM, LOG_NOTICE, "Ignoring skip backward request");
         return;
     }
 
-    if(!is_any_audio_source_plugged())
-        return;
+    const auto intention(player_data_->get_intention());
+    const Playlist::Crawler::CursorBase *reference_position;
 
-    switch(audio_source_->get_state())
+    switch(intention)
     {
-      case AudioSourceState::DESELECTED:
-      case AudioSourceState::REQUESTED:
+      case Player::UserIntention::NOTHING:
+      case Player::UserIntention::STOPPING:
         return;
 
-      case AudioSourceState::SELECTED:
+      case Player::UserIntention::PAUSING:
+      case Player::UserIntention::LISTENING:
+        reference_position =
+            ch_->get_bookmark(Playlist::Crawler::Bookmark::ABOUT_TO_PLAY,
+                              Playlist::Crawler::Bookmark::CURRENTLY_PLAYING);
+        break;
+
+      case Player::UserIntention::SKIPPING_PAUSED:
+      case Player::UserIntention::SKIPPING_LIVE:
+        reference_position =
+            ch_->get_bookmark(Playlist::Crawler::Bookmark::SKIP_CURSOR);
         break;
     }
 
-    auto crawler_lock(crawler_->lock());
+    Skipper::RunNewFindNextOp run_new_find_next_fn;
+    Skipper::SkipperDoneCallback done_fn;
 
-    UserIntention previous_intention;
-    switch(skip_requests_.backward_request(*player_, *crawler_, previous_intention))
+    if(!skip_request_prepare(intention, run_new_find_next_fn, done_fn))
+        return;
+
+    switch(skip_requests_.backward_request(
+                *player_data_, reference_position,
+                std::move(run_new_find_next_fn), std::move(done_fn)))
     {
-      case Skipper::REJECTED:
-      case Skipper::BACK_TO_NORMAL:
-      case Skipper::SKIPPING:
+      case Skipper::RequestResult::FIRST_SKIP_REQUEST_PENDING:
+      case Skipper::RequestResult::SKIPPING:
+      case Skipper::RequestResult::BACK_TO_NORMAL:
+      case Skipper::RequestResult::REJECTED:
         break;
 
-      case Skipper::FIRST_SKIP_REQUEST:
-        if(!crawler_->resume_crawler())
-            break;
+      case Skipper::RequestResult::FIRST_SKIP_REQUEST_SUPPRESSED:
+        MSG_UNREACHABLE();
+        player_data_->set_intention(intention);
+        break;
 
-        switch(crawler_->find_next(std::bind(&Player::Control::async_list_entry_to_skip,
-                                             this,
-                                             std::placeholders::_1,
-                                             std::placeholders::_2)))
-        {
-          case Playlist::CrawlerIface::FindNextFnResult::SEARCHING:
-          case Playlist::CrawlerIface::FindNextFnResult::STOPPED_AT_START_OF_LIST:
-          case Playlist::CrawlerIface::FindNextFnResult::STOPPED_AT_END_OF_LIST:
-            break;
-
-          case Playlist::CrawlerIface::FindNextFnResult::FAILED:
-            player_->set_intention(previous_intention);
-            skip_requests_.stop_skipping(*player_, *crawler_);
-            break;
-        }
-
+      case Skipper::RequestResult::FAILED:
+        player_data_->set_intention(intention);
         break;
     }
 }
@@ -1264,7 +1244,7 @@ void Player::Control::rewind_request()
             if(permissions_->can_skip_backward())
                 return skip_backward_request();
 
-            msg_error(EPERM, LOG_INFO, "Ignoring rewind request");
+            msg_error(EPERM, LOG_NOTICE, "Ignoring rewind request");
             return;
         }
     }
@@ -1290,21 +1270,11 @@ static inline bool is_fast_winding_allowed(const Player::LocalPermissionsIface *
            permissions->can_fast_wind_backward();
 }
 
-static inline bool is_fast_winding_allowed(const Player::LocalPermissionsIface *permissions,
-                                           bool is_forward)
-{
-    if(permissions == nullptr)
-        return true;
-
-    return (is_forward && permissions->can_fast_wind_forward()) ||
-           (!is_forward && permissions->can_fast_wind_backward());
-}
-
 void Player::Control::fast_wind_set_speed_request(double speed_factor)
 {
     if(speed_factor > 0.0 && !is_fast_winding_allowed(permissions_))
     {
-        msg_error(EPERM, LOG_INFO,
+        msg_error(EPERM, LOG_NOTICE,
                   "Ignoring fast wind set factor request");
         return;
     }
@@ -1317,7 +1287,7 @@ void Player::Control::seek_stream_request(int64_t value, const std::string &unit
 {
     if(!is_fast_winding_allowed(permissions_))
     {
-        msg_error(EPERM, LOG_INFO, "Ignoring stream seek request");
+        msg_error(EPERM, LOG_NOTICE, "Ignoring stream seek request");
         return;
     }
 
@@ -1350,79 +1320,48 @@ void Player::Control::seek_stream_request(int64_t value, const std::string &unit
 void Player::Control::play_notification(ID::Stream stream_id,
                                         bool is_new_stream)
 {
-    if(is_new_stream)
-    {
-        switch(is_stream_expected_to_start(queued_streams_, stream_id))
-        {
-          case StreamExpected::OURS_AS_EXPECTED:
-            break;
-
-          case StreamExpected::OURS_QUEUED:
-            queued_streams_.pop_front();
-            break;
-
-          case StreamExpected::NOT_OURS:
-          case StreamExpected::OURS_WRONG_ID:
-            break;
-
-          case StreamExpected::UNEXPECTEDLY_OURS:
-            retry_data_.reset();
-            return;
-
-          case StreamExpected::UNEXPECTEDLY_NOT_OURS:
-            unplug(false);
-            return;
-
-          case StreamExpected::EMPTY_AS_EXPECTED:
-            BUG("Got play notification for empty queue and invalid stream");
-            return;
-
-          case StreamExpected::INVALID_ID:
-            return;
-        }
-    }
-
     retry_data_.playing(stream_id);
 
-    if(player_ != nullptr)
+    if(player_data_ == nullptr)
+        return;
+
+    if(ch_ != nullptr)
     {
-        if(crawler_ != nullptr)
-        {
-            auto crawler_lock(crawler_->lock());
-            auto *crawler = dynamic_cast<Playlist::DirectoryCrawler *>(crawler_);
-            const auto *const info =
-                player_->get_stream_preplay_info(ID::OurStream::make_from_generic_id(stream_id));
+        const auto *const qs =
+            player_data_->queued_streams_get().get_stream_by_id(
+                ID::OurStream::make_from_generic_id(stream_id));
 
-            if(info != nullptr)
-            {
-                crawler->mark_position(info->list_id_, info->line_, info->directory_depth_,
-                                       info->is_crawler_direction_reverse_
-                                       ? Playlist::CrawlerIface::Direction::BACKWARD
-                                       : Playlist::CrawlerIface::Direction::FORWARD);
-
-                if(audio_source_ != nullptr)
-                {
-                    const auto &refpoint(crawler->get_start_position());
-                    audio_source_->resume_data_update(
-                        Player::CrawlerResumeData(refpoint.get_list_id(),
-                                                  refpoint.get_line(),
-                                                  info->list_id_, info->line_,
-                                                  info->directory_depth_,
-                                                  I18n::String(false)));
-                }
-            }
-            else
-                BUG("No list position for stream %u", stream_id.get_raw_id());
-        }
+        if(qs == nullptr)
+            BUG("No list position for stream %u", stream_id.get_raw_id());
         else if(audio_source_ != nullptr)
         {
-            const auto &md(player_->get_meta_data(stream_id));
-            audio_source_->resume_data_update(Player::PlainURLResumeData(md.values_[MetaData::Set::ID::INTERNAL_DRCPD_URL]));
-        }
+            if(is_new_stream)
+                ch_->bookmark(Playlist::Crawler::Bookmark::CURRENTLY_PLAYING,
+                              qs->originating_cursor_->clone());
 
-        enforce_intention(player_->get_intention(), Player::StreamState::PLAYING,
-                          audio_source_, with_enforced_intentions_);
+            const auto *const ref_point =
+                dynamic_cast<const Playlist::Crawler::DirectoryCrawler::Cursor *>(
+                    &ch_->get_reference_point());
+            const auto *const marked =
+                dynamic_cast<const Playlist::Crawler::DirectoryCrawler::Cursor *>(
+                    ch_->get_bookmark(Playlist::Crawler::Bookmark::CURRENTLY_PLAYING));
+
+            if(ref_point != nullptr && marked != nullptr)
+                audio_source_->resume_data_update(CrawlerResumeData(
+                    ref_point->get_list_id(), ref_point->get_line(),
+                    marked->get_list_id(), marked->get_line(),
+                    marked->get_directory_depth(), I18n::String(false)));
+        }
     }
+    else if(audio_source_ != nullptr)
+    {
+        const auto &md(player_data_->get_meta_data(stream_id));
+        audio_source_->resume_data_update(
+            PlainURLResumeData(md.values_[MetaData::Set::ID::INTERNAL_DRCPD_URL]));
+    }
+
+    enforce_intention(player_data_->get_intention(), PlayerState::PLAYING,
+                      audio_source_, with_enforced_intentions_);
 }
 
 static inline void clear_resume_data(Player::AudioSource *audio_source)
@@ -1432,18 +1371,15 @@ static inline void clear_resume_data(Player::AudioSource *audio_source)
 }
 
 Player::Control::StopReaction
-Player::Control::stop_notification(ID::Stream stream_id)
+Player::Control::stop_notification_ok(ID::Stream stream_id)
 {
 
-    if(player_ == nullptr || crawler_ == nullptr)
+    if(player_data_ == nullptr || ch_ == nullptr)
         return StopReaction::NOT_ATTACHED;
 
     bool stop_regardless_of_intention = false;
 
-    auto crawler_lock(crawler_->lock());
-
-    switch(is_stream_expected_playing(retry_data_.get_stream_id(),
-                                      queued_streams_, stream_id,
+    switch(is_stream_expected_playing(player_data_->queued_streams_get(), stream_id,
                                       ExpectedPlayingCheckMode::STOPPED))
     {
       case StreamExpected::OURS_AS_EXPECTED:
@@ -1455,7 +1391,7 @@ Player::Control::stop_notification(ID::Stream stream_id)
         /* this case is a result of very fast skipping or some internal
          * processing error; in the latter case, we'll just accept the player's
          * stop notification and do not attempt to fight it */
-        stop_regardless_of_intention = !crawler_->is_crawling();
+        stop_regardless_of_intention = (ch_ == nullptr);
         break;
 
       case StreamExpected::EMPTY_AS_EXPECTED:
@@ -1466,10 +1402,9 @@ Player::Control::stop_notification(ID::Stream stream_id)
         return StopReaction::STREAM_IGNORED;
     }
 
-    bool skipping = false;
     const auto intention = stop_regardless_of_intention
         ? UserIntention::STOPPING
-        : player_->get_intention();
+        : player_data_->get_intention();
 
     /* stream stopped playing with no error---good? */
     switch(intention)
@@ -1480,89 +1415,32 @@ Player::Control::stop_notification(ID::Stream stream_id)
         /* fall-through */
 
       case UserIntention::NOTHING:
-        crawler_->configure_and_restart(crawler_->get_recursive_mode(),
-                                        crawler_->get_shuffle_mode());
         return StopReaction::STOPPED;
 
       case UserIntention::PAUSING:
       case UserIntention::LISTENING:
-        break;
-
       case UserIntention::SKIPPING_PAUSED:
       case UserIntention::SKIPPING_LIVE:
-        skipping = true;
         break;
     }
 
     /* at this point we know for sure that it was indeed our stream that has
-     * failed */
+     * stopped playing */
 
-    player_->forget_stream(stream_id);
+    player_data_->player_has_stopped();
     retry_data_.reset();
 
-    switch(prefetch_state_)
+    if(prefetch_next_item_op_ == nullptr && prefetch_next_uris_op_ == nullptr)
     {
-      case PrefetchState::NOT_PREFETCHING:
-        /* probably end of list, checked below by finding the next item */
-        break;
-
-      case PrefetchState::PREFETCHING_NEXT_LIST_ITEM:
-        /* still prefetching next stream information while the current stream
-         * has stopped already */
-        msg_info("Stream stopped while next stream is still unavailable; "
-                 "audible gap is very likely");
-        prefetch_state_ = PrefetchState::PREFETCHING_NEXT_LIST_ITEM_AND_PLAY_IT;
-        return StopReaction::QUEUED;
-
-      case PrefetchState::PREFETCHING_NEXT_LIST_ITEM_AND_PLAY_IT:
-        BUG("This case should not occur");
-        return StopReaction::QUEUED;
-
-      case PrefetchState::HAVE_NEXT_LIST_ITEM:
-        /* we have the item already, now we need to retrieve its information */
-        prefetch_state_ = PrefetchState::PREFETCHING_LIST_ITEM_INFORMATION;
-
-        if(crawler_->retrieve_item_information(std::bind(&Player::Control::async_stream_details_for_playing,
-                                                         this,
-                                                         std::placeholders::_1,
-                                                         std::placeholders::_2)))
-            return StopReaction::RETRIEVE_QUEUED;
-
-        prefetch_state_ = PrefetchState::NOT_PREFETCHING;
-
-        if(!permissions_->can_skip_on_error())
-            return StopReaction::STOPPED;
-
-        break;
-
-      case PrefetchState::PREFETCHING_LIST_ITEM_INFORMATION:
-      case PrefetchState::HAVE_LIST_ITEM_INFORMATION:
-        /* item information are fetched or already there, so there is nothing
-         * to do here */
-        return Player::Control::StopReaction::NOP;
-    }
-
-    if(!skipping)
-        crawler_->set_direction_forward();
-
-    switch(crawler_->find_next(std::bind(&Player::Control::async_list_entry_for_playing,
-                                         this,
-                                         std::placeholders::_1,
-                                         std::placeholders::_2)))
-    {
-      case Playlist::CrawlerIface::FindNextFnResult::SEARCHING:
-        return StopReaction::QUEUED;
-
-      case Playlist::CrawlerIface::FindNextFnResult::STOPPED_AT_START_OF_LIST:
-      case Playlist::CrawlerIface::FindNextFnResult::STOPPED_AT_END_OF_LIST:
+        /* probably end of list */
         clear_resume_data(audio_source_);
-        break;
-
-      case Playlist::CrawlerIface::FindNextFnResult::FAILED:
-        break;
+        return StopReaction::STOPPED;
     }
 
-    return StopReaction::STOPPED;
+    /* still prefetching */
+    msg_info("Stream stopped while next stream is still unavailable; "
+             "audible gap is very likely");
+    return StopReaction::QUEUED;
 }
 
 /*!
@@ -1573,6 +1451,9 @@ Player::Control::stop_notification(ID::Stream stream_id)
  * No exception thrown in here because the caller needs to react to specific
  * situations.
  *
+ * \param player
+ *     Player data containing the queue.
+ *
  * \param stream_id
  *     Internal ID of the stream for mapping it to extra information maintained
  *     by us.
@@ -1580,7 +1461,7 @@ Player::Control::stop_notification(ID::Stream stream_id)
  * \param stream_key
  *     Stream key as passed in from the stream source.
  *
- * \param queue_mode
+ * \param insert_mode
  *     How to manipulate the stream player URL FIFO.
  *
  * \param play_new_mode
@@ -1599,12 +1480,12 @@ Player::Control::stop_notification(ID::Stream stream_id)
  * \returns
  *     True in case of success, false otherwise.
  */
-static bool send_selected_file_uri_to_streamplayer(ID::OurStream stream_id,
-                                                   const GVariantWrapper &stream_key,
-                                                   Player::Control::QueueMode queue_mode,
-                                                   Player::Control::PlayNewMode play_new_mode,
-                                                   const std::string &queued_url,
-                                                   const Player::AudioSource &asrc)
+static bool send_selected_file_uri_to_streamplayer(
+        Player::Data &player, ID::OurStream stream_id,
+        const GVariantWrapper &stream_key,
+        Player::Control::InsertMode insert_mode,
+        Player::Control::PlayNewMode play_new_mode,
+        const std::string &queued_url, const Player::AudioSource &asrc)
 {
     if(queued_url.empty())
         return false;
@@ -1617,16 +1498,16 @@ static bool send_selected_file_uri_to_streamplayer(ID::OurStream stream_id,
 
     gint16 keep_first_n = -1;
 
-    switch(queue_mode)
+    switch(insert_mode)
     {
-      case Player::Control::QueueMode::APPEND:
+      case Player::Control::InsertMode::APPEND:
         break;
 
-      case Player::Control::QueueMode::REPLACE_QUEUE:
+      case Player::Control::InsertMode::REPLACE_QUEUE:
         keep_first_n = 0;
         break;
 
-      case Player::Control::QueueMode::REPLACE_ALL:
+      case Player::Control::InsertMode::REPLACE_ALL:
         keep_first_n = -2;
         break;
     }
@@ -1636,12 +1517,11 @@ static bool send_selected_file_uri_to_streamplayer(ID::OurStream stream_id,
     if(urlfifo_proxy != nullptr)
     {
         GErrorWrapper error;
-        tdbus_splay_urlfifo_call_push_sync(urlfifo_proxy,
-                                           stream_id.get().get_raw_id(),
-                                           queued_url.c_str(), GVariantWrapper::get(stream_key),
-                                           0, "ms", 0, "ms", keep_first_n,
-                                           &fifo_overflow, &is_playing,
-                                           nullptr, error.await());
+        tdbus_splay_urlfifo_call_push_sync(
+            urlfifo_proxy, stream_id.get().get_raw_id(),
+            queued_url.c_str(), GVariantWrapper::get(stream_key),
+            0, "ms", 0, "ms", keep_first_n,
+            &fifo_overflow, &is_playing, nullptr, error.await());
 
         if(error.log_failure("Push stream"))
         {
@@ -1655,6 +1535,8 @@ static bool send_selected_file_uri_to_streamplayer(ID::OurStream stream_id,
         BUG("URL FIFO overflow, losing item %u", stream_id.get().get_raw_id());
         return false;
     }
+
+    player.queued_stream_sent_to_player(stream_id);
 
     if(is_playing)
         return true;
@@ -1686,40 +1568,41 @@ static bool send_selected_file_uri_to_streamplayer(ID::OurStream stream_id,
     return true;
 }
 
-static Player::StreamPreplayInfo::OpResult
+static Player::QueuedStream::OpResult
 queue_stream_or_forget(Player::Data &player, ID::OurStream stream_id,
-                       Player::Control::QueueMode queue_mode,
+                       Player::Control::InsertMode insert_mode,
                        Player::Control::PlayNewMode play_new_mode,
-                       const Player::StreamPreplayInfo::ResolvedRedirectCallback &callback,
+                       Player::QueuedStream::ResolvedRedirectCallback &&callback,
                        const Player::AudioSource *asrc)
 {
     const GVariantWrapper *stream_key;
     const std::string *uri = nullptr;
-    const auto result(player.get_first_stream_uri(stream_id, stream_key, uri, callback));
+    const auto result(player.get_first_stream_uri(stream_id, stream_key,
+                                                  uri, std::move(callback)));
 
     if(uri == nullptr)
         return result;
 
     if(asrc == nullptr ||
-       !send_selected_file_uri_to_streamplayer(stream_id, *stream_key,
-                                               queue_mode, play_new_mode,
+       !send_selected_file_uri_to_streamplayer(player, stream_id, *stream_key,
+                                               insert_mode, play_new_mode,
                                                *uri, *asrc))
     {
-        player.forget_stream(stream_id.get());
-        return Player::StreamPreplayInfo::OpResult::FAILED;
+        player.queued_stream_remove(stream_id);
+        return Player::QueuedStream::OpResult::FAILED;
     }
 
     return result;
 }
 
 Player::Control::StopReaction
-Player::Control::stop_notification(ID::Stream stream_id,
-                                   const std::string &error_id,
-                                   bool is_urlfifo_empty)
+Player::Control::stop_notification_with_error(ID::Stream stream_id,
+                                              const std::string &error_id,
+                                              bool is_urlfifo_empty)
 {
     log_assert(!error_id.empty());
 
-    if(player_ == nullptr || crawler_ == nullptr)
+    if(player_data_ == nullptr || ch_ == nullptr)
         return StopReaction::NOT_ATTACHED;
 
     bool stop_regardless_of_intention = false;
@@ -1730,8 +1613,7 @@ Player::Control::stop_notification(ID::Stream stream_id,
     const StreamExpected stream_expected_result =
         (reason.get_code() != StoppedReason::Code::FLOW_EMPTY_URLFIFO &&
          reason.get_code() != StoppedReason::Code::FLOW_ALREADY_STOPPED)
-        ? is_stream_expected_playing(retry_data_.get_stream_id(),
-                                     queued_streams_, stream_id,
+        ? is_stream_expected_playing(player_data_->queued_streams_get(), stream_id,
                                      ExpectedPlayingCheckMode::STOPPED_WITH_ERROR)
         : StreamExpected::OURS_AS_EXPECTED;
 
@@ -1757,17 +1639,15 @@ Player::Control::stop_notification(ID::Stream stream_id,
         return StopReaction::STREAM_IGNORED;
     }
 
-    msg_info("Stream error %s -> %d.%d, URL FIFO %sempty, expected queue size %zu",
+    msg_info("Stream error %s -> %d.%d, URL FIFO %sempty",
              error_id.c_str(), static_cast<unsigned int>(reason.get_domain()),
              static_cast<unsigned int>(reason.get_code()),
-             is_urlfifo_empty ? "" : "not ", queued_streams_.size());
+             is_urlfifo_empty ? "" : "not ");
 
-    auto crawler_lock(crawler_->lock());
-    bool skipping = false;
     PlayNewMode replay_mode = PlayNewMode::KEEP;
     const auto intention = stop_regardless_of_intention
         ? UserIntention::STOPPING
-        : player_->get_intention();
+        : player_data_->get_intention();
 
     switch(intention)
     {
@@ -1777,26 +1657,16 @@ Player::Control::stop_notification(ID::Stream stream_id,
         /* fall-through */
 
       case UserIntention::NOTHING:
-        crawler_->configure_and_restart(crawler_->get_recursive_mode(),
-                                        crawler_->get_shuffle_mode());
         return StopReaction::STOPPED;
 
       case UserIntention::PAUSING:
+      case UserIntention::SKIPPING_PAUSED:
         replay_mode = PlayNewMode::SEND_PAUSE_COMMAND_IF_IDLE;
         break;
 
       case UserIntention::LISTENING:
-        replay_mode = PlayNewMode::SEND_PLAY_COMMAND_IF_IDLE;
-        break;
-
-      case UserIntention::SKIPPING_PAUSED:
-        replay_mode = PlayNewMode::SEND_PAUSE_COMMAND_IF_IDLE;
-        skipping = true;
-        break;
-
       case UserIntention::SKIPPING_LIVE:
         replay_mode = PlayNewMode::SEND_PLAY_COMMAND_IF_IDLE;
-        skipping = true;
         break;
     }
 
@@ -1821,7 +1691,7 @@ Player::Control::stop_notification(ID::Stream stream_id,
         break;
 
       case StoppedReason::Code::FLOW_ALREADY_STOPPED:
-        return Player::Control::StopReaction::QUEUED;
+        return StopReaction::QUEUED;
 
       case StoppedReason::Code::IO_NETWORK_FAILURE:
       case StoppedReason::Code::IO_URL_MISSING:
@@ -1834,19 +1704,15 @@ Player::Control::stop_notification(ID::Stream stream_id,
         break;
     }
 
+    const auto our_id(ID::OurStream::make_from_generic_id(stream_id));
+
     if(should_retry)
     {
-        bool may_prefetch_more;
-        const auto replay_result =
-            replay(ID::OurStream::make_from_generic_id(stream_id), true,
-                   replay_mode, may_prefetch_more);
+        const auto replay_result = replay(our_id, true, replay_mode);
 
         switch(replay_result)
         {
           case ReplayResult::OK:
-            if(may_prefetch_more)
-                need_next_item_hint(false);
-
             return StopReaction::RETRY;
 
           case ReplayResult::RETRY_FAILED_HARD:
@@ -1857,13 +1723,8 @@ Player::Control::stop_notification(ID::Stream stream_id,
             break;
         }
     }
-    else if(stream_expected_result == StreamExpected::OURS_QUEUED)
-    {
-        player_->forget_stream(queued_streams_.front().get());
-        queued_streams_.pop_front();
-    }
 
-    player_->forget_stream(stream_id);
+    player_data_->queued_stream_remove(our_id);
     retry_data_.reset();
 
     if(!permissions_->can_skip_on_error())
@@ -1872,7 +1733,7 @@ Player::Control::stop_notification(ID::Stream stream_id,
     /* so we should skip to the next stream---what *is* the "next" stream? */
     if(is_urlfifo_empty)
     {
-        if(!queued_streams_.empty())
+        if(player_data_->queued_streams_get().is_player_queue_filled())
         {
             /* looks slightly out of sync because of a race between the stream
              * player and this process (stream player has sent the stop
@@ -1880,7 +1741,7 @@ Player::Control::stop_notification(ID::Stream stream_id,
              * everything is fine */
             return StopReaction::QUEUED;
         }
-        else if(crawler_->is_busy())
+        else if(Playlist::Crawler::DirectoryCrawler::get_crawler(*ch_).is_busy())
         {
             /* empty URL FIFO, and we haven't anything either---crawler is
              * already busy fetching the next stream, so everything is fine,
@@ -1893,7 +1754,7 @@ Player::Control::stop_notification(ID::Stream stream_id,
     }
     else
     {
-        if(queued_streams_.empty())
+        if(!player_data_->queued_streams_get().is_player_queue_filled())
         {
             BUG("Out of sync: stream player stopped our stream with error "
                 "and has streams queued, but we don't known which");
@@ -1921,26 +1782,6 @@ Player::Control::stop_notification(ID::Stream stream_id,
         }
     }
 
-    if(!skipping)
-        crawler_->set_direction_from_marked_position();
-
-    switch(crawler_->find_next(std::bind(&Player::Control::async_list_entry_for_playing,
-                                         this,
-                                         std::placeholders::_1,
-                                         std::placeholders::_2)))
-    {
-      case Playlist::CrawlerIface::FindNextFnResult::SEARCHING:
-        return StopReaction::QUEUED;
-
-      case Playlist::CrawlerIface::FindNextFnResult::STOPPED_AT_START_OF_LIST:
-      case Playlist::CrawlerIface::FindNextFnResult::STOPPED_AT_END_OF_LIST:
-        clear_resume_data(audio_source_);
-        break;
-
-      case Playlist::CrawlerIface::FindNextFnResult::FAILED:
-        break;
-    }
-
     return StopReaction::STOPPED;
 }
 
@@ -1949,432 +1790,207 @@ void Player::Control::pause_notification(ID::Stream stream_id)
     retry_data_.playing(stream_id);
 
     if(is_active_controller())
-        enforce_intention(player_->get_intention(), Player::StreamState::PAUSED,
+        enforce_intention(player_data_->get_intention(), PlayerState::PAUSED,
                           audio_source_, with_enforced_intentions_);
 }
 
-
-void Player::Control::need_next_item_hint(bool queue_is_full)
+void Player::Control::start_prefetch_next_item(
+        const char *const reason, Playlist::Crawler::Bookmark from_where,
+        Playlist::Crawler::Direction direction)
 {
     if(!is_active_controller())
         return;
 
-    if(queue_is_full)
-        BUG("Streamplayer reports full queue");
-
-    if(!permissions_->can_prefetch_for_gapless())
+    if(ch_ == nullptr)
         return;
 
-    if(crawler_ == nullptr)
+    if(prefetch_next_item_op_ != nullptr)
         return;
 
-    auto crawler_lock(crawler_->lock());
+    if(player_data_->queued_streams_get().is_full(permissions_->maximum_number_of_prefetched_streams()))
+        return;
 
-    switch(prefetch_state_)
+    const auto *from_pos = ch_->get_bookmark(from_where);
+
+    if(from_where == Playlist::Crawler::Bookmark::PREFETCH_CURSOR &&
+       from_pos == nullptr)
     {
-      case PrefetchState::NOT_PREFETCHING:
-        break;
-
-      case PrefetchState::PREFETCHING_NEXT_LIST_ITEM:
-      case PrefetchState::PREFETCHING_NEXT_LIST_ITEM_AND_PLAY_IT:
-      case PrefetchState::HAVE_NEXT_LIST_ITEM:
-      case PrefetchState::PREFETCHING_LIST_ITEM_INFORMATION:
-      case PrefetchState::HAVE_LIST_ITEM_INFORMATION:
-        return;
+        from_where = Playlist::Crawler::Bookmark::CURRENTLY_PLAYING;
+        from_pos = ch_->get_bookmark(from_where);
     }
 
-    if(queued_streams_.size() >= permissions_->maximum_number_of_prefetched_streams())
-        return;
+    if(from_where != Playlist::Crawler::Bookmark::PREFETCH_CURSOR)
+    {
+        BUG_IF(from_pos == nullptr, "Empty bookmark: %s", reason);
+        if(from_pos != nullptr)
+        {
+            auto pos(from_pos->clone());
+            pos->sync_request_with_pos();
+            ch_->bookmark(Playlist::Crawler::Bookmark::PREFETCH_CURSOR, std::move(pos));
+        }
+    }
 
     /* we always prefetch the next item even for sources that do not support
      * gapless playback to mask possible network latencies caused by that
      * operation; we do not, however, fetch the next item's detailed data
      * because this may cause problems on non-gapless sources */
-    prefetch_state_ = PrefetchState::PREFETCHING_NEXT_LIST_ITEM;
+    auto find_op =
+        Playlist::Crawler::DirectoryCrawler::get_crawler(*ch_)
+        .mk_op_find_next(
+            std::string("Prefetch next item for gapless playback (") + reason + ")",
+            ch_->get_settings<Playlist::Crawler::DefaultSettings>().recursive_mode_,
+            direction, Playlist::Crawler::Bookmark::PREFETCH_CURSOR,
+            I18n::String(false),
+            [this] (auto &op) { return found_prefetched_item(op); },
+            Playlist::Crawler::OperationBase::CompletionCallbackFilter::SUPPRESS_CANCELED,
+            Playlist::Crawler::FindNextOpBase::FindMode::FIND_NEXT);
 
-    switch(crawler_->find_next(std::bind(&Player::Control::async_list_entry_prefetched,
-                                         this,
-                                         std::placeholders::_1,
-                                         std::placeholders::_2)))
-    {
-      case Playlist::CrawlerIface::FindNextFnResult::SEARCHING:
-        break;
+    prefetch_next_item_op_ = find_op;
 
-      case Playlist::CrawlerIface::FindNextFnResult::STOPPED_AT_START_OF_LIST:
-      case Playlist::CrawlerIface::FindNextFnResult::STOPPED_AT_END_OF_LIST:
-      case Playlist::CrawlerIface::FindNextFnResult::FAILED:
-        prefetch_state_ = PrefetchState::NOT_PREFETCHING;
-        break;
-    }
+    if(find_op != nullptr && !ch_->run(std::move(find_op)))
+        prefetch_next_item_op_ = nullptr;
 }
 
-static void not_attached_bug(const char *what, bool and_crawler = false)
-{
-    BUG("%s, but not attached to player%s anymore",
-        what, and_crawler ? " and/or crawler" : "");
-}
-
-void Player::Control::async_list_entry_for_playing(Playlist::CrawlerIface &crawler,
-                                                   Playlist::CrawlerIface::FindNextItemResult result)
+bool Player::Control::found_prefetched_item(Playlist::Crawler::FindNextOpBase &op)
 {
     auto locks(lock());
 
-    if(player_ == nullptr)
+    if(op.is_op_canceled())
+        return false;
+
+    log_assert(&op == prefetch_next_item_op_.get());
+    prefetch_next_item_op_ = nullptr;
+
+    if(op.is_op_failure())
     {
-        not_attached_bug("Found list item for playing");
-        return;
+        BUG("Hard error: should be reported");
+        return false;
     }
 
-    switch(result)
-    {
-      case Playlist::CrawlerIface::FindNextItemResult::FOUND:
-        crawler.mark_current_position();
-        prefetch_state_ = PrefetchState::PREFETCHING_LIST_ITEM_INFORMATION;
-
-        if(crawler.retrieve_item_information(std::bind(&Player::Control::async_stream_details_for_playing,
-                                                       this,
-                                                       std::placeholders::_1,
-                                                       std::placeholders::_2)))
-            return;
-
-        break;
-
-      case Playlist::CrawlerIface::FindNextItemResult::FAILED:
-      case Playlist::CrawlerIface::FindNextItemResult::CANCELED:
-      case Playlist::CrawlerIface::FindNextItemResult::START_OF_LIST:
-      case Playlist::CrawlerIface::FindNextItemResult::END_OF_LIST:
-        break;
-    }
-
-    prefetch_state_ = PrefetchState::NOT_PREFETCHING;
-    skip_requests_.stop_skipping(*player_, *crawler_);
-
-    if(stop_playing_notification_ != nullptr)
-        stop_playing_notification_();
-}
-
-void Player::Control::async_list_entry_to_skip(Playlist::CrawlerIface &crawler,
-                                               Playlist::CrawlerIface::FindNextItemResult result)
-{
-    auto locks(lock());
-
-    if(player_ == nullptr)
-    {
-        not_attached_bug("Found list item to skip");
-        return;
-    }
-
-    switch(result)
-    {
-      case Playlist::CrawlerIface::FindNextItemResult::FOUND:
-        prefetch_state_ = PrefetchState::HAVE_NEXT_LIST_ITEM;
-
-        switch(skip_requests_.skipped(*player_, *crawler_, true))
-        {
-          case Player::Skipper::SkippedResult::SKIPPING_FORWARD:
-          case Player::Skipper::SkippedResult::SKIPPING_BACKWARD:
-            switch(crawler.find_next(std::bind(&Player::Control::async_list_entry_to_skip,
-                                               this,
-                                               std::placeholders::_1,
-                                               std::placeholders::_2)))
-            {
-              case Playlist::CrawlerIface::FindNextFnResult::SEARCHING:
-                break;
-
-              case Playlist::CrawlerIface::FindNextFnResult::STOPPED_AT_START_OF_LIST:
-              case Playlist::CrawlerIface::FindNextFnResult::STOPPED_AT_END_OF_LIST:
-              case Playlist::CrawlerIface::FindNextFnResult::FAILED:
-                skip_requests_.stop_skipping(*player_, *crawler_);
-                break;
-            }
-
-            return;
-
-          case Player::Skipper::SkippedResult::DONE_FORWARD:
-          case Player::Skipper::SkippedResult::DONE_BACKWARD:
-            break;
-        }
-
-        prefetch_state_ = PrefetchState::PREFETCHING_LIST_ITEM_INFORMATION;
-
-        if(crawler.retrieve_item_information(std::bind(&Player::Control::async_stream_details_for_playing,
-                                                       this,
-                                                       std::placeholders::_1,
-                                                       std::placeholders::_2)))
-            return;
-
-        break;
-
-      case Playlist::CrawlerIface::FindNextItemResult::START_OF_LIST:
-        if(!crawler_->resume_crawler())
-            break;
-
-        skip_requests_.stop_skipping(*player_, *crawler_);
-        prefetch_state_ = PrefetchState::PREFETCHING_LIST_ITEM_INFORMATION;
-
-        if(crawler.retrieve_item_information(std::bind(&Player::Control::async_stream_details_for_playing,
-                                                       this,
-                                                       std::placeholders::_1,
-                                                       std::placeholders::_2)))
-            return;
-
-        break;
-
-      case Playlist::CrawlerIface::FindNextItemResult::FAILED:
-      case Playlist::CrawlerIface::FindNextItemResult::CANCELED:
-      case Playlist::CrawlerIface::FindNextItemResult::END_OF_LIST:
-        break;
-    }
-
-    prefetch_state_ = PrefetchState::NOT_PREFETCHING;
-    skip_requests_.stop_skipping(*player_, *crawler_);
-}
-
-void Player::Control::async_list_entry_prefetched(Playlist::CrawlerIface &crawler,
-                                                  Playlist::CrawlerIface::FindNextItemResult result)
-{
-    auto locks(lock());
-
-    if(player_ == nullptr)
+    if(player_data_ == nullptr)
     {
         not_attached_bug("Found list item for prefetching");
-        return;
+        return false;
     }
 
-    switch(result)
+    using PositionalState = Playlist::Crawler::FindNextOpBase::PositionalState;
+
+    switch(op.result_.pos_state_)
     {
-      case Playlist::CrawlerIface::FindNextItemResult::FOUND:
-        prefetch_state_ = PrefetchState::HAVE_NEXT_LIST_ITEM;
-
-        if(!permissions_->can_prefetch_for_gapless())
-        {
-            /* gapless playback is actually not supported in this list,
-             * retrieval of item information must be deferred to a later
-             * point if and when needed */
-            break;
-        }
-
-        prefetch_state_ = PrefetchState::PREFETCHING_LIST_ITEM_INFORMATION;
-
-        if(crawler.retrieve_item_information(std::bind(&Player::Control::async_stream_details_prefetched,
-                                                       this,
-                                                       std::placeholders::_1,
-                                                       std::placeholders::_2)))
-            return;
-
+      case PositionalState::SOMEWHERE_IN_LIST:
         break;
 
-      case Playlist::CrawlerIface::FindNextItemResult::FAILED:
-      case Playlist::CrawlerIface::FindNextItemResult::CANCELED:
-      case Playlist::CrawlerIface::FindNextItemResult::START_OF_LIST:
-      case Playlist::CrawlerIface::FindNextItemResult::END_OF_LIST:
-        break;
+      case PositionalState::UNKNOWN:
+      case PositionalState::REACHED_START_OF_LIST:
+      case PositionalState::REACHED_END_OF_LIST:
+        return false;
     }
 
-    prefetch_state_ = PrefetchState::NOT_PREFETCHING;
+    if(!permissions_->can_prefetch_for_gapless())
+    {
+        /* gapless playback is not supported in this list, retrieval of item
+         * information must be deferred to a later point if and when needed */
+        return false;
+    }
+
+    auto pos(op.extract_position());
+    pos->sync_request_with_pos();
+
+    ch_->bookmark(Playlist::Crawler::Bookmark::PREFETCH_CURSOR, pos->clone());
+
+    //if(crawler.retrieve_item_information(
+    //        [this] (auto &c, auto r) { async_stream_details_prefetched(c, r); }))
+    prefetch_next_uris_op_ =
+        Playlist::Crawler::DirectoryCrawler::get_crawler(*ch_)
+        .mk_op_get_uris(
+            "Prefetch next item's URIs for gapless playback",
+            std::move(pos), std::move(op.result_.meta_data_),
+            [this, d = op.direction_] (auto &op_inner)
+            { return found_prefetched_item_uris(op_inner, d); },
+            Playlist::Crawler::OperationBase::CompletionCallbackFilter::SUPPRESS_CANCELED);
+
+    ch_->run(prefetch_next_uris_op_);
+
+    return false;
 }
 
-void Player::Control::async_stream_details_for_playing(Playlist::CrawlerIface &crawler,
-                                                       Playlist::CrawlerIface::RetrieveItemInfoResult result)
+bool Player::Control::found_prefetched_item_uris(
+        Playlist::Crawler::GetURIsOpBase &op,
+        Playlist::Crawler::Direction from_direction)
 {
     auto locks(lock());
 
-    if(player_ == nullptr)
+    if(op.is_op_canceled())
+        return false;
+
+    if(&op != prefetch_next_uris_op_.get())
     {
-        not_attached_bug("Found item information for playing");
-        return;
+        log_assert(prefetch_next_uris_op_ != nullptr);
+        log_assert(op.is_op_failure());
+        return false;
     }
 
-    switch(result)
-    {
-      case Playlist::CrawlerIface::RetrieveItemInfoResult::DROPPED:
-        break;
+    prefetch_next_uris_op_ = nullptr;
 
-      case Playlist::CrawlerIface::RetrieveItemInfoResult::FOUND:
-        switch(player_->get_intention())
-        {
-          case UserIntention::NOTHING:
-          case UserIntention::STOPPING:
-            prefetch_state_ = PrefetchState::HAVE_LIST_ITEM_INFORMATION;
-            break;
-
-          case UserIntention::SKIPPING_PAUSED:
-            if(skip_requests_.has_pending_skip_requests())
-            {
-                switch(crawler.find_next(std::bind(&Player::Control::async_list_entry_to_skip,
-                                                   this,
-                                                   std::placeholders::_1,
-                                                   std::placeholders::_2)))
-                {
-                  case Playlist::CrawlerIface::FindNextFnResult::SEARCHING:
-                    return;
-
-                  case Playlist::CrawlerIface::FindNextFnResult::STOPPED_AT_START_OF_LIST:
-                  case Playlist::CrawlerIface::FindNextFnResult::STOPPED_AT_END_OF_LIST:
-                  case Playlist::CrawlerIface::FindNextFnResult::FAILED:
-                    break;
-                }
-            }
-
-            skip_requests_.stop_skipping(*player_, *crawler_);
-
-            /* fall-through */
-
-          case UserIntention::PAUSING:
-            switch(process_crawler_item(&Player::Control::async_redirect_resolved_for_playing,
-                                        QueueMode::REPLACE_ALL,
-                                        PlayNewMode::SEND_PAUSE_COMMAND_IF_IDLE))
-            {
-              case StreamPreplayInfo::OpResult::SUCCEEDED:
-                prefetch_state_ = PrefetchState::NOT_PREFETCHING;
-                crawler.set_direction_forward();
-                need_next_item_hint(false);
-                break;
-
-              case StreamPreplayInfo::OpResult::STARTED:
-              case StreamPreplayInfo::OpResult::FAILED:
-              case StreamPreplayInfo::OpResult::CANCELED:
-                prefetch_state_ = PrefetchState::NOT_PREFETCHING;
-                break;
-            }
-
-            break;
-
-          case UserIntention::SKIPPING_LIVE:
-            if(skip_requests_.has_pending_skip_requests())
-            {
-                switch(crawler.find_next(std::bind(&Player::Control::async_list_entry_to_skip,
-                                                   this,
-                                                   std::placeholders::_1,
-                                                   std::placeholders::_2)))
-                {
-                  case Playlist::CrawlerIface::FindNextFnResult::SEARCHING:
-                    return;
-
-                  case Playlist::CrawlerIface::FindNextFnResult::STOPPED_AT_START_OF_LIST:
-                  case Playlist::CrawlerIface::FindNextFnResult::STOPPED_AT_END_OF_LIST:
-                  case Playlist::CrawlerIface::FindNextFnResult::FAILED:
-                    break;
-                }
-            }
-
-            skip_requests_.stop_skipping(*player_, *crawler_);
-
-            /* fall-through */
-
-          case UserIntention::LISTENING:
-            switch(process_crawler_item(&Player::Control::async_redirect_resolved_for_playing,
-                                        QueueMode::REPLACE_ALL,
-                                        PlayNewMode::SEND_PLAY_COMMAND_IF_IDLE))
-            {
-              case StreamPreplayInfo::OpResult::SUCCEEDED:
-                send_play_command(audio_source_);
-                break;
-
-              case StreamPreplayInfo::OpResult::STARTED:
-              case StreamPreplayInfo::OpResult::FAILED:
-              case StreamPreplayInfo::OpResult::CANCELED:
-                break;
-            }
-
-            prefetch_state_ = PrefetchState::NOT_PREFETCHING;
-
-            break;
-        }
-
-        break;
-
-      case Playlist::CrawlerIface::RetrieveItemInfoResult::FOUND__NO_URL:
-      case Playlist::CrawlerIface::RetrieveItemInfoResult::FAILED:
-        /* skip this one, maybe the next one will work */
-        prefetch_state_ = PrefetchState::NOT_PREFETCHING;
-        crawler.set_direction_forward();
-        crawler.find_next(std::bind(&Player::Control::async_list_entry_for_playing,
-                                    this,
-                                    std::placeholders::_1,
-                                    std::placeholders::_2));
-        break;
-
-      case Playlist::CrawlerIface::RetrieveItemInfoResult::CANCELED:
-        break;
-    }
-}
-
-void Player::Control::async_stream_details_prefetched(Playlist::CrawlerIface &crawler,
-                                                      Playlist::CrawlerIface::RetrieveItemInfoResult result)
-{
-    auto locks(lock());
-
-    if(player_ == nullptr)
+    if(player_data_ == nullptr)
     {
         not_attached_bug("Found item information for prefetching");
-        return;
+        return false;
     }
 
-    switch(result)
+    if(op.is_op_failure() || op.has_no_uris())
     {
-      case Playlist::CrawlerIface::RetrieveItemInfoResult::DROPPED:
+        /* skip this one, maybe the next one will work */
+        start_prefetch_next_item(op.is_op_failure()
+                                 ? "skip to next because of failure"
+                                 : "skip to next because of empty stream URIs",
+                                 Playlist::Crawler::Bookmark::PREFETCH_CURSOR,
+                                 from_direction);
+        return false;
+    }
+
+    switch(player_data_->get_intention())
+    {
+      case UserIntention::NOTHING:
+      case UserIntention::STOPPING:
+        /* so we have prefetched something for nothing---such is life */
         break;
 
-      case Playlist::CrawlerIface::RetrieveItemInfoResult::FOUND:
-        switch(player_->get_intention())
+      case UserIntention::PAUSING:
+      case UserIntention::LISTENING:
+        switch(queue_item_from_op(op, from_direction,
+                                  &Player::Control::async_redirect_resolved_prefetched,
+                                  InsertMode::APPEND, PlayNewMode::KEEP))
         {
-          case UserIntention::NOTHING:
-          case UserIntention::STOPPING:
-            prefetch_state_ = PrefetchState::HAVE_LIST_ITEM_INFORMATION;
+          case QueuedStream::OpResult::SUCCEEDED:
+            start_prefetch_next_item("lookahead after successfully prefetched URIs",
+                                     Playlist::Crawler::Bookmark::PREFETCH_CURSOR,
+                                     Playlist::Crawler::Direction::FORWARD);
             break;
 
-          case UserIntention::SKIPPING_PAUSED:
-          case UserIntention::SKIPPING_LIVE:
-            skip_requests_.stop_skipping(*player_, *crawler_);
-
-            /* fall-through */
-
-          case UserIntention::PAUSING:
-          case UserIntention::LISTENING:
-            switch(process_crawler_item(&Player::Control::async_redirect_resolved_prefetched,
-                                        QueueMode::APPEND,
-                                        PlayNewMode::KEEP))
-            {
-              case StreamPreplayInfo::OpResult::SUCCEEDED:
-                prefetch_state_ = PrefetchState::NOT_PREFETCHING;
-                crawler.set_direction_forward();
-                need_next_item_hint(false);
-                break;
-
-              case StreamPreplayInfo::OpResult::STARTED:
-              case StreamPreplayInfo::OpResult::FAILED:
-              case StreamPreplayInfo::OpResult::CANCELED:
-                prefetch_state_ = PrefetchState::NOT_PREFETCHING;
-                break;
-            }
-
+          case QueuedStream::OpResult::STARTED:
+          case QueuedStream::OpResult::FAILED:
+          case QueuedStream::OpResult::CANCELED:
             break;
         }
 
         break;
 
-      case Playlist::CrawlerIface::RetrieveItemInfoResult::FOUND__NO_URL:
-      case Playlist::CrawlerIface::RetrieveItemInfoResult::FAILED:
-        prefetch_state_ = PrefetchState::NOT_PREFETCHING;
-        crawler.set_direction_forward();
-        crawler.find_next(std::bind(&Player::Control::async_list_entry_prefetched,
-                                    this,
-                                    std::placeholders::_1,
-                                    std::placeholders::_2));
-        break;
-
-      case Playlist::CrawlerIface::RetrieveItemInfoResult::CANCELED:
+      case UserIntention::SKIPPING_PAUSED:
+      case UserIntention::SKIPPING_LIVE:
+        MSG_UNREACHABLE();
         break;
     }
+
+    return false;
 }
 
-static bool async_redirect_check_preconditions(Player::Data *player,
-                                               Playlist::CrawlerIface *crawler,
-                                               Player::StreamPreplayInfo::ResolvedRedirectResult result,
-                                               size_t idx, const char *what)
+static bool async_redirect_check_preconditions(
+        const Player::Data *player, const Playlist::Crawler::Iface::Handle *ch,
+        Player::QueuedStream::ResolvedRedirectResult result,
+        size_t idx, const char *what)
 {
-    if(player == nullptr || crawler == nullptr)
+    if(player == nullptr || ch == nullptr)
     {
         not_attached_bug(what, true);
         return false;
@@ -2382,14 +1998,14 @@ static bool async_redirect_check_preconditions(Player::Data *player,
 
     switch(result)
     {
-      case Player::StreamPreplayInfo::ResolvedRedirectResult::FOUND:
+      case Player::QueuedStream::ResolvedRedirectResult::FOUND:
         break;
 
-      case Player::StreamPreplayInfo::ResolvedRedirectResult::FAILED:
+      case Player::QueuedStream::ResolvedRedirectResult::FAILED:
         BUG("%s: canceled at %zu, but case not handled", what, idx);
         return false;
 
-      case Player::StreamPreplayInfo::ResolvedRedirectResult::CANCELED:
+      case Player::QueuedStream::ResolvedRedirectResult::CANCELED:
         BUG("%s: failed at %zu, but case not handled", what, idx);
         return false;
     }
@@ -2397,19 +2013,17 @@ static bool async_redirect_check_preconditions(Player::Data *player,
     return true;
 }
 
-void Player::Control::async_redirect_resolved_for_playing(size_t idx,
-                                                          StreamPreplayInfo::ResolvedRedirectResult result,
-                                                          ID::OurStream for_stream,
-                                                          QueueMode queue_mode,
-                                                          PlayNewMode play_new_mode)
+void Player::Control::async_redirect_resolved_for_playing(
+        size_t idx, QueuedStream::ResolvedRedirectResult result,
+        ID::OurStream for_stream, InsertMode insert_mode, PlayNewMode play_new_mode)
 {
     auto locks(lock());
 
-    if(!async_redirect_check_preconditions(player_, crawler_, result, idx,
+    if(!async_redirect_check_preconditions(player_data_, ch_.get(), result, idx,
                                            "Resolved redirect for playing"))
         return;
 
-    switch(player_->get_intention())
+    switch(player_data_->get_intention())
     {
       case UserIntention::NOTHING:
       case UserIntention::STOPPING:
@@ -2417,19 +2031,19 @@ void Player::Control::async_redirect_resolved_for_playing(size_t idx,
 
       case UserIntention::SKIPPING_PAUSED:
       case UserIntention::PAUSING:
-        switch(process_crawler_item_tail(for_stream,
-                                         queue_mode, play_new_mode,
-                                         std::bind(&Player::Control::unexpected_resolve_error, this,
-                                                   std::placeholders::_1, std::placeholders::_2)))
+        switch(queue_item_from_op_tail(
+                for_stream, insert_mode, play_new_mode,
+                [this] (size_t i, auto r) { unexpected_resolve_error(i, r); }))
         {
-          case StreamPreplayInfo::OpResult::SUCCEEDED:
-            crawler_->set_direction_forward();
-            need_next_item_hint(false);
+          case QueuedStream::OpResult::SUCCEEDED:
+            start_prefetch_next_item("resolved redirect for first stream",
+                                     Playlist::Crawler::Bookmark::ABOUT_TO_PLAY,
+                                     Playlist::Crawler::Direction::FORWARD);
             break;
 
-          case StreamPreplayInfo::OpResult::STARTED:
-          case StreamPreplayInfo::OpResult::FAILED:
-          case StreamPreplayInfo::OpResult::CANCELED:
+          case QueuedStream::OpResult::STARTED:
+          case QueuedStream::OpResult::FAILED:
+          case QueuedStream::OpResult::CANCELED:
             break;
         }
 
@@ -2437,18 +2051,17 @@ void Player::Control::async_redirect_resolved_for_playing(size_t idx,
 
       case UserIntention::SKIPPING_LIVE:
       case UserIntention::LISTENING:
-        switch(process_crawler_item_tail(for_stream,
-                                         queue_mode, play_new_mode,
-                                         std::bind(&Player::Control::unexpected_resolve_error, this,
-                                                   std::placeholders::_1, std::placeholders::_2)))
+        switch(queue_item_from_op_tail(
+                for_stream, insert_mode, play_new_mode,
+                [this] (size_t i, auto r) { unexpected_resolve_error(i, r); }))
         {
-          case StreamPreplayInfo::OpResult::SUCCEEDED:
+          case QueuedStream::OpResult::SUCCEEDED:
             send_play_command(audio_source_);
             break;
 
-          case StreamPreplayInfo::OpResult::STARTED:
-          case StreamPreplayInfo::OpResult::FAILED:
-          case StreamPreplayInfo::OpResult::CANCELED:
+          case QueuedStream::OpResult::STARTED:
+          case QueuedStream::OpResult::FAILED:
+          case QueuedStream::OpResult::CANCELED:
             break;
         }
 
@@ -2456,19 +2069,17 @@ void Player::Control::async_redirect_resolved_for_playing(size_t idx,
     }
 }
 
-void Player::Control::async_redirect_resolved_prefetched(size_t idx,
-                                                         StreamPreplayInfo::ResolvedRedirectResult result,
-                                                         ID::OurStream for_stream,
-                                                         QueueMode queue_mode,
-                                                         PlayNewMode play_new_mode)
+void Player::Control::async_redirect_resolved_prefetched(
+        size_t idx, QueuedStream::ResolvedRedirectResult result,
+        ID::OurStream for_stream, InsertMode insert_mode, PlayNewMode play_new_mode)
 {
     auto locks(lock());
 
-    if(!async_redirect_check_preconditions(player_, crawler_, result, idx,
+    if(!async_redirect_check_preconditions(player_data_, ch_.get(), result, idx,
                                            "Resolved redirect for prefetching"))
         return;
 
-    switch(player_->get_intention())
+    switch(player_data_->get_intention())
     {
       case UserIntention::NOTHING:
       case UserIntention::STOPPING:
@@ -2478,19 +2089,16 @@ void Player::Control::async_redirect_resolved_prefetched(size_t idx,
       case UserIntention::SKIPPING_LIVE:
       case UserIntention::PAUSING:
       case UserIntention::LISTENING:
-        switch(process_crawler_item_tail(for_stream,
-                                         queue_mode, play_new_mode,
-                                         std::bind(&Player::Control::unexpected_resolve_error, this,
-                                                   std::placeholders::_1, std::placeholders::_2)))
+        switch(queue_item_from_op_tail(
+                for_stream, insert_mode, play_new_mode,
+                [this] (size_t i, auto r) { unexpected_resolve_error(i, r); }))
         {
-          case StreamPreplayInfo::OpResult::SUCCEEDED:
-            crawler_->set_direction_forward();
-            need_next_item_hint(false);
+          case QueuedStream::OpResult::SUCCEEDED:
             break;
 
-          case StreamPreplayInfo::OpResult::STARTED:
-          case StreamPreplayInfo::OpResult::FAILED:
-          case StreamPreplayInfo::OpResult::CANCELED:
+          case QueuedStream::OpResult::STARTED:
+          case QueuedStream::OpResult::FAILED:
+          case QueuedStream::OpResult::CANCELED:
             break;
         }
 
@@ -2498,102 +2106,94 @@ void Player::Control::async_redirect_resolved_prefetched(size_t idx,
     }
 }
 
-void Player::Control::unexpected_resolve_error(size_t idx,
-                                               Player::StreamPreplayInfo::ResolvedRedirectResult result)
+void Player::Control::unexpected_resolve_error(
+        size_t idx, QueuedStream::ResolvedRedirectResult result)
 {
     BUG("Asynchronous resolution of Airable redirect failed unexpectedly "
-        "for URL at index %zu, result %u", idx, static_cast<unsigned int>(result));
+        "for URL at index %zu, result %u", idx,
+        static_cast<unsigned int>(result));
     unplug(false);
 }
 
-static MetaData::Set
-mk_meta_data_from_preloaded_information(const Playlist::DirectoryCrawler::ItemInfo &item_info)
+Player::QueuedStream::OpResult
+Player::Control::queue_item_from_op(Playlist::Crawler::GetURIsOpBase &op,
+                                    Playlist::Crawler::Direction direction,
+                                    QueueItemRedirectResolved callback,
+                                    InsertMode insert_mode, PlayNewMode play_new_mode)
 {
-    const auto &preloaded(item_info.file_item_meta_data_);
-    MetaData::Set meta_data;
+    using DirCursor = Playlist::Crawler::DirectoryCrawler::Cursor;
 
-    meta_data.add(MetaData::Set::ARTIST, preloaded.artist_.c_str(), ViewPlay::meta_data_reformatters);
-    meta_data.add(MetaData::Set::ALBUM,  preloaded.album_.c_str(),  ViewPlay::meta_data_reformatters);
-    meta_data.add(MetaData::Set::TITLE,  preloaded.title_.c_str(),  ViewPlay::meta_data_reformatters);
-    meta_data.add(MetaData::Set::INTERNAL_DRCPD_TITLE, item_info.file_item_text_.c_str(),
-                  ViewPlay::meta_data_reformatters);
+    if(player_data_ == nullptr || ch_ == nullptr)
+        return QueuedStream::OpResult::CANCELED;
 
-    return meta_data;
-}
-
-Player::StreamPreplayInfo::OpResult
-Player::Control::process_crawler_item(ProcessCrawlerItemAsyncRedirectResolved callback,
-                                      QueueMode queue_mode, PlayNewMode play_new_mode)
-{
-    if(player_ == nullptr || crawler_ == nullptr)
-        return StreamPreplayInfo::OpResult::CANCELED;
-
-    auto *crawler = dynamic_cast<Playlist::DirectoryCrawler *>(crawler_);
-    log_assert(crawler != nullptr);
-
-    auto &item_info(crawler->get_current_list_item_info_non_const());
-    log_assert(item_info.position_.get_list_id().is_valid());
-    log_assert(item_info.is_item_info_valid_);
-
-    item_info.airable_links_.finalize(bitrate_limiter_);
-
-    /* we'll steal some data from the item info for efficiency */
-    const ID::OurStream stream_id(player_->store_stream_preplay_information(
-                                        std::move(item_info.stream_key_),
-                                        std::move(item_info.stream_uris_),
-                                        std::move(item_info.airable_links_),
-                                        item_info.position_.get_list_id(),
-                                        item_info.position_.get_line(),
-                                        item_info.position_.get_directory_depth(),
-                                        crawler_->get_active_direction() == Playlist::CrawlerIface::Direction::BACKWARD));
-
-    if(!stream_id.get().is_valid())
-        return StreamPreplayInfo::OpResult::FAILED;
-
-    switch(queue_mode)
+    if(dynamic_cast<const Playlist::Crawler::DirectoryCrawler::GetURIsOp *>(&op) == nullptr)
     {
-      case QueueMode::APPEND:
+        MSG_NOT_IMPLEMENTED();
+        return QueuedStream::OpResult::FAILED;
+    }
+
+    log_assert(op.is_op_successful());
+    log_assert(!op.is_op_canceled());
+
+    auto &dir_op = static_cast<Playlist::Crawler::DirectoryCrawler::GetURIsOp &>(op);
+    dir_op.result_.sorted_links_.finalize(bitrate_limiter_);
+
+    auto pos(dir_op.extract_position());
+    log_assert(dynamic_cast<const DirCursor *>(pos.get()) != nullptr);
+
+    switch(insert_mode)
+    {
+      case InsertMode::APPEND:
         break;
 
-      case QueueMode::REPLACE_QUEUE:
-        log_assert(play_new_mode == PlayNewMode::KEEP);
-        forget_queued_and_playing(false);
-        break;
-
-      case QueueMode::REPLACE_ALL:
-        log_assert(play_new_mode != PlayNewMode::KEEP);
-        forget_queued_and_playing(true);
+      case InsertMode::REPLACE_QUEUE:
+      case InsertMode::REPLACE_ALL:
+        ch_->bookmark(Playlist::Crawler::Bookmark::ABOUT_TO_PLAY, pos->clone());
         break;
     }
 
-    player_->put_meta_data(stream_id.get(),
-                           std::move(mk_meta_data_from_preloaded_information(item_info)));
+    /* we'll steal some data from the item info for efficiency */
+    const ID::List list_id = static_cast<const DirCursor *>(pos.get())->get_list_id();
+    const ID::OurStream stream_id(
+        player_data_->queued_stream_append(
+            std::move(dir_op.result_.stream_key_),
+            std::move(dir_op.result_.simple_uris_),
+            std::move(dir_op.result_.sorted_links_),
+            list_id, std::move(pos)));
 
-    return process_crawler_item_tail(stream_id, queue_mode, play_new_mode,
-                                     std::bind(callback, this,
-                                               std::placeholders::_1, std::placeholders::_2,
-                                               stream_id, queue_mode, play_new_mode));
+    if(!stream_id.get().is_valid())
+        return QueuedStream::OpResult::FAILED;
+
+    player_data_->put_meta_data(stream_id.get(),
+                                std::move(dir_op.result_.meta_data_));
+
+    return queue_item_from_op_tail(
+            stream_id, insert_mode, play_new_mode,
+            [this, callback, stream_id, insert_mode, play_new_mode]
+            (size_t i, auto r)
+            {
+                (this->*callback)(i, r, stream_id, insert_mode, play_new_mode);
+            });
 }
 
-Player::StreamPreplayInfo::OpResult
-Player::Control::process_crawler_item_tail(ID::OurStream stream_id,
-                                           QueueMode queue_mode,
-                                           PlayNewMode play_new_mode,
-                                           const StreamPreplayInfo::ResolvedRedirectCallback &callback)
+Player::QueuedStream::OpResult
+Player::Control::queue_item_from_op_tail(ID::OurStream stream_id,
+                                         InsertMode insert_mode,
+                                         PlayNewMode play_new_mode,
+                                         QueuedStream::ResolvedRedirectCallback &&callback)
 {
-    const auto result(queue_stream_or_forget(*player_, stream_id, queue_mode,
-                                             play_new_mode, callback,
+    const auto result(queue_stream_or_forget(*player_data_, stream_id, insert_mode,
+                                             play_new_mode, std::move(callback),
                                              audio_source_));
 
     switch(result)
     {
-      case StreamPreplayInfo::OpResult::SUCCEEDED:
-        queued_streams_.push_back(stream_id);
+      case QueuedStream::OpResult::SUCCEEDED:
         break;
 
-      case StreamPreplayInfo::OpResult::STARTED:
-      case StreamPreplayInfo::OpResult::FAILED:
-      case StreamPreplayInfo::OpResult::CANCELED:
+      case QueuedStream::OpResult::STARTED:
+      case QueuedStream::OpResult::FAILED:
+      case QueuedStream::OpResult::CANCELED:
         break;
     }
 
@@ -2602,17 +2202,9 @@ Player::Control::process_crawler_item_tail(ID::OurStream stream_id,
 
 Player::Control::ReplayResult
 Player::Control::replay(ID::OurStream stream_id, bool is_retry,
-                        PlayNewMode play_new_mode, bool &took_from_queue)
+                        PlayNewMode play_new_mode)
 {
     log_assert(stream_id.get().is_valid());
-
-    if(!is_retry && !queued_streams_.empty() && queued_streams_.front() == stream_id)
-    {
-        took_from_queue = true;
-        queued_streams_.pop_front();
-    }
-    else
-        took_from_queue = false;
 
     if(!retry_data_.retry(stream_id))
     {
@@ -2627,66 +2219,51 @@ Player::Control::replay(ID::OurStream stream_id, bool is_retry,
 
     bool is_queued = false;
 
-    switch(queue_stream_or_forget(*player_, stream_id,
-                                 Player::Control::QueueMode::REPLACE_ALL,
-                                 play_new_mode,
-                                 std::bind(&Player::Control::unexpected_resolve_error,
-                                           this,
-                                           std::placeholders::_1, std::placeholders::_2),
-                                 audio_source_))
+    switch(queue_stream_or_forget(
+                *player_data_, stream_id,
+                InsertMode::REPLACE_ALL, play_new_mode,
+                [this] (size_t i, auto r) { unexpected_resolve_error(i, r); },
+                audio_source_))
     {
-      case StreamPreplayInfo::OpResult::STARTED:
+      case QueuedStream::OpResult::STARTED:
         BUG("Unexpected async redirect resolution while replaying");
         return ReplayResult::RETRY_FAILED_HARD;
 
-      case StreamPreplayInfo::OpResult::SUCCEEDED:
+      case QueuedStream::OpResult::SUCCEEDED:
         is_queued = true;
         break;
 
-      case StreamPreplayInfo::OpResult::FAILED:
-      case StreamPreplayInfo::OpResult::CANCELED:
+      case QueuedStream::OpResult::FAILED:
+      case QueuedStream::OpResult::CANCELED:
         break;
     }
 
     if(!is_queued && is_retry)
         return ReplayResult::RETRY_FAILED_HARD;
 
-    decltype(queued_streams_) temp;
+    const auto queued_ids(player_data_->copy_all_queued_streams_for_recovery());
 
-    if(is_queued)
-        temp.push_back(stream_id);
-
-    for(const auto id : queued_streams_)
+    for(const auto id : queued_ids)
     {
-        switch(queue_stream_or_forget(*player_, id,
-                                      QueueMode::APPEND,
-                                      PlayNewMode::KEEP,
-                                      std::bind(&Player::Control::unexpected_resolve_error, this,
-                                                std::placeholders::_1, std::placeholders::_2),
-                                      audio_source_))
+        switch(queue_stream_or_forget(
+                    *player_data_, id, InsertMode::APPEND, PlayNewMode::KEEP,
+                    [this] (size_t i, auto r) { unexpected_resolve_error(i, r); },
+                    audio_source_))
         {
-          case Player::StreamPreplayInfo::OpResult::STARTED:
+          case QueuedStream::OpResult::STARTED:
             BUG("Unexpected queuing result while replaying");
             break;
 
-          case Player::StreamPreplayInfo::OpResult::SUCCEEDED:
-            temp.push_back(id);
+          case QueuedStream::OpResult::SUCCEEDED:
             break;
 
-          case Player::StreamPreplayInfo::OpResult::FAILED:
-          case Player::StreamPreplayInfo::OpResult::CANCELED:
+          case QueuedStream::OpResult::FAILED:
+          case QueuedStream::OpResult::CANCELED:
             break;
         }
     }
 
-    queued_streams_.clear();
+    msg_info("Queued %zu streams once again", queued_ids.size());
 
-    if(!temp.empty())
-        queued_streams_.swap(temp);
-
-    msg_info("Queued %zu streams once again", queued_streams_.size());
-
-    return queued_streams_.empty()
-        ? ReplayResult::EMPTY_QUEUE
-        : ReplayResult::OK;
+    return queued_ids.empty() ? ReplayResult::EMPTY_QUEUE : ReplayResult::OK;
 }

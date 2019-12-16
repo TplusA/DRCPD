@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015--2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015--2020  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -22,9 +22,6 @@
 #if HAVE_CONFIG_H
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
-
-#include <cstdlib>
-#include <climits>
 
 #include "view_play.hh"
 #include "view_external_source_base.hh"
@@ -63,13 +60,15 @@ void ViewPlay::View::plug_audio_source(Player::AudioSource &audio_source,
                                        const std::string *external_player_id)
 {
     player_control_.plug(audio_source, with_enforced_intentions,
-                         [this] () { do_stop_playing(); },
+                         [this] { player_finished_playing(); },
                          external_player_id);
 }
 
-void ViewPlay::View::prepare_for_playing(Player::AudioSource &audio_source,
-                                         Playlist::CrawlerIface &crawler, PlayMode how,
-                                         const Player::LocalPermissionsIface &permissions)
+void ViewPlay::View::prepare_for_playing(
+        Player::AudioSource &audio_source,
+        const std::function<Playlist::Crawler::Handle()> &get_crawler_handle,
+        std::shared_ptr<Playlist::Crawler::FindNextOpBase> find_op,
+        const Player::LocalPermissionsIface &permissions)
 {
     const auto lock_ctrl(player_control_.lock());
     const auto lock_data(player_data_.lock());
@@ -80,18 +79,6 @@ void ViewPlay::View::prepare_for_playing(Player::AudioSource &audio_source,
          * selected stream to avoid going through stopped/playing signals and
          * associated queue management (which would fail without extra
          * precautions) */
-        if(!player_control_.is_crawler_plugged(crawler))
-            player_control_.plug(crawler, permissions);
-
-        switch(how)
-        {
-          case PlayMode::FRESH_START:
-            player_control_.jump_to_crawler_location();
-            break;
-
-          case PlayMode::RESUME:
-            break;
-        }
     }
     else
     {
@@ -101,10 +88,10 @@ void ViewPlay::View::prepare_for_playing(Player::AudioSource &audio_source,
         player_control_.unplug(true);
         plug_audio_source(audio_source, true);
         player_control_.plug(player_data_);
-        player_control_.plug(crawler, permissions);
     }
 
-    player_control_.play_request();
+    player_control_.plug(get_crawler_handle, permissions);
+    player_control_.play_request(std::move(find_op));
 }
 
 void ViewPlay::View::stop_playing(const Player::AudioSource &audio_source)
@@ -115,10 +102,10 @@ void ViewPlay::View::stop_playing(const Player::AudioSource &audio_source)
         player_control_.unplug(false);
 }
 
-void ViewPlay::View::do_stop_playing()
+void ViewPlay::View::player_finished_playing()
 {
     player_control_.unplug(false);
-    player_data_.forget_all_streams();
+    player_data_.player_finished_and_idle();
 
     add_update_flags(UPDATE_FLAGS_PLAYBACK_STATE);
     view_manager_->update_view_if_active(this, DCP::Queue::Mode::FORCE_ASYNC);
@@ -159,7 +146,7 @@ static void send_current_stream_info_to_dcpd(const Player::Data &player_data)
         msg_error(0, LOG_NOTICE, "Failed sending stream information to dcpd");
 }
 
-static void lookup_source_and_view(std::map<std::string, std::pair<Player::AudioSource *, const ViewIface *>> &audio_sources,
+static void lookup_source_and_view(ViewPlay::View::AudioSourceAndViewByID &audio_sources,
                                    const std::string &audio_source_id,
                                    Player::AudioSource *&audio_source,
                                    const ViewIface *&view)
@@ -180,7 +167,7 @@ static void lookup_source_and_view(std::map<std::string, std::pair<Player::Audio
     }
 }
 
-static void lookup_view_for_external_source(std::map<std::string, std::pair<Player::AudioSource *, const ViewIface *>> &audio_sources,
+static void lookup_view_for_external_source(ViewPlay::View::AudioSourceAndViewByID &audio_sources,
                                             const std::string &audio_source_id,
                                             Player::AudioSource *&audio_source,
                                             const ViewExternalSource::Base *&view)
@@ -201,7 +188,7 @@ static void lookup_view_for_external_source(std::map<std::string, std::pair<Play
 }
 
 static const ViewIface *
-lookup_view_by_audio_source(std::map<std::string, std::pair<Player::AudioSource *, const ViewIface *>> &audio_sources,
+lookup_view_by_audio_source(ViewPlay::View::AudioSourceAndViewByID &audio_sources,
                             const Player::AudioSource *src)
 {
     if(src == nullptr)
@@ -217,7 +204,7 @@ lookup_view_by_audio_source(std::map<std::string, std::pair<Player::AudioSource 
 
 ViewIface::InputResult
 ViewPlay::View::process_event(UI::ViewEventID event_id,
-                              std::unique_ptr<const UI::Parameters> parameters)
+                              std::unique_ptr<UI::Parameters> parameters)
 {
     const auto lock_ctrl(player_control_.lock());
     const auto lock_data(player_data_.lock());
@@ -228,16 +215,16 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
         break;
 
       case UI::ViewEventID::PLAYBACK_COMMAND_START:
-        switch(player_data_.get_current_stream_state())
+        switch(player_data_.get_player_state())
         {
-          case Player::StreamState::BUFFERING:
-          case Player::StreamState::PLAYING:
+          case Player::PlayerState::BUFFERING:
+          case Player::PlayerState::PLAYING:
             player_control_.pause_request();
             break;
 
-          case Player::StreamState::STOPPED:
-          case Player::StreamState::PAUSED:
-            player_control_.play_request();
+          case Player::PlayerState::STOPPED:
+          case Player::PlayerState::PAUSED:
+            player_control_.play_request(nullptr);
             break;
         }
 
@@ -279,9 +266,7 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
         break;
 
       case UI::ViewEventID::PLAYBACK_NEXT:
-        if(player_control_.skip_forward_request())
-            player_control_.need_next_item_hint(false);
-
+        player_control_.skip_forward_request();
         break;
 
       case UI::ViewEventID::NAV_SELECT_ITEM:
@@ -329,7 +314,7 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
             if(params == nullptr)
                 break;
 
-            const auto &plist = params->get_specific();
+            auto &plist = params->get_specific_non_const();
             const ID::Stream stream_id(std::get<0>(plist));
 
             if(!stream_id.is_valid())
@@ -341,21 +326,18 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
             }
 
             const bool queue_is_full(std::get<2>(plist));
-            const auto &meta_data(std::get<3>(plist));
-            const std::string &url_string(std::get<4>(plist));
+            const auto &dropped_ids(std::get<3>(plist));
+            const bool switched_stream(!player_data_.is_current_stream(stream_id));
+            auto &meta_data(std::get<4>(plist));
+            std::string &url_string(std::get<5>(plist));
 
-            bool switched_stream;
+            player_data_.player_dropped_from_queue(dropped_ids);
 
-            if(stream_id == player_data_.get_current_stream_id())
-                switched_stream = false;
-            else
-            {
-                player_data_.forget_current_stream();
-                switched_stream = true;
-            }
+            if(switched_stream)
+                player_data_.player_now_playing_stream(stream_id);
 
-            player_data_.merge_meta_data(stream_id, meta_data, &url_string);
-            player_data_.set_stream_state(stream_id, Player::StreamState::PLAYING);
+            player_data_.merge_meta_data(stream_id, std::move(meta_data),
+                                         std::move(url_string));
             player_control_.play_notification(stream_id, switched_stream);
 
             msg_info("Play view: stream %s, %s",
@@ -370,8 +352,14 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
                 view_manager_->update_view_if_active(this, DCP::Queue::Mode::FORCE_ASYNC);
             }
 
-            if(!queue_is_full)
-                player_control_.need_next_item_hint(false);
+            if(!queue_is_full && switched_stream)
+            {
+                msg_info("Trigger prefetching next item because queue isn't full");
+                player_control_.start_prefetch_next_item(
+                        "triggered by play notification",
+                        Playlist::Crawler::Bookmark::PREFETCH_CURSOR,
+                        Playlist::Crawler::Direction::FORWARD);
+            }
 
             if(!switched_stream)
                 send_current_stream_info_to_dcpd(player_data_);
@@ -389,13 +377,16 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
 
             const auto &plist = params->get_specific();
             const ID::Stream stream_id(std::get<0>(plist));
-            const std::string &error_id(std::get<2>(plist));
+            const auto &dropped_ids(std::get<2>(plist));
+            const std::string &error_id(std::get<3>(plist));
 
-            player_data_.set_stream_state(Player::StreamState::STOPPED);
+            player_data_.player_dropped_from_queue(dropped_ids);
+            player_data_.player_has_stopped();
 
             const auto stop_reaction = error_id.empty()
-                ? player_control_.stop_notification(stream_id)
-                : player_control_.stop_notification(stream_id, error_id, std::get<1>(plist));
+                ? player_control_.stop_notification_ok(stream_id)
+                : player_control_.stop_notification_with_error(stream_id, error_id,
+                                                               std::get<1>(plist));
 
             switch(stop_reaction)
             {
@@ -406,7 +397,7 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
                          error_id.empty() ? "" : " with error",
                          is_visible_ ? "send screen update" : "but view is invisible");
 
-                do_stop_playing();
+                player_finished_playing();
 
                 break;
 
@@ -435,7 +426,7 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
             if(stream_id == nullptr)
                 break;
 
-            player_data_.set_stream_state(Player::StreamState::PAUSED);
+            player_data_.player_has_paused();
             player_control_.pause_notification(stream_id->get_specific());
 
             msg_info("Play view: stream paused, %s",
@@ -516,7 +507,7 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
             if(params == nullptr)
                 break;
 
-            const auto &plist = params->get_specific();
+            auto &plist = params->get_specific_non_const();
             const ID::Stream stream_id(std::get<0>(plist));
             if(!stream_id.is_valid())
             {
@@ -526,7 +517,7 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
                 break;
             }
 
-            if(player_data_.merge_meta_data(stream_id, std::get<1>(plist)) &&
+            if(player_data_.merge_meta_data(stream_id, std::move(std::get<1>(plist))) &&
                stream_id == player_data_.get_current_stream_id())
             {
                 add_update_flags(UPDATE_FLAGS_META_DATA);
@@ -547,11 +538,12 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
             if(params == nullptr)
                 break;
 
-            const auto &plist = params->get_specific();
+            auto &plist = params->get_specific_non_const();
             const auto stream_id(Player::AppStream::make_from_generic_id(std::get<0>(plist)));
 
             player_data_.announce_app_stream(stream_id);
-            player_data_.put_meta_data(std::get<0>(plist), std::get<1>(plist));
+            player_data_.put_meta_data(std::get<0>(plist),
+                                       std::move(std::get<1>(plist)));
 
             if(stream_id.get() == player_data_.get_current_stream_id())
                 send_current_stream_info_to_dcpd(player_data_);
@@ -735,6 +727,7 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
       case UI::ViewEventID::SEARCH_STORE_PARAMETERS:
       case UI::ViewEventID::NOTIFY_AIRABLE_SERVICE_LOGIN_STATUS_UPDATE:
       case UI::ViewEventID::PLAYBACK_TRY_RESUME:
+      case UI::ViewEventID::STRBO_URL_RESOLVED:
         BUG("Unexpected view event 0x%08x for play view",
             static_cast<unsigned int>(event_id));
 
@@ -745,7 +738,7 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
 }
 
 void ViewPlay::View::process_broadcast(UI::BroadcastEventID event_id,
-                                       const UI::Parameters *parameters)
+                                       UI::Parameters *parameters)
 {
     const auto lock_ctrl(player_control_.lock());
     const auto lock_data(player_data_.lock());
@@ -753,7 +746,6 @@ void ViewPlay::View::process_broadcast(UI::BroadcastEventID event_id,
     switch(event_id)
     {
       case UI::BroadcastEventID::NOP:
-      case UI::BroadcastEventID::STRBO_URL_RESOLVED:
         break;
 
       case UI::BroadcastEventID::CONFIGURATION_UPDATED:
@@ -1007,5 +999,5 @@ static const std::string reformat_bitrate(const char *in)
 
 const MetaData::Reformatters ViewPlay::meta_data_reformatters =
 {
-    .bitrate = reformat_bitrate,
+    .bitrate_fn_ = reformat_bitrate,
 };

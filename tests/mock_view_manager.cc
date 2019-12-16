@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015--2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015--2020  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -418,7 +418,7 @@ std::string MockViewManager::move_resume_url_by_audio_source_id(const std::strin
     return "";
 }
 
-void MockViewManager::store_event(UI::EventID event_id, std::unique_ptr<const UI::Parameters> parameters)
+void MockViewManager::store_event(UI::EventID event_id, std::unique_ptr<UI::Parameters> parameters)
 {
     const auto &expect(expectations_->get_next_expectation(__func__));
 
@@ -442,7 +442,7 @@ void MockViewManager::serialization_result(DCP::Transaction::Result result)
     cppcut_assert_equal(int(expect.d.arg_dcp_result_), int(result));
 }
 
-ViewIface::InputResult MockViewManager::input_bounce(const ViewManager::InputBouncer &bouncer, UI::ViewEventID event_id, std::unique_ptr<const UI::Parameters> parameters)
+ViewIface::InputResult MockViewManager::input_bounce(const ViewManager::InputBouncer &bouncer, UI::ViewEventID event_id, std::unique_ptr<UI::Parameters> parameters)
 {
     const auto &expect(expectations_->get_next_expectation(__func__));
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, 2017, 2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2017, 2019, 2020  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -22,109 +22,119 @@
 #ifndef DIRECTORY_CRAWLER_HH
 #define DIRECTORY_CRAWLER_HH
 
-#include <string>
-
-#include "playlist_crawler.hh"
-#include "player_resume_data.hh"
-#include "dbuslist.hh"
+#include "playlist_crawler_ops.hh"
 #include "listnav.hh"
 #include "cacheenforcer.hh"
-#include "metadata_preloaded.hh"
+#include "cookie_manager.hh"
 #include "airable_links.hh"
-#include "gvariantwrapper.hh"
+#include "rnfcall_get_uris.hh"
+#include "rnfcall_get_ranked_stream_links.hh"
 
-namespace ViewFileBrowser
-{
-    class View;
-    class FileItem;
-}
+namespace ViewFileBrowser { class FileItem; }
 
 namespace Playlist
 {
 
-class DirectoryCrawler: public CrawlerIface
+namespace Crawler
+{
+
+/*!
+ * Crawl through directory hierarchy, find all streams.
+ */
+class DirectoryCrawler: public Iface, public PublicIface
 {
   public:
-    /*!
-     * Type of function called on async enter-list failure or cancelation.
-     *
-     * This function is called for #List::AsyncListIface::OpResult::FAILED and
-     * #List::AsyncListIface::OpResult::CANCELED only, and only in case no
-     * other callback function is available.
-     *
-     * \note
-     *     Be aware that a callback function of this kind may be called from
-     *     any kind of context, including the main loop, some D-Bus thread, or
-     *     any worker thread. Do not assume anything!
-     */
-    using FailureCallbackEnterList = std::function<void(const Playlist::CrawlerIface &crawler,
-                                                        List::QueryContextEnterList::CallerID cid,
-                                                        List::AsyncListIface::OpResult result)>;
-
-    /*!
-     * Type of function called on async get-item failure or cancelation.
-     *
-     * This function is called for #List::AsyncListIface::OpResult::FAILED and
-     * #List::AsyncListIface::OpResult::CANCELED only, and only in case no
-     * other callback function is available.
-     *
-     * \note
-     *     Be aware that a callback function of this kind may be called from
-     *     any kind of context, including the main loop, some D-Bus thread, or
-     *     any worker thread. Do not assume anything!
-     */
-    using FailureCallbackGetItem = std::function<void(const Playlist::CrawlerIface &crawler,
-                                                      List::QueryContextGetItem::CallerID cid,
-                                                      List::AsyncListIface::OpResult result)>;
-
-    class MarkedPosition
+    class Cursor: public CursorBase
     {
+        friend DirectoryCrawler;
+
       private:
         ID::List list_id_;
-        unsigned int line_;
+        List::Nav nav_;
         unsigned int directory_depth_;
-        Direction arrived_direction_;
+
+        ID::List requested_list_id_;
+        unsigned int requested_line_;
+
+        explicit Cursor(const List::NavItemFilterIface &filter,
+                        ID::List list_id, unsigned int line,
+                        unsigned int directory_depth):
+            list_id_(list_id),
+            nav_(DirectoryCrawler::PREFETCHED_ITEMS_COUNT,
+                 List::Nav::WrapMode::NO_WRAP, filter),
+            directory_depth_(directory_depth),
+            requested_list_id_(list_id),
+            requested_line_(line)
+        {
+            nav_.set_cursor_by_line_number(line);
+        }
+
+        explicit Cursor(const List::NavItemFilterIface &filter):
+            Cursor(filter, ID::List(), 0, 0)
+        {}
 
       public:
-        MarkedPosition(const MarkedPosition &) = delete;
-        MarkedPosition &operator=(const MarkedPosition &) = default;
+        Cursor(const Cursor &) = default;
+        Cursor &operator=(Cursor &&) = default;
 
-        explicit MarkedPosition():
-            line_(0),
-            directory_depth_(0),
-            arrived_direction_(Direction::NONE)
-        {}
-
-        explicit MarkedPosition(ID::List list_id, unsigned int line,
-                                unsigned int depth = 1,
-                                Direction dir = Direction::NONE):
-            list_id_(list_id),
-            line_(line),
-            directory_depth_(depth),
-            arrived_direction_(dir)
-        {}
-
-        void set(ID::List list_id, unsigned int line)
+        Cursor &operator=(const Cursor &src)
         {
-            list_id_ = list_id;
-            line_ = line;
-            directory_depth_ = 1;
-            arrived_direction_ = Direction::NONE;
+            list_id_ = src.list_id_;
+            nav_ = List::Nav(src.nav_);
+            directory_depth_ = src.directory_depth_;
+            requested_list_id_ = src.requested_list_id_;
+            requested_line_ = src.requested_line_;
+            return *this;
         }
 
-        void set(ID::List list_id, unsigned int line, unsigned int directory_depth,
-                 Direction arrived_direction)
+        bool advance(Direction direction) final override
         {
-            list_id_ = list_id;
-            line_ = line;
+            switch(direction)
+            {
+              case Direction::FORWARD:
+                return nav_.down();
+
+              case Direction::BACKWARD:
+                return nav_.up();
+
+              case Direction::NONE:
+                break;
+            }
+
+            return false;
+        }
+
+        void sync_list_id_with_request(unsigned int directory_depth)
+        {
+            list_id_ = requested_list_id_;
             directory_depth_ = directory_depth;
-            arrived_direction_ = arrived_direction;
         }
 
-        void clear() { set(ID::List(), 0); }
+        void sync_request_with_pos() final override
+        {
+            requested_line_ = nav_.get_cursor_unchecked();
+            requested_list_id_ = list_id_;
+        }
+
+        void clear() final override
+        {
+            list_id_ = ID::List();
+            directory_depth_ = 0;
+            requested_list_id_ = ID::List();
+            requested_line_ = 0;
+            nav_.set_cursor_by_line_number(0);
+        }
+
+        std::unique_ptr<CursorBase> clone() const final override
+        {
+            return std::make_unique<Cursor>(*this);
+        }
 
         bool list_invalidate(ID::List list_id, ID::List replacement_id)
         {
+            if(requested_list_id_ == list_id)
+                requested_list_id_ = replacement_id;
+
             if(list_id_ == list_id)
             {
                 list_id_ = replacement_id;
@@ -135,162 +145,183 @@ class DirectoryCrawler: public CrawlerIface
         }
 
         const ID::List &get_list_id() const { return list_id_; }
-        unsigned int get_line() const { return line_; }
+
+        unsigned int get_line() const { return nav_.get_cursor_unchecked(); }
+
         unsigned int get_directory_depth() const { return directory_depth_; }
-        Direction get_arrived_direction() const { return arrived_direction_; }
+
+        bool is_list_empty() const
+        {
+            return nav_.get_total_number_of_visible_items() == 0;
+        }
+
+        List::AsyncListIface::OpResult
+        hint_planned_access(List::DBusList &list, bool forward,
+                            List::AsyncListIface::HintItemDoneNotification &&hinted_fn);
+
+        std::string get_description(bool full = true) const final override;
     };
 
-    class ItemInfo
+    class FindNextOp: public FindNextOpBase
     {
-      public:
-        MarkedPosition position_;
-
-        bool is_item_info_valid_;
-        std::string file_item_text_;
-        MetaData::PreloadedSet file_item_meta_data_;
-
-        GVariantWrapper stream_key_;
-        std::vector<std::string> stream_uris_;
-        Airable::SortedLinks airable_links_;
-
-        ItemInfo(const ItemInfo &) = delete;
-        ItemInfo &operator=(const ItemInfo &) = delete;
-
-        explicit ItemInfo():
-            is_item_info_valid_(false)
-        {}
-
-        void clear()
-        {
-            position_.set(ID::List(), 0, 0, Direction::NONE);
-            is_item_info_valid_ = false;
-            file_item_text_.clear();
-            file_item_meta_data_.clear_individual_copy();
-            stream_key_.release();
-            stream_uris_.clear();
-            airable_links_.clear();
-        }
-
-        void set(ID::List list_id, unsigned int line,
-                 unsigned int directory_depth, Direction arrived_direction,
-                 GVariantWrapper &&stream_key)
-        {
-            set_common(list_id, line, directory_depth, arrived_direction,
-                       std::move(stream_key));
-            is_item_info_valid_ = false;
-            file_item_text_.clear();
-            file_item_meta_data_.clear_individual_copy();
-        }
-
-        void set(ID::List list_id, unsigned int line,
-                 unsigned int directory_depth, Direction arrived_direction,
-                 const std::string &file_item_text,
-                 const MetaData::PreloadedSet &file_item_meta_data,
-                 GVariantWrapper &&stream_key)
-        {
-            set_common(list_id, line, directory_depth, arrived_direction,
-                       std::move(stream_key));
-            file_item_text_ = file_item_text;
-            file_item_meta_data_.copy_from(file_item_meta_data);
-            is_item_info_valid_ = true;
-        }
+        friend DirectoryCrawler;
 
       private:
-        void set_common(ID::List list_id, unsigned int line,
-                        unsigned int directory_depth, Direction arrived_direction,
-                        GVariantWrapper &&stream_key)
+        static constexpr unsigned int MAX_DIRECTORY_DEPTH = 100;
+
+        List::DBusList &dbus_list_;
+        List::NavItemFilterIface &item_filter_;
+        std::unique_ptr<Cursor> position_;
+        I18n::String root_list_title_;
+
+        List::QueryContextEnterList::CallerID entering_list_caller_id_;
+        bool is_waiting_for_item_hint_;
+        bool has_skipped_first_;
+
+        const ViewFileBrowser::FileItem *file_item_;
+
+      public:
+        FindNextOp(const FindNextOp &) = delete;
+        FindNextOp(FindNextOp &&) = default;
+        FindNextOp &operator=(const FindNextOp &) = delete;
+        FindNextOp &operator=(FindNextOp &&) = default;
+
+        explicit FindNextOp(std::string &&debug_description,
+                            List::DBusList &dbus_list,
+                            List::NavItemFilterIface &item_filter,
+                            CompletionCallback &&completion_callback,
+                            CompletionCallbackFilter filter,
+                            RecursiveMode recursive_mode, Direction direction,
+                            std::unique_ptr<Cursor> position,
+                            I18n::String &&root_list_title, FindMode find_mode):
+            FindNextOpBase(std::move(debug_description),
+                           std::move(completion_callback), filter,
+                           recursive_mode, direction,
+                           position->get_directory_depth(), find_mode),
+            dbus_list_(dbus_list),
+            item_filter_(item_filter),
+            position_(std::move(position)),
+            root_list_title_(std::move(root_list_title)),
+            entering_list_caller_id_(direction == Direction::NONE
+                ? List::QueryContextEnterList::CallerID::CRAWLER_RESET_POSITION
+                : List::QueryContextEnterList::CallerID::CRAWLER_FIRST_ENTRY),
+            is_waiting_for_item_hint_(false),
+            has_skipped_first_(false),
+            file_item_(nullptr)
         {
-            position_.set(list_id, line, directory_depth, arrived_direction);
-            stream_key_ = std::move(stream_key);
-            stream_uris_.clear();
-            airable_links_.clear();
+            log_assert(position_ != nullptr);
         }
+
+        const CursorBase &get_position() const final override { return *position_; }
+        std::unique_ptr<CursorBase> extract_position() final override { return std::move(position_); }
+
+        std::string get_description() const final override;
+
+      protected:
+        bool do_start() final override;
+        void do_continue() final override;
+        void do_cancel() final override;
+        bool do_restart() final override;
+
+      private:
+        bool matches_async_result(const List::QueryContextEnterList &ctx,
+                                  List::QueryContextEnterList::CallerID cid) const;
+        void enter_list_event(List::AsyncListIface::OpResult op_result,
+                              const List::QueryContextEnterList &ctx);
+
+        bool check_skip_directory(const ViewFileBrowser::FileItem &item) const;
+
+      public:
+        enum class Continue
+        {
+            NOT_WITH_ERROR,
+            NOT_WITH_SUCCESS,
+            LATER,
+            WITH_THIS_ITEM,
+        };
+
+      private:
+        bool finish_op_if_possible(Continue cont);
+        void run_as_far_as_possible();
+        Continue finish_with_current_item_or_continue();
+        Continue continue_search();
     };
 
-    template <typename T>
-    struct ProcessItemTraits;
+    class GetURIsOp: public GetURIsOpBase
+    {
+        friend DirectoryCrawler;
 
-    /*!
-     * Async call for getting stream URIs.
-     */
-    using AsyncGetURIs = DBus::AsyncCall<tdbuslistsNavigation, std::tuple<guchar, gchar **, GVariantWrapper>,
-                                         Busy::Source::GETTING_ITEM_URI>;
+      private:
+        DBusRNF::CookieManagerIface &cm_;
+        tdbuslistsNavigation *proxy_;
+        bool has_ranked_streams_;
+        std::shared_ptr<DBusRNF::GetURIsCall> get_simple_uris_call_;
+        std::shared_ptr<DBusRNF::GetRankedStreamLinksCall> get_ranked_uris_call_;
 
-    /*!
-     * Async call for getting Airable stream link URIs.
-     */
-    using AsyncGetStreamLinks =
-        DBus::AsyncCall<tdbuslistsNavigation, std::tuple<guchar, GVariantWrapper, GVariantWrapper>,
-                        Busy::Source::GETTING_ITEM_STREAM_LINKS>;
+      public:
+        struct Result
+        {
+            ListError error_;
+            GVariantWrapper stream_key_;
+            std::vector<std::string> simple_uris_;
+            Airable::SortedLinks sorted_links_;
+            MetaData::Set meta_data_;
+
+            explicit Result(MetaData::Set &&md): meta_data_(std::move(md)) {}
+        };
+
+        Result result_;
+
+      public:
+        GetURIsOp(const GetURIsOp &) = delete;
+        GetURIsOp(GetURIsOp &&) = default;
+        GetURIsOp &operator=(const GetURIsOp &) = delete;
+        GetURIsOp &operator=(GetURIsOp &&) = default;
+
+        explicit GetURIsOp(std::string &&debug_description,
+                           DBusRNF::CookieManagerIface &cm,
+                           tdbuslistsNavigation *proxy, bool has_ranked_streams,
+                           std::unique_ptr<Playlist::Crawler::CursorBase> position,
+                           MetaData::Set &&meta_data,
+                           CompletionCallback &&completion_callback,
+                           CompletionCallbackFilter filter):
+            GetURIsOpBase(std::move(debug_description),
+                          std::move(completion_callback),
+                          filter, std::move(position)),
+            cm_(cm),
+            proxy_(proxy),
+            has_ranked_streams_(has_ranked_streams),
+            result_(std::move(meta_data))
+        {}
+
+        bool has_no_uris() const final override
+        {
+            return has_ranked_streams_
+                ? result_.sorted_links_.empty()
+                : result_.simple_uris_.empty();
+        }
+
+        std::string get_description() const final override;
+
+      protected:
+        bool do_start() final override;
+        void do_continue() final override;
+        void do_cancel() final override;
+        bool do_restart() final override;
+
+      private:
+        void handle_result(ListError e, const char *const *const uri_list,
+                           GVariantWrapper &&stream_key);
+        void handle_result(ListError e, GVariantWrapper &&link_list,
+                           GVariantWrapper &&stream_key);
+    };
 
   private:
-    tdbuslistsNavigation *dbus_proxy_;
-
     /* list for the crawling directories */
     List::DBusList traversal_list_;
-    List::NavItemNoFilter item_flags_;
-    List::Nav navigation_;
+    List::NavItemNoFilter item_filter_;
 
-    /* where the user pushed the play button */
-    MarkedPosition user_start_position_;
     std::unique_ptr<CacheEnforcer> cache_enforcer_;
-
-    enum class RecurseResult
-    {
-        FOUND_ITEM,
-        ASYNC_IN_PROGRESS,
-        ASYNC_DONE,
-        ASYNC_CANCELED,
-        SKIP,
-        ERROR,
-    };
-
-    static constexpr unsigned int MAX_DIRECTORY_DEPTH = 512;
-    unsigned int directory_depth_;
-    bool is_first_item_in_list_processed_;
-
-    /*!
-     * Whether or not we are waiting for async D-Bus enter-list completion.
-     *
-     * This member is only modified in the D-Bus list watcher functions, all
-     * other accesses should be read-only. There are two exceptions: functions
-     * #Playlist::DirectoryCrawler::configure_and_restart() and
-     * #Playlist::DirectoryCrawler::configure_and_resume() both assign \c false
-     * to this member.
-     */
-    bool is_waiting_for_async_enter_list_completion_;
-
-    /*!
-     * Whether or not we are waiting for async D-Bus get-item completion.
-     *
-     * This member is only modified in the D-Bus list watcher functions, all
-     * other accesses should be read-only. There are two exceptions: functions
-     * #Playlist::DirectoryCrawler::configure_and_restart() and
-     * #Playlist::DirectoryCrawler::configure_and_resume() both assign \c false
-     * to this member.
-     */
-    bool is_waiting_for_async_get_list_item_completion_;
-
-    /*!
-     * Whether or not we are trying to step back to an old location.
-     *
-     * To skip backwards it is usually necessary to move back to the previously
-     * marked position (see #Playlist::DirectoryCrawler::marked_position_)
-     * first, and then move backwards from that point. While the marked
-     * position is being looked up, this flag is set to true.
-     */
-    bool is_resetting_to_marked_position_;
-
-    std::shared_ptr<AsyncGetURIs> async_get_uris_call_;
-    std::shared_ptr<AsyncGetStreamLinks> async_get_stream_links_call_;
-
-    ItemInfo current_item_info_;
-
-    FindNextCallback find_next_callback_;
-    FailureCallbackEnterList failure_callback_enter_list_;
-    FailureCallbackGetItem failure_callback_get_item_;
-
-    MarkedPosition marked_position_;
 
     static constexpr const unsigned int PREFETCHED_ITEMS_COUNT = 5;
 
@@ -298,155 +329,136 @@ class DirectoryCrawler: public CrawlerIface
     DirectoryCrawler (const DirectoryCrawler &) = delete;
     DirectoryCrawler &operator=(const DirectoryCrawler &) = delete;
 
-    explicit DirectoryCrawler(tdbuslistsNavigation *dbus_listnav_proxy,
+    explicit DirectoryCrawler(DBusRNF::CookieManagerIface &cm,
+                              tdbuslistsNavigation *dbus_listnav_proxy,
+                              UI::EventStoreIface &event_sink,
                               const List::ContextMap &list_contexts,
                               List::DBusList::NewItemFn new_item_fn):
-        dbus_proxy_(dbus_listnav_proxy),
-        traversal_list_("crawler traversal",
-                        dbus_listnav_proxy, list_contexts,
-                        PREFETCHED_ITEMS_COUNT, new_item_fn),
-        item_flags_(&traversal_list_),
-        navigation_(PREFETCHED_ITEMS_COUNT,
-                    List::Nav::WrapMode::NO_WRAP, item_flags_),
-        directory_depth_(1),
-        is_first_item_in_list_processed_(false),
-        is_waiting_for_async_enter_list_completion_(false),
-        is_waiting_for_async_get_list_item_completion_(false),
-        is_resetting_to_marked_position_(false)
+        Iface(event_sink),
+        traversal_list_("crawler traversal", cm, dbus_listnav_proxy,
+                        list_contexts, PREFETCHED_ITEMS_COUNT, new_item_fn),
+        item_filter_(&traversal_list_)
     {}
 
-    bool init() final override;
+    void init_dbus_list_watcher();
 
-    bool set_start_position(const List::DBusList &start_list,
-                            int start_line_number);
-
-    bool set_start_position(MarkedPosition &&reference_point,
-                            MarkedPosition &&resume_position);
-
-    const MarkedPosition &get_start_position() const
+    static DirectoryCrawler &get_crawler(const Iface::Handle &h)
     {
-        return user_start_position_;
+        return get_crawler_from_handle<DirectoryCrawler>(h);
     }
 
-    void mark_current_position() final override;
-
-    bool set_direction_from_marked_position() final override;
-
-    void mark_position(ID::List list_id, unsigned int line, unsigned int directory_depth,
-                       Direction arrived_direction)
+    Cursor mk_cursor(ID::List list_id, unsigned int line, unsigned int depth)
     {
-        log_assert(list_id.is_valid());
-        marked_position_.set(list_id, line, directory_depth, arrived_direction);
+        return Cursor(item_filter_, list_id, line, depth);
     }
 
-    uint32_t recover_state_from_url_request(const std::string &url) override;
-    void recover_state_from_url_abort(uint32_t cookie) override;
-    std::string generate_resume_url(const Player::CrawlerResumeData &rd,
-                                    const std::string &asrc_id) const;
+    /* regular version including a completion callback */
+    std::shared_ptr<FindNextOpBase>
+    mk_op_find_next(
+            std::string &&debug_description,
+            FindNextOpBase::RecursiveMode recursive_mode, Direction direction,
+            std::unique_ptr<Cursor> position, I18n::String &&list_title,
+            FindNextOpBase::CompletionCallback &&completion_notification,
+            OperationBase::CompletionCallbackFilter filter)
+    {
+        log_assert(position != nullptr);
+        log_assert(completion_notification != nullptr);
+
+        return std::make_shared<FindNextOp>(
+                    std::move(debug_description),
+                    traversal_list_, item_filter_,
+                    std::move(completion_notification), filter,
+                    recursive_mode, direction, std::move(position),
+                    std::move(list_title),
+                    FindNextOpBase::FindMode::FIND_FIRST);
+    }
+
+    /* version for starting from a bookmarked position */
+    std::shared_ptr<FindNextOpBase>
+    mk_op_find_next(
+            std::string &&debug_description,
+            FindNextOpBase::RecursiveMode recursive_mode, Direction direction,
+            Bookmark bm, I18n::String &&list_title,
+            FindNextOpBase::CompletionCallback &&completion_notification,
+            OperationBase::CompletionCallbackFilter filter,
+            FindNextOpBase::FindMode find_mode)
+    {
+        log_assert(completion_notification != nullptr);
+
+        const auto *pos = get_bookmark(bm);
+        if(pos == nullptr)
+        {
+            BUG("Tried to find next item from empty bookmark %d", int(bm));
+            return nullptr;
+        }
+
+        return std::make_shared<FindNextOp>(
+                    std::move(debug_description),
+                    traversal_list_, item_filter_,
+                    std::move(completion_notification), filter,
+                    recursive_mode, direction, std::make_unique<Cursor>(*pos),
+                    std::move(list_title), find_mode);
+    }
+
+    /* version for passing the completion callback later */
+    std::shared_ptr<FindNextOpBase>
+    mk_op_find_next(
+            std::string &&debug_description,
+            FindNextOpBase::RecursiveMode recursive_mode, Direction direction,
+            std::unique_ptr<Cursor> position, I18n::String &&list_title)
+    {
+        log_assert(position != nullptr);
+
+        return std::make_shared<FindNextOp>(
+                    std::move(debug_description),
+                    traversal_list_, item_filter_,
+                    nullptr, OperationBase::CompletionCallbackFilter::NONE,
+                    recursive_mode, direction, std::move(position),
+                    std::move(list_title),
+                    FindNextOpBase::FindMode::FIND_FIRST);
+    }
+
+    std::shared_ptr<GetURIsOpBase>
+    mk_op_get_uris(std::string &&debug_description,
+                   std::unique_ptr<Playlist::Crawler::CursorBase> position,
+                   MetaData::Set &&meta_data,
+                   GetURIsOpBase::CompletionCallback &&completion_notification,
+                   OperationBase::CompletionCallbackFilter filter) const
+    {
+        return std::make_shared<GetURIsOp>(
+                    std::move(debug_description),
+                    traversal_list_.get_cookie_manager(),
+                    traversal_list_.get_dbus_proxy(),
+                    traversal_list_.get_context_info().check_flags(List::ContextInfo::HAS_RANKED_STREAMS),
+                    std::move(position), std::move(meta_data),
+                    std::move(completion_notification), filter);
+    }
 
     bool list_invalidate(ID::List list_id, ID::List replacement_id);
 
-    /*!
-     * Current information about the list item the crawler is pointing at.
-     *
-     * To be used in the #Playlist::CrawlerIface::RetrieveItemInfoCallback
-     * callback, this function retrieves the current list item, if any.
-     */
-    const ItemInfo &get_current_list_item_info() const
-    {
-        return const_cast<DirectoryCrawler *>(this)->get_current_list_item_info_non_const();
-    }
-
-    ItemInfo &get_current_list_item_info_non_const()
-    {
-        return current_item_info_;
-    }
-
-    bool attached_to_player_notification(const FailureCallbackEnterList &enter_list_failed,
-                                         const FailureCallbackGetItem &get_item_failed)
-    {
-        if(!CrawlerIface::attached_to_player_notification())
-            return false;
-
-        failure_callback_enter_list_ = enter_list_failed;
-        failure_callback_get_item_ = get_item_failed;
-
-        return true;
-    }
-
   protected:
-    bool restart() final override;
-    bool resume(I18n::String &&root_list_title) final override;
-    bool is_busy_impl() const final override;
-    void switch_direction() final override;
-    FindNextFnResult find_next_impl(FindNextCallback callback) final override;
-    bool retrieve_item_information_impl(RetrieveItemInfoCallback callback) final override;
-    const List::Item *get_current_list_item_impl(List::AsyncListIface::OpResult &op_result) final override;
-
-    void detached_from_player(bool is_complete_unplug) final override
-    {
-        stop_cache_enforcer();
-
-        if(!is_complete_unplug)
-            return;
-
-        find_next_callback_ = nullptr;
-        failure_callback_enter_list_ = nullptr;
-        failure_callback_get_item_ = nullptr;
-
-        user_start_position_.clear();
-    }
-
-  private:
-    bool do_restart_or_resume(List::QueryContextEnterList::CallerID cid,
-                              const char *what,
-                              const std::function<List::AsyncListIface::OpResult()> &enter_list_fn);
-
-    bool go_to_next_list_item()
-    {
-        return is_crawling_forward() ? navigation_.down() : navigation_.up();
-    }
-
-    RecurseResult try_descend(const FindNextCallback &callback);
-    FindNextFnResult handle_end_of_list(const FindNextCallback &callback);
-    bool handle_entered_list(unsigned int line, LineRelative line_relative,
-                             bool continue_if_empty,
-                             bool current_item_is_next = false);
-    void handle_entered_list_failed(List::QueryContextEnterList::CallerID cid,
-                                    List::AsyncListIface::OpResult op_result);
-    List::AsyncListIface::OpResult back_to_parent(const FindNextCallback &callback);
-
-    bool try_pass_on_current_item(const FindNextCallback &callback, bool *should_retry = nullptr);
-    bool try_get_dbuslist_item_after_started_or_successful_hint(const FindNextCallback &callback);
-    RecurseResult process_current_ready_item(const ViewFileBrowser::FileItem *file_item,
-                                             List::AsyncListIface::OpResult op_result,
-                                             const FindNextCallback &callback,
-                                             bool expecting_file_item);
-    bool do_retrieve_item_information(const RetrieveItemInfoCallback &callback);
+    PublicIface &set_cursor(const CursorBase &cursor) final override;
+    void deactivated(std::shared_ptr<CursorBase> cursor) final override;
 
     /*!
-     * Callback for #Playlist::DirectoryCrawler::AsyncGetURIs and
-     * #Playlist::DirectoryCrawler::AsyncGetStreamLinks.
+     * Callback from D-Bus list, running in bogus context.
      */
-    template <typename AsyncT, typename Traits = ProcessItemTraits<AsyncT>>
-    void process_item_information(DBus::AsyncCall_ &async_call,
-                                  ID::List list_id, unsigned int line,
-                                  unsigned int directory_depth,
-                                  const RetrieveItemInfoCallback &callback);
-
-    template <typename AsyncT>
-    std::shared_ptr<AsyncT> &get_async_call_ptr();
-
-    void handle_enter_list_event(List::AsyncListIface::OpResult result,
-                                 const std::shared_ptr<List::QueryContextEnterList> &ctx);
-    void handle_get_item_failed(List::QueryContextGetItem::CallerID cid,
-                                List::AsyncListIface::OpResult op_result);
-    void handle_get_item_event(List::AsyncListIface::OpResult result,
-                               const std::shared_ptr<List::QueryContextGetItem> &ctx);
+    void async_list__enter_list_event(
+            List::AsyncListIface::OpResult result,
+            std::shared_ptr<List::QueryContextEnterList> ctx);
 
     void start_cache_enforcer(ID::List list_id);
     bool stop_cache_enforcer(bool remove_override = true);
+
+  private:
+    const Cursor *get_bookmark(Bookmark bm) const
+    {
+        const auto *const pos = get_bookmarked_position(bm);
+        return dynamic_cast<const Cursor *>(pos);
+    }
 };
+
+}
 
 }
 

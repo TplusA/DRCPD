@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015--2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015--2020  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -22,14 +22,12 @@
 #ifndef VIEW_PLAY_HH
 #define VIEW_PLAY_HH
 
-#include <memory>
-#include <map>
-#include <string>
-
 #include "view.hh"
 #include "view_serialize.hh"
 #include "view_names.hh"
 #include "player_control.hh"
+
+#include <unordered_map>
 
 /*!
  * \addtogroup view_play Player view
@@ -52,6 +50,11 @@ enum class PlayMode
 
 class View: public ViewIface, public ViewSerializeBase
 {
+  public:
+    using AudioSourceAndViewByID =
+        std::unordered_map<std::string,
+                           std::pair<Player::AudioSource *, const ViewIface *>>;
+
   private:
     static constexpr const uint32_t UPDATE_FLAGS_STREAM_POSITION = 1U << 0;
     static constexpr const uint32_t UPDATE_FLAGS_PLAYBACK_STATE  = 1U << 1;
@@ -66,7 +69,7 @@ class View: public ViewIface, public ViewSerializeBase
     Player::Data player_data_;
     Player::Control player_control_;
 
-    std::map<std::string, std::pair<Player::AudioSource *, const ViewIface *>> audio_sources_with_view_;
+    AudioSourceAndViewByID audio_sources_with_view_;
 
   public:
     View(const View &) = delete;
@@ -75,7 +78,7 @@ class View: public ViewIface, public ViewSerializeBase
 
     explicit View(const char *on_screen_name, unsigned int max_lines,
                   uint32_t maximum_bitrate_for_streams,
-                  ViewManager::VMIface *view_manager):
+                  ViewManager::VMIface &view_manager):
         ViewIface(ViewNames::PLAYER, ViewIface::Flags(), view_manager),
         ViewSerializeBase(on_screen_name, ViewID::PLAY),
         is_visible_(false),
@@ -95,9 +98,9 @@ class View: public ViewIface, public ViewSerializeBase
     void defocus() override;
 
     InputResult process_event(UI::ViewEventID event_id,
-                              std::unique_ptr<const UI::Parameters> parameters) final override;
+                              std::unique_ptr<UI::Parameters> parameters) final override;
     void process_broadcast(UI::BroadcastEventID event_id,
-                           const UI::Parameters *parameters) final override;
+                           UI::Parameters *parameters) final override;
 
     void serialize(DCP::Queue &queue, DCP::Queue::Mode mode,
                    std::ostream *debug_os) override;
@@ -105,9 +108,11 @@ class View: public ViewIface, public ViewSerializeBase
     void register_audio_source(Player::AudioSource &audio_source,
                                const ViewIface &associated_view);
 
-    void prepare_for_playing(Player::AudioSource &audio_source,
-                             Playlist::CrawlerIface &crawler, PlayMode how,
-                             const Player::LocalPermissionsIface &permissions);
+    void prepare_for_playing(
+            Player::AudioSource &audio_source,
+            const std::function<Playlist::Crawler::Handle()> &get_crawler_handle,
+            std::shared_ptr<Playlist::Crawler::FindNextOpBase> find_op,
+            const Player::LocalPermissionsIface &permissions);
     void stop_playing(const Player::AudioSource &audio_source);
     void append_referenced_lists(const Player::AudioSource &audio_source,
                                  std::vector<ID::List> &list_ids) const;
@@ -118,7 +123,7 @@ class View: public ViewIface, public ViewSerializeBase
      */
     bool write_xml(std::ostream &os, uint32_t bits,
                    const DCP::Queue::Data &data) override;
-    void do_stop_playing();
+    void player_finished_playing();
     void plug_audio_source(Player::AudioSource &audio_source,
                            bool with_enforced_intentions,
                            const std::string *external_player_id = nullptr);

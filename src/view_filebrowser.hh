@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015--2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015--2020  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -22,8 +22,6 @@
 #ifndef VIEW_FILEBROWSER_HH
 #define VIEW_FILEBROWSER_HH
 
-#include <memory>
-
 #include "directory_crawler.hh"
 #include "view.hh"
 #include "view_serialize.hh"
@@ -36,6 +34,10 @@
 #include "dbuslist.hh"
 #include "dbus_iface.hh"
 #include "dbus_iface_proxies.hh"
+#include "rnfcall_death_row.hh"
+#include "rnfcall_get_list_id.hh"
+
+#include <unordered_map>
 
 class WaitForParametersHelper;
 
@@ -242,6 +244,189 @@ class ContextRestriction
     ID::List get_root_list_id() const { return root_list_id_; }
 };
 
+/*!
+ * D-Bus data cookie management, one per list broker
+ */
+class PendingCookies
+{
+  public:
+    using NotifyFnType = DBusRNF::CookieManagerIface::NotifyByCookieFn;
+    using FetchFnType = DBusRNF::CookieManagerIface::FetchByCookieFn;
+
+  private:
+    LoggedLock::Mutex lock_;
+    std::unordered_map<uint32_t, NotifyFnType> notification_functions_;
+    std::unordered_map<uint32_t, FetchFnType> fetch_functions_;
+
+  public:
+    PendingCookies(const PendingCookies &) = delete;
+    PendingCookies(PendingCookies &&) = delete;
+    PendingCookies &operator=(const PendingCookies &) = delete;
+    PendingCookies &operator=(PendingCookies &&) = delete;
+
+    explicit PendingCookies()
+    {
+        LoggedLock::configure(lock_, "ViewFileBrowser::PendingCookies",
+                              MESSAGE_LEVEL_DEBUG);
+    }
+
+    /*!
+     * Store a cookie along with a function for fetching the result.
+     *
+     * \param cookie
+     *     A valid data cookie as returned by a list broker.
+     *
+     * \param notify_fn
+     *     This function gets called when notification about the availability
+     *     of the requested data associated with a cookie is received. It
+     *     should take care of initiating the retrieval of the actual data from
+     *     the list broker.
+     *
+     * \param fetch_fn
+     *     This function implements the details of fetching the result from the
+     *     list broker after it has notified us. Function \p fetch_fn is not
+     *     called by this function, but stored for later invocation.
+     *
+     * \returns
+     *     True if the cookie has been stored, false if the cookie was already
+     *     stored (which probably indicates that there is a bug).
+     */
+    bool add(uint32_t cookie, NotifyFnType &&notify_fn, FetchFnType &&fetch_fn)
+    {
+        log_assert(cookie != 0);
+        log_assert(fetch_fn != nullptr);
+
+        std::lock_guard<LoggedLock::Mutex> lock(lock_);
+        notification_functions_.emplace(cookie, std::move(notify_fn));
+        return fetch_functions_.emplace(cookie, std::move(fetch_fn)).second;
+    }
+
+    /*!
+     * Simply remove a cookie from the store.
+     *
+     * The associated fetch function is not called by this function.
+     */
+    void drop(uint32_t cookie)
+    {
+        std::lock_guard<LoggedLock::Mutex> lock(lock_);
+        notification_functions_.erase(cookie);
+        fetch_functions_.erase(cookie);
+    }
+
+    /*!
+     * Notify blocking clients about availability of a result for a cookie.
+     *
+     * This function does not finish the cookie, it only notifies client code
+     * which may block while waiting for the result to become available.
+     *
+     * \bug
+     *     This should not be required. Client code should be rewritten to
+     *     make use of purely asynchronous interfaces.
+     */
+    void available(uint32_t cookie)
+    {
+        available(cookie, ListError(), "availability");
+    }
+
+    void available(uint32_t cookie, const ListError &error)
+    {
+        available(cookie, error, "availability error");
+    }
+
+    /*!
+     * Invoke fetch function indicating success, remove cookie.
+     *
+     * Typically, this function is called for each cookie reported by the
+     * \c de.tahifi.Lists.Navigation.DataAvailable D-Bus signal.
+     */
+    void finish(uint32_t cookie)
+    {
+        finish(cookie, ListError(), "completion");
+    }
+
+    /*!
+     * Invoke fetch function indicating failure, remove cookie.
+     *
+     * Typically, this function is called for each cookie reported by the
+     * \c de.tahifi.Lists.Navigation.DataError D-Bus signal.
+     *
+     * \param cookie
+     *     The cookie the fetch operation failed for.
+     *
+     * \param error
+     *     The error reported by the list broker.
+     */
+    void finish(uint32_t cookie, ListError error)
+    {
+        finish(cookie, error, "completion error");
+    }
+
+  private:
+    void available(uint32_t cookie, ListError error, const char *what)
+    {
+        std::lock_guard<LoggedLock::Mutex> lock(lock_);
+
+        try
+        {
+            const auto &fn(notification_functions_.at(cookie));
+
+            if(fn != nullptr)
+                fn(cookie, error);
+        }
+        catch(const std::out_of_range &e)
+        {
+            if(notification_functions_.find(cookie) == notification_functions_.end())
+            {
+                BUG("Got %s notification for unknown cookie %u (available)",
+                    what, cookie);
+                return;
+            }
+
+            BUG("Got exception while notifying cookie %u (%s)", cookie, e.what());
+        }
+        catch(const std::exception &e)
+        {
+            BUG("Got exception while notifying cookie %u (%s)", cookie, e.what());
+        }
+        catch(...)
+        {
+            BUG("Got exception while notifying cookie %u", cookie);
+        }
+    }
+
+    void finish(uint32_t cookie, ListError error, const char *what)
+    {
+        std::lock_guard<LoggedLock::Mutex> lock(lock_);
+
+        try
+        {
+            fetch_functions_.at(cookie)(cookie, error);
+        }
+        catch(const std::out_of_range &e)
+        {
+            if(fetch_functions_.find(cookie) == fetch_functions_.end())
+            {
+                BUG("Got %s notification for unknown cookie %u (finish)",
+                    what, cookie);
+                return;
+            }
+
+            BUG("Got exception while fetching cookie %u (%s)", cookie, e.what());
+        }
+        catch(const std::exception &e)
+        {
+            BUG("Got exception while fetching cookie %u (%s)", cookie, e.what());
+        }
+        catch(...)
+        {
+            BUG("Got exception while fetching cookie %u", cookie);
+        }
+
+        notification_functions_.erase(cookie);
+        fetch_functions_.erase(cookie);
+    }
+};
+
 class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSourceBase
 {
   protected:
@@ -268,10 +453,10 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
       private:
         LoggedLock::RecMutex lock_;
 
+        std::shared_ptr<DBusRNF::GetListIDCallBase> get_list_id_;
+        DBusRNF::DeathRow death_row_;
+
       public:
-        using GetListId =
-            DBus::AsyncCall<tdbuslistsNavigation, std::tuple<guchar, guint, gchar *, gboolean>,
-                            Busy::Source::GETTING_LIST_ID>;
         using GetParentId =
             DBus::AsyncCall<tdbuslistsNavigation, std::tuple<guint, guint, gchar *, gboolean>,
                             Busy::Source::GETTING_PARENT_LINK>;
@@ -280,7 +465,6 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
             DBus::AsyncCall<tdbuslistsNavigation, std::tuple<guint, guint, gchar *, gboolean>,
                             Busy::Source::GETTING_LIST_CONTEXT_ROOT_LINK>;
 
-        std::shared_ptr<GetListId> get_list_id_;
         std::shared_ptr<GetParentId> get_parent_id_;
         std::shared_ptr<GetContextRoot> get_context_root_;
 
@@ -297,22 +481,47 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
             return std::unique_lock<LoggedLock::RecMutex>(lock_);
         }
 
+        std::shared_ptr<DBusRNF::GetListIDCallBase>
+        set_call(std::shared_ptr<DBusRNF::GetListIDCallBase> &&call)
+        {
+            death_row_.enter(std::move(get_list_id_));
+            get_list_id_ = std::move(call);
+            return get_list_id_;
+        }
+
+        std::shared_ptr<DBusRNF::GetListIDCallBase> get_get_list_id()
+        {
+            return get_list_id_;
+        }
+
+        void delete_get_list_id()
+        {
+            death_row_.enter(std::move(get_list_id_));
+        }
+
         void cancel_and_delete_all()
         {
-            GetListId::cancel_and_delete(get_list_id_);
+            if(get_list_id_ != nullptr)
+            {
+                get_list_id_->abort_request();
+                delete_get_list_id();
+            }
+
             GetParentId::cancel_and_delete(get_parent_id_);
             GetContextRoot::cancel_and_delete(get_context_root_);
         }
 
         void delete_all()
         {
-            get_list_id_.reset();
+            delete_get_list_id();
             get_parent_id_.reset();
         }
     };
 
   private:
-    DBus::ListbrokerID listbroker_id_;
+    const DBus::ListbrokerID listbroker_id_;
+    PendingCookies pending_cookies_;
+    UI::EventStoreIface &event_sink_;
 
     ID::List root_list_id_;
     std::string status_string_for_empty_root_;
@@ -326,16 +535,15 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
     /* list for the user */
     List::DBusList file_list_;
 
-    List::NavItemNoFilter item_flags_;
+    List::NavItemNoFilter item_filter_;
     List::Nav navigation_;
 
     ViewIface *play_view_;
     const char *const default_audio_source_name_;
 
   private:
-    Playlist::DirectoryCrawler crawler_;
-    Playlist::CrawlerIface::RecursiveMode default_recursive_mode_;
-    Playlist::CrawlerIface::ShuffleMode default_shuffle_mode_;
+    Playlist::Crawler::DirectoryCrawler crawler_;
+    Playlist::Crawler::DefaultSettings crawler_defaults_;
     std::unique_ptr<Player::Resumer> resumer_;
 
   protected:
@@ -357,28 +565,28 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
     explicit View(const char *name, const char *on_screen_name,
                   uint8_t drcp_browse_id, unsigned int max_lines,
                   DBus::ListbrokerID listbroker_id,
-                  Playlist::CrawlerIface::RecursiveMode default_recursive_mode,
-                  Playlist::CrawlerIface::ShuffleMode default_shuffle_mode,
+                  Playlist::Crawler::DefaultSettings &&crawler_defaults,
                   const char *audio_source_name,
-                  ViewManager::VMIface *view_manager):
+                  ViewManager::VMIface &view_manager,
+                  UI::EventStoreIface &event_store,
+                  DBusRNF::CookieManagerIface &cm):
         ViewIface(name,
                   ViewIface::Flags(ViewIface::Flags::CAN_RETURN_TO_THIS),
                   view_manager),
         ViewSerializeBase(on_screen_name, ViewID::BROWSE),
         listbroker_id_(listbroker_id),
+        event_sink_(event_store),
         current_list_id_(0),
-        file_list_(std::move(std::string(name) + " view"),
+        file_list_(std::move(std::string(name) + " view"), cm,
                    DBus::get_lists_navigation_iface(listbroker_id_),
-                   list_contexts_, max_lines,
-                   construct_file_item),
-        item_flags_(&file_list_),
-        navigation_(max_lines, List::Nav::WrapMode::FULL_WRAP, item_flags_),
+                   list_contexts_, max_lines, construct_file_item),
+        item_filter_(&file_list_),
+        navigation_(max_lines, List::Nav::WrapMode::FULL_WRAP, item_filter_),
         play_view_(nullptr),
         default_audio_source_name_(audio_source_name),
-        crawler_(DBus::get_lists_navigation_iface(listbroker_id_),
-                 list_contexts_, construct_file_item),
-        default_recursive_mode_(default_recursive_mode),
-        default_shuffle_mode_(default_shuffle_mode),
+        crawler_(cm, DBus::get_lists_navigation_iface(listbroker_id_),
+                 event_store, list_contexts_, construct_file_item),
+        crawler_defaults_(std::move(crawler_defaults)),
         drcp_browse_id_(drcp_browse_id),
         search_parameters_view_(nullptr),
         waiting_for_search_parameters_(false)
@@ -399,9 +607,9 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
     bool sync_with_list_broker(bool is_first_call = false);
 
     InputResult process_event(UI::ViewEventID event_id,
-                              std::unique_ptr<const UI::Parameters> parameters) override;
+                              std::unique_ptr<UI::Parameters> parameters) override;
     void process_broadcast(UI::BroadcastEventID event_id,
-                           const UI::Parameters *parameters) final override;
+                           UI::Parameters *parameters) final override;
 
     void serialize(DCP::Queue &queue, DCP::Queue::Mode mode,
                    std::ostream *debug_os) final override;
@@ -410,6 +618,120 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
 
     bool owns_dbus_proxy(const void *dbus_proxy) const;
     virtual bool list_invalidate(ID::List list_id, ID::List replacement_id);
+
+    /*!
+     * Store new cookie, associate with fetch function.
+     *
+     * This function is supposed to be called after a cookie has been returned
+     * by a list broker. The cookie manager should call this function from its
+     * #DBusRNF::CookieManagerIface::set_pending_cookie() implementation, and
+     * D-Bus callers should use a the cookie manager.
+     *
+     * \param cookie
+     *     The cookie to be stored.
+     *
+     * \param notify
+     *     This function gets called when notification about the availability
+     *     of the requested data associated with a cookie is received.
+     *
+     * \param fetch
+     *     Function for result retrieval by cookie (abortion of an operation,
+     *     indicated by the list error passed to the function, is also a
+     *     result). In case the list error indicates no error, this function
+     *     shall fetch the result and perform error handling. Further, it must
+     *     take care of notifying any other components about the
+     *     (un-)availability of the result.
+     */
+    bool data_cookie_set_pending(
+            uint32_t cookie,
+            DBusRNF::CookieManagerIface::NotifyByCookieFn &&notify,
+            DBusRNF::CookieManagerIface::FetchByCookieFn &&fetch);
+
+    /*!
+     * Abort operation associated with cookie, drop cookie.
+     */
+    bool data_cookie_abort(uint32_t cookie);
+
+    /*!
+     * Drop now invalid cookie.
+     */
+    void data_cookie_drop(uint32_t cookie)
+    {
+        pending_cookies_.drop(cookie);
+    }
+
+    /*!
+     * Notification from list broker about available results for cookies (1).
+     *
+     * This function is supposed to be called when a list broker notifies us
+     * about availability of results for a data cookie. It is supposed to be
+     * called from D-Bus context and shall wake up any blocking fetchers
+     * waiting for a result in main context.
+     *
+     * The #ViewFileBrowser::View::data_cookies_available() function can be
+     * regarded as the bottom half of this function for synchronous clients
+     * (which should actually be removed from code and rewritten to use pure
+     * asychronous style).
+     */
+    void data_cookies_available_announcement(const std::vector<uint32_t> &cookies);
+
+    /*!
+     * Notification from list broker about available results for cookies (2).
+     *
+     * This function is supposed to be called when a list broker notifies us
+     * about availability of results for a data cookie. The corresponding D-Bus
+     * handler should use a cookie manager and not call this function directly.
+     *
+     * The function finishes the cookie from the perspective of the cookie
+     * manager by fetching the results from the list broker. It does this by
+     * calling the \p fetch() function previously passed to
+     * #ViewFileBrowser::View::data_cookie_set_pending().
+     *
+     * Since this function sychronously retrieves results via D-Bus from the
+     * list broker that has caused this function to be called, it must not be
+     * called in D-Bus context. See
+     * #ViewFileBrowser::View::data_cookies_available_announcement() for the
+     * "top half" which is supposed to be used from D-Bus context.
+     */
+    bool data_cookies_available(std::vector<uint32_t> &&cookies);
+
+    /*!
+     * Notification from list broker about available results for cookies (1).
+     *
+     * This function is supposed to be called when a list broker notifies us
+     * about availability of error results for a data cookie. It is supposed to
+     * be called from D-Bus context and shall wake up any blocking fetchers
+     * waiting for a result in main context.
+     *
+     * The #ViewFileBrowser::View::data_cookies_error() function can be
+     * regarded as the bottom half of this function for synchronous clients
+     * (which should actually be removed from code and rewritten to use pure
+     * asychronous style).
+     */
+    void data_cookies_error_announcement(
+            const std::vector<std::pair<uint32_t, ListError>> &cookies);
+
+    /*!
+     * Notification from list broker about errors for cookies (2).
+     *
+     * This function is supposed to be called when a list broker notifies us
+     * about failure of the operation associated with a data cookie. The
+     * corresponding D-Bus handler should use a cookie manager and not call
+     * this function directly.
+     *
+     * Like #ViewFileBrowser::View::data_cookies_available(), this function
+     * calls the \p fetch() function to finish the cookies one after the other.
+     * Their errors reported by the list broker are passed to the fetch
+     * function, which must not try to fetch a result, but perform error
+     * handling.
+     *
+     * Since this function sychronously retrieves results via D-Bus from the
+     * list broker that has caused this function to be called, it must not be
+     * called in D-Bus context. See
+     * #ViewFileBrowser::View::data_cookies_error_announcement() for the
+     * "top half" which is supposed to be used from D-Bus context.
+     */
+    bool data_cookies_error(std::vector<std::pair<uint32_t, ListError>> &&cookies);
 
   protected:
     bool register_audio_sources() override;
@@ -572,20 +894,24 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
                                         const std::shared_ptr<List::QueryContextEnterList> &ctx);
     void handle_enter_list_event_update_after_finish(List::AsyncListIface::OpResult result,
                                                      const std::shared_ptr<List::QueryContextEnterList> &ctx);
-    virtual void handle_get_item_event(List::AsyncListIface::OpResult result,
-                                       const std::shared_ptr<List::QueryContextGetItem> &ctx);
 
-    std::string generate_resume_url(const Player::AudioSource &asrc) const final override
-    {
-        auto crawler_lock(crawler_.lock());
-        return crawler_.generate_resume_url(asrc.get_resume_data().crawler_data_,
-                                            asrc.id_);
-    }
+  private:
+    void serialized_item_state_changed(const DBusRNF::GetRangeCallBase &call,
+                                       const DBusRNF::CallState state,
+                                       bool is_for_debug);
 
-    void try_resume_from_arguments(ID::List ref_list_id, unsigned int ref_line,
-                                   ID::List list_id, unsigned int current_line,
-                                   unsigned int directory_depth,
-                                   const I18n::String &list_title);
+  protected:
+    std::string generate_resume_url(const Player::AudioSource &asrc) const final override;
+
+    void try_resume_from_arguments(
+            std::string &&debug_description,
+            Playlist::Crawler::Handle crawler_handle,
+            ID::List ref_list_id, unsigned int ref_line,
+            ID::List list_id, unsigned int current_line,
+            unsigned int directory_depth, I18n::String &&list_title);
+
+    std::unique_ptr<Player::Resumer>
+    try_resume_from_file_begin(const Player::AudioSource &asrc);
 };
 
 };

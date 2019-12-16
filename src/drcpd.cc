@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015--2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015--2020  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -29,6 +29,7 @@
 #include <glib-object.h>
 #include <glib-unix.h>
 
+#include "main_context.hh"
 #include "configuration.hh"
 #include "configuration_i18n.hh"
 #include "i18n.hh"
@@ -51,7 +52,7 @@
 #include "os.h"
 #include "versioninfo.h"
 
-struct files_t
+struct Files
 {
     struct fifo_pair dcp_fifo;
     const char *dcp_fifo_in_name;
@@ -59,24 +60,24 @@ struct files_t
     guint dcp_fifo_in_event_source_id;
 };
 
-struct ui_events_processing_data_t
+struct UIEventsProcessingData
 {
     ViewManager::Manager *vm;
 };
 
-struct dcp_fifo_dispatch_data_t
+struct DCPFIFODispatchData
 {
-    files_t *files;
+    Files &files;
     ViewManager::VMIface *vm;
     Timeout::Timer timeout;
 
-    explicit dcp_fifo_dispatch_data_t(files_t &f):
-        files(&f),
+    explicit DCPFIFODispatchData(Files &f):
+        files(f),
         vm(nullptr)
     {}
 };
 
-struct parameters
+struct Parameters
 {
     enum MessageVerboseLevel verbose_level;
     bool run_in_foreground;
@@ -140,34 +141,31 @@ static DCP::Transaction::Result read_transaction_result(int fd)
     return DCP::Transaction::INVALID_ANSWER;
 }
 
-static bool watch_in_fd(struct dcp_fifo_dispatch_data_t *dispatch_data);
+static bool watch_in_fd(DCPFIFODispatchData &dispatch_data);
 
 static gboolean dcp_fifo_in_dispatch(int fd, GIOCondition condition,
                                      gpointer user_data)
 {
-    struct dcp_fifo_dispatch_data_t *const data =
-        static_cast<struct dcp_fifo_dispatch_data_t *>(user_data);
+    auto &data(*static_cast<DCPFIFODispatchData *>(user_data));
 
-    log_assert(data != nullptr);
-
-    if(data->files->dcp_fifo.in_fd < 0)
+    if(data.files.dcp_fifo.in_fd < 0)
         return G_SOURCE_REMOVE;
 
-    log_assert(fd == data->files->dcp_fifo.in_fd);
+    log_assert(fd == data.files.dcp_fifo.in_fd);
 
     gboolean return_value = G_SOURCE_CONTINUE;
 
     if((condition & G_IO_IN) != 0)
-        data->vm->serialization_result(read_transaction_result(fd));
+        data.vm->serialization_result(read_transaction_result(fd));
 
     if((condition & G_IO_HUP) != 0)
     {
         msg_error(EPIPE, LOG_ERR, "DCP daemon died, need to reopen");
 
-        if(try_reopen_fd(&data->files->dcp_fifo.in_fd,
-                         data->files->dcp_fifo_in_name, "DCP"))
+        if(try_reopen_fd(&data.files.dcp_fifo.in_fd,
+                         data.files.dcp_fifo_in_name, "DCP"))
         {
-            if(data->files->dcp_fifo.in_fd != fd)
+            if(data.files.dcp_fifo.in_fd != fd)
             {
                 if(!watch_in_fd(data))
                     raise(SIGTERM);
@@ -189,17 +187,17 @@ static gboolean dcp_fifo_in_dispatch(int fd, GIOCondition condition,
     return return_value;
 }
 
-static bool watch_in_fd(struct dcp_fifo_dispatch_data_t *dispatch_data)
+static bool watch_in_fd(DCPFIFODispatchData &dispatch_data)
 {
-    dispatch_data->files->dcp_fifo_in_event_source_id =
-        g_unix_fd_add(dispatch_data->files->dcp_fifo.in_fd,
+    dispatch_data.files.dcp_fifo_in_event_source_id =
+        g_unix_fd_add(dispatch_data.files.dcp_fifo.in_fd,
                       GIOCondition(G_IO_IN | G_IO_PRI | G_IO_ERR | G_IO_HUP | G_IO_NVAL),
-                      dcp_fifo_in_dispatch, dispatch_data);
+                      dcp_fifo_in_dispatch, &dispatch_data);
 
-    if(dispatch_data->files->dcp_fifo_in_event_source_id == 0)
+    if(dispatch_data.files.dcp_fifo_in_event_source_id == 0)
         msg_error(ENOMEM, LOG_EMERG, "Failed adding DCP in-fd event to main loop");
 
-    return dispatch_data->files->dcp_fifo_in_event_source_id != 0;
+    return dispatch_data.files.dcp_fifo_in_event_source_id != 0;
 }
 
 static std::chrono::milliseconds
@@ -214,27 +212,27 @@ transaction_timeout_exceeded(ViewManager::VMIface *const vm)
 }
 
 static void timeout_config(bool start_timeout_timer,
-                           struct dcp_fifo_dispatch_data_t *dispatch_data)
+                           DCPFIFODispatchData &dispatch_data)
 {
     if(start_timeout_timer)
-        dispatch_data->timeout.start(std::chrono::seconds(4),
-            std::bind(transaction_timeout_exceeded, dispatch_data->vm));
+        dispatch_data.timeout.start(
+            std::chrono::seconds(4),
+            [vm = dispatch_data.vm] { return transaction_timeout_exceeded(vm); });
     else
-        dispatch_data->timeout.stop();
+        dispatch_data.timeout.stop();
 }
 
 /*!
  * Set up logging, daemonize.
  */
-static int setup(const struct parameters *parameters,
-                 struct dcp_fifo_dispatch_data_t *dispatch_data,
-                 GMainLoop **loop)
+static int setup(const Parameters &parameters,
+                 DCPFIFODispatchData &dispatch_data, GMainLoop **loop)
 {
-    msg_enable_syslog(!parameters->run_in_foreground);
+    msg_enable_syslog(!parameters.run_in_foreground);
     msg_enable_glib_message_redirection();
-    msg_set_verbose_level(parameters->verbose_level);
+    msg_set_verbose_level(parameters.verbose_level);
 
-    if(!parameters->run_in_foreground)
+    if(!parameters.run_in_foreground)
     {
         openlog("drcpd", LOG_PID, LOG_DAEMON);
 
@@ -252,14 +250,14 @@ static int setup(const struct parameters *parameters,
 
     msg_vinfo(MESSAGE_LEVEL_DEBUG, "Attempting to open named pipes");
 
-    struct files_t *const files = dispatch_data->files;
+    Files &files(dispatch_data.files);
 
-    files->dcp_fifo.out_fd = fifo_open(files->dcp_fifo_out_name, true);
-    if(files->dcp_fifo.out_fd < 0)
+    files.dcp_fifo.out_fd = fifo_open(files.dcp_fifo_out_name, true);
+    if(files.dcp_fifo.out_fd < 0)
         goto error_dcp_fifo_out;
 
-    files->dcp_fifo.in_fd = fifo_open(files->dcp_fifo_in_name, false);
-    if(files->dcp_fifo.in_fd < 0)
+    files.dcp_fifo.in_fd = fifo_open(files.dcp_fifo_in_name, false);
+    if(files.dcp_fifo.in_fd < 0)
         goto error_dcp_fifo_in;
 
     *loop = g_main_loop_new(NULL, FALSE);
@@ -278,22 +276,22 @@ error_unix_fd_add:
     g_main_loop_unref(*loop);
 
 error_main_loop_new:
-    fifo_close(&files->dcp_fifo.in_fd);
+    fifo_close(&files.dcp_fifo.in_fd);
 
 error_dcp_fifo_in:
-    fifo_close(&files->dcp_fifo.out_fd);
+    fifo_close(&files.dcp_fifo.out_fd);
 
 error_dcp_fifo_out:
     *loop = NULL;
     return -1;
 }
 
-static void shutdown(ViewManager::VMIface &view_manager, struct files_t *files)
+static void shutdown(ViewManager::VMIface &view_manager, Files &files)
 {
     view_manager.shutdown();
 
-    fifo_close(&files->dcp_fifo.in_fd);
-    fifo_close(&files->dcp_fifo.out_fd);
+    fifo_close(&files.dcp_fifo.in_fd);
+    fifo_close(&files.dcp_fifo.out_fd);
 }
 
 static void usage(const char *program_name)
@@ -328,15 +326,14 @@ static bool check_argument(int argc, char *argv[], int &i)
 }
 
 static int process_command_line(int argc, char *argv[],
-                                struct parameters *parameters,
-                                struct files_t *files)
+                                Parameters &parameters, Files &files)
 {
-    parameters->verbose_level = MESSAGE_LEVEL_NORMAL;
-    parameters->run_in_foreground = false;
-    parameters->connect_to_session_dbus = true;
+    parameters.verbose_level = MESSAGE_LEVEL_NORMAL;
+    parameters.run_in_foreground = false;
+    parameters.connect_to_session_dbus = true;
 
-    files->dcp_fifo_out_name = "/tmp/drcpd_to_dcpd";
-    files->dcp_fifo_in_name = "/tmp/dcpd_to_drcpd";
+    files.dcp_fifo_out_name = "/tmp/drcpd_to_dcpd";
+    files.dcp_fifo_in_name = "/tmp/dcpd_to_drcpd";
 
     for(int i = 1; i < argc; ++i)
     {
@@ -345,15 +342,15 @@ static int process_command_line(int argc, char *argv[],
         else if(strcmp(argv[i], "--version") == 0)
             return 2;
         else if(strcmp(argv[i], "--fg") == 0)
-            parameters->run_in_foreground = true;
+            parameters.run_in_foreground = true;
         else if(strcmp(argv[i], "--verbose") == 0)
         {
             if(!check_argument(argc, argv, i))
                 return -1;
 
-            parameters->verbose_level = msg_verbose_level_name_to_level(argv[i]);
+            parameters.verbose_level = msg_verbose_level_name_to_level(argv[i]);
 
-            if(parameters->verbose_level == MESSAGE_LEVEL_IMPOSSIBLE)
+            if(parameters.verbose_level == MESSAGE_LEVEL_IMPOSSIBLE)
             {
                 fprintf(stderr,
                         "Invalid verbosity \"%s\". "
@@ -368,23 +365,23 @@ static int process_command_line(int argc, char *argv[],
             }
         }
         else if(strcmp(argv[i], "--quiet") == 0)
-            parameters->verbose_level = MESSAGE_LEVEL_QUIET;
+            parameters.verbose_level = MESSAGE_LEVEL_QUIET;
         else if(strcmp(argv[i], "--idcp") == 0)
         {
             if(!check_argument(argc, argv, i))
                 return -1;
-            files->dcp_fifo_in_name = argv[i];
+            files.dcp_fifo_in_name = argv[i];
         }
         else if(strcmp(argv[i], "--odcp") == 0)
         {
             if(!check_argument(argc, argv, i))
                 return -1;
-            files->dcp_fifo_out_name = argv[i];
+            files.dcp_fifo_out_name = argv[i];
         }
         else if(strcmp(argv[i], "--session-dbus") == 0)
-            parameters->connect_to_session_dbus = true;
+            parameters.connect_to_session_dbus = true;
         else if(strcmp(argv[i], "--system-dbus") == 0)
-            parameters->connect_to_session_dbus = false;
+            parameters.connect_to_session_dbus = false;
         else
         {
             std::cerr << "Unknown option \"" << argv[i]
@@ -419,26 +416,8 @@ static void do_call_in_main_context_dtor(gpointer user_data)
     delete fn;
 }
 
-/*!
- * Call given function in main context.
- *
- * For functions that must not be called from threads other than the main
- * thread.
- *
- * \param fn_object
- *     Dynamically allocated function object that is called from the main
- *     thread's main loop. If \c nullptr, then an out-of-memory error message
- *     is emitted (the caller may therefore conveniently pass the result of
- *     \c new directly to this function). The object is freed via \c delete
- *     after the function object has been called.
- *
- * \param allow_direct_call
- *     If this is true, then the function is called directly in case the
- *     current context is the main context. Note that this may lead to
- *     deadlocks.
- */
-static void call_in_main_context(std::function<void()> *fn_object,
-                                 bool allow_direct_call)
+void MainContext::deferred_call(std::function<void()> *fn_object,
+                                bool allow_direct_call)
 {
     if(fn_object == nullptr)
     {
@@ -462,15 +441,12 @@ static void call_in_main_context(std::function<void()> *fn_object,
     }
 }
 
-static void defer_ui_event_processing(struct ui_events_processing_data_t *data)
+static void defer_ui_event_processing(UIEventsProcessingData &data)
 {
-    log_assert(data != nullptr);
-
     auto *fn_object =
-        new std::function<void()>(std::bind(&ViewManager::Manager::process_pending_events,
-                                            data->vm));
+        new std::function<void()>([vm = data.vm] { vm->process_pending_events(); });
 
-    call_in_main_context(fn_object, false);
+    MainContext::deferred_call(fn_object, false);
 }
 
 /*!
@@ -486,9 +462,9 @@ static void defer_dcp_transfer(DCP::Queue *queue)
     log_assert(queue != nullptr);
 
     auto *fn_object =
-        new std::function<void()>(std::bind(&DCP::Queue::process_pending_transactions, queue));
+        new std::function<void()>([queue] { queue->process_pending_transactions(); });
 
-    call_in_main_context(fn_object, false);
+    MainContext::deferred_call(fn_object, false);
 }
 
 static void language_changed(const I18nConfigMgr &config_manager,
@@ -518,39 +494,37 @@ static void connect_everything(ViewManager::Manager &views,
                                const Configuration::DrcpdValues &config,
                                I18nConfigMgr &i18n_config_manager)
 {
-    static ViewErrorSink::View error_sink(N_("Error"), &views);
-    static ViewInactive::View inactive("Inactive", &views);
-    static ViewFileBrowser::View fs(ViewNames::BROWSER_FILESYSTEM,
-                                    N_("USB mass storage devices"), 1,
-                                    views.NUMBER_OF_LINES_ON_DISPLAY,
-                                    DBus::ListbrokerID::FILESYSTEM,
-                                    Playlist::CrawlerIface::RecursiveMode::DEPTH_FIRST,
-                                    Playlist::CrawlerIface::ShuffleMode::FORWARD,
-                                    "strbo.usb",
-                                    &views);
-    static ViewFileBrowser::AirableView tunein(ViewNames::BROWSER_INETRADIO,
-                                               N_("Airable internet radio"), 3,
-                                               views.NUMBER_OF_LINES_ON_DISPLAY,
-                                               DBus::ListbrokerID::TUNEIN,
-                                               Playlist::CrawlerIface::RecursiveMode::DEPTH_FIRST,
-                                               Playlist::CrawlerIface::ShuffleMode::FORWARD,
-                                               &views);
-    static ViewFileBrowser::View upnp(ViewNames::BROWSER_UPNP,
-                                      N_("UPnP media servers"), 4,
-                                      views.NUMBER_OF_LINES_ON_DISPLAY,
-                                      DBus::ListbrokerID::UPNP,
-                                      Playlist::CrawlerIface::RecursiveMode::DEPTH_FIRST,
-                                      Playlist::CrawlerIface::ShuffleMode::FORWARD,
-                                      "strbo.upnpcm",
-                                      &views);
-    static ViewSourceApp::View app("TA Control", &views);
-    static ViewSourceRoon::View roon("Roon Ready", &views);
+    static ViewErrorSink::View error_sink(N_("Error"), views);
+    static ViewInactive::View inactive("Inactive", views);
+    static ViewFileBrowser::View fs(
+                ViewNames::BROWSER_FILESYSTEM, N_("USB mass storage devices"), 1,
+                views.NUMBER_OF_LINES_ON_DISPLAY, DBus::ListbrokerID::FILESYSTEM,
+                Playlist::Crawler::DefaultSettings(
+                    Playlist::Crawler::Direction::FORWARD,
+                    Playlist::Crawler::FindNextOpBase::RecursiveMode::DEPTH_FIRST),
+                "strbo.usb", views, views, views);
+    static ViewFileBrowser::AirableView tunein(
+                ViewNames::BROWSER_INETRADIO, N_("Airable internet radio"), 3,
+                views.NUMBER_OF_LINES_ON_DISPLAY, DBus::ListbrokerID::TUNEIN,
+                Playlist::Crawler::DefaultSettings(
+                    Playlist::Crawler::Direction::FORWARD,
+                    Playlist::Crawler::FindNextOpBase::RecursiveMode::DEPTH_FIRST),
+                views, views, views);
+    static ViewFileBrowser::View upnp(
+                ViewNames::BROWSER_UPNP, N_("UPnP media servers"), 4,
+                views.NUMBER_OF_LINES_ON_DISPLAY, DBus::ListbrokerID::UPNP,
+                Playlist::Crawler::DefaultSettings(
+                    Playlist::Crawler::Direction::FORWARD,
+                    Playlist::Crawler::FindNextOpBase::RecursiveMode::DEPTH_FIRST),
+                "strbo.upnpcm", views, views, views);
+    static ViewSourceApp::View app("TA Control", views);
+    static ViewSourceRoon::View roon("Roon Ready", views);
     static ViewPlay::View play(N_("Stream information"),
                                views.NUMBER_OF_LINES_ON_DISPLAY,
                                config.maximum_bitrate_,
-                               &views);
+                               views);
     static ViewSearch::View search(N_("Search parameters"),
-                                   views.NUMBER_OF_LINES_ON_DISPLAY, &views);
+                                   views.NUMBER_OF_LINES_ON_DISPLAY, views);
 
     if(!error_sink.init())
         return;
@@ -589,8 +563,7 @@ static void connect_everything(ViewManager::Manager &views,
     if(!views.invoke_late_init_functions())
         return;
 
-    Busy::init(std::bind(&ViewManager::Manager::busy_state_notification,
-                         &views, std::placeholders::_1));
+    Busy::init([&views] (bool is_busy) { views.busy_state_notification(is_busy); });
 
     i18n_config_manager.set_updated_notification_callback(
         [&i18n_config_manager, &views]
@@ -613,10 +586,10 @@ static gboolean signal_handler(gpointer user_data)
 
 int main(int argc, char *argv[])
 {
-    static struct parameters parameters;
-    static struct files_t files;
+    static Parameters parameters;
+    static Files files;
 
-    int ret = process_command_line(argc, argv, &parameters, &files);
+    int ret = process_command_line(argc, argv, parameters, files);
 
     if(ret == -1)
         return EXIT_FAILURE;
@@ -633,10 +606,10 @@ int main(int argc, char *argv[])
 
     static GMainLoop *loop = NULL;
 
-    static struct ui_events_processing_data_t ui_events_processing_data;
-    static struct dcp_fifo_dispatch_data_t dcp_dispatch_data(files);
+    static UIEventsProcessingData ui_events_processing_data;
+    static DCPFIFODispatchData dcp_dispatch_data(files);
 
-    if(setup(&parameters, &dcp_dispatch_data, &loop) < 0)
+    if(setup(parameters, dcp_dispatch_data, &loop) < 0)
         return EXIT_FAILURE;
 
     static const char configuration_file_name[] = "/var/local/etc/drcpd.ini";
@@ -654,10 +627,10 @@ int main(int argc, char *argv[])
     i18n_config_manager.load();
 
     static UI::EventQueue ui_event_queue(
-        std::bind(defer_ui_event_processing, &ui_events_processing_data));
+        [] { defer_ui_event_processing(ui_events_processing_data); });
     static DCP::Queue dcp_transaction_queue(
-        std::bind(timeout_config, std::placeholders::_1, &dcp_dispatch_data),
-        std::bind(defer_dcp_transfer, &dcp_transaction_queue));
+        [] (bool st) { timeout_config(st, dcp_dispatch_data); },
+        [] { defer_dcp_transfer(&dcp_transaction_queue); });
     static FdStreambuf fd_sbuf(files.dcp_fifo.out_fd);
     static std::ostream fd_out(&fd_sbuf);
     static ViewManager::Manager view_manager(ui_event_queue,
@@ -667,7 +640,6 @@ int main(int argc, char *argv[])
     static DBus::SignalData dbus_signal_data(view_manager,
                                              drcpd_config_manager,
                                              i18n_config_manager);
-
     view_manager.set_output_stream(fd_out);
     view_manager.set_debug_stream(std::cout);
     view_manager.set_resume_playback_configuration_file(resume_config_file_name);
@@ -690,7 +662,7 @@ int main(int argc, char *argv[])
     msg_vinfo(MESSAGE_LEVEL_IMPORTANT, "Shutting down");
 
     fd_sbuf.set_fd(-1);
-    shutdown(view_manager, &files);
+    shutdown(view_manager, files);
     DBus::shutdown();
 
     return EXIT_SUCCESS;

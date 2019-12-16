@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2019, 2020  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -21,6 +21,8 @@
 
 #ifndef DBUSLIST_EXCEPTION_HH
 #define DBUSLIST_EXCEPTION_HH
+
+#include <gio/gio.h>
 
 #include "gerrorwrapper.hh"
 #include "de_tahifi_lists_errors.hh"

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2019, 2020  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DCPD.
  *
@@ -27,10 +27,43 @@
 
 #include "context_map.hh"
 
-TEST_CASE("Add two contexts to empty context map")
+#include "mock_backtrace.hh"
+
+TEST_SUITE_BEGIN("Context map");
+
+class ContextMapTestsFixture
+{
+  protected:
+    std::unique_ptr<MockBacktrace::Mock> mock_backtrace;
+
+  public:
+    explicit ContextMapTestsFixture():
+        mock_backtrace(std::make_unique<MockBacktrace::Mock>())
+    {
+        MockBacktrace::singleton = mock_backtrace.get();
+    }
+
+    ~ContextMapTestsFixture()
+    {
+        try
+        {
+            mock_backtrace->done();
+        }
+        catch(...)
+        {
+            /* no throwing from dtors */
+        }
+
+        MockBacktrace::singleton = nullptr;
+    }
+};
+
+TEST_CASE_FIXTURE(ContextMapTestsFixture, "Add two contexts to empty context map")
 {
     List::ContextMap cmap;
     CHECK(cmap.append("first",  "First list context") == List::context_id_t(0));
     CHECK(cmap.append("second", "Second list context",
                       List::ContextInfo::HAS_EXTERNAL_META_DATA) == List::context_id_t(1));
 }
+
+TEST_SUITE_END();

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, 2017, 2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2017, 2019, 2020  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -29,6 +29,7 @@
 #include "de_tahifi_lists_context.h"
 
 #include "mock_messages.hh"
+#include "mock_backtrace.hh"
 
 constexpr const uint32_t List::ContextInfo::HAS_EXTERNAL_META_DATA;
 constexpr const uint32_t List::ContextInfo::HAS_PROPER_SEARCH_FORM;
@@ -51,6 +52,7 @@ namespace context_map_tests
 {
 
 static MockMessages *mock_messages;
+static MockBacktrace *mock_backtrace;
 
 static List::ContextMap *cmap;
 
@@ -60,6 +62,11 @@ void cut_setup()
     cppcut_assert_not_null(mock_messages);
     mock_messages->init();
     mock_messages_singleton = mock_messages;
+
+    mock_backtrace = new MockBacktrace;
+    cppcut_assert_not_null(mock_backtrace);
+    mock_backtrace->init();
+    mock_backtrace_singleton = mock_backtrace;
 
     cmap = new List::ContextMap();
     cut_assert_not_null(cmap);
@@ -80,6 +87,11 @@ void cut_teardown()
     mock_messages_singleton = nullptr;
     delete mock_messages;
     mock_messages = nullptr;
+
+    mock_backtrace->check();
+    mock_backtrace_singleton = nullptr;
+    delete mock_backtrace;
+    mock_backtrace = nullptr;
 }
 
 template <typename T>
@@ -254,6 +266,7 @@ void test_not_all_context_information_flags_can_be_set()
 void test_context_string_ids_must_be_unique()
 {
     mock_messages->expect_msg_error_formatted(0, LOG_CRIT, "BUG: Duplicate context ID \"first\"");
+    mock_backtrace->expect_backtrace_log();
     cppcut_assert_equal(List::ContextMap::INVALID_ID, cmap->append("first", "foo"));
 }
 
@@ -263,6 +276,7 @@ void test_context_string_ids_must_be_unique()
 void test_context_string_ids_must_not_be_empty()
 {
     mock_messages->expect_msg_error_formatted(0, LOG_CRIT, "BUG: Invalid context ID \"\"");
+    mock_backtrace->expect_backtrace_log();
     cppcut_assert_equal(List::ContextMap::INVALID_ID, cmap->append("", "foo"));
 }
 
@@ -273,6 +287,7 @@ void test_context_string_ids_must_not_be_empty()
 void test_context_string_ids_must_not_start_with_hash_character()
 {
     mock_messages->expect_msg_error_formatted(0, LOG_CRIT, "BUG: Invalid context ID \"#test\"");
+    mock_backtrace->expect_backtrace_log();
     cppcut_assert_equal(List::ContextMap::INVALID_ID, cmap->append("#test", "foo"));
 }
 
@@ -314,6 +329,7 @@ void test_warning_is_emitted_when_adding_too_many_contexts()
     while(expected_id <= DBUS_LISTS_CONTEXT_ID_MAX);
 
     mock_messages->expect_msg_error(0, LOG_CRIT, "BUG: Too many list contexts (ignored)");
+    mock_backtrace->expect_backtrace_log();
 
     List::context_id_t id = cmap->append(string_id, "foo");
     cppcut_assert_equal(expected_id, id);
@@ -332,6 +348,7 @@ void test_invalid_contexts_do_not_mess_up_numeric_context_ids()
     cut_assert_false(map.exists(List::context_id_t(2)));
 
     mock_messages->expect_msg_error_formatted(0, LOG_CRIT, "BUG: Invalid context ID \"#rejected\"");
+    mock_backtrace->expect_backtrace_log();
     cppcut_assert_equal(List::ContextMap::INVALID_ID, map.append("#rejected", "foo"));
     cut_assert_true(map.exists(List::context_id_t(2)));
 

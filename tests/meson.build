@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2019  T+A elektroakustik GmbH & Co. KG
+# Copyright (C) 2019, 2020  T+A elektroakustik GmbH & Co. KG
 #
 # This file is part of DRCPD.
 #
@@ -80,7 +80,7 @@ test('D-Bus Handlers',
 
 view_manager_tests = shared_module('test_view_manager',
     ['test_view_manager.cc', 'dbus_dummies.cc',
-     'view_mock.cc', 'mock_messages.cc'],
+     'view_mock.cc', 'mock_backtrace.cc', 'mock_messages.cc'],
     include_directories: dbus_iface_defs_includes,
     dependencies: [cutter_dep, config_h, glib_deps],
     link_with:

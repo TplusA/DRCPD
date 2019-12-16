@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017, 2018, 2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2017, 2018, 2019, 2020  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -21,8 +21,6 @@
 
 #ifndef VIEW_ERROR_SINK_HH
 #define VIEW_ERROR_SINK_HH
-
-#include <mutex>
 
 #include "view.hh"
 #include "view_serialize.hh"
@@ -52,7 +50,7 @@ class View: public ViewIface, public ViewSerializeBase, public Error::Sink
     View &operator=(const View &) = delete;
 
     explicit View(const char *on_screen_name,
-                  ViewManager::VMIface *view_manager):
+                  ViewManager::VMIface &view_manager):
         ViewIface(ViewNames::ERROR_SINK, ViewIface::Flags(), view_manager),
         ViewSerializeBase(on_screen_name, ViewID::ERROR)
     {
@@ -80,13 +78,13 @@ class View: public ViewIface, public ViewSerializeBase, public Error::Sink
     }
 
     InputResult process_event(UI::ViewEventID event_id,
-                              std::unique_ptr<const UI::Parameters> parameters) final override
+                              std::unique_ptr<UI::Parameters> parameters) final override
     {
         return InputResult::SHOULD_HIDE;
     }
 
     void process_broadcast(UI::BroadcastEventID event_id,
-                           const UI::Parameters *parameters) final override {}
+                           UI::Parameters *parameters) final override {}
 
   protected:
     void sink_error(Error::Error &&error) final override;
