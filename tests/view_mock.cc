@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015--2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015--2020  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -26,6 +26,7 @@
 #include <cppcutter.h>
 
 #include "view_mock.hh"
+#include "view_manager.hh"
 
 enum class MemberFn
 {
@@ -103,7 +104,7 @@ class ViewMock::View::Expectation
     const bool expect_parameters_;
     const CheckViewEventParametersFn check_view_event_parameters_fn_;
     const CheckBroadcastEventParametersFn check_broadcast_event_parameters_fn_;
-    std::unique_ptr<const UI::Parameters> expected_parameters_;
+    std::unique_ptr<UI::Parameters> expected_parameters_;
 
     explicit Expectation(MemberFn id):
         function_id_(id),
@@ -143,7 +144,7 @@ class ViewMock::View::Expectation
     {}
 
     explicit Expectation(MemberFn id, InputResult retval, UI::ViewEventID event_id,
-                         std::unique_ptr<const UI::Parameters> expected_parameters,
+                         std::unique_ptr<UI::Parameters> expected_parameters,
                          CheckViewEventParametersFn check_params_callback):
         function_id_(id),
         retval_input_(retval),
@@ -171,7 +172,7 @@ class ViewMock::View::Expectation
     {}
 
     explicit Expectation(MemberFn id, UI::BroadcastEventID event_id,
-                         std::unique_ptr<const UI::Parameters> expected_parameters,
+                         std::unique_ptr<UI::Parameters> expected_parameters,
                          CheckBroadcastEventParametersFn check_params_callback):
         function_id_(id),
         retval_input_(InputResult::OK),
@@ -187,7 +188,7 @@ class ViewMock::View::Expectation
 };
 
 ViewMock::View::View(const char *name, ViewIface::Flags &&flags):
-    ViewIface(name, std::move(flags), nullptr),
+    ViewIface(name, std::move(flags)),
     ViewSerializeBase("The mock view", ViewID::MESSAGE),
     ignore_all_(false)
 {
@@ -230,7 +231,7 @@ void ViewMock::View::expect_process_event(InputResult retval, UI::ViewEventID ev
 }
 
 void ViewMock::View::expect_process_event_with_callback(InputResult retval, UI::ViewEventID event_id,
-                                                        std::unique_ptr<const UI::Parameters> expected_parameters,
+                                                        std::unique_ptr<UI::Parameters> expected_parameters,
                                                         CheckViewEventParametersFn check_params_callback)
 {
     expectations_->add(Expectation(MemberFn::process_event, retval, event_id,
@@ -245,7 +246,7 @@ void ViewMock::View::expect_process_broadcast(UI::BroadcastEventID event_id,
 }
 
 void ViewMock::View::expect_process_broadcast_with_callback(UI::BroadcastEventID event_id,
-                                                            std::unique_ptr<const UI::Parameters> expected_parameters,
+                                                            std::unique_ptr<UI::Parameters> expected_parameters,
                                                             CheckBroadcastEventParametersFn check_params_callback)
 {
     expectations_->add(Expectation(MemberFn::process_broadcast, event_id,
@@ -291,7 +292,7 @@ void ViewMock::View::defocus()
 }
 
 ViewIface::InputResult ViewMock::View::process_event(UI::ViewEventID event_id,
-                                                     std::unique_ptr<const UI::Parameters> parameters)
+                                                     std::unique_ptr<UI::Parameters> parameters)
 {
     if(ignore_all_)
         return ViewIface::InputResult::OK;
@@ -313,7 +314,7 @@ ViewIface::InputResult ViewMock::View::process_event(UI::ViewEventID event_id,
     return expect.retval_input_;
 }
 
-void ViewMock::View::process_broadcast(UI::BroadcastEventID event_id, const UI::Parameters *parameters)
+void ViewMock::View::process_broadcast(UI::BroadcastEventID event_id, UI::Parameters *parameters)
 {
     if(ignore_all_)
         return;

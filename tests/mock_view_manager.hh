@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015--2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015--2020  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -61,7 +61,7 @@ class MockViewManager: public ViewManager::VMIface, public UI::EventStoreIface
                                           bool enforce_reactivation);
 
     void store_event(UI::EventID event_id,
-                     std::unique_ptr<const UI::Parameters> parameters = nullptr) override;
+                     std::unique_ptr<UI::Parameters> parameters = nullptr) override;
 
     bool add_view(ViewIface *view) override;
     bool invoke_late_init_functions() override;
@@ -73,7 +73,7 @@ class MockViewManager: public ViewManager::VMIface, public UI::EventStoreIface
     const char *get_resume_url_by_audio_source_id(const std::string &id) const override;
     std::string move_resume_url_by_audio_source_id(const std::string &id) override;
     void serialization_result(DCP::Transaction::Result result) override;
-    ViewIface::InputResult input_bounce(const ViewManager::InputBouncer &bouncer, UI::ViewEventID event_id, std::unique_ptr<const UI::Parameters> parameters) override;
+    ViewIface::InputResult input_bounce(const ViewManager::InputBouncer &bouncer, UI::ViewEventID event_id, std::unique_ptr<UI::Parameters> parameters) override;
     ViewIface *get_view_by_name(const char *view_name) override;
     void sync_activate_view_by_name(const char *view_name,
                                     bool enforce_reactivation) override;

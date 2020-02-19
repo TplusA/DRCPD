@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, 2017, 2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2017, 2019, 2020  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -22,13 +22,11 @@
 #ifndef DCP_TRANSACTION_QUEUE_HH
 #define DCP_TRANSACTION_QUEUE_HH
 
-#include <memory>
-#include <deque>
-#include <ostream>
-
 #include "dcp_transaction.hh"
 #include "messages.h"
 #include "logged_lock.hh"
+
+#include <deque>
 
 class ViewSerializeBase;
 

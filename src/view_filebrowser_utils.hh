@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2016, 2017, 2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015--2017, 2019, 2020  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -22,10 +22,81 @@
 #ifndef VIEW_FILEBROWSER_UTILS_HH
 #define VIEW_FILEBROWSER_UTILS_HH
 
-#include "dbuslist.hh"
-#include "de_tahifi_lists_errors.hh"
 #include "listnav.hh"
 #include "search_parameters.hh"
+#include "rnfcall_get_list_id.hh"
+
+namespace
+{
+    /*!
+     * Get child item ID.
+     *
+     * WARNING: Do not write new client code which calls this function. It
+     *     makes a blocking D-Bus method call which may block for a long time
+     *     (usually seconds, potentially forever)! Please use non-blocking
+     *     calls instead.
+     */
+    static DBusRNF::GetListIDResult
+    get_child_item_internal(List::DBusList &file_list, ID::List current_list_id,
+                            List::Nav &navigation,
+                            const SearchParameters *search_parameters,
+                            DBusRNF::StatusWatcher &&status_watcher)
+    {
+        if(search_parameters == nullptr)
+        {
+            DBusRNF::GetListIDCall
+                call(file_list.get_cookie_manager(), file_list.get_dbus_proxy(),
+                     current_list_id, navigation.get_cursor(),
+                     nullptr, std::move(status_watcher));
+            call.request();
+            call.fetch_blocking();
+
+            try
+            {
+                return call.get_result_locked();
+            }
+            catch(const DBusRNF::AbortedError &)
+            {
+                throw List::DBusListException(ListError::INTERRUPTED);
+            }
+            catch(const DBusRNF::BadStateError &)
+            {
+                throw List::DBusListException(ListError::INTERNAL);
+            }
+            catch(const DBusRNF::NoResultError &)
+            {
+                throw List::DBusListException(ListError::INTERNAL);
+            }
+        }
+        else
+        {
+            DBusRNF::GetParameterizedListIDCall
+                call(file_list.get_cookie_manager(), file_list.get_dbus_proxy(),
+                     current_list_id, navigation.get_cursor(),
+                     std::string(search_parameters->get_query()),
+                     nullptr, std::move(status_watcher));
+            call.request();
+            call.fetch_blocking();
+
+            try
+            {
+                return call.get_result_locked();
+            }
+            catch(const DBusRNF::AbortedError &)
+            {
+                throw List::DBusListException(ListError::INTERRUPTED);
+            }
+            catch(const DBusRNF::BadStateError &)
+            {
+                throw List::DBusListException(ListError::INTERNAL);
+            }
+            catch(const DBusRNF::NoResultError &)
+            {
+                throw List::DBusListException(ListError::INTERNAL);
+            }
+        }
+    }
+}
 
 /*!
  * \addtogroup view_filesystem
@@ -76,86 +147,53 @@ class Utils
         navigation.set_cursor_by_line_number(line);
     }
 
-    static ID::List get_child_item_id(const List::DBusList &file_list,
+    /*
+     * Get child item ID, synchronously.
+     *
+     * \bug Synchronous D-Bus call of potentially long-running method.
+     */
+    static ID::List get_child_item_id(List::DBusList &file_list,
                                       ID::List current_list_id,
                                       List::Nav &navigation,
                                       const SearchParameters *search_parameters,
+                                      DBusRNF::StatusWatcher &&status_watcher,
                                       std::string &child_list_title,
                                       bool suppress_error_if_file = false)
     {
         if(file_list.empty())
             return ID::List();
 
-        guint list_id;
-        gchar *list_title = NULL;
-        gboolean list_title_translatable = FALSE;
-        guchar error_code;
-
-        if(search_parameters == nullptr)
+        try
         {
-            GErrorWrapper error;
+            auto result(get_child_item_internal(file_list, current_list_id,
+                                                navigation, search_parameters,
+                                                std::move(status_watcher)));
 
-            tdbus_lists_navigation_call_get_list_id_sync(file_list.get_dbus_proxy(),
-                                                         current_list_id.get_raw_id(),
-                                                         navigation.get_cursor(),
-                                                         &error_code,
-                                                         &list_id, &list_title,
-                                                         &list_title_translatable,
-                                                         NULL, error.await());
-
-            if(error.log_failure("Get list ID"))
+            if(result.list_id_.is_valid())
             {
-                msg_vinfo(MESSAGE_LEVEL_IMPORTANT,
-                          "Failed obtaining ID for item %u in list %u",
-                          navigation.get_cursor(), current_list_id.get_raw_id());
+                child_list_title = std::move(std::string(result.title_.get_text()));
+                return result.list_id_;
+            }
 
-                throw List::DBusListException(error);
+            if(!suppress_error_if_file)
+            {
+                msg_error(0, LOG_NOTICE,
+                          "Error obtaining ID for item %u in list %u, error code %s",
+                          navigation.get_cursor(), current_list_id.get_raw_id(),
+                          result.error_.to_string());
+
+                if(result.error_ != ListError::Code::OK)
+                    throw List::DBusListException(result.error_);
             }
         }
-        else
+        catch(...)
         {
-            GErrorWrapper error;
-
-            tdbus_lists_navigation_call_get_parameterized_list_id_sync(
-                    file_list.get_dbus_proxy(), current_list_id.get_raw_id(),
-                    navigation.get_cursor(),
-                    search_parameters->get_query().c_str(),
-                    &error_code, &list_id, &list_title, &list_title_translatable,
-                    NULL, error.await());
-
-            if(error.log_failure("Get parametrized list ID"))
-            {
-                msg_vinfo(MESSAGE_LEVEL_IMPORTANT,
-                          "Failed obtaining ID for search form in list %u",
-                          current_list_id.get_raw_id());
-
-                throw List::DBusListException(error);
-            }
+            if(!suppress_error_if_file)
+                throw;
         }
 
-        const ListError error(error_code);
-
-        if(list_id == 0 && !suppress_error_if_file)
-        {
-            msg_error(0, LOG_NOTICE,
-                      "Error obtaining ID for item %u in list %u, error code %s",
-                      navigation.get_cursor(), current_list_id.get_raw_id(),
-                      error.to_string());
-
-            if(error != ListError::Code::OK)
-                throw List::DBusListException(error);
-
-            return ID::List();
-        }
-        else
-        {
-            if(list_title != NULL)
-                child_list_title = list_title;
-            else
-                child_list_title.clear();
-
-            return ID::List(list_id);
-        }
+        child_list_title.clear();
+        return ID::List();
     }
 
     static ID::List get_parent_link_id(const List::DBusList &file_list,
@@ -166,7 +204,7 @@ class Utils
         Busy::set(Busy::Source::GETTING_PARENT_LINK);
 
         guint list_id;
-        gchar *list_title = NULL;
+        gchar *list_title = nullptr;
         gboolean list_title_translatable = FALSE;
         GErrorWrapper error;
 
@@ -174,7 +212,7 @@ class Utils
                                                          current_list_id.get_raw_id(),
                                                          &list_id, &item_id, &list_title,
                                                          &list_title_translatable,
-                                                         NULL, error.await());
+                                                         nullptr, error.await());
 
         if(error.log_failure("Get parent link"))
         {
@@ -191,7 +229,7 @@ class Utils
 
         if(list_id != 0)
         {
-            if(list_title != NULL)
+            if(list_title != nullptr)
                 parent_list_title = list_title;
             else
                 parent_list_title.clear();
@@ -212,7 +250,7 @@ class Utils
     }
 };
 
-};
+}
 
 /*!@}*/
 

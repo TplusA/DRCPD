@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2015, 2016, 2018, 2019  T+A elektroakustik GmbH & Co. KG
+# Copyright (C) 2015, 2016, 2018--2020  T+A elektroakustik GmbH & Co. KG
 #
 # This file is part of DRCPD.
 #
@@ -95,6 +95,7 @@ test_view_manager_la_SOURCES = \
     test_view_manager.cc $(top_builddir)/src/view_names.hh \
     dbus_dummies.cc \
     view_mock.hh view_mock.cc \
+    mock_backtrace.hh mock_backtrace.cc \
     mock_messages.hh mock_messages.cc
 test_view_manager_la_LIBADD = \
     $(top_builddir)/src/libviews.la \

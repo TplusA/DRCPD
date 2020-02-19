@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2015--2019  T+A elektroakustik GmbH & Co. KG
+# Copyright (C) 2015--2020  T+A elektroakustik GmbH & Co. KG
 #
 # This file is part of DRCPD.
 #
@@ -26,11 +26,18 @@ bin_PROGRAMS = drcpd
 drcpd_SOURCES = \
     drcpd.cc i18n.hh i18n.cc i18nstring.hh \
     messages.h messages.c messages_glib.h messages_glib.c \
+    backtrace.c backtrace.h \
     timeout.cc timeout.hh \
     os.c os.h named_pipe.c named_pipe.h fdstreambuf.hh \
     dbus_iface.cc dbus_iface.hh dbus_iface_proxies.hh dbus_handlers.hh \
     dbus_async.hh \
+    rnfcall.hh rnfcall_state.hh rnfcall_cookiecall.hh rnfcall_death_row.hh \
+    rnfcall_get_list_id.hh rnfcall_get_location_trace.hh \
+    rnfcall_get_range.hh rnfcall_get_ranked_stream_links.hh \
+    rnfcall_get_uris.hh rnfcall_realize_location.hh \
+    cookie_manager.hh main_context.hh \
     list.hh ramlist.hh dbuslist.hh dbuslist_exception.hh listnav.hh \
+    cache_segment.hh \
     view.hh view_serialize.hh view_audiosource.hh view_names.hh view_nop.hh \
     view_manager.hh ui_events.hh ui_event_queue.hh xmlescape.hh \
     view_filebrowser.hh view_filebrowser_fileitem.hh view_filebrowser_airable.hh \
@@ -45,9 +52,10 @@ drcpd_SOURCES = \
     configuration_i18n.hh \
     ui_parameters.hh ui_parameters_predefined.hh guard.hh search_parameters.hh \
     player_control.hh player_control.cc \
-    player_data.hh player_data.cc \
+    player_control_skipper.hh player_control_skipper.cc \
+    player_data.hh player_data.cc error_thrower.hh \
     player_stopped_reason.hh playback_modes.hh \
-    playlist_crawler.hh directory_crawler.hh cacheenforcer.hh \
+    playlist_crawler.hh playlist_cursor.hh directory_crawler.hh cacheenforcer.hh \
     gvariantwrapper.hh gerrorwrapper.hh \
     airable_links.hh \
     metadata.hh metadata_preloaded.hh \
@@ -85,7 +93,10 @@ drcpd_LDADD = $(noinst_LTLIBRARIES) $(DRCPD_DEPENDENCIES_LIBS)
 
 drcpd_LDFLAGS = $(LTLIBINTL)
 
-liblist_la_SOURCES = list.hh ramlist.hh ramlist.cc dbuslist.hh dbuslist_exception.hh dbuslist.cc idtypes.hh stream_id.h stream_id.hh gerrorwrapper.hh
+liblist_la_SOURCES = \
+    list.hh cache_segment.hh ramlist.hh ramlist.cc \
+    dbuslist.hh dbuslist_exception.hh dbuslist.cc dbus_async.hh dbus_async.cc \
+    idtypes.hh stream_id.h stream_id.hh gerrorwrapper.hh
 liblist_la_CFLAGS = $(AM_CFLAGS)
 liblist_la_CXXFLAGS = $(AM_CXXFLAGS)
 
@@ -116,7 +127,10 @@ libviews_la_SOURCES = \
     audiosource.hh player_resume_data.hh player_resumer.hh \
     ui_events.hh ui_event_queue.hh \
     idtypes.hh stream_id.h stream_id.hh screen_ids.hh \
-    playlist_crawler.hh directory_crawler.cc directory_crawler.hh \
+    playlist_crawler.cc playlist_crawler.hh playlist_crawler_ops.hh \
+    directory_crawler.cc directory_crawler.hh \
+    directory_crawler_find_next_op.cc directory_crawler_get_uris_op.cc \
+    dump_enum_value.hh \
     cacheenforcer.hh cacheenforcer.cc \
     gvariantwrapper.hh gvariantwrapper.cc gerrorwrapper.hh \
     airable_links.hh airable_links.cc \
@@ -125,6 +139,7 @@ libviews_la_SOURCES = \
     search_algo.hh \
     actor_id.h \
     dbuslist.hh dbuslist_exception.hh \
+    rnfcall.hh rnfcall.cc rnfcall_death_row.hh rnfcall_death_row.cc \
     logged_lock.hh
 libviews_la_CFLAGS = $(AM_CFLAGS)
 libviews_la_CXXFLAGS = $(AM_CXXFLAGS)

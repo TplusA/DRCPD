@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015--2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015--2020  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -32,6 +32,7 @@
 
 #include "view_mock.hh"
 #include "mock_messages.hh"
+#include "mock_backtrace.hh"
 
 /*!
  * \addtogroup view_manager_tests Unit tests
@@ -306,8 +307,8 @@ static bool check_equal_lines_or_pages_parameter_called;
 
 template <UI::ViewEventID ID>
 static void
-check_equal_lines_or_pages_parameter(std::unique_ptr<const UI::Parameters> expected_parameters,
-                                     std::unique_ptr<const UI::Parameters> actual_parameters)
+check_equal_lines_or_pages_parameter(std::unique_ptr<UI::Parameters> expected_parameters,
+                                     std::unique_ptr<UI::Parameters> actual_parameters)
 {
     check_equal_lines_or_pages_parameter_called = true;
 
@@ -320,15 +321,15 @@ check_equal_lines_or_pages_parameter(std::unique_ptr<const UI::Parameters> expec
     cppcut_assert_equal(expected->get_specific(), actual->get_specific());
 }
 
-static void check_equal_lines_parameter(std::unique_ptr<const UI::Parameters> expected,
-                                        std::unique_ptr<const UI::Parameters> actual)
+static void check_equal_lines_parameter(std::unique_ptr<UI::Parameters> expected,
+                                        std::unique_ptr<UI::Parameters> actual)
 {
     check_equal_lines_or_pages_parameter<UI::ViewEventID::NAV_SCROLL_LINES>(std::move(expected),
                                                                             std::move(actual));
 }
 
-static void check_equal_pages_parameter(std::unique_ptr<const UI::Parameters> expected,
-                                        std::unique_ptr<const UI::Parameters> actual)
+static void check_equal_pages_parameter(std::unique_ptr<UI::Parameters> expected,
+                                        std::unique_ptr<UI::Parameters> actual)
 {
     check_equal_lines_or_pages_parameter<UI::ViewEventID::NAV_SCROLL_PAGES>(std::move(expected),
                                                                             std::move(actual));
@@ -784,8 +785,8 @@ void test_input_command_with_need_to_hide_browse_view_never_works(void)
 static bool check_equal_parameters_by_pointer_called;
 static const UI::Parameters *check_equal_parameters_by_pointer_value;
 static void
-check_equal_parameters_by_pointer(std::unique_ptr<const UI::Parameters> expected_parameters,
-                                  std::unique_ptr<const UI::Parameters> actual_parameters)
+check_equal_parameters_by_pointer(std::unique_ptr<UI::Parameters> expected_parameters,
+                                  std::unique_ptr<UI::Parameters> actual_parameters)
 {
     check_equal_parameters_by_pointer_called = true;
     cppcut_assert_null(expected_parameters.get());
@@ -1050,6 +1051,7 @@ namespace view_manager_tests_serialization
 {
 
 static MockMessages *mock_messages;
+static MockBacktrace *mock_backtrace;
 static UI::EventQueue *ui_queue;
 static Configuration::ConfigManager<Configuration::DrcpdValues> *config_manager;
 static DCP::Queue *dcp_queue;
@@ -1067,6 +1069,11 @@ void cut_setup(void)
     cppcut_assert_not_null(mock_messages);
     mock_messages->init();
     mock_messages_singleton = mock_messages;
+
+    mock_backtrace = new MockBacktrace();
+    cppcut_assert_not_null(mock_backtrace);
+    mock_backtrace->init();
+    mock_backtrace_singleton = mock_backtrace;
 
     mock_view = new ViewMock::View(standard_mock_view_name, ViewIface::Flags());
     cppcut_assert_not_null(mock_view);
@@ -1094,6 +1101,7 @@ void cut_teardown(void)
     cut_assert_true(dcp_queue->get_introspection_iface().is_idle());
 
     mock_messages->check();
+    mock_backtrace->check();
     mock_view->check();
 
     delete vm;
@@ -1102,9 +1110,11 @@ void cut_teardown(void)
     delete dcp_queue;
     delete mock_view;
     delete mock_messages;
+    delete mock_backtrace;
     delete views_output;
 
     mock_messages = nullptr;
+    mock_backtrace = nullptr;
     mock_view = nullptr;
     vm =nullptr;
     config_manager = nullptr;
@@ -1120,18 +1130,23 @@ void cut_teardown(void)
 void test_serialization_result_for_idle_transaction_is_logged(void)
 {
     mock_messages->expect_msg_error(0, LOG_CRIT, "BUG: Received result from DCPD for idle transaction");
+    mock_backtrace->expect_backtrace_log();
     vm->serialization_result(DCP::Transaction::OK);
 
     mock_messages->expect_msg_error(0, LOG_CRIT, "BUG: Received result from DCPD for idle transaction");
+    mock_backtrace->expect_backtrace_log();
     vm->serialization_result(DCP::Transaction::FAILED);
 
     mock_messages->expect_msg_error(0, LOG_CRIT, "BUG: Received result from DCPD for idle transaction");
+    mock_backtrace->expect_backtrace_log();
     vm->serialization_result(DCP::Transaction::TIMEOUT);
 
     mock_messages->expect_msg_error(0, LOG_CRIT, "BUG: Received result from DCPD for idle transaction");
+    mock_backtrace->expect_backtrace_log();
     vm->serialization_result(DCP::Transaction::INVALID_ANSWER);
 
     mock_messages->expect_msg_error(0, LOG_CRIT, "BUG: Received result from DCPD for idle transaction");
+    mock_backtrace->expect_backtrace_log();
     vm->serialization_result(DCP::Transaction::IO_ERROR);
 }
 
@@ -1181,6 +1196,7 @@ void test_dcpd_timeout(void)
     activate_view();
 
     mock_messages->expect_msg_error(0, LOG_CRIT, "BUG: Got no answer from DCPD");
+    mock_backtrace->expect_backtrace_log();
     vm->serialization_result(DCP::Transaction::TIMEOUT);
 }
 
@@ -1193,6 +1209,7 @@ void test_dcpd_invalid_answer(void)
     activate_view();
 
     mock_messages->expect_msg_error(0, LOG_CRIT, "BUG: Got invalid response from DCPD");
+    mock_backtrace->expect_backtrace_log();
     vm->serialization_result(DCP::Transaction::INVALID_ANSWER);
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015--2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015--2020  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -28,6 +28,7 @@
 
 #include "idtypes.hh"
 #include "i18nstring.hh"
+#include "rnfcall.hh"
 
 /*!
  * \addtogroup list List data model
@@ -194,7 +195,6 @@ class AsyncListIface
     enum class OpEvent
     {
         ENTER_LIST,
-        GET_ITEM,
     };
 
   protected:
@@ -231,6 +231,8 @@ class AsyncListIface
                                       unsigned short caller_id,
                                       I18n::String &&dynamic_title) = 0;
 
+    using HintItemDoneNotification = std::function<void(OpResult)>;
+
     /*!
      * Hint at which items are needed.
      *
@@ -241,7 +243,8 @@ class AsyncListIface
      * watcher is notified about the change, or failure of change.
      */
     virtual OpResult get_item_async_set_hint(unsigned int line, unsigned int count,
-                                             unsigned short caller_id) = 0;
+                                             DBusRNF::StatusWatcher &&status_watcher,
+                                             HintItemDoneNotification &&hinted_fn) = 0;
 
     /*!
      * Get list item asynchronously.

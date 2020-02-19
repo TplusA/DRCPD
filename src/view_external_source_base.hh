@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017, 2018, 2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2017, 2018, 2019, 2020  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -39,14 +39,14 @@ class Base: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
   protected:
     explicit Base(const char *name, const char *on_screen_name,
                   const char *audio_source_name,
-                  ViewManager::VMIface *view_manager):
+                  ViewManager::VMIface &view_manager):
         Base(name, on_screen_name, audio_source_name, view_manager,
              ViewIface::Flags(ViewIface::Flags::CAN_RETURN_TO_THIS))
     {}
 
     explicit Base(const char *name, const char *on_screen_name,
                   const char *audio_source_name,
-                  ViewManager::VMIface *view_manager,
+                  ViewManager::VMIface &view_manager,
                   ViewIface::Flags &&flags):
         ViewIface(name, std::move(flags), view_manager),
         ViewSerializeBase(on_screen_name, ViewID::MESSAGE),
@@ -70,13 +70,13 @@ class Base: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
     virtual const Player::LocalPermissionsIface &get_local_permissions() const = 0;
 
     InputResult process_event(UI::ViewEventID event_id,
-                              std::unique_ptr<const UI::Parameters> parameters) final override
+                              std::unique_ptr<UI::Parameters> parameters) final override
     {
         return InputResult::OK;
     }
 
     void process_broadcast(UI::BroadcastEventID event_id,
-                           const UI::Parameters *parameters) final override {}
+                           UI::Parameters *parameters) final override {}
 
   protected:
     bool write_xml(std::ostream &os, uint32_t bits,

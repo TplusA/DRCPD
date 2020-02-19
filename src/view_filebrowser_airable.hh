@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, 2017, 2018, 2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016--2020  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -22,11 +22,11 @@
 #ifndef VIEW_FILEBROWSER_AIRABLE_HH
 #define VIEW_FILEBROWSER_AIRABLE_HH
 
-#include <map>
-
 #include "view_filebrowser.hh"
 #include "context_map.hh"
 #include "actor_id.h"
+
+#include <unordered_map>
 
 namespace ViewFileBrowser
 {
@@ -51,7 +51,7 @@ class AirableView: public View
 
   private:
     /* collection of search form items found so far */
-    std::map<List::context_id_t, std::pair<unsigned int, unsigned int>> search_forms_;
+    std::unordered_map<List::context_id_t, std::pair<unsigned int, unsigned int>> search_forms_;
 
     class StoredPosition
     {
@@ -136,20 +136,22 @@ class AirableView: public View
     AirableView(const AirableView &) = delete;
     AirableView &operator=(const AirableView &) = delete;
 
-    explicit AirableView(const char *name, const char *on_screen_name,
-                         uint8_t drcp_browse_id, unsigned int max_lines,
-                         DBus::ListbrokerID listbroker_id,
-                         Playlist::CrawlerIface::RecursiveMode default_recursive_mode,
-                         Playlist::CrawlerIface::ShuffleMode default_shuffle_mode,
-                         ViewManager::VMIface *view_manager):
+    explicit AirableView(
+            const char *name, const char *on_screen_name,
+            uint8_t drcp_browse_id, unsigned int max_lines,
+            DBus::ListbrokerID listbroker_id,
+            Playlist::Crawler::DefaultSettings &&crawler_defaults,
+            ViewManager::VMIface &view_manager,
+            UI::EventStoreIface &event_store,
+            DBusRNF::CookieManagerIface &cm):
         View(name, on_screen_name, drcp_browse_id, max_lines, listbroker_id,
-             default_recursive_mode, default_shuffle_mode, nullptr, view_manager)
+             std::move(crawler_defaults), nullptr, view_manager, event_store, cm)
     {}
 
     ~AirableView() {}
 
     InputResult process_event(UI::ViewEventID event_id,
-                              std::unique_ptr<const UI::Parameters> parameters) final override;
+                              std::unique_ptr<UI::Parameters> parameters) final override;
 
     bool list_invalidate(ID::List list_id, ID::List replacement_id) final override;
 

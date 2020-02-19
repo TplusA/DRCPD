@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2019  T+A elektroakustik GmbH & Co. KG
+# Copyright (C) 2019, 2020  T+A elektroakustik GmbH & Co. KG
 #
 # This file is part of DRCPD.
 #
@@ -137,7 +137,7 @@ dbus_docs += custom_target('de_tahifi_debug_docs',
     ])
 
 list_lib = static_library('list',
-    ['ramlist.cc', 'dbuslist.cc'],
+    ['ramlist.cc', 'dbuslist.cc', 'dbus_async.cc'],
     include_directories: dbus_iface_defs_includes,
     dependencies: [glib_deps, config_h]
 )
@@ -152,7 +152,10 @@ views_lib = static_library('views',
     ['view_error_sink.cc', 'view_filebrowser.cc',
     'view_filebrowser_airable.cc', 'view_audiosource.cc', 'view_play.cc',
     'view_search.cc', 'view_external_source_base.cc', 'view_src_app.cc',
-    'view_src_roon.cc', 'view_manager.cc', 'directory_crawler.cc',
+    'view_src_roon.cc', 'view_manager.cc',
+    'rnfcall.cc', 'rnfcall_death_row.cc',
+    'playlist_crawler.cc', 'directory_crawler.cc',
+    'directory_crawler_find_next_op.cc', 'directory_crawler_get_uris_op.cc',
     'cacheenforcer.cc', 'gvariantwrapper.cc', 'airable_links.cc'],
     include_directories: dbus_iface_defs_includes,
     dependencies: [glib_deps, config_h]
@@ -190,9 +193,9 @@ listsearch_lib = static_library('listsearch',
 executable(
     'drcpd',
     [
-        'drcpd.cc', 'i18n.cc', 'messages.c', 'messages_glib.c',
+        'drcpd.cc', 'i18n.cc', 'messages.c', 'messages_glib.c', 'backtrace.c',
         'timeout.cc', 'os.c', 'named_pipe.c', 'dbus_iface.cc',
-        'player_control.cc', 'player_data.cc',
+        'player_control.cc', 'player_control_skipper.cc', 'player_data.cc',
         version_info
     ],
     include_directories: dbus_iface_defs_includes,

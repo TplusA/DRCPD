@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2019  T+A elektroakustik GmbH & Co. KG
+# Copyright (C) 2019, 2020  T+A elektroakustik GmbH & Co. KG
 #
 # This file is part of DRCPD.
 #
@@ -32,7 +32,7 @@ testrunner_lib = static_library('testrunner', 'testrunner.cc',
 
 test('Context Map',
     executable('test_contextmap',
-        ['test_contextmap.cc', 'mock_os.cc', 'mock_messages.cc'],
+        ['test_contextmap.cc', 'mock_os.cc', 'mock_messages.cc', 'mock_backtrace.cc'],
         include_directories: '../src',
         link_with: [testrunner_lib, contextmap_lib],
         build_by_default: false),

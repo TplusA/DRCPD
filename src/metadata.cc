@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2016, 2017, 2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015--2017, 2019, 2020  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -92,11 +92,11 @@ void MetaData::Set::add(const MetaData::Set::ID key_id, const char *value,
       case BITRATE_MIN:
       case BITRATE_MAX:
       case BITRATE_NOM:
-        if(!reformat.bitrate)
+        if(reformat.bitrate_fn_ == nullptr)
             break;
 
-        if(value != NULL)
-            this->values_[key_id] = reformat.bitrate(value);
+        if(value != nullptr)
+            this->values_[key_id] = reformat.bitrate_fn_(value);
         else
             this->values_[key_id].clear();
 
@@ -114,10 +114,41 @@ void MetaData::Set::add(const MetaData::Set::ID key_id, const char *value,
         break;
     }
 
-    if(value != NULL)
+    if(value != nullptr)
         this->values_[key_id] = value;
     else
         this->values_[key_id].clear();
+}
+
+void MetaData::Set::add(const MetaData::Set::ID key_id, std::string &&value,
+                        const Reformatters &reformat)
+{
+    switch(key_id)
+    {
+      case BITRATE:
+      case BITRATE_MIN:
+      case BITRATE_MAX:
+      case BITRATE_NOM:
+        if(reformat.bitrate_fn_ == nullptr)
+            break;
+
+        this->values_[key_id] = reformat.bitrate_fn_(value.c_str());
+
+        return;
+
+      case TITLE:
+      case ARTIST:
+      case ALBUM:
+      case CODEC:
+      case INTERNAL_DRCPD_TITLE:
+      case INTERNAL_DRCPD_OPAQUE_LINE_1:
+      case INTERNAL_DRCPD_OPAQUE_LINE_2:
+      case INTERNAL_DRCPD_OPAQUE_LINE_3:
+      case INTERNAL_DRCPD_URL:
+        break;
+    }
+
+    this->values_[key_id] = std::move(value);
 }
 
 void MetaData::Set::copy_from(const Set &src, CopyMode mode)

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015--2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015--2020  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -23,10 +23,6 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-#include <cstring>
-#include <cerrno>
-#include <algorithm>
-
 #include "dbus_handlers.h"
 #include "dbus_handlers.hh"
 #include "view_play.hh"
@@ -34,6 +30,8 @@
 #include "configuration.hh"
 #include "configuration_drcpd.hh"
 #include "messages.h"
+
+#include <unordered_map>
 
 static void log_signal(const char *iface_name, const char *signal_name,
                        const char *sender_name)
@@ -302,32 +300,41 @@ void dbussignal_lists_navigation(GDBusProxy *proxy, const gchar *sender_name,
         data->event_sink_.store_event(UI::EventID::VIEWMAN_INVALIDATE_LIST_ID,
                                       std::move(params));
     }
-    else if(strcmp(signal_name, "RealizeLocationResult") == 0)
+    else if(strcmp(signal_name, "DataAvailable") == 0)
     {
-        guint cookie;
-        guchar raw_error_code;
-        guint raw_list_id;
-        guint item_id;
-        guint raw_ref_list_id;
-        guint ref_item_id;
-        guint distance;
-        guint trace_length;
-        const gchar *raw_list_title;
-        gboolean list_title_translatable;
+        GVariantIter iter;
+        g_variant_iter_init(&iter, g_variant_get_child_value(parameters, 0));
 
-        g_variant_get(parameters, "(uyuuuuuusb)", &cookie, &raw_error_code,
-                      &raw_list_id, &item_id,
-                      &raw_ref_list_id, &ref_item_id,
-                      &distance, &trace_length,
-                      &raw_list_title, &list_title_translatable);
+        std::vector<uint32_t> cookies;
+        cookies.reserve(g_variant_iter_n_children(&iter));
+
+        guint cookie;
+        while(g_variant_iter_next(&iter, "u", &cookie))
+            cookies.emplace_back(cookie);
 
         auto params =
-            UI::Events::mk_params<UI::EventID::VIEW_STRBO_URL_RESOLVED>(
-                cookie, ListError(raw_error_code),
-                ID::List(raw_list_id), item_id,
-                ID::List(raw_ref_list_id), ref_item_id, distance, trace_length,
-                I18n::String(list_title_translatable, raw_list_title));
-        data->event_sink_.store_event(UI::EventID::VIEW_STRBO_URL_RESOLVED,
+            UI::Events::mk_params<UI::EventID::VIEWMAN_RNF_DATA_AVAILABLE>(
+                static_cast<void *>(proxy), std::move(cookies));
+        data->event_sink_.store_event(UI::EventID::VIEWMAN_RNF_DATA_AVAILABLE,
+                                      std::move(params));
+    }
+    else if(strcmp(signal_name, "DataError") == 0)
+    {
+        GVariantIter iter;
+        g_variant_iter_init(&iter, g_variant_get_child_value(parameters, 0));
+
+        std::vector<std::pair<uint32_t, ListError>> cookies;
+        cookies.reserve(g_variant_iter_n_children(&iter));
+
+        guint cookie;
+        guchar raw_error_code;
+        while(g_variant_iter_next(&iter, "(uy)", &cookie, &raw_error_code))
+            cookies.emplace_back(cookie, ListError(raw_error_code));
+
+        auto params =
+            UI::Events::mk_params<UI::EventID::VIEWMAN_RNF_DATA_ERROR>(
+                static_cast<void *>(proxy), std::move(cookies));
+        data->event_sink_.store_event(UI::EventID::VIEWMAN_RNF_DATA_ERROR,
                                       std::move(params));
     }
     else
@@ -407,6 +414,16 @@ static DBus::ReportedShuffleMode parse_shuffle_mode(const char *shuffle_mode)
         : DBus::ReportedShuffleMode::UNKNOWN;
 }
 
+static void move_dropped_stream_ids(std::vector<ID::Stream> &dest, GVariantIter *src)
+{
+    uint16_t id;
+
+    while(g_variant_iter_next(src, "q", &id))
+        dest.push_back(ID::Stream::make_from_raw_id(id));
+
+    g_variant_iter_free(src);
+}
+
 void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
                                const gchar *signal_name, GVariant *parameters,
                                gpointer user_data)
@@ -420,25 +437,29 @@ void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
 
     if(strcmp(signal_name, "NowPlaying") == 0)
     {
-        check_parameter_assertions(parameters, 5);
+        check_parameter_assertions(parameters, 6);
 
         guint16 raw_stream_id;
         GVariant *stream_key_variant;
         const gchar *url_string;
         gboolean queue_is_full;
+        GVariantIter *dropped_ids_iter;
         GVariantIter *meta_data_iter;
 
-        g_variant_get(parameters, "(q@ay&sba(ss))",
-                      &raw_stream_id, &stream_key_variant,
-                      &url_string, &queue_is_full, &meta_data_iter);
+        g_variant_get(parameters, "(q@ay&sbaqa(ss))",
+                      &raw_stream_id, &stream_key_variant, &url_string,
+                      &queue_is_full, &dropped_ids_iter, &meta_data_iter);
 
         auto params =
             UI::Events::mk_params<UI::EventID::VIEW_PLAYER_NOW_PLAYING>(
                 ID::Stream::make_from_raw_id(raw_stream_id),
                 std::move(GVariantWrapper(stream_key_variant)),
-                queue_is_full, MetaData::Set(), url_string);
+                queue_is_full, std::vector<ID::Stream>(), MetaData::Set(), url_string);
 
-        if(parse_meta_data(std::get<3>(params->get_specific_non_const()), meta_data_iter))
+        move_dropped_stream_ids(std::get<3>(params->get_specific_non_const()),
+                                dropped_ids_iter);
+
+        if(parse_meta_data(std::get<4>(params->get_specific_non_const()), meta_data_iter))
         {
             data->event_sink_.store_event(UI::EventID::VIEW_PLAYER_NOW_PLAYING,
                                           std::move(params));
@@ -469,33 +490,40 @@ void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
     }
     else if(strcmp(signal_name, "Stopped") == 0)
     {
-        check_parameter_assertions(parameters, 1);
+        check_parameter_assertions(parameters, 2);
 
         guint16 raw_stream_id;
-        g_variant_get(parameters, "(q)", &raw_stream_id);
+        GVariantIter *dropped_ids_iter;
+        g_variant_get(parameters, "(qaq)", &raw_stream_id, &dropped_ids_iter);
 
         auto params =
             UI::Events::mk_params<UI::EventID::VIEW_PLAYER_STREAM_STOPPED>(
-                ID::Stream::make_from_raw_id(raw_stream_id), true, "");
+                ID::Stream::make_from_raw_id(raw_stream_id), true,
+                std::vector<ID::Stream>(), "");
+        move_dropped_stream_ids(std::get<2>(params->get_specific_non_const()),
+                                dropped_ids_iter);
         data->event_sink_.store_event(UI::EventID::VIEW_PLAYER_STREAM_STOPPED,
                                       std::move(params));
     }
     else if(strcmp(signal_name, "StoppedWithError") == 0)
     {
-        check_parameter_assertions(parameters, 4);
+        check_parameter_assertions(parameters, 5);
 
         guint16 raw_stream_id;
         const gchar *url;
         gboolean is_url_fifo_empty;
+        GVariantIter *dropped_ids_iter;
         const gchar *stopped_reason;
 
-        g_variant_get(parameters, "(q&sb&s)", &raw_stream_id, &url,
-                      &is_url_fifo_empty, &stopped_reason);
+        g_variant_get(parameters, "(q&sbaq&s)", &raw_stream_id, &url,
+                      &is_url_fifo_empty, &dropped_ids_iter, &stopped_reason);
 
         auto params =
             UI::Events::mk_params<UI::EventID::VIEW_PLAYER_STREAM_STOPPED>(
                 ID::Stream::make_from_raw_id(raw_stream_id),
-                is_url_fifo_empty, stopped_reason);
+                is_url_fifo_empty, std::vector<ID::Stream>(), stopped_reason);
+        move_dropped_stream_ids(std::get<2>(params->get_specific_non_const()),
+                                dropped_ids_iter);
         data->event_sink_.store_event(UI::EventID::VIEW_PLAYER_STREAM_STOPPED,
                                       std::move(params));
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015--2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015--2020  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -47,7 +47,7 @@ class View: public ViewIface, public ViewSerializeBase
     View &operator=(const View &) = delete;
 
     explicit View():
-        ViewIface(ViewNames::NOP, ViewIface::Flags(), nullptr),
+        ViewIface(ViewNames::NOP, ViewIface::Flags()),
         ViewSerializeBase("", ViewID::INVALID)
     {}
 
@@ -56,13 +56,13 @@ class View: public ViewIface, public ViewSerializeBase
     void defocus() override {}
 
     InputResult process_event(UI::ViewEventID event_id,
-                              std::unique_ptr<const UI::Parameters> parameters) final override
+                              std::unique_ptr<UI::Parameters> parameters) final override
     {
         return InputResult::SHOULD_HIDE;
     }
 
     void process_broadcast(UI::BroadcastEventID event_id,
-                           const UI::Parameters *parameters) final override {}
+                           UI::Parameters *parameters) final override {}
 
     void serialize(DCP::Queue &queue, DCP::Queue::Mode mode, std::ostream *debug_os) override {}
     void update(DCP::Queue &queue, DCP::Queue::Mode mode, std::ostream *debug_os) override {}

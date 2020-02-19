@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015--2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015--2020  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -22,15 +22,14 @@
 #ifndef VIEW_MANAGER_HH
 #define VIEW_MANAGER_HH
 
-#include <map>
-#include <memory>
-#include <algorithm>
-
 #include "view.hh"
 #include "ui_event_queue.hh"
+#include "cookie_manager.hh"
 #include "dcp_transaction_queue.hh"
 #include "configuration.hh"
 #include "configuration_drcpd.hh"
+
+#include <unordered_map>
 
 /*!
  * \addtogroup view_manager Management of the various views
@@ -132,7 +131,7 @@ class VMIface
 
     virtual ViewIface::InputResult
     input_bounce(const InputBouncer &bouncer, UI::ViewEventID event_id,
-                 std::unique_ptr<const UI::Parameters> parameters = nullptr) = 0;
+                 std::unique_ptr<UI::Parameters> parameters = nullptr) = 0;
     virtual ViewIface *get_view_by_name(const char *view_name) = 0;
 
     /*
@@ -156,10 +155,10 @@ class VMIface
     virtual const Configuration::DrcpdValues &get_configuration() const = 0;
 };
 
-class Manager: public VMIface, public UI::EventStoreIface
+class Manager: public VMIface, public UI::EventStoreIface, public DBusRNF::CookieManagerIface
 {
   public:
-    using ViewsContainer = std::map<const std::string, ViewIface *>;
+    using ViewsContainer = std::unordered_map<std::string, ViewIface *>;
     using ConfigMgr = Configuration::ConfigManager<Configuration::DrcpdValues>;
 
   private:
@@ -201,11 +200,11 @@ class Manager: public VMIface, public UI::EventStoreIface
     void serialization_result(DCP::Transaction::Result result) override;
 
     void store_event(UI::EventID event_id,
-                     std::unique_ptr<const UI::Parameters> parameters = nullptr) override;
+                     std::unique_ptr<UI::Parameters> parameters = nullptr) override;
 
     ViewIface::InputResult input_bounce(const InputBouncer &bouncer,
                                         UI::ViewEventID event_id,
-                                        std::unique_ptr<const UI::Parameters> parameters) override
+                                        std::unique_ptr<UI::Parameters> parameters) override
     {
         (void)do_input_bounce(bouncer, event_id, parameters);
         return ViewIface::InputResult::OK;
@@ -243,7 +242,15 @@ class Manager: public VMIface, public UI::EventStoreIface
         return config_manager_.values();
     }
 
+    bool set_pending_cookie(const void *proxy, uint32_t cookie,
+                            NotifyByCookieFn &&notify, FetchByCookieFn &&fetch)
+        final override;
+    bool abort_cookie(const void *proxy, uint32_t cookie) final override;
+    void invalidate_cookie(const void *proxy, uint32_t) final override;
+
   private:
+    void notify_main_thread_if_necessary(UI::EventID event_id,
+                                         const UI::Parameters *const parameters);
     void configuration_changed_notification(const char *origin,
                                             const std::array<bool, Configuration::DrcpdValues::NUMBER_OF_KEYS> &changed);
 
@@ -252,14 +259,14 @@ class Manager: public VMIface, public UI::EventStoreIface
     void handle_input_result(ViewIface::InputResult result, ViewIface &view);
 
     bool do_input_bounce(const InputBouncer &bouncer, UI::ViewEventID event_id,
-                         std::unique_ptr<const UI::Parameters> &parameters);
+                         std::unique_ptr<UI::Parameters> &parameters);
 
     void dispatch_event(UI::ViewEventID event_id,
-                        std::unique_ptr<const UI::Parameters> parameters);
+                        std::unique_ptr<UI::Parameters> parameters);
     void dispatch_event(UI::BroadcastEventID event_id,
-                        std::unique_ptr<const UI::Parameters> parameters);
+                        std::unique_ptr<UI::Parameters> parameters);
     void dispatch_event(UI::VManEventID event_id,
-                        std::unique_ptr<const UI::Parameters> parameters);
+                        std::unique_ptr<UI::Parameters> parameters);
 };
 
 }

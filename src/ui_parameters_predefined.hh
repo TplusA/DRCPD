@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, 2017, 2018, 2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016--2020  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -32,6 +32,7 @@
 #include "metadata.hh"
 #include "search_parameters.hh"
 #include "playback_modes.hh"
+#include "playlist_crawler.hh"
 #include "configuration_drcpd.hh"
 #include "gvariantwrapper.hh"
 #include "i18nstring.hh"
@@ -107,6 +108,35 @@ struct ParamTraits<EventID::VIEW_TOGGLE>
 };
 
 template <>
+struct ParamTraits<EventID::VIEWMAN_RNF_DATA_AVAILABLE>
+{
+    using PType = SpecificParameters<std::tuple<void *, std::vector<uint32_t>>>;
+};
+
+template <>
+struct ParamTraits<EventID::VIEWMAN_RNF_DATA_ERROR>
+{
+    using PType = SpecificParameters<std::tuple<
+                        void *, std::vector<std::pair<uint32_t, ListError>>>>;
+};
+
+template <>
+struct ParamTraits<EventID::VIEWMAN_CRAWLER_OP_COMPLETED>
+{
+    using PType = SpecificParameters<std::tuple<
+                        Playlist::Crawler::Iface &,
+                        std::shared_ptr<Playlist::Crawler::OperationBase>>>;
+};
+
+template <>
+struct ParamTraits<EventID::VIEWMAN_CRAWLER_OP_YIELDED>
+{
+    using PType = SpecificParameters<std::tuple<
+                        Playlist::Crawler::Iface &,
+                        std::shared_ptr<Playlist::Crawler::OperationBase>>>;
+};
+
+template <>
 struct ParamTraits<EventID::VIEWMAN_INVALIDATE_LIST_ID>
 {
     using PType = SpecificParameters<std::tuple<void *, ID::List, ID::List>>;
@@ -116,8 +146,8 @@ template <>
 struct ParamTraits<EventID::VIEW_PLAYER_NOW_PLAYING>
 {
     using PType = SpecificParameters<std::tuple<ID::Stream, GVariantWrapper,
-                                                bool, MetaData::Set,
-                                                std::string>>;
+                                                bool, std::vector<ID::Stream>,
+                                                MetaData::Set, std::string>>;
 };
 
 template <>
@@ -135,7 +165,8 @@ struct ParamTraits<EventID::VIEW_PLAYER_STORE_STREAM_META_DATA>
 template <>
 struct ParamTraits<EventID::VIEW_PLAYER_STREAM_STOPPED>
 {
-    using PType = SpecificParameters<std::tuple<ID::Stream, bool, std::string>>;
+    using PType = SpecificParameters<std::tuple<ID::Stream, bool,
+                                                std::vector<ID::Stream>, std::string>>;
 };
 
 template <>
@@ -166,16 +197,6 @@ struct ParamTraits<EventID::VIEW_PLAYER_PLAYBACK_MODE_CHANGED>
 };
 
 template <>
-struct ParamTraits<EventID::VIEW_STRBO_URL_RESOLVED>
-{
-    using PType = SpecificParameters<std::tuple<uint32_t, ListError,
-                                                ID::List, unsigned int,
-                                                ID::List, unsigned int,
-                                                size_t, size_t,
-                                                I18n::String>>;
-};
-
-template <>
 struct ParamTraits<EventID::VIEW_SEARCH_STORE_PARAMETERS>
 {
     using PType = SpecificParameters<SearchParameters>;
@@ -197,31 +218,36 @@ mk_params(Args&&... args)
 }
 
 template <BroadcastEventID E, typename D, typename TParams, typename Traits = ::UI::Events::ParamTraits<mk_event_id(E)>>
-static std::unique_ptr<const typename Traits::PType, D>
+static std::unique_ptr<typename Traits::PType, D>
 downcast(std::unique_ptr<TParams, D> &params)
 {
-    return ::UI::Parameters::downcast<const typename Traits::PType, D>(params);
+    return ::UI::Parameters::downcast<typename Traits::PType, D>(params);
 }
 
 template <BroadcastEventID E, typename TParams, typename Traits = ::UI::Events::ParamTraits<mk_event_id(E)>>
-static const typename Traits::PType *
-downcast(const TParams *params)
+static auto downcast(TParams *params)
+{
+    return dynamic_cast<typename Traits::PType *>(params);
+}
+
+template <VManEventID E, typename TParams, typename Traits = ::UI::Events::ParamTraits<mk_event_id(E)>>
+static auto downcast(const TParams *params)
 {
     return dynamic_cast<const typename Traits::PType *>(params);
 }
 
 template <ViewEventID E, typename D, typename TParams, typename Traits = ::UI::Events::ParamTraits<mk_event_id(E)>>
-static std::unique_ptr<const typename Traits::PType, D>
+static std::unique_ptr<typename Traits::PType, D>
 downcast(std::unique_ptr<TParams, D> &params)
 {
-    return ::UI::Parameters::downcast<const typename Traits::PType, D>(params);
+    return ::UI::Parameters::downcast<typename Traits::PType, D>(params);
 }
 
 template <VManEventID E, typename D, typename TParams, typename Traits = ::UI::Events::ParamTraits<mk_event_id(E)>>
-static std::unique_ptr<const typename Traits::PType, D>
+static std::unique_ptr<typename Traits::PType, D>
 downcast(std::unique_ptr<TParams, D> &params)
 {
-    return ::UI::Parameters::downcast<const typename Traits::PType, D>(params);
+    return ::UI::Parameters::downcast<typename Traits::PType, D>(params);
 }
 
 }

@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2019  T+A elektroakustik GmbH & Co. KG
+# Copyright (C) 2019, 2020  T+A elektroakustik GmbH & Co. KG
 #
 # This file is part of DRCPD.
 #
@@ -25,7 +25,8 @@ check_PROGRAMS = test_contextmap
 TESTS = run_tests.sh
 
 if WITH_VALGRIND
-AM_TESTS_ENVIRONMENT = VALGRIND="$(VALGRIND)"
+AM_TESTS_ENVIRONMENT =  VALGRIND="$(VALGRIND)"
+AM_TESTS_ENVIRONMENT += VALGRIND_OPTIONS="--suppressions=$(srcdir)/valgrind.suppressions"
 TESTS += valgrind.sh
 endif
 
@@ -46,6 +47,7 @@ test_contextmap_SOURCES = \
     test_contextmap.cc \
     mock_os.hh mock_os.cc \
     mock_messages.hh mock_messages.cc \
+    mock_backtrace.hh mock_backtrace.cc \
     mock_expectation.hh
 test_contextmap_LDADD = \
     libtestrunner.la \

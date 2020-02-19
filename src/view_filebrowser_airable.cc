@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, 2017, 2018, 2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016--2020  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -264,6 +264,7 @@ static void patch_event_id_for_deezer(UI::ViewEventID &event_id)
       case UI::ViewEventID::SEARCH_COMMENCE:
       case UI::ViewEventID::SEARCH_STORE_PARAMETERS:
       case UI::ViewEventID::PLAYBACK_TRY_RESUME:
+      case UI::ViewEventID::STRBO_URL_RESOLVED:
         event_id = UI::ViewEventID::NOP;
         break;
 
@@ -305,7 +306,7 @@ static bool is_deezer(const List::ContextMap &list_contexts,
 
 ViewIface::InputResult
 ViewFileBrowser::AirableView::process_event(UI::ViewEventID event_id,
-                                            std::unique_ptr<const UI::Parameters> parameters)
+                                            std::unique_ptr<UI::Parameters> parameters)
 {
     if(is_deezer(list_contexts_, current_list_id_))
         patch_event_id_for_deezer(event_id);
@@ -452,9 +453,8 @@ void ViewFileBrowser::AirableView::handle_enter_list_event(List::AsyncListIface:
       case List::QueryContextEnterList::CallerID::ENTER_PARENT:
       case List::QueryContextEnterList::CallerID::ENTER_ANYWHERE:
       case List::QueryContextEnterList::CallerID::RELOAD_LIST:
-      case List::QueryContextEnterList::CallerID::CRAWLER_RESTART:
       case List::QueryContextEnterList::CallerID::CRAWLER_RESET_POSITION:
-      case List::QueryContextEnterList::CallerID::CRAWLER_RESUME_FROM_POSITION:
+      case List::QueryContextEnterList::CallerID::CRAWLER_FIRST_ENTRY:
       case List::QueryContextEnterList::CallerID::CRAWLER_DESCEND:
       case List::QueryContextEnterList::CallerID::CRAWLER_ASCEND:
         break;
@@ -506,23 +506,23 @@ ViewFileBrowser::AirableView::point_to_search_form(List::context_id_t ctx_id)
 
     const auto &path(form->second);
 
-    const ID::List revert_to_list_id = current_list_id_;;
+    const ID::List revert_to_list_id = current_list_id_;
     const unsigned int revert_to_cursor = navigation_.get_cursor();
 
     try
     {
-        Utils::enter_list_at(file_list_, item_flags_, navigation_,
+        Utils::enter_list_at(file_list_, item_filter_, navigation_,
                              get_root_list_id(), path.first);
         current_list_id_ = get_root_list_id();
 
         std::string list_title;
         const ID::List list_id =
             Utils::get_child_item_id(file_list_, current_list_id_,
-                                     navigation_, nullptr, list_title);
+                                     navigation_, nullptr, nullptr, list_title);
 
         if(list_id.is_valid())
         {
-            Utils::enter_list_at(file_list_, item_flags_, navigation_,
+            Utils::enter_list_at(file_list_, item_filter_, navigation_,
                                  list_id, path.second);
             current_list_id_ = list_id;
 
@@ -538,7 +538,7 @@ ViewFileBrowser::AirableView::point_to_search_form(List::context_id_t ctx_id)
     try
     {
         /* in case of any failure, try go back to old location */
-        Utils::enter_list_at(file_list_, item_flags_, navigation_,
+        Utils::enter_list_at(file_list_, item_filter_, navigation_,
                              revert_to_list_id, revert_to_cursor);
         current_list_id_ = revert_to_list_id;
     }

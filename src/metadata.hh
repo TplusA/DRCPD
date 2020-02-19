@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, 2017, 2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2017, 2019, 2020  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -39,9 +39,7 @@ namespace MetaData
 
 struct Reformatters
 {
-    using fn_t =  std::function<const std::string(const char *in)>;
-
-    const fn_t bitrate;
+    const std::function<const std::string(const char *in)> bitrate_fn_;
 };
 
 /*!
@@ -80,18 +78,19 @@ class Set
         NON_EMPTY,
     };
 
-    /* FIXME: The default copy ctor should not be required */
-    Set(const Set &) = default;
-    Set &operator=(const Set &) = delete;
+    std::array<std::string, METADATA_ID_LAST + 1> values_;
+
+    Set(const Set &) = delete;
     Set(Set &&) = default;
+    Set &operator=(const Set &) = delete;
+    Set &operator=(Set &&) = default;
 
     explicit Set() {}
-
-    std::array<std::string, METADATA_ID_LAST + 1> values_;
 
     void clear(bool keep_internals);
     void add(const char *key, const char *value, const Reformatters &reformat);
     void add(const ID key_id, const char *value, const Reformatters &reformat);
+    void add(const ID key_id, std::string &&value, const Reformatters &reformat);
     void copy_from(const Set &src, CopyMode mode);
 
     bool operator==(const Set &other) const;
@@ -114,11 +113,6 @@ class Collection
     bool is_full() const
     {
         return meta_data_sets_.size() >= MAX_ENTRIES;
-    }
-
-    void insert(ID::Stream stream_id, const Set &src)
-    {
-        meta_data_sets_.emplace(stream_id, src);
     }
 
     void emplace(ID::Stream stream_id, Set &&src)

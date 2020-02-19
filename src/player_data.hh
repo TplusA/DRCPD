@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, 2017, 2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2017, 2019, 2020  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -22,17 +22,18 @@
 #ifndef PLAYER_DATA_HH
 #define PLAYER_DATA_HH
 
-#include <vector>
-#include <string>
-
 #include "metadata.hh"
 #include "dbus_async.hh"
 #include "playback_modes.hh"
+#include "playlist_cursor.hh"
 #include "de_tahifi_airable.h"
 #include "airable_links.hh"
 #include "logged_lock.hh"
 #include "dbus_iface_proxies.hh"
 #include "gvariantwrapper.hh"
+
+#include <map>
+#include <deque>
 
 namespace Player
 {
@@ -54,11 +55,11 @@ enum class UserIntention
 };
 
 /*!
- * Stream state, technically.
+ * Stream player state, technically.
  *
  * Which state the currently playing stream is in, if any.
  */
-enum class StreamState
+enum class PlayerState
 {
     STOPPED,
     BUFFERING,
@@ -91,23 +92,48 @@ using AsyncResolveRedirect =
     DBus::AsyncCall<tdbusAirable, std::tuple<guchar, gchar *>,
                     Busy::Source::RESOLVING_AIRABLE_REDIRECT>;
 
-/*!
- * Information about a stream before it is played.
- */
-class StreamPreplayInfo
+class QueueError: public std::logic_error
 {
   public:
-    /* for reference counting and jumping back to this stream */
+    explicit QueueError(const std::string &what_arg): logic_error(what_arg) {}
+    explicit QueueError(const char *what_arg): logic_error(what_arg) {}
+};
+
+/*!
+ * Information about a queued stream.
+ */
+class QueuedStream
+{
+  public:
+    const ID::OurStream stream_id_;
+
+    /* for list reference counting */
     const ID::List list_id_;
 
-    /* for jumping back to this stream */
-    const unsigned int line_;
+    /* for jumping back to this stream, for recovering the list crawler state,
+     * for diagnostics */
+    const std::unique_ptr<Playlist::Crawler::CursorBase> originating_cursor_;
 
-    /* for recovering the list crawler state */
-    const unsigned int directory_depth_;
+    enum class State
+    {
+        /*! This object has just been constructed, no actions going on */
+        FLOATING,
 
-    /* for pointing crawler in correct direction in case of playback failure */
-    const bool is_crawler_direction_reverse_;
+        /*! Waiting for indirect URI to be resolved (resolving link to link) */
+        RESOLVING_INDIRECT_URI,
+
+        /*! Stream URI definitely available or definitely empty */
+        MAY_HAVE_DIRECT_URI,
+
+        /*! Stream URI has been sent to stream player */
+        QUEUED,
+
+        /*! This object describes the currently playing stream */
+        CURRENT,
+
+        /*! Object is waiting for its destruction */
+        ABOUT_TO_DIE,
+    };
 
     enum class OpResult
     {
@@ -128,6 +154,8 @@ class StreamPreplayInfo
         std::function<void(size_t idx, ResolvedRedirectResult result)>;
 
   private:
+    State state_;
+
     GVariantWrapper stream_key_;
     std::vector<std::string> uris_;
     Airable::SortedLinks airable_links_;
@@ -137,41 +165,106 @@ class StreamPreplayInfo
     std::shared_ptr<AsyncResolveRedirect> async_resolve_redirect_call_;
 
   public:
-    StreamPreplayInfo(const StreamPreplayInfo &) = delete;
-    StreamPreplayInfo(StreamPreplayInfo &&) = default;
-    StreamPreplayInfo &operator=(const StreamPreplayInfo &) = delete;
+    QueuedStream(const QueuedStream &) = delete;
+    QueuedStream(QueuedStream &&) = default;
+    QueuedStream &operator=(const QueuedStream &) = delete;
 
-    explicit StreamPreplayInfo(const GVariantWrapper &stream_key,
-                               std::vector<std::string> &&uris,
-                               Airable::SortedLinks &&airable_links,
-                               ID::List list_id, unsigned int line,
-                               unsigned int directory_depth,
-                               bool is_crawler_direction_reverse):
+    explicit QueuedStream(ID::OurStream stream_id,
+                          const GVariantWrapper &stream_key,
+                          std::vector<std::string> &&uris,
+                          Airable::SortedLinks &&airable_links,
+                          ID::List list_id,
+                          std::unique_ptr<Playlist::Crawler::CursorBase> originating_cursor):
+        stream_id_(stream_id),
         list_id_(list_id),
-        line_(line),
-        directory_depth_(directory_depth),
-        is_crawler_direction_reverse_(is_crawler_direction_reverse),
+        originating_cursor_(std::move(originating_cursor)),
+        state_(State::FLOATING),
         stream_key_(stream_key),
         uris_(std::move(uris)),
         airable_links_(std::move(airable_links)),
         next_uri_to_try_(0)
     {}
 
-    ~StreamPreplayInfo()
+    ~QueuedStream()
     {
         AsyncResolveRedirect::cancel_and_delete(async_resolve_redirect_call_);
     }
 
     const GVariantWrapper &get_stream_key() const { return stream_key_; }
+    const Playlist::Crawler::CursorBase &get_originating_cursor() const { return *originating_cursor_; }
 
     void iter_reset()
     {
+        BUG_IF(state_ == State::RESOLVING_INDIRECT_URI &&
+               async_resolve_redirect_call_ == nullptr,
+               "No active resolve op in state %d, stream %u",
+               int(state_), stream_id_.get().get_raw_id());
+        BUG_IF(state_ != State::RESOLVING_INDIRECT_URI &&
+               async_resolve_redirect_call_ != nullptr,
+               "Active resolve op in state %d, stream %u",
+               int(state_), stream_id_.get().get_raw_id());
         AsyncResolveRedirect::cancel_and_delete(async_resolve_redirect_call_);
         next_uri_to_try_ = 0;
     }
 
     OpResult iter_next(tdbusAirable *proxy, const std::string *&uri,
-                       const ResolvedRedirectCallback &callback);
+                       ResolvedRedirectCallback &&callback);
+
+    bool set_state(State new_state, const char *reason)
+    {
+        if(state_ == State::ABOUT_TO_DIE)
+            return false;
+
+        switch(new_state)
+        {
+          case State::FLOATING:
+          case State::RESOLVING_INDIRECT_URI:
+            log_assert(state_ == State::FLOATING);
+            break;
+
+          case State::MAY_HAVE_DIRECT_URI:
+            log_assert(state_ == State::FLOATING ||
+                       state_ == State::RESOLVING_INDIRECT_URI ||
+                       state_ == State::MAY_HAVE_DIRECT_URI);
+            break;
+
+          case State::QUEUED:
+            log_assert(state_ == State::MAY_HAVE_DIRECT_URI);
+            break;
+
+          case State::CURRENT:
+            log_assert(state_ == State::QUEUED);
+            break;
+
+          case State::ABOUT_TO_DIE:
+            break;
+        }
+
+        if(new_state == state_)
+            return false;
+
+        state_ = new_state;
+        return true;
+    }
+
+    bool is_state(State state) const { return state == state_; }
+
+    void prepare_for_recovery()
+    {
+        switch(state_)
+        {
+          case QueuedStream::State::QUEUED:
+          case QueuedStream::State::CURRENT:
+            state_ = State::MAY_HAVE_DIRECT_URI;
+            break;
+
+          case State::FLOATING:
+          case State::RESOLVING_INDIRECT_URI:
+          case State::MAY_HAVE_DIRECT_URI:
+          case State::ABOUT_TO_DIE:
+            break;
+        }
+    }
 
   private:
     bool iter_next_resolved(const std::string *&uri)
@@ -189,45 +282,147 @@ class StreamPreplayInfo
     }
 
     void process_resolved_redirect(DBus::AsyncCall_ &async_call, size_t idx,
-                                   const ResolvedRedirectCallback &callback);
+                                   ResolvedRedirectCallback &&callback);
 };
 
-class StreamPreplayInfoCollection
+class QueuedStreams
 {
   private:
     static constexpr const size_t MAX_ENTRIES = 20;
-    std::map<ID::OurStream, StreamPreplayInfo> stream_ppinfos_;
+
+    std::map<ID::OurStream, std::unique_ptr<QueuedStream>> streams_;
+
+    std::deque<ID::OurStream> queue_;
+    ID::OurStream current_stream_id_;
+
+    ID::OurStream next_free_stream_id_;
+
+    const std::function<void(const QueuedStream &)> on_remove_cb_;
 
   public:
-    StreamPreplayInfoCollection(const StreamPreplayInfoCollection &) = delete;
-    StreamPreplayInfoCollection &operator=(const StreamPreplayInfoCollection &) = delete;
+    QueuedStreams(const QueuedStreams &) = delete;
+    QueuedStreams &operator=(const QueuedStreams &) = delete;
 
-    explicit StreamPreplayInfoCollection() {}
+    explicit QueuedStreams(std::function<void(const QueuedStream &)> &&on_remove_cb):
+        current_stream_id_(ID::OurStream::make_invalid()),
+        next_free_stream_id_(ID::OurStream::make()),
+        on_remove_cb_(std::move(on_remove_cb))
+    {}
 
-    bool is_full() const
+    bool is_full(size_t max_length = MAX_ENTRIES) const
     {
-        return stream_ppinfos_.size() >= MAX_ENTRIES;
+        log_assert(max_length <= MAX_ENTRIES);
+        return queue_.size() >= max_length;
     }
 
-    bool store(ID::OurStream stream_id, const GVariantWrapper &stream_key,
-               std::vector<std::string> &&uris,
-               Airable::SortedLinks &&airable_links,
-               ID::List list_id, unsigned int line, unsigned int directory_depth,
-               bool is_crawler_direction_reverse);
-    void forget_stream(/*cppcheck-suppress passedByValue*/ const ID::OurStream stream_id);
+    bool empty() const { return queue_.empty(); }
 
-    StreamPreplayInfo *get_info_for_update(const ID::OurStream &stream_id);
+    ID::OurStream append(const GVariantWrapper &stream_key,
+                         std::vector<std::string> &&uris,
+                         Airable::SortedLinks &&airable_links, ID::List list_id,
+                         std::unique_ptr<Playlist::Crawler::CursorBase> originating_cursor);
 
-    const StreamPreplayInfo *get_info(const ID::OurStream &stream_id) const
+    /*!
+     * Remove (any) stream from queue (or currently playing).
+     *
+     * This function either returns a valid pointer to the removed stream, or
+     * it will throw a #Player::QueueError; it will never return \c nullptr.
+     * The function throws if the given stream ID is invalid.
+     *
+     * \throws
+     *     #Player::QueueError Given stream ID invalid or not found.
+     */
+    std::unique_ptr<QueuedStream> remove(ID::OurStream stream_id);
+
+    /*
+     * Remove front item from queue.
+     *
+     * Returns the removed stream, or \c nullptr if the queue is empty.
+     *
+     * \throws
+     *     #Player::QueueError Given stream ID invalid, not found, or unexpected.
+     */
+    std::unique_ptr<QueuedStream> remove_front(ID::OurStream expected_id);
+
+    /*!
+     * Move stream from queue to currently playing, remove currently playing.
+     *
+     * This function checks if the queue is populated with the given expected
+     * values. It will throw a #Player::QueueError in case of a mismatch. This
+     * enables us to detect situations where we went out of sync with the
+     * stream player.
+     *
+     * \throws
+     *     #Player::QueueError Given stream ID invalid, not found, or unexpected.
+     */
+    std::unique_ptr<QueuedStream>
+    shift(ID::OurStream expected_current_id, ID::OurStream expected_next_id);
+
+    /*!
+     * Move stream from queue to currently playing, remove currently playing.
+     *
+     * This function works unchecked.
+     *
+     * \throws
+     *     #Player::QueueError Given stream ID invalid or not found.
+     */
+    std::unique_ptr<QueuedStream> shift();
+
+    std::vector<ID::OurStream> copy_all_stream_ids() const;
+
+    ID::OurStream get_current_stream_id() const { return current_stream_id_; };
+    ID::OurStream get_next_stream_id() const { return queue_.empty() ? ID::OurStream::make_invalid() : queue_.front(); };
+    const QueuedStream *get_stream_by_id(ID::OurStream stream_id) const;
+
+    template <typename T>
+    auto with_stream(ID::OurStream stream_id,
+                     const std::function<T(QueuedStream *qs)> &apply)
     {
-        return const_cast<StreamPreplayInfoCollection *>(this)->get_info_for_update(stream_id);
+        return apply(get_stream_by_id(stream_id));
     }
 
-    ID::List get_referenced_list_id(ID::OurStream stream_id) const;
-
-    void clear()
+    template <typename T>
+    auto with_stream(ID::OurStream stream_id,
+                     const std::function<T(QueuedStream &qs)> &apply)
     {
-        stream_ppinfos_.clear();
+        auto *const s = get_stream_by_id(stream_id);
+
+        if(s != nullptr)
+            return apply(*s);
+        else
+            return T();
+    }
+
+    size_t clear();
+    size_t clear_if(const std::function<bool(const QueuedStream &)> &pred);
+
+    bool is_next(ID::Stream stream_id) const
+    {
+        return is_next(ID::OurStream::make_from_generic_id(stream_id));
+    }
+
+    bool is_next(ID::OurStream stream_id) const
+    {
+        if(!stream_id.get().is_valid())
+            return false;
+
+        if(queue_.empty())
+            return false;
+
+        return queue_.front() == stream_id;
+    }
+
+    bool is_player_queue_filled() const { return !queue_.empty(); }
+
+    void log(const char *prefix = nullptr,
+             MessageVerboseLevel level = MESSAGE_LEVEL_NORMAL) const;
+
+  private:
+    QueuedStream *get_stream_by_id(ID::OurStream stream_id)
+    {
+        return const_cast<QueuedStream *>(
+                    static_cast<const QueuedStreams &>(*this)
+                    .get_stream_by_id(stream_id));
     }
 };
 
@@ -282,14 +477,33 @@ class Data
 
     bool is_attached_;
 
+    /*!
+     * Meta data about streams, organized by stream ID.
+     *
+     * These information are stored for streams of all kind, not only for those
+     * managed by us.
+     */
     MetaData::Collection meta_data_db_;
-    StreamPreplayInfoCollection preplay_info_;
+
+    /*!
+     * Streams we have sent to streamplayer, but are not playing yet.
+     *
+     * We need to know the exact IDs and their order to recover from playback
+     * errors. There are situations in which we need restart playback from
+     * scratch, and this queue enables us to restore the whole player queue to
+     * the previous state.
+     *
+     * Note that this is actually an optimization for long queues and/or
+     * situations where iterating over playlists items is expensive.
+     */
+    QueuedStreams queued_streams_;
+
     std::map<ID::List, size_t> referenced_lists_;
 
     UserIntention intention_;
-    StreamState current_stream_state_;
-    ID::Stream current_stream_id_;
-    ID::OurStream next_free_stream_id_;
+    PlayerState player_state_;
+
+    AppStream current_app_stream_id_;
     std::array<AppStream, 2> queued_app_streams_;
 
     std::chrono::milliseconds stream_position_;
@@ -307,10 +521,13 @@ class Data
 
     explicit Data():
         is_attached_(false),
+        queued_streams_(
+            [this] (const auto &qs)
+            { remove_data_for_stream(qs, meta_data_db_, referenced_lists_); }
+        ),
         intention_(UserIntention::NOTHING),
-        current_stream_state_(StreamState::STOPPED),
-        current_stream_id_(ID::Stream::make_invalid()),
-        next_free_stream_id_(ID::OurStream::make()),
+        player_state_(PlayerState::STOPPED),
+        current_app_stream_id_(AppStream::make_invalid()),
         queued_app_streams_{AppStream::make_invalid(), AppStream::make_invalid()},
         stream_position_(-1),
         stream_duration_(-1),
@@ -351,38 +568,30 @@ class Data
 
     UserIntention get_intention() const { return intention_; }
 
-    ID::Stream get_current_stream_id() const { return current_stream_id_; };
-    StreamState get_current_stream_state() const { return current_stream_state_; }
+    PlayerState get_player_state() const { return player_state_; }
     VisibleStreamState get_current_visible_stream_state() const;
 
-    bool set_stream_state(StreamState state)
+    bool is_current_stream(const ID::Stream &id) const
     {
-        if(state != current_stream_state_)
-        {
-            current_stream_state_ = state;
-
-            switch(current_stream_state_)
-            {
-              case StreamState::STOPPED:
-                stream_position_ = std::chrono::milliseconds(-1);
-                stream_duration_ = std::chrono::milliseconds(-1);
-                playback_speed_ = 1.0;
-                break;
-
-              case StreamState::BUFFERING:
-              case StreamState::PLAYING:
-              case StreamState::PAUSED:
-                break;
-            }
-
-            return true;
-        }
-        else
-            return false;
+        log_assert(id.is_valid());
+        return
+            queued_streams_.get_current_stream_id().get() == id ||
+            current_app_stream_id_.get() == id;
     }
 
-    bool set_stream_state(ID::Stream new_current_stream, StreamState state);
+    ID::Stream get_current_stream_id() const
+    {
+        if(queued_streams_.get_current_stream_id().get().is_valid())
+            return queued_streams_.get_current_stream_id().get();
+        else
+            return current_app_stream_id_.get();
+    }
 
+  private:
+    bool set_player_state(PlayerState state);
+    bool set_player_state(ID::Stream new_current_stream, PlayerState state);
+
+  public:
     bool set_reported_playback_state(DBus::ReportedRepeatMode repeat_mode,
                                      DBus::ReportedShuffleMode shuffle_mode)
     {
@@ -410,51 +619,114 @@ class Data
                     stream_position_, stream_duration_);
     }
 
-    ID::OurStream store_stream_preplay_information(const GVariantWrapper &stream_key,
-                                                   std::vector<std::string> &&uris,
-                                                   Airable::SortedLinks &&airable_links,
-                                                   ID::List list_id, unsigned int line,
-                                                   unsigned int directory_depth,
-                                                   bool is_crawler_direction_reverse);
-    Player::StreamPreplayInfo::OpResult
+    const QueuedStreams &queued_streams_get() const { return queued_streams_; }
+
+    ID::OurStream queued_stream_append(const GVariantWrapper &stream_key,
+                                       std::vector<std::string> &&uris,
+                                       Airable::SortedLinks &&airable_links,
+                                       ID::List list_id,
+                                       std::unique_ptr<Playlist::Crawler::CursorBase> originating_cursor);
+
+    void queued_stream_sent_to_player(ID::OurStream stream_id);
+
+    std::vector<ID::OurStream> copy_all_queued_streams_for_recovery();
+
+    void queued_stream_remove(ID::OurStream stream_id);
+
+    void revert_all_queued_streams_to_unqueued();
+
+    void remove_all_queued_streams(bool also_remove_playing_stream);
+
+  private:
+    /*!
+     * Called when a mismatch between our state and player state is detected.
+     *
+     * Clear our internal mirror of the player's queue, remove all associated
+     * meta data, pretend we are not playing anything.
+     */
+    void player_failed();
+
+    /*!
+     * Update queue: we have just told the streamplayer to skip to the next
+     * item in its queue, successfully so.
+     *
+     * The two parameters are the return value from streamplayer, containing
+     * the concrete IDs of the skipped (previously playing) stream and the
+     * stream which is going to be played next, respectively. Thus, we forget
+     * the currently playing stream and replace it by the next stream in queue.
+     */
+    bool player_skipped_as_requested(ID::Stream skipped_stream_id,
+                                     ID::Stream next_stream_id);
+
+  public:
+    /*!
+     * Update queue: streamplayer has informed us about dropped streams.
+     *
+     * These streams must be removed from our mirror queue as well, and this is
+     * what this function does.
+     */
+    bool player_dropped_from_queue(const std::vector<ID::Stream> &dropped);
+
+    bool player_now_playing_stream(ID::Stream stream_id)
+    {
+        player_skipped_as_requested(queued_streams_.get_current_stream_id().get(),
+                                    stream_id);
+        return set_player_state(stream_id, Player::PlayerState::PLAYING);
+    }
+
+    /*!
+     * Player has paused playback.
+     *
+     * A call of #Player::Data::player_now_playing_stream() communicates end of
+     * paused state.
+     */
+    void player_has_paused()
+    {
+        set_player_state(Player::PlayerState::PAUSED);
+    }
+
+    /*!
+     * Player has stopped playing.
+     *
+     * A call of this function communicates just one simple observation: the
+     * player has stopped. Valid reasons include regular end of stream, I/O
+     * error, or external stop signals. Context not available to this function
+     * determines whether or not further actions are required.
+     */
+    void player_has_stopped()
+    {
+        set_player_state(Player::PlayerState::STOPPED);
+    }
+
+    /*!
+     * Final stop: player is completely idle.
+     */
+    void player_finished_and_idle();
+
+    QueuedStream::OpResult
     get_first_stream_uri(const ID::OurStream &stream_id,
                          const GVariantWrapper *&stream_key,
                          const std::string *&uri,
-                         const StreamPreplayInfo::ResolvedRedirectCallback &callback);
-    Player::StreamPreplayInfo::OpResult
+                         QueuedStream::ResolvedRedirectCallback &&callback);
+    QueuedStream::OpResult
     get_next_stream_uri(const ID::OurStream &stream_id,
                         const GVariantWrapper *&stream_key,
                         const std::string *&uri,
-                        const StreamPreplayInfo::ResolvedRedirectCallback &callback);
-
-    const StreamPreplayInfo *get_stream_preplay_info(const ID::OurStream &stream_id) const
-    {
-        return preplay_info_.get_info(stream_id);
-    }
+                        QueuedStream::ResolvedRedirectCallback &&callback);
 
     void announce_app_stream(const AppStream &stream_id);
-    void put_meta_data(const ID::Stream &stream_id, const MetaData::Set &meta_data);
     void put_meta_data(const ID::Stream &stream_id, MetaData::Set &&meta_data);
-    bool merge_meta_data(const ID::Stream &stream_id, const MetaData::Set &meta_data,
-                         const std::string *fallback_url = nullptr);
+    bool merge_meta_data(const ID::Stream &stream_id, MetaData::Set &&meta_data,
+                         MetaData::Set **md_ptr = nullptr);
+    bool merge_meta_data(const ID::Stream &stream_id, MetaData::Set &&meta_data,
+                         std::string &&fallback_url);
     const MetaData::Set &get_meta_data(const ID::Stream &stream_id);
 
     const MetaData::Set &get_current_meta_data() const
     {
-        return const_cast<Data *>(this)->get_meta_data(current_stream_id_);
+        return const_cast<Data *>(this)->get_meta_data(
+                        queued_streams_.get_current_stream_id().get());
     }
-
-    bool forget_stream(const ID::Stream &stream_id);
-
-    bool forget_current_stream()
-    {
-        if(current_stream_id_.is_valid())
-            return forget_stream(current_stream_id_);
-        else
-            return false;
-    }
-
-    void forget_all_streams();
 
     bool update_track_times(const ID::Stream &stream_id,
                             const std::chrono::milliseconds &position,
@@ -465,6 +737,11 @@ class Data
 
     // cppcheck-suppress functionStatic
     void list_replaced_notification(ID::List old_id, ID::List new_id) const;
+
+  private:
+    static void remove_data_for_stream(const QueuedStream &qs,
+                                       MetaData::Collection &meta_data_db,
+                                       std::map<ID::List, size_t> &referenced_lists);
 };
 
 }
