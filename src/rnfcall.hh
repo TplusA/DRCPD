@@ -24,6 +24,7 @@
 
 #include "rnfcall_state.hh"
 #include "logged_lock.hh"
+#include "busy.hh"
 
 #include <functional>
 #include <future>
@@ -344,11 +345,14 @@ class CallBase
  *     complex return types, or e.g. a \c std::tuple, \c std::pair, or even a
  *     fundamental type for simpler results.
  */
-template <typename RT>
+template <typename RT, Busy::Source BS>
 class Call: public CallBase
 {
   public:
     using ResultType = RT;
+
+  private:
+    bool busy_source_set_;
 
   protected:
     std::promise<ResultType> promise_;
@@ -363,10 +367,16 @@ class Call: public CallBase
                   StatusWatcher &&status_watcher):
         CallBase(std::move(abort_cookie_fn), std::move(context_data),
                  std::move(status_watcher)),
+        busy_source_set_(false),
         future_(promise_.get_future())
     {}
 
-    virtual ~Call() = default;
+    virtual ~Call()
+    {
+        if(busy_source_set_)
+            Busy::clear(BS);
+    }
+
 
     /*!
      * Request some data from list broker via D-Bus.
@@ -428,6 +438,9 @@ class Call: public CallBase
             BUG("RNF request in state %u", int(get_state()));
             throw BadStateError();
         }
+
+        Busy::set(BS);
+        busy_source_set_ = true;
 
         try
         {

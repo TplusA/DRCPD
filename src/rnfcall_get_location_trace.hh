@@ -28,7 +28,8 @@ namespace DBusRNF
 {
 
 class GetLocationTraceCall:
-    public DBusRNF::CookieCall<std::tuple<const ListError, const std::string>>
+    public DBusRNF::CookieCall<std::tuple<const ListError, const std::string>,
+                               Busy::Source::GETTING_LOCATION_TRACE>
 {
   private:
     tdbuslistsNavigation *const proxy_;

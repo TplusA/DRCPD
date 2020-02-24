@@ -49,7 +49,8 @@ class GetListIDResult
     {}
 };
 
-class GetListIDCallBase: public DBusRNF::CookieCall<GetListIDResult>
+class GetListIDCallBase:
+    public DBusRNF::CookieCall<GetListIDResult, Busy::Source::GETTING_LIST_ID>
 {
   protected:
     tdbuslistsNavigation *const proxy_;

@@ -59,7 +59,8 @@ class GetURIsResult
     }
 };
 
-class GetURIsCall: public DBusRNF::CookieCall<GetURIsResult>
+class GetURIsCall:
+    public DBusRNF::CookieCall<GetURIsResult, Busy::Source::GETTING_ITEM_URI>
 {
   private:
     tdbuslistsNavigation *const proxy_;

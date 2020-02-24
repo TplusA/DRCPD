@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, 2017, 2018, 2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016--2020  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -50,6 +50,8 @@ enum class Source
     GETTING_LIST_RANGE,
     CHECKING_LIST_RANGE,
     RESUMING_PLAYBACK,
+    GETTING_LOCATION_TRACE,
+    REALIZING_LOCATION_TRACE,
 
     /* specific to Airable */
     RESOLVING_AIRABLE_REDIRECT,

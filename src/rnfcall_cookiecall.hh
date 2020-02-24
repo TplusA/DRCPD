@@ -47,8 +47,8 @@ namespace DBusRNF
  * The complexities of having to manage cookies or even having to deal with a
  * cookie manager are therefore hidden as much as possible by this class.
  */
-template <typename RT>
-class CookieCall: public Call<RT>
+template <typename RT, Busy::Source BS>
+class CookieCall: public Call<RT, BS>
 {
   protected:
     CookieManagerIface &cm_;
@@ -57,8 +57,9 @@ class CookieCall: public Call<RT>
     explicit CookieCall(CookieManagerIface &cm,
                         std::unique_ptr<ContextData> context_data,
                         StatusWatcher &&status_watcher):
-        Call<RT>([this] (uint32_t c) { return cm_.abort_cookie(this->get_proxy_ptr(), c); },
-                 std::move(context_data), std::move(status_watcher)),
+        Call<RT, BS>(
+            [this] (uint32_t c) { return cm_.abort_cookie(this->get_proxy_ptr(), c); },
+            std::move(context_data), std::move(status_watcher)),
         cm_(cm)
     {}
 
@@ -78,7 +79,7 @@ class CookieCall: public Call<RT>
   private:
     void fetch_and_notify_unlocked()
     {
-        Call<RT>::fetch_unlocked([this] (uint32_t c, auto &r) { do_fetch(c, r); });
+        Call<RT, BS>::fetch_unlocked([this] (uint32_t c, auto &r) { do_fetch(c, r); });
 
         if(this->context_data_ != nullptr)
             this->context_data_->notify(*this, this->get_state());
@@ -87,7 +88,7 @@ class CookieCall: public Call<RT>
   public:
     CallState request()
     {
-        return Call<RT>::request(
+        return Call<RT, BS>::request(
             // do_request
             [this] (auto &r) { return do_request(r); },
             // manage_cookie
@@ -131,7 +132,7 @@ class CookieCall: public Call<RT>
      */
     bool fetch()
     {
-        return Call<RT>::fetch([this] (uint32_t c, auto &r) { do_fetch(c, r); });
+        return Call<RT, BS>::fetch([this] (uint32_t c, auto &r) { do_fetch(c, r); });
     }
 
     /*!
@@ -145,7 +146,7 @@ class CookieCall: public Call<RT>
      */
     bool fetch_blocking()
     {
-        return Call<RT>::fetch_blocking([this] (uint32_t c, auto &r) { do_fetch(c, r); });
+        return Call<RT, BS>::fetch_blocking([this] (uint32_t c, auto &r) { do_fetch(c, r); });
     }
 
   protected:

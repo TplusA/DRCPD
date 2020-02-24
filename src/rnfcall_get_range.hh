@@ -50,7 +50,8 @@ class GetRangeResult
     {}
 };
 
-class GetRangeCallBase: public DBusRNF::CookieCall<GetRangeResult>
+class GetRangeCallBase:
+    public DBusRNF::CookieCall<GetRangeResult, Busy::Source::GETTING_LIST_RANGE>
 {
   protected:
     tdbuslistsNavigation *const proxy_;

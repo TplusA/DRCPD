@@ -46,7 +46,9 @@ class GetRankedStreamLinksResult
     {}
 };
 
-class GetRankedStreamLinksCall: public DBusRNF::CookieCall<GetRankedStreamLinksResult>
+class GetRankedStreamLinksCall:
+    public DBusRNF::CookieCall<GetRankedStreamLinksResult,
+                               Busy::Source::GETTING_ITEM_STREAM_LINKS>
 {
   private:
     tdbuslistsNavigation *const proxy_;

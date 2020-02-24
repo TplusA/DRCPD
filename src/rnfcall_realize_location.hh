@@ -62,7 +62,9 @@ class RealizeLocationResult
     {}
 };
 
-class RealizeLocationCall: public DBusRNF::CookieCall<RealizeLocationResult>
+class RealizeLocationCall:
+    public DBusRNF::CookieCall<RealizeLocationResult,
+                               Busy::Source::REALIZING_LOCATION_TRACE>
 {
   private:
     tdbuslistsNavigation *const proxy_;
