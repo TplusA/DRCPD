@@ -782,7 +782,8 @@ List::DBusList::get_cache_segment_state(const CacheSegment &segment,
         break;
 
       case CacheSegmentState::LOADING:
-        log_assert(cached_state == CacheSegmentState::EMPTY);
+        log_assert(cached_state == CacheSegmentState::EMPTY ||
+                   cached_state == CacheSegmentState::CACHED);
         cached_state = loading_state;
         break;
 
