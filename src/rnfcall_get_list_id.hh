@@ -95,7 +95,10 @@ class GetListIDCall: public GetListIDCallBase
                           std::move(context_data), std::move(status_watcher))
     {}
 
-    virtual ~GetListIDCall() = default;
+    virtual ~GetListIDCall() final override
+    {
+        abort_request();
+    }
 
     std::shared_ptr<GetListIDCallBase> clone_modified(ID::List list_id) final override
     {
@@ -189,7 +192,10 @@ class GetParameterizedListIDCall: public GetListIDCallBase
         search_query_(std::move(search_query))
     {}
 
-    virtual ~GetParameterizedListIDCall() = default;
+    virtual ~GetParameterizedListIDCall() final override
+    {
+        abort_request();
+    }
 
     std::shared_ptr<GetListIDCallBase> clone_modified(ID::List list_id) final override
     {

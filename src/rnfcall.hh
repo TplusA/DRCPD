@@ -159,6 +159,13 @@ using StatusWatcher =
  * callers. It is notified when a request has finished, either successfully or
  * with a definite error. The condition variable can be used to implement
  * blocking calls (see #DBusRNF::Call::fetch_blocking()).
+ *
+ * Derived classes must call DBusRNF::CallBase::abort_request() in their
+ * destructor. This function cannot be called from the base destructor because
+ * it calls virtual functions, so the call would run into UB, and likely, the
+ * program would crash. It is safest to push down the function call into the
+ * destructor of the most derived class. Making these destructors \c final is a
+ * good idea to keep them from being overridden by future extensions.
  */
 class CallBase
 {
@@ -207,7 +214,22 @@ class CallBase
 
     virtual ~CallBase()
     {
-        abort_request();
+        switch(state_)
+        {
+          case CallState::WAIT_FOR_NOTIFICATION:
+          case CallState::READY_TO_FETCH:
+            BUG("Destroying RNF call with active cookie %u", cookie_);
+            break;
+
+          case CallState::INITIALIZED:
+          case CallState::RESULT_FETCHED:
+          case CallState::ABORTING:
+          case CallState::ABORTED_BY_LIST_BROKER:
+          case CallState::FAILED:
+          case CallState::ABOUT_TO_DESTROY:
+            break;
+        }
+
         set_state(CallState::ABOUT_TO_DESTROY);
     }
 

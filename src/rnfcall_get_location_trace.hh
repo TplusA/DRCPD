@@ -55,7 +55,10 @@ class GetLocationTraceCall:
         ref_item_index_(ref_item_index)
     {}
 
-    virtual ~GetLocationTraceCall() = default;
+    virtual ~GetLocationTraceCall() final override
+    {
+        abort_request();
+    }
 
   protected:
     const void *get_proxy_ptr() const final override { return proxy_; }

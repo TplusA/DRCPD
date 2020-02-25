@@ -71,7 +71,10 @@ class GetRankedStreamLinksCall:
         item_index_(item_index)
     {}
 
-    virtual ~GetRankedStreamLinksCall() = default;
+    virtual ~GetRankedStreamLinksCall() final override
+    {
+        abort_request();
+    }
 
   protected:
     const void *get_proxy_ptr() const final override { return proxy_; }

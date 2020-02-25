@@ -82,7 +82,10 @@ class GetURIsCall:
         item_index_(item_index)
     {}
 
-    virtual ~GetURIsCall() = default;
+    virtual ~GetURIsCall() final override
+    {
+        abort_request();
+    }
 
     std::string get_description() const override
     {

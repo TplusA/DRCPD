@@ -149,7 +149,10 @@ class GetRangeCall: public GetRangeCallBase
                          std::move(status_watcher))
     {}
 
-    virtual ~GetRangeCall() = default;
+    virtual ~GetRangeCall() final override
+    {
+        abort_request();
+    }
 
     std::shared_ptr<GetRangeCallBase> clone_modified(ID::List list_id) final override
     {
@@ -265,7 +268,10 @@ class GetRangeWithMetaDataCall: public GetRangeCallBase
                          std::move(status_watcher))
     {}
 
-    virtual ~GetRangeWithMetaDataCall() = default;
+    virtual ~GetRangeWithMetaDataCall() final override
+    {
+        abort_request();
+    }
 
     std::shared_ptr<GetRangeCallBase> clone_modified(ID::List list_id) final override
     {

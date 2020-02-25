@@ -83,7 +83,10 @@ class RealizeLocationCall:
         url_(std::move(url))
     {}
 
-    virtual ~RealizeLocationCall() = default;
+    virtual ~RealizeLocationCall() final override
+    {
+        abort_request();
+    }
 
     const std::string &get_url() const { return url_; }
 
