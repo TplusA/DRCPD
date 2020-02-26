@@ -547,6 +547,7 @@ class OperationBase
             state_ = is_successful ? State::DONE : State::FAILED;
             completion_time_ = std::chrono::steady_clock::now();
             op_done_notification_callback_(OpDone::FINISHED);
+            op_done_notification_callback_ = nullptr;
             return;
 
           case State::CANCELING:
@@ -557,6 +558,7 @@ class OperationBase
           case State::CANCELED:
             completion_time_ = std::chrono::steady_clock::now();
             op_done_notification_callback_(OpDone::FINISHED);
+            op_done_notification_callback_ = nullptr;
             return;
 
           case State::NOT_STARTED:
