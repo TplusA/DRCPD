@@ -438,6 +438,49 @@ class QueuedStreams
     }
 };
 
+/*!
+ * Keep track of streams sent by app.
+ */
+class QueuedAppStreams
+{
+  private:
+    AppStreamID current_app_stream_id_;
+    std::array<AppStreamID, 2> app_streams_;
+
+  public:
+    QueuedAppStreams(const QueuedAppStreams &) = delete;
+    QueuedAppStreams &operator=(const QueuedAppStreams &) = delete;
+
+    explicit QueuedAppStreams():
+        current_app_stream_id_(AppStreamID::make_invalid()),
+        app_streams_{AppStreamID::make_invalid(), AppStreamID::make_invalid()}
+    {}
+
+    bool remove_stream(AppStreamID stream_id);
+
+    /*!
+     * A new stream known by the given ID has been announced.
+     *
+     * It may or it may not be playing already (unavoidable race condition
+     * between reports from dcpd and streamplayer), but we may assume that if
+     * the stream ID is not already known, then we may append it to our little
+     * queue.
+     *
+     * \returns
+     *     Previous first stream ID, if any. This stream does not exist
+     *     anymore.
+     */
+    AppStreamID announced_new(AppStreamID stream_id);
+
+    AppStreamID get_current_stream_id() const { return current_app_stream_id_; }
+
+    void clear()
+    {
+        current_app_stream_id_ = AppStreamID::make_invalid();
+        app_streams_.fill(AppStreamID::make_invalid());
+    }
+};
+
 class ReportedPlaybackState
 {
   private:
@@ -515,8 +558,10 @@ class Data
     UserIntention intention_;
     PlayerState player_state_;
 
-    AppStreamID current_app_stream_id_;
-    std::array<AppStreamID, 2> queued_app_streams_;
+    /*!
+     * Streams we have received from app.
+     */
+    QueuedAppStreams queued_app_streams_;
 
     std::chrono::milliseconds stream_position_;
     std::chrono::milliseconds stream_duration_;
@@ -539,8 +584,6 @@ class Data
         ),
         intention_(UserIntention::NOTHING),
         player_state_(PlayerState::STOPPED),
-        current_app_stream_id_(AppStreamID::make_invalid()),
-        queued_app_streams_{AppStreamID::make_invalid(), AppStreamID::make_invalid()},
         stream_position_(-1),
         stream_duration_(-1),
         playback_speed_(1.0),
@@ -588,7 +631,7 @@ class Data
         log_assert(id.is_valid());
         return
             queued_streams_.get_current_stream_id().get() == id ||
-            current_app_stream_id_.get() == id;
+            queued_app_streams_.get_current_stream_id().get() == id;
     }
 
     ID::Stream get_current_stream_id() const
@@ -596,7 +639,7 @@ class Data
         if(queued_streams_.get_current_stream_id().get().is_valid())
             return queued_streams_.get_current_stream_id().get();
         else
-            return current_app_stream_id_.get();
+            return queued_app_streams_.get_current_stream_id().get();
     }
 
   private:
@@ -726,8 +769,21 @@ class Data
                         const std::string *&uri,
                         QueuedStream::ResolvedRedirectCallback &&callback);
 
-    void announce_app_stream(const AppStreamID &stream_id);
+    /*!
+     * App has just sent information about a stream to be played soon.
+     *
+     * This function only adds the stream ID to the queue of app streams and
+     * associates meta data with that stream ID. The URL is set by different
+     * means, which is, however, not relevant here because we are just an
+     * observer, not a controller in this context.
+     */
+    void announce_app_stream(const AppStreamID &stream_id, MetaData::Set &&meta_data);
+
+    /*!
+     * Associate full set of meta data with stream ID.
+     */
     void put_meta_data(const ID::Stream &stream_id, MetaData::Set &&meta_data);
+
     bool merge_meta_data(const ID::Stream &stream_id, MetaData::Set &&meta_data,
                          MetaData::Set **md_ptr = nullptr);
     bool merge_meta_data(const ID::Stream &stream_id, MetaData::Set &&meta_data,

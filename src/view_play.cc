@@ -541,9 +541,7 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
             auto &plist = params->get_specific_non_const();
             const auto stream_id(Player::AppStreamID::make_from_generic_id(std::get<0>(plist)));
 
-            player_data_.announce_app_stream(stream_id);
-            player_data_.put_meta_data(std::get<0>(plist),
-                                       std::move(std::get<1>(plist)));
+            player_data_.announce_app_stream(stream_id, std::move(std::get<1>(plist)));
 
             if(stream_id.get() == player_data_.get_current_stream_id())
                 send_current_stream_info_to_dcpd(player_data_);

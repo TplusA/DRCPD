@@ -555,6 +555,70 @@ void Player::QueuedStreams::log(const char *prefix, MessageVerboseLevel level) c
     BUG_IF(!consistent, "%s: inconsistent QueuedStreams state", prefix);
 }
 
+bool Player::QueuedAppStreams::remove_stream(AppStreamID stream_id)
+{
+    if(!stream_id.get().is_valid())
+        return false;
+
+    if(current_app_stream_id_ == stream_id)
+    {
+        current_app_stream_id_ = AppStreamID::make_invalid();
+        return true;
+    }
+
+    else if(app_streams_[0] == stream_id)
+    {
+        app_streams_[0] = app_streams_[1];
+        app_streams_[1] = AppStreamID::make_invalid();
+        return true;
+    }
+
+    if(app_streams_[1] == stream_id)
+    {
+        app_streams_[1] = AppStreamID::make_invalid();
+        return true;
+    }
+
+    return false;
+}
+
+Player::AppStreamID Player::QueuedAppStreams::announced_new(AppStreamID stream_id)
+{
+    if(stream_id == current_app_stream_id_)
+    {
+        /* already playing it, stream player notification came in faster than
+         * information from dcpd */
+        return AppStreamID::make_invalid();
+    }
+
+    if(std::find(app_streams_.begin(), app_streams_.end(), stream_id) != app_streams_.end())
+    {
+        BUG("Announced app stream ID %u, but already knowing it",
+            stream_id.get().get_raw_id());
+        return AppStreamID::make_invalid();
+    }
+
+    if(!app_streams_[0].get().is_valid())
+    {
+        app_streams_[0] = stream_id;
+        log_assert(!app_streams_[1].get().is_valid());
+        return AppStreamID::make_invalid();
+    }
+
+    if(!app_streams_[1].get().is_valid())
+    {
+        app_streams_[1] = stream_id;
+        return AppStreamID::make_invalid();
+    }
+
+    const auto dropped = app_streams_[0];
+
+    app_streams_[0] = app_streams_[1];
+    app_streams_[1] = stream_id;
+
+    return dropped;
+}
+
 static void ref_list_id(std::map<ID::List, size_t> &list_refcounts,
                         ID::List list_id)
 {
@@ -721,7 +785,7 @@ void Player::Data::player_finished_and_idle()
     meta_data_db_.clear();
     queued_streams_.clear();
     referenced_lists_.clear();
-    queued_app_streams_.fill(AppStreamID::make_invalid());
+    queued_app_streams_.clear();
     stream_position_ = std::chrono::milliseconds(-1);
     stream_duration_ = std::chrono::milliseconds(-1);
     playback_speed_ = 1.0;
@@ -791,29 +855,6 @@ static bool too_many_meta_data_entries(const MetaData::Collection &meta_data)
         return false;
 }
 
-static bool remove_stream_from_queued_app_streams(
-        std::array<Player::AppStreamID, 2> &queued,
-        const Player::AppStreamID &app_stream_id)
-{
-    if(!app_stream_id.get().is_valid())
-        return false;
-
-    if(queued[0] == app_stream_id)
-    {
-        queued[0] = queued[1];
-        queued[1] = Player::AppStreamID::make_invalid();
-        return true;
-    }
-
-    if(queued[1] == app_stream_id)
-    {
-        queued[1] = Player::AppStreamID::make_invalid();
-        return true;
-    }
-
-    return false;
-}
-
 bool Player::Data::set_player_state(PlayerState state)
 {
     if(state == player_state_)
@@ -857,44 +898,22 @@ bool Player::Data::set_player_state(ID::Stream new_current_stream, PlayerState s
             our_id, [] (auto &qs) { qs.set_state(QueuedStream::State::CURRENT, "by player notification"); });
     }
     else
-        remove_stream_from_queued_app_streams(queued_app_streams_,
-                                              AppStreamID::make_from_generic_id(new_current_stream));
+        queued_app_streams_.remove_stream(AppStreamID::make_from_generic_id(new_current_stream));
 
     return set_player_state(state);
 }
 
-void Player::Data::announce_app_stream(const AppStreamID &stream_id)
+void Player::Data::announce_app_stream(const AppStreamID &stream_id,
+                                       MetaData::Set &&meta_data)
 {
     if(!stream_id.get().is_valid())
         return;
 
-    /* already playing it, stream player notification came in faster than
-     * information from dcpd */
-    if(current_app_stream_id_ == stream_id)
-        return;
+    put_meta_data(stream_id.get(), std::move(meta_data));
 
-    /* already knowing it, probably a bug */
-    if(queued_app_streams_[0] == stream_id ||
-       queued_app_streams_[1] == stream_id)
-    {
-        BUG("Announced app stream ID %u, but already knowing it",
-            stream_id.get().get_raw_id());
-        return;
-    }
-
-    if(!queued_app_streams_[0].get().is_valid())
-    {
-        queued_app_streams_[0] = stream_id;
-        log_assert(!queued_app_streams_[1].get().is_valid());
-    }
-    else if(!queued_app_streams_[1].get().is_valid())
-        queued_app_streams_[1] = stream_id;
-    else
-    {
-        meta_data_db_.forget_stream(queued_app_streams_[0].get());
-        queued_app_streams_[0] = queued_app_streams_[1];
-        queued_app_streams_[1] = stream_id;
-    }
+    const auto dropped(queued_app_streams_.announced_new(stream_id).get());
+    if(dropped.is_valid())
+        meta_data_db_.forget_stream(dropped);
 }
 
 void Player::Data::put_meta_data(const ID::Stream &stream_id,
