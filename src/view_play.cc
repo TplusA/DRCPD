@@ -127,7 +127,7 @@ static void send_current_stream_info_to_dcpd(const Player::Data &player_data)
     const auto &md(player_data.get_current_meta_data());
     const auto stream_id(player_data.get_current_stream_id());
 
-    if(Player::AppStream::compatible_with(stream_id))
+    if(Player::AppStreamID::compatible_with(stream_id))
     {
         /* streams started by the app are managed by dcpd itself, it won't need
          * our data (in fact, it would emit a bug message if we would)  */
@@ -539,7 +539,7 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
                 break;
 
             auto &plist = params->get_specific_non_const();
-            const auto stream_id(Player::AppStream::make_from_generic_id(std::get<0>(plist)));
+            const auto stream_id(Player::AppStreamID::make_from_generic_id(std::get<0>(plist)));
 
             player_data_.announce_app_stream(stream_id);
             player_data_.put_meta_data(std::get<0>(plist),

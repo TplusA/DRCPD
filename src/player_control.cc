@@ -930,7 +930,7 @@ is_stream_expected_playing(const Player::QueuedStreams &queued,
 
       case StreamExpected::UNEXPECTEDLY_OURS:
       case StreamExpected::OURS_WRONG_ID:
-        if(queued.is_next(stream_id))
+        if(queued.is_next(ID::OurStream::make_from_generic_id(stream_id)))
         {
             result = StreamExpected::OURS_QUEUED;
             break;

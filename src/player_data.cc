@@ -657,7 +657,11 @@ bool Player::Data::player_skipped_as_requested(ID::Stream skipped_stream_id,
                                                ID::Stream next_stream_id)
 {
     queued_streams_.log("Before skip notification");
-    log_assert(!queued_streams_.empty());
+
+    if(skipped_stream_id.is_valid())
+        log_assert(!queued_streams_.empty());
+    else
+        log_assert(queued_streams_.empty());
 
     try
     {
@@ -717,7 +721,7 @@ void Player::Data::player_finished_and_idle()
     meta_data_db_.clear();
     queued_streams_.clear();
     referenced_lists_.clear();
-    queued_app_streams_.fill(AppStream::make_invalid());
+    queued_app_streams_.fill(AppStreamID::make_invalid());
     stream_position_ = std::chrono::milliseconds(-1);
     stream_duration_ = std::chrono::milliseconds(-1);
     playback_speed_ = 1.0;
@@ -787,8 +791,9 @@ static bool too_many_meta_data_entries(const MetaData::Collection &meta_data)
         return false;
 }
 
-static bool remove_stream_from_queued_app_streams(std::array<Player::AppStream, 2> &queued,
-                                                  const Player::AppStream &app_stream_id)
+static bool remove_stream_from_queued_app_streams(
+        std::array<Player::AppStreamID, 2> &queued,
+        const Player::AppStreamID &app_stream_id)
 {
     if(!app_stream_id.get().is_valid())
         return false;
@@ -796,13 +801,13 @@ static bool remove_stream_from_queued_app_streams(std::array<Player::AppStream, 
     if(queued[0] == app_stream_id)
     {
         queued[0] = queued[1];
-        queued[1] = Player::AppStream::make_invalid();
+        queued[1] = Player::AppStreamID::make_invalid();
         return true;
     }
 
     if(queued[1] == app_stream_id)
     {
-        queued[1] = Player::AppStream::make_invalid();
+        queued[1] = Player::AppStreamID::make_invalid();
         return true;
     }
 
@@ -853,12 +858,12 @@ bool Player::Data::set_player_state(ID::Stream new_current_stream, PlayerState s
     }
     else
         remove_stream_from_queued_app_streams(queued_app_streams_,
-                                              AppStream::make_from_generic_id(new_current_stream));
+                                              AppStreamID::make_from_generic_id(new_current_stream));
 
     return set_player_state(state);
 }
 
-void Player::Data::announce_app_stream(const AppStream &stream_id)
+void Player::Data::announce_app_stream(const AppStreamID &stream_id)
 {
     if(!stream_id.get().is_valid())
         return;

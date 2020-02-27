@@ -86,7 +86,7 @@ enum class VisibleStreamState
     LAST = FAST_REWIND,
 };
 
-using AppStream = ID::SourcedStream<STREAM_ID_SOURCE_APP>;
+using AppStreamID = ID::SourcedStream<STREAM_ID_SOURCE_APP>;
 
 using AsyncResolveRedirect =
     DBus::AsyncCall<tdbusAirable, std::tuple<guchar, gchar *>,
@@ -285,6 +285,23 @@ class QueuedStream
                                    ResolvedRedirectCallback &&callback);
 };
 
+/*!
+ * Keep track of queued streams.
+ *
+ * This class performs bookkeeping of streams that we push to the stream
+ * player. It also assigns stream IDs to streams and keeps track of the
+ * currently playing stream's ID. When an ID is removed from the queue, a
+ * callback is called to notify about this event.
+ *
+ * The purpose of duplicating the queue content of the stream player is to be
+ * able to re-submit the whole queue as part of failure recovery. In case the
+ * player stops dead (or crashes and gets restarted), it forgets all queued
+ * streams. We can fill it again from information maintained by this class.
+ *
+ * This class is strictly about the streams pushed into the player queue by our
+ * own crawler. It does \e not know anything about app streams or any other
+ * kind of foreign streams.
+ */
 class QueuedStreams
 {
   private:
@@ -396,11 +413,6 @@ class QueuedStreams
     size_t clear();
     size_t clear_if(const std::function<bool(const QueuedStream &)> &pred);
 
-    bool is_next(ID::Stream stream_id) const
-    {
-        return is_next(ID::OurStream::make_from_generic_id(stream_id));
-    }
-
     bool is_next(ID::OurStream stream_id) const
     {
         if(!stream_id.get().is_valid())
@@ -503,8 +515,8 @@ class Data
     UserIntention intention_;
     PlayerState player_state_;
 
-    AppStream current_app_stream_id_;
-    std::array<AppStream, 2> queued_app_streams_;
+    AppStreamID current_app_stream_id_;
+    std::array<AppStreamID, 2> queued_app_streams_;
 
     std::chrono::milliseconds stream_position_;
     std::chrono::milliseconds stream_duration_;
@@ -527,8 +539,8 @@ class Data
         ),
         intention_(UserIntention::NOTHING),
         player_state_(PlayerState::STOPPED),
-        current_app_stream_id_(AppStream::make_invalid()),
-        queued_app_streams_{AppStream::make_invalid(), AppStream::make_invalid()},
+        current_app_stream_id_(AppStreamID::make_invalid()),
+        queued_app_streams_{AppStreamID::make_invalid(), AppStreamID::make_invalid()},
         stream_position_(-1),
         stream_duration_(-1),
         playback_speed_(1.0),
@@ -714,7 +726,7 @@ class Data
                         const std::string *&uri,
                         QueuedStream::ResolvedRedirectCallback &&callback);
 
-    void announce_app_stream(const AppStream &stream_id);
+    void announce_app_stream(const AppStreamID &stream_id);
     void put_meta_data(const ID::Stream &stream_id, MetaData::Set &&meta_data);
     bool merge_meta_data(const ID::Stream &stream_id, MetaData::Set &&meta_data,
                          MetaData::Set **md_ptr = nullptr);
