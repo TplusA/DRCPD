@@ -910,7 +910,7 @@ is_stream_expected_playing(const Player::QueuedStreams &queued,
     }
 
     StreamExpected result =
-        is_stream_expected(queued.get_current_stream_id(), stream_id);
+        is_stream_expected(queued.get_head_stream_id(), stream_id);
 
     switch(result)
     {
@@ -925,7 +925,7 @@ is_stream_expected_playing(const Player::QueuedStreams &queued,
       case StreamExpected::UNEXPECTEDLY_NOT_OURS:
         msg_info("%s foreign stream %u, expected our stream %u",
                  mode_name, stream_id.get_raw_id(),
-                 queued.get_current_stream_id().get().get_raw_id());
+                 queued.get_head_stream_id().get().get_raw_id());
         break;
 
       case StreamExpected::UNEXPECTEDLY_OURS:
@@ -944,7 +944,7 @@ is_stream_expected_playing(const Player::QueuedStreams &queued,
             else
                 BUG("Out of sync: %s stream ID should be %u, but streamplayer says it's %u",
                     mode_name,
-                    queued.get_current_stream_id().get().get_raw_id(),
+                    queued.get_head_stream_id().get().get_raw_id(),
                     stream_id.get_raw_id());
         }
 
@@ -952,7 +952,7 @@ is_stream_expected_playing(const Player::QueuedStreams &queued,
 
       case StreamExpected::INVALID_ID:
         BUG("Out of sync: %s invalid stream, expected stream %u",
-            mode_name, queued.get_current_stream_id().get().get_raw_id());
+            mode_name, queued.get_head_stream_id().get().get_raw_id());
         break;
 
       case StreamExpected::OURS_QUEUED:

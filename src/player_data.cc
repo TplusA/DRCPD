@@ -246,40 +246,6 @@ Player::QueuedStreams::append(const GVariantWrapper &stream_key,
     return stream_id;
 }
 
-std::unique_ptr<Player::QueuedStream>
-Player::QueuedStreams::remove(ID::OurStream stream_id)
-{
-    auto found(streams_.find(stream_id));
-
-    if(found == streams_.end())
-    {
-        if(stream_id.get().is_valid())
-            ErrorThrower<QueueError>()
-                << "Cannot remove " << stream_id.get() << " from queue: not found";
-        else
-            throw QueueError("Cannot remove invalid stream from queue");
-    }
-
-    on_remove_cb_(*found->second);
-
-    auto result = std::move(found->second);
-    log_assert(result != nullptr);
-
-    streams_.erase(found);
-    result->set_state(Player::QueuedStream::State::ABOUT_TO_DIE, "removed");
-
-    if(current_stream_id_ == stream_id)
-        current_stream_id_ = ID::OurStream::make_invalid();
-    else if(queue_.front() == stream_id)
-        queue_.pop_front();
-    else if(queue_.back() == stream_id)
-        queue_.pop_back();
-    else
-        queue_.erase(std::remove(queue_.begin() + 1, queue_.end() - 1, stream_id));
-
-    return result;
-}
-
 static std::unique_ptr<Player::QueuedStream>
 erase_stream_from_container(
     std::map<ID::OurStream, std::unique_ptr<Player::QueuedStream>> &streams,
@@ -334,11 +300,11 @@ Player::QueuedStreams::shift(ID::OurStream expected_current_id,
     const ID::OurStream next_id(
         queue_.empty() ? ID::OurStream::make_invalid() : queue_.front());
 
-    if(current_stream_id_ != expected_current_id || next_id != expected_next_id)
+    if(stream_in_flight_ != expected_current_id || next_id != expected_next_id)
         ErrorThrower<QueueError>()
             << "Cannot shift queue: expected [" << expected_current_id.get()
             << ", " << expected_next_id.get() << "], have ["
-            << current_stream_id_.get() << ", " << next_id.get() << "]";
+            << stream_in_flight_.get() << ", " << next_id.get() << "]";
 
     return shift();
 }
@@ -346,16 +312,16 @@ Player::QueuedStreams::shift(ID::OurStream expected_current_id,
 std::unique_ptr<Player::QueuedStream>
 Player::QueuedStreams::shift()
 {
-    auto result(current_stream_id_.get().is_valid()
-                ? erase_stream_from_container(streams_, current_stream_id_,
+    auto result(stream_in_flight_.get().is_valid()
+                ? erase_stream_from_container(streams_, stream_in_flight_,
                                               "shift queue", on_remove_cb_)
                 : nullptr);
 
     if(queue_.empty())
-        current_stream_id_ = ID::OurStream::make_invalid();
+        stream_in_flight_ = ID::OurStream::make_invalid();
     else
     {
-        current_stream_id_ = queue_.front();
+        stream_in_flight_ = queue_.front();
         queue_.pop_front();
     }
 
@@ -366,8 +332,8 @@ std::vector<ID::OurStream> Player::QueuedStreams::copy_all_stream_ids() const
 {
     std::vector<ID::OurStream> result;
 
-    if(current_stream_id_.get().is_valid())
-        result.push_back(current_stream_id_);
+    if(stream_in_flight_.get().is_valid())
+        result.push_back(stream_in_flight_);
 
     std::copy(queue_.begin(), queue_.end(), std::back_inserter(result));
     return result;
@@ -392,7 +358,7 @@ size_t Player::QueuedStreams::clear()
 
     streams_.clear();
     queue_.clear();
-    current_stream_id_ = ID::OurStream::make_invalid();
+    stream_in_flight_ = ID::OurStream::make_invalid();
 
     return result;
 }
@@ -420,7 +386,7 @@ size_t Player::QueuedStreams::clear_if(const std::function<bool(const QueuedStre
         /* all streams removed, so cleaning up is fast and easy */
         streams_.clear();
         queue_.clear();
-        current_stream_id_ = ID::OurStream::make_invalid();
+        stream_in_flight_ = ID::OurStream::make_invalid();
         return result;
     }
 
@@ -445,8 +411,8 @@ size_t Player::QueuedStreams::clear_if(const std::function<bool(const QueuedStre
 
     queue_ = std::move(queue);
 
-    if(streams_.find(current_stream_id_) == streams_.end())
-        current_stream_id_ = ID::OurStream::make_invalid();
+    if(streams_.find(stream_in_flight_) == streams_.end())
+        stream_in_flight_ = ID::OurStream::make_invalid();
 
     return result;
 }
@@ -504,8 +470,8 @@ void Player::QueuedStreams::log(const char *prefix, MessageVerboseLevel level) c
 
     os << "DUMP QueuedStreams:\n--------";
 
-    os << "\n" << prefix << ": current ID";
-    log_queued_stream_id(os, current_stream_id_, streams_, false);
+    os << "\n" << prefix << ": head ID";
+    log_queued_stream_id(os, stream_in_flight_, streams_, false);
     os << ", next free ID " << next_free_stream_id_.get();
 
     os << "\n" << prefix << ": queued IDs (" << queue_.size() << " IDs):";
@@ -526,7 +492,7 @@ void Player::QueuedStreams::log(const char *prefix, MessageVerboseLevel level) c
     msg_vinfo(level, "%s", os.str().c_str());
 
     bool consistent =
-        streams_.size() == queue_.size() + (current_stream_id_.get().is_valid() ? 1 : 0);
+        streams_.size() == queue_.size() + (stream_in_flight_.get().is_valid() ? 1 : 0);
 
     if(consistent)
     {
@@ -539,7 +505,7 @@ void Player::QueuedStreams::log(const char *prefix, MessageVerboseLevel level) c
     {
         for(const auto &id : queue_)
         {
-            if(!id.get().is_valid() || id == current_stream_id_ ||
+            if(!id.get().is_valid() || id == stream_in_flight_ ||
                streams_.find(id) == streams_.end())
             {
                 consistent = false;
@@ -549,48 +515,14 @@ void Player::QueuedStreams::log(const char *prefix, MessageVerboseLevel level) c
     }
 
     if(consistent)
-        consistent = !current_stream_id_.get().is_valid() ||
-                     streams_.find(current_stream_id_) != streams_.end();
+        consistent = !stream_in_flight_.get().is_valid() ||
+                     streams_.find(stream_in_flight_) != streams_.end();
 
     BUG_IF(!consistent, "%s: inconsistent QueuedStreams state", prefix);
 }
 
-bool Player::QueuedAppStreams::remove_stream(AppStreamID stream_id)
-{
-    if(!stream_id.get().is_valid())
-        return false;
-
-    if(current_app_stream_id_ == stream_id)
-    {
-        current_app_stream_id_ = AppStreamID::make_invalid();
-        return true;
-    }
-
-    else if(app_streams_[0] == stream_id)
-    {
-        app_streams_[0] = app_streams_[1];
-        app_streams_[1] = AppStreamID::make_invalid();
-        return true;
-    }
-
-    if(app_streams_[1] == stream_id)
-    {
-        app_streams_[1] = AppStreamID::make_invalid();
-        return true;
-    }
-
-    return false;
-}
-
 Player::AppStreamID Player::QueuedAppStreams::announced_new(AppStreamID stream_id)
 {
-    if(stream_id == current_app_stream_id_)
-    {
-        /* already playing it, stream player notification came in faster than
-         * information from dcpd */
-        return AppStreamID::make_invalid();
-    }
-
     if(std::find(app_streams_.begin(), app_streams_.end(), stream_id) != app_streams_.end())
     {
         BUG("Announced app stream ID %u, but already knowing it",
@@ -617,6 +549,27 @@ Player::AppStreamID Player::QueuedAppStreams::announced_new(AppStreamID stream_i
     app_streams_[1] = stream_id;
 
     return dropped;
+}
+
+void Player::NowPlayingInfo::now_playing(ID::Stream stream_id)
+{
+    log_assert(stream_id.is_valid());
+    log_assert(stream_id != stream_id_);
+
+    if(stream_id_.is_valid())
+        on_remove_cb_(stream_id_);
+
+    stream_id_ = stream_id;
+}
+
+void Player::NowPlayingInfo::nothing()
+{
+    if(stream_id_.is_valid())
+        on_remove_cb_(stream_id_);
+
+    stream_id_ = ID::Stream::make_invalid();
+    stream_position_ = std::chrono::milliseconds(-1);
+    stream_duration_ = std::chrono::milliseconds(-1);
 }
 
 static void ref_list_id(std::map<ID::List, size_t> &list_refcounts,
@@ -704,11 +657,8 @@ void Player::Data::remove_all_queued_streams(bool also_remove_playing_stream)
         queued_streams_.clear();
     else
         queued_streams_.clear_if(
-            [current_id = queued_streams_.get_current_stream_id()]
-            (const auto &qs)
-            {
-                return qs.stream_id_ != current_id;
-            });
+            [head_id = queued_streams_.get_head_stream_id()]
+            (const auto &qs) { return qs.stream_id_ != head_id; });
 }
 
 void Player::Data::player_failed()
@@ -722,7 +672,7 @@ bool Player::Data::player_skipped_as_requested(ID::Stream skipped_stream_id,
 {
     queued_streams_.log("Before skip notification");
 
-    if(skipped_stream_id.is_valid())
+    if(next_stream_id.is_valid())
         log_assert(!queued_streams_.empty());
     else
         log_assert(queued_streams_.empty());
@@ -786,8 +736,7 @@ void Player::Data::player_finished_and_idle()
     queued_streams_.clear();
     referenced_lists_.clear();
     queued_app_streams_.clear();
-    stream_position_ = std::chrono::milliseconds(-1);
-    stream_duration_ = std::chrono::milliseconds(-1);
+    now_playing_.nothing();
     playback_speed_ = 1.0;
 }
 
@@ -865,8 +814,6 @@ bool Player::Data::set_player_state(PlayerState state)
     switch(player_state_)
     {
       case PlayerState::STOPPED:
-        stream_position_ = std::chrono::milliseconds(-1);
-        stream_duration_ = std::chrono::milliseconds(-1);
         playback_speed_ = 1.0;
         break;
 
@@ -885,10 +832,10 @@ bool Player::Data::set_player_state(ID::Stream new_current_stream, PlayerState s
 
     if(our_id.get().is_valid())
     {
-        if(queued_streams_.get_current_stream_id() != our_id)
+        if(queued_streams_.get_head_stream_id() != our_id)
         {
-            BUG("Current stream should be %u, but is %u",
-                queued_streams_.get_current_stream_id().get().get_raw_id(),
+            BUG("Head stream ID should be %u, but is %u",
+                queued_streams_.get_head_stream_id().get().get_raw_id(),
                 our_id.get().get_raw_id());
             player_failed();
             return false;
@@ -897,8 +844,6 @@ bool Player::Data::set_player_state(ID::Stream new_current_stream, PlayerState s
         queued_streams_.with_stream<void>(
             our_id, [] (auto &qs) { qs.set_state(QueuedStream::State::CURRENT, "by player notification"); });
     }
-    else
-        queued_app_streams_.remove_stream(AppStreamID::make_from_generic_id(new_current_stream));
 
     return set_player_state(state);
 }
@@ -910,6 +855,13 @@ void Player::Data::announce_app_stream(const AppStreamID &stream_id,
         return;
 
     put_meta_data(stream_id.get(), std::move(meta_data));
+
+    if(now_playing_.is_stream(stream_id.get()))
+    {
+        /* already playing it, stream player notification came in faster than
+         * information from dcpd */
+        return;
+    }
 
     const auto dropped(queued_app_streams_.announced_new(stream_id).get());
     if(dropped.is_valid())
@@ -975,16 +927,8 @@ bool Player::Data::update_track_times(const ID::Stream &stream_id,
                                       const std::chrono::milliseconds &position,
                                       const std::chrono::milliseconds &duration)
 {
-    if(!is_current_stream(stream_id))
-        return false;
-
-    if(stream_position_ == position && stream_duration_ == duration)
-        return false;
-
-    stream_position_ = position;
-    stream_duration_ = duration;
-
-    return true;
+    return now_playing_.is_stream(stream_id) &&
+           now_playing_.update_times(position, duration);
 }
 
 static inline bool is_regular_speed(double s)
@@ -1027,7 +971,7 @@ Player::VisibleStreamState Player::Data::get_current_visible_stream_state() cons
 bool Player::Data::update_playback_speed(const ID::Stream &stream_id,
                                          double speed)
 {
-    if(!is_current_stream(stream_id))
+    if(!now_playing_.is_stream(stream_id))
         return false;
 
     const bool retval =

@@ -125,7 +125,7 @@ void ViewPlay::View::append_referenced_lists(const Player::AudioSource &audio_so
 static void send_current_stream_info_to_dcpd(const Player::Data &player_data)
 {
     const auto &md(player_data.get_current_meta_data());
-    const auto stream_id(player_data.get_current_stream_id());
+    const auto stream_id(player_data.get_now_playing().get_stream_id());
 
     if(Player::AppStreamID::compatible_with(stream_id))
     {
@@ -241,7 +241,7 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
       case UI::ViewEventID::PLAYBACK_PREVIOUS:
         {
             static constexpr const auto rewind_threshold(std::chrono::milliseconds(5000));
-            const auto times(player_data_.get_times());
+            const auto times(player_data_.get_now_playing().get_times());
 
             if(times.first <= rewind_threshold)
                 player_control_.skip_backward_request();
@@ -327,7 +327,7 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
 
             const bool queue_is_full(std::get<2>(plist));
             const auto &dropped_ids(std::get<3>(plist));
-            const bool switched_stream(!player_data_.is_current_stream(stream_id));
+            const bool switched_stream(!player_data_.get_now_playing().is_stream(stream_id));
             auto &meta_data(std::get<4>(plist));
             std::string &url_string(std::get<5>(plist));
 
@@ -518,13 +518,13 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
             }
 
             if(player_data_.merge_meta_data(stream_id, std::move(std::get<1>(plist))) &&
-               stream_id == player_data_.get_current_stream_id())
+               player_data_.get_now_playing().is_stream(stream_id))
             {
                 add_update_flags(UPDATE_FLAGS_META_DATA);
                 view_manager_->update_view_if_active(this, DCP::Queue::Mode::FORCE_ASYNC);
             }
 
-            if(stream_id == player_data_.get_current_stream_id())
+            if(player_data_.get_now_playing().is_stream(stream_id))
                 send_current_stream_info_to_dcpd(player_data_);
         }
 
@@ -543,7 +543,7 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
 
             player_data_.announce_app_stream(stream_id, std::move(std::get<1>(plist)));
 
-            if(stream_id.get() == player_data_.get_current_stream_id())
+            if(player_data_.get_now_playing().is_stream(stream_id.get()))
                 send_current_stream_info_to_dcpd(player_data_);
         }
 
@@ -857,7 +857,7 @@ bool ViewPlay::View::write_xml(std::ostream &os, uint32_t bits,
 
     if((update_flags & UPDATE_FLAGS_STREAM_POSITION) != 0)
     {
-        auto times = player_data_.get_times();
+        auto times = player_data_.get_now_playing().get_times();
 
         os << "<value id=\"timet\">";
         if(times.second >= std::chrono::milliseconds(0))
