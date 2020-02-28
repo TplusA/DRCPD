@@ -1,3 +1,17 @@
+2020-02-28  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 5.1 released.
+
+	* Playback: System can be used from app again.
+
+	* Playback: System can be used from Roon again.
+
+	* User interface: Meta data from app is displayed.
+
+	* User interface: Avoid endless display of busy symbol.
+
+	* Stability: Fixed several crashes and one memory leak.
+
 2020-02-19  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 5.0 released.
