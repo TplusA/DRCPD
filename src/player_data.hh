@@ -86,11 +86,86 @@ enum class VisibleStreamState
     LAST = FAST_REWIND,
 };
 
-using AppStream = ID::SourcedStream<STREAM_ID_SOURCE_APP>;
+using AppStreamID = ID::SourcedStream<STREAM_ID_SOURCE_APP>;
 
 using AsyncResolveRedirect =
     DBus::AsyncCall<tdbusAirable, std::tuple<guchar, gchar *>,
                     Busy::Source::RESOLVING_AIRABLE_REDIRECT>;
+
+/*!
+ * Information about the currently playing stream, if any.
+ *
+ * These are pure information about the currently playing stream, not about
+ * controller states, planned actions, actions in transition. We store observed
+ * information as reported by the player in an object of this type.
+ */
+class NowPlayingInfo
+{
+  private:
+    /*!
+     * The ID of the currently playing stream.
+     *
+     * This variable is set based on player reports, i.e., it reflects the
+     * player's reality. It is set for any kind of stream.
+     */
+    ID::Stream stream_id_;
+
+    std::chrono::milliseconds stream_position_;
+    std::chrono::milliseconds stream_duration_;
+
+    const std::function<void(ID::Stream)> on_remove_cb_;
+
+  public:
+    NowPlayingInfo(const NowPlayingInfo &) = delete;
+    NowPlayingInfo(NowPlayingInfo &&) = default;
+    NowPlayingInfo &operator=(const NowPlayingInfo &) = delete;
+    NowPlayingInfo &operator=(NowPlayingInfo &&) = default;
+
+    explicit NowPlayingInfo(std::function<void(ID::Stream)> &&on_remove_cb):
+        stream_id_(ID::Stream::make_invalid()),
+        stream_position_(-1),
+        stream_duration_(-1),
+        on_remove_cb_(std::move(on_remove_cb))
+    {}
+
+    /*!
+     * There is a stream playing now, as per report from some player.
+     */
+    void now_playing(ID::Stream stream_id);
+
+    /*!
+     * There is no stream playing now.
+     */
+    void nothing();
+
+    ID::Stream get_stream_id() const { return stream_id_; }
+
+    bool is_stream(const ID::Stream &id) const
+    {
+        log_assert(id.is_valid());
+        return stream_id_ == id;
+    }
+
+    bool update_times(const std::chrono::milliseconds &position,
+                      const std::chrono::milliseconds &duration)
+    {
+        if(stream_position_ == position && stream_duration_ == duration)
+            return false;
+
+        stream_position_ = position;
+        stream_duration_ = duration;
+        return true;
+    }
+
+    /*!
+     * Return current stream's position and total duration (in this order).
+     */
+    std::pair<std::chrono::milliseconds, std::chrono::milliseconds> get_times() const
+    {
+        return std::pair<std::chrono::milliseconds, std::chrono::milliseconds>(
+                    stream_position_, stream_duration_);
+    }
+};
 
 class QueueError: public std::logic_error
 {
@@ -285,6 +360,23 @@ class QueuedStream
                                    ResolvedRedirectCallback &&callback);
 };
 
+/*!
+ * Keep track of queued streams.
+ *
+ * This class performs bookkeeping of streams that we push to the stream
+ * player. It also assigns stream IDs to streams and keeps track of the
+ * currently playing stream's ID. When an ID is removed from the queue, a
+ * callback is called to notify about this event.
+ *
+ * The purpose of duplicating the queue content of the stream player is to be
+ * able to re-submit the whole queue as part of failure recovery. In case the
+ * player stops dead (or crashes and gets restarted), it forgets all queued
+ * streams. We can fill it again from information maintained by this class.
+ *
+ * This class is strictly about the streams pushed into the player queue by our
+ * own crawler. It does \e not know anything about app streams or any other
+ * kind of foreign streams.
+ */
 class QueuedStreams
 {
   private:
@@ -293,7 +385,7 @@ class QueuedStreams
     std::map<ID::OurStream, std::unique_ptr<QueuedStream>> streams_;
 
     std::deque<ID::OurStream> queue_;
-    ID::OurStream current_stream_id_;
+    ID::OurStream stream_in_flight_;
 
     ID::OurStream next_free_stream_id_;
 
@@ -304,7 +396,7 @@ class QueuedStreams
     QueuedStreams &operator=(const QueuedStreams &) = delete;
 
     explicit QueuedStreams(std::function<void(const QueuedStream &)> &&on_remove_cb):
-        current_stream_id_(ID::OurStream::make_invalid()),
+        stream_in_flight_(ID::OurStream::make_invalid()),
         next_free_stream_id_(ID::OurStream::make()),
         on_remove_cb_(std::move(on_remove_cb))
     {}
@@ -321,18 +413,6 @@ class QueuedStreams
                          std::vector<std::string> &&uris,
                          Airable::SortedLinks &&airable_links, ID::List list_id,
                          std::unique_ptr<Playlist::Crawler::CursorBase> originating_cursor);
-
-    /*!
-     * Remove (any) stream from queue (or currently playing).
-     *
-     * This function either returns a valid pointer to the removed stream, or
-     * it will throw a #Player::QueueError; it will never return \c nullptr.
-     * The function throws if the given stream ID is invalid.
-     *
-     * \throws
-     *     #Player::QueueError Given stream ID invalid or not found.
-     */
-    std::unique_ptr<QueuedStream> remove(ID::OurStream stream_id);
 
     /*
      * Remove front item from queue.
@@ -370,8 +450,25 @@ class QueuedStreams
 
     std::vector<ID::OurStream> copy_all_stream_ids() const;
 
-    ID::OurStream get_current_stream_id() const { return current_stream_id_; };
+    /*!
+     * The stream from the head of our queue (the "stream in flight").
+     *
+     * This is not necessarily the currently playing stream, but might be work
+     * in progress; that is, the stream returned by this function might have
+     * been sent to streamplayer, but streamplayer may not have received it and
+     * thus may not play it yet. Therefore, the stream state needs to be
+     * considered when looking at the stream returned by this function.
+     *
+     * Take a look at #Player::NowPlayingInfo for the currently playing stream
+     * as reported by the player.
+     */
+    ID::OurStream get_head_stream_id() const { return stream_in_flight_; };
+
+    /*!
+     * The stream we are trying to play next from the queue.
+     */
     ID::OurStream get_next_stream_id() const { return queue_.empty() ? ID::OurStream::make_invalid() : queue_.front(); };
+
     const QueuedStream *get_stream_by_id(ID::OurStream stream_id) const;
 
     template <typename T>
@@ -396,11 +493,6 @@ class QueuedStreams
     size_t clear();
     size_t clear_if(const std::function<bool(const QueuedStream &)> &pred);
 
-    bool is_next(ID::Stream stream_id) const
-    {
-        return is_next(ID::OurStream::make_from_generic_id(stream_id));
-    }
-
     bool is_next(ID::OurStream stream_id) const
     {
         if(!stream_id.get().is_valid())
@@ -424,6 +516,51 @@ class QueuedStreams
                     static_cast<const QueuedStreams &>(*this)
                     .get_stream_by_id(stream_id));
     }
+};
+
+/*!
+ * Keep track of streams sent by app.
+ */
+class QueuedAppStreams
+{
+  private:
+    /*!
+     * The two streams supported by DCP.
+     *
+     * This array is used to keep track of what DCPD is telling us about its
+     * state of player control. We primarily use it to associate stream IDs
+     * with meta data.
+     */
+    std::array<AppStreamID, 2> app_streams_;
+
+  public:
+    QueuedAppStreams(const QueuedAppStreams &) = delete;
+    QueuedAppStreams &operator=(const QueuedAppStreams &) = delete;
+
+    explicit QueuedAppStreams():
+        app_streams_{AppStreamID::make_invalid(), AppStreamID::make_invalid()}
+    {}
+
+    /*!
+     * A new stream known by the given ID has been announced.
+     *
+     * It may or it may not be playing already (unavoidable race condition
+     * between reports from dcpd and streamplayer), but we may assume that if
+     * the stream ID is not already known, then we may append it to our little
+     * queue.
+     *
+     * \returns
+     *     Previous first stream ID, if any. This stream does not exist
+     *     anymore.
+     */
+    AppStreamID announced_new(AppStreamID stream_id);
+
+    /*!
+     * Remove all streams IDs.
+     *
+     * Caller is responsible to clean up any data associated with the IDs.
+     */
+    void clear() { app_streams_.fill(AppStreamID::make_invalid()); }
 };
 
 class ReportedPlaybackState
@@ -503,11 +640,18 @@ class Data
     UserIntention intention_;
     PlayerState player_state_;
 
-    AppStream current_app_stream_id_;
-    std::array<AppStream, 2> queued_app_streams_;
+    /*!
+     * Streams we have received from app.
+     */
+    QueuedAppStreams queued_app_streams_;
 
-    std::chrono::milliseconds stream_position_;
-    std::chrono::milliseconds stream_duration_;
+    /*!
+     * Information about the currently playing stream, if any.
+     *
+     * These are pure information about the stream, not about player or
+     * controller states.
+     */
+    NowPlayingInfo now_playing_;
 
     ReportedPlaybackState reported_playback_state_;
 
@@ -527,10 +671,7 @@ class Data
         ),
         intention_(UserIntention::NOTHING),
         player_state_(PlayerState::STOPPED),
-        current_app_stream_id_(AppStream::make_invalid()),
-        queued_app_streams_{AppStream::make_invalid(), AppStream::make_invalid()},
-        stream_position_(-1),
-        stream_duration_(-1),
+        now_playing_([this] (auto id) { meta_data_db_.forget_stream(id); }),
         playback_speed_(1.0),
         airable_proxy_(DBus::get_airable_sec_iface())
     {
@@ -571,21 +712,8 @@ class Data
     PlayerState get_player_state() const { return player_state_; }
     VisibleStreamState get_current_visible_stream_state() const;
 
-    bool is_current_stream(const ID::Stream &id) const
-    {
-        log_assert(id.is_valid());
-        return
-            queued_streams_.get_current_stream_id().get() == id ||
-            current_app_stream_id_.get() == id;
-    }
-
-    ID::Stream get_current_stream_id() const
-    {
-        if(queued_streams_.get_current_stream_id().get().is_valid())
-            return queued_streams_.get_current_stream_id().get();
-        else
-            return current_app_stream_id_.get();
-    }
+    const NowPlayingInfo &get_now_playing() const { return now_playing_; }
+    NowPlayingInfo &get_now_playing() { return now_playing_; }
 
   private:
     bool set_player_state(PlayerState state);
@@ -608,15 +736,6 @@ class Data
     DBus::ReportedShuffleMode get_shuffle_mode() const
     {
         return reported_playback_state_.get_shuffle_mode();
-    }
-
-    /*!
-     * Return current stream's position and total duration (in this order).
-     */
-    std::pair<std::chrono::milliseconds, std::chrono::milliseconds> get_times() const
-    {
-        return std::pair<std::chrono::milliseconds, std::chrono::milliseconds>(
-                    stream_position_, stream_duration_);
     }
 
     const QueuedStreams &queued_streams_get() const { return queued_streams_; }
@@ -669,8 +788,11 @@ class Data
 
     bool player_now_playing_stream(ID::Stream stream_id)
     {
-        player_skipped_as_requested(queued_streams_.get_current_stream_id().get(),
-                                    stream_id);
+        if(ID::OurStream::compatible_with(stream_id))
+            player_skipped_as_requested(queued_streams_.get_head_stream_id().get(),
+                                        stream_id);
+
+        now_playing_.now_playing(stream_id);
         return set_player_state(stream_id, Player::PlayerState::PLAYING);
     }
 
@@ -696,6 +818,7 @@ class Data
     void player_has_stopped()
     {
         set_player_state(Player::PlayerState::STOPPED);
+        now_playing_.nothing();
     }
 
     /*!
@@ -714,8 +837,21 @@ class Data
                         const std::string *&uri,
                         QueuedStream::ResolvedRedirectCallback &&callback);
 
-    void announce_app_stream(const AppStream &stream_id);
+    /*!
+     * App has just sent information about a stream to be played soon.
+     *
+     * This function only adds the stream ID to the queue of app streams and
+     * associates meta data with that stream ID. The URL is set by different
+     * means, which is, however, not relevant here because we are just an
+     * observer, not a controller in this context.
+     */
+    void announce_app_stream(const AppStreamID &stream_id, MetaData::Set &&meta_data);
+
+    /*!
+     * Associate full set of meta data with stream ID.
+     */
     void put_meta_data(const ID::Stream &stream_id, MetaData::Set &&meta_data);
+
     bool merge_meta_data(const ID::Stream &stream_id, MetaData::Set &&meta_data,
                          MetaData::Set **md_ptr = nullptr);
     bool merge_meta_data(const ID::Stream &stream_id, MetaData::Set &&meta_data,
@@ -724,8 +860,7 @@ class Data
 
     const MetaData::Set &get_current_meta_data() const
     {
-        return const_cast<Data *>(this)->get_meta_data(
-                        queued_streams_.get_current_stream_id().get());
+        return const_cast<Data *>(this)->get_meta_data(now_playing_.get_stream_id());
     }
 
     bool update_track_times(const ID::Stream &stream_id,
