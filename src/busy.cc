@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, 2017, 2018, 2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016--2020  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -24,6 +24,7 @@
 #endif /* HAVE_CONFIG_H */
 
 #include <array>
+#include <sstream>
 
 #include "busy.hh"
 #include "logged_lock.hh"
@@ -188,6 +189,15 @@ class GlobalBusyState
     }
 
     bool is_busy__uncached() const { return busy_flags_ != 0; }
+
+    void dump(const char *context) const
+    {
+        msg_info("Busy: %08x [%s]", busy_flags_, context);
+        std::ostringstream os;
+        for(const auto &c : busy_counts_)
+            os << " " << c;
+        msg_info("Busy counters:%s", os.str().c_str());
+    }
 };
 
 /*!
