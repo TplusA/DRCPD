@@ -1,3 +1,15 @@
+2020-03-04  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 5.2 released.
+
+	* Playback: Fix meta data management for streams pushed in via app.
+
+	* Playback: Fix handling of play/pause commands.
+
+	* User interface: Avoid annoying "No data available" placeholder while
+	  loading lists. It was an artifact added by the increased precision
+	  and control over D-Bus calls since v5.0.
+
 2020-02-28  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 5.1 released.
