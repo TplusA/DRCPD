@@ -518,51 +518,6 @@ class QueuedStreams
     }
 };
 
-/*!
- * Keep track of streams sent by app.
- */
-class QueuedAppStreams
-{
-  private:
-    /*!
-     * The two streams supported by DCP.
-     *
-     * This array is used to keep track of what DCPD is telling us about its
-     * state of player control. We primarily use it to associate stream IDs
-     * with meta data.
-     */
-    std::array<AppStreamID, 2> app_streams_;
-
-  public:
-    QueuedAppStreams(const QueuedAppStreams &) = delete;
-    QueuedAppStreams &operator=(const QueuedAppStreams &) = delete;
-
-    explicit QueuedAppStreams():
-        app_streams_{AppStreamID::make_invalid(), AppStreamID::make_invalid()}
-    {}
-
-    /*!
-     * A new stream known by the given ID has been announced.
-     *
-     * It may or it may not be playing already (unavoidable race condition
-     * between reports from dcpd and streamplayer), but we may assume that if
-     * the stream ID is not already known, then we may append it to our little
-     * queue.
-     *
-     * \returns
-     *     Previous first stream ID, if any. This stream does not exist
-     *     anymore.
-     */
-    AppStreamID announced_new(AppStreamID stream_id);
-
-    /*!
-     * Remove all streams IDs.
-     *
-     * Caller is responsible to clean up any data associated with the IDs.
-     */
-    void clear() { app_streams_.fill(AppStreamID::make_invalid()); }
-};
-
 class ReportedPlaybackState
 {
   private:
@@ -639,11 +594,6 @@ class Data
 
     UserIntention intention_;
     PlayerState player_state_;
-
-    /*!
-     * Streams we have received from app.
-     */
-    QueuedAppStreams queued_app_streams_;
 
     /*!
      * Information about the currently playing stream, if any.

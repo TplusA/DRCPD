@@ -521,36 +521,6 @@ void Player::QueuedStreams::log(const char *prefix, MessageVerboseLevel level) c
     BUG_IF(!consistent, "%s: inconsistent QueuedStreams state", prefix);
 }
 
-Player::AppStreamID Player::QueuedAppStreams::announced_new(AppStreamID stream_id)
-{
-    if(std::find(app_streams_.begin(), app_streams_.end(), stream_id) != app_streams_.end())
-    {
-        BUG("Announced app stream ID %u, but already knowing it",
-            stream_id.get().get_raw_id());
-        return AppStreamID::make_invalid();
-    }
-
-    if(!app_streams_[0].get().is_valid())
-    {
-        app_streams_[0] = stream_id;
-        log_assert(!app_streams_[1].get().is_valid());
-        return AppStreamID::make_invalid();
-    }
-
-    if(!app_streams_[1].get().is_valid())
-    {
-        app_streams_[1] = stream_id;
-        return AppStreamID::make_invalid();
-    }
-
-    const auto dropped = app_streams_[0];
-
-    app_streams_[0] = app_streams_[1];
-    app_streams_[1] = stream_id;
-
-    return dropped;
-}
-
 void Player::NowPlayingInfo::now_playing(ID::Stream stream_id)
 {
     log_assert(stream_id.is_valid());
@@ -735,7 +705,6 @@ void Player::Data::player_finished_and_idle()
     meta_data_db_.clear();
     queued_streams_.clear();
     referenced_lists_.clear();
-    queued_app_streams_.clear();
     now_playing_.nothing();
     playback_speed_ = 1.0;
 }
@@ -862,10 +831,6 @@ void Player::Data::announce_app_stream(const AppStreamID &stream_id,
          * information from dcpd */
         return;
     }
-
-    const auto dropped(queued_app_streams_.announced_new(stream_id).get());
-    if(dropped.is_valid())
-        meta_data_db_.forget_stream(dropped);
 }
 
 void Player::Data::put_meta_data(const ID::Stream &stream_id,
