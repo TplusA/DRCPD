@@ -1399,9 +1399,11 @@ bool ViewFileBrowser::View::write_xml(std::ostream &os, uint32_t bits,
     {
       case List::AsyncListIface::OpResult::STARTED:
       case List::AsyncListIface::OpResult::SUCCEEDED:
-      case List::AsyncListIface::OpResult::CANCELED:
       case List::AsyncListIface::OpResult::FAILED:
         break;
+
+      case List::AsyncListIface::OpResult::CANCELED:
+        return false;
     }
 
     if((bits & WRITE_FLAG__IS_EMPTY_ROOT) != 0)
