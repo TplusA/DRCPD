@@ -736,8 +736,11 @@ class Data
      */
     bool player_dropped_from_queue(const std::vector<ID::Stream> &dropped);
 
-    bool player_now_playing_stream(ID::Stream stream_id)
+    bool player_now_playing_stream(ID::Stream stream_id, bool switched_stream)
     {
+        if(!switched_stream)
+            return set_player_state(Player::PlayerState::PLAYING);
+
         if(ID::OurStream::compatible_with(stream_id))
             player_skipped_as_requested(queued_streams_.get_head_stream_id().get(),
                                         stream_id);
