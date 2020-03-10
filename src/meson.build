@@ -100,13 +100,9 @@ dbus_handlers_lib = static_library('dbus_handlers',
     dependencies: [glib_deps, config_h]
 )
 
-metadata_lib = static_library('metadata',
-    'metadata.cc',
-)
+metadata_lib = static_library('metadata', 'metadata.cc')
 
-busystate_lib = static_library('busystate',
-    'busy.cc',
-)
+busystate_lib = static_library('busystate', 'busy.cc')
 
 contextmap_lib = static_library('contextmap',
     'context_map.cc',
@@ -129,15 +125,15 @@ executable(
     ],
     dependencies: [dbus_deps, glib_deps, config_h],
     link_with: [
-      busystate_lib,
-      configuration_lib,
-      contextmap_lib,
-      dbus_handlers_lib,
-      dcp_transaction_lib,
-      list_lib,
-      listsearch_lib,
-      metadata_lib,
-      views_lib,
+        busystate_lib,
+        configuration_lib,
+        contextmap_lib,
+        dbus_handlers_lib,
+        dcp_transaction_lib,
+        list_lib,
+        listsearch_lib,
+        metadata_lib,
+        views_lib,
     ],
     install: true
 )
