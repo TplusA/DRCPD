@@ -37,8 +37,13 @@ class GetURIsResult
     char **uri_list_;
     GVariantWrapper stream_key_;
 
-    GetURIsResult(GetURIsResult &&) = default;
-    GetURIsResult &operator=(GetURIsResult &&) = default;
+    GetURIsResult(GetURIsResult &&src):
+        error_(src.error_),
+        uri_list_(src.uri_list_),
+        stream_key_(std::move(src.stream_key_))
+    {
+        src.uri_list_ = nullptr;
+    }
 
     explicit GetURIsResult(ListError &&error, char **uri_list,
                            GVariantWrapper &&stream_key):
