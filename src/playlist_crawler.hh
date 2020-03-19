@@ -640,7 +640,8 @@ class OperationBase
           case State::FAILED:
           case State::CANCELING:
           case State::CANCELED:
-            BUG("Cannot start crawler operation %p in state %d", this, int(state_));
+            BUG("Cannot start crawler operation %p in state %d",
+                static_cast<void *>(this), int(state_));
             break;
         }
 
@@ -667,7 +668,8 @@ class OperationBase
           case State::DONE:
           case State::FAILED:
           case State::CANCELED:
-            BUG("Cannot continue crawler operation %p in state %d", this, int(state_));
+            BUG("Cannot continue crawler operation %p in state %d",
+                static_cast<void *>(this), int(state_));
             break;
         }
 

@@ -92,14 +92,15 @@ void DBusRNF::CallBase::notification(uint32_t cookie, CallState new_state,
 
     if(cookie == 0)
     {
-        BUG("%s notification for invalid cookie [%p]", what, this);
+        BUG("%s notification for invalid cookie [%p]",
+            what, static_cast<void *>(this));
         return;
     }
 
     if(cookie != cookie_ && cookie != cleared_cookie_)
     {
         BUG("%s notification for wrong cookie %u (expected %u or %u) [%p]",
-            what, cookie, cookie_, cleared_cookie_, this);
+            what, cookie, cookie_, cleared_cookie_, static_cast<void *>(this));
         return;
     }
 
@@ -118,7 +119,7 @@ void DBusRNF::CallBase::notification(uint32_t cookie, CallState new_state,
       case CallState::FAILED:
       case CallState::ABOUT_TO_DESTROY:
         BUG("%s notification in unexpected state %d [%p]",
-            what, int(state_), this);
+            what, int(state_), static_cast<void *>(this));
         break;
     }
 }

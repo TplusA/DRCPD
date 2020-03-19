@@ -914,7 +914,7 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
     try_resume_from_file_begin(const Player::AudioSource &asrc);
 };
 
-};
+}
 
 /*!@}*/
 

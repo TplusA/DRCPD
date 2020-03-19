@@ -59,7 +59,7 @@ namespace AsyncCallPool
 {
     void register_call(std::shared_ptr<AsyncCall_> call);
     void unregister_call(std::shared_ptr<AsyncCall_> call);
-};
+}
 
 class AsyncCall_: public std::enable_shared_from_this<AsyncCall_>
 {

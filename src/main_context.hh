@@ -19,6 +19,9 @@
  * MA  02110-1301, USA.
  */
 
+#ifndef MAIN_CONTEXT_HH
+#define MAIN_CONTEXT_HH
+
 #include <functional>
 
 namespace MainContext
@@ -45,4 +48,6 @@ namespace MainContext
  */
 void deferred_call(std::function<void()> *fn_object, bool allow_direct_call);
 
-};
+}
+
+#endif /* !MAIN_CONTEXT_HH */

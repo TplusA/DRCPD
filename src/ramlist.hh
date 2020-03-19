@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2017, 2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2017, 2019, 2020  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -107,7 +107,7 @@ static unsigned int append(RamList *l, T &&item)
     return l->append(new T(std::move(item)));
 }
 
-};
+}
 
 /*!@}*/
 

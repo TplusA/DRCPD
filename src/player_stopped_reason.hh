@@ -105,6 +105,8 @@ class StoppedReason
             else
                 domain_ = Domain::UNKNOWN;
         }
+        else
+            domain_ = Domain::UNKNOWN;
 
         if(domain_ == Domain::UNKNOWN)
             code_ = Code::UNKNOWN;

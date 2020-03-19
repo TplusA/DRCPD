@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, 2017, 2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2017, 2019, 2020  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -37,6 +37,6 @@ namespace ViewNames
     static constexpr const char ERROR_SINK[]         = "ErrorSink";
 
     static constexpr const char NOP[]                = "#NOP";
-};
+}
 
 #endif /* !VIEW_NAMES_HH */

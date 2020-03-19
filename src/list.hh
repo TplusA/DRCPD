@@ -269,7 +269,7 @@ class AsyncListIface
     virtual bool cancel_all_async_calls() = 0;
 };
 
-};
+}
 
 /*!@}*/
 

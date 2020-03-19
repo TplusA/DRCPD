@@ -82,7 +82,7 @@ class View: public ViewIface, public ViewSerializeBase
     void update(DCP::Queue &queue, DCP::Queue::Mode mode, std::ostream *debug_os) override {}
 };
 
-};
+}
 
 /*!@}*/
 

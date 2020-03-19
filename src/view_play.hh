@@ -127,7 +127,7 @@ class View: public ViewIface, public ViewSerializeBase
                            const std::string *external_player_id = nullptr);
 };
 
-};
+}
 
 /*!@}*/
 

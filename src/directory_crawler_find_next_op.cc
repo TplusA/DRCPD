@@ -470,7 +470,7 @@ void Playlist::Crawler::DirectoryCrawler::FindNextOp::enter_list_event(
     std::lock_guard<LoggedLock::Mutex> lock(lock_);
 
     const auto cid(ctx.get_caller_id());
-    bool has_succeeded;
+    bool has_succeeded = false;
 
     switch(op_result)
     {

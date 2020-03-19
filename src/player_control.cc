@@ -1107,7 +1107,7 @@ void Player::Control::skip_forward_request()
     }
 
     const auto intention(player_data_->get_intention());
-    const Playlist::Crawler::CursorBase *reference_position;
+    const Playlist::Crawler::CursorBase *reference_position = nullptr;
 
     switch(intention)
     {
@@ -1173,7 +1173,7 @@ void Player::Control::skip_backward_request()
     }
 
     const auto intention(player_data_->get_intention());
-    const Playlist::Crawler::CursorBase *reference_position;
+    const Playlist::Crawler::CursorBase *reference_position = nullptr;
 
     switch(intention)
     {

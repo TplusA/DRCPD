@@ -704,7 +704,7 @@ class DBusList: public ListIface, public AsyncListIface
             std::shared_ptr<DBusRNF::GetRangeCallBase> call);
 };
 
-};
+}
 
 /*!@}*/
 

@@ -556,7 +556,7 @@ class Call: public CallBase
         {
             msg_error(ETIME, LOG_NOTICE,
                       "RNF call %p (%s) still waiting for notification in state %d",
-                      this, name(), int(get_state()));
+                      static_cast<void *>(this), name(), int(get_state()));
         }
 
         return fetch_unlocked(do_fetch);
