@@ -869,8 +869,7 @@ bool Player::Data::merge_meta_data(const ID::Stream &stream_id,
     if(!merge_meta_data(stream_id, std::move(meta_data), &md))
         return false;
 
-    md->add(MetaData::Set::INTERNAL_DRCPD_URL, std::move(fallback_url),
-            ViewPlay::meta_data_reformatters);
+    md->add(MetaData::Set::INTERNAL_DRCPD_URL, std::move(fallback_url));
 
     return true;
 }

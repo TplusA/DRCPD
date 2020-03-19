@@ -37,10 +37,10 @@
 namespace MetaData
 {
 
-struct Reformatters
+namespace Reformatters
 {
-    const std::function<const std::string(const char *in)> bitrate_fn_;
-};
+    std::string bitrate(const char *in);
+}
 
 /*!
  * Stream meta data POD as obtained from Streamplayer.
@@ -88,9 +88,9 @@ class Set
     explicit Set() {}
 
     void clear(bool keep_internals);
-    void add(const char *key, const char *value, const Reformatters &reformat);
-    void add(const ID key_id, const char *value, const Reformatters &reformat);
-    void add(const ID key_id, std::string &&value, const Reformatters &reformat);
+    void add(const char *key, const char *value);
+    void add(const ID key_id, const char *value);
+    void add(const ID key_id, std::string &&value);
     void copy_from(const Set &src, CopyMode mode);
 
     bool operator==(const Set &other) const;

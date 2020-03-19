@@ -167,18 +167,17 @@ static ID::List get_child_id_for_enter(List::DBusList &dbus_list, List::Nav &nav
 }
 
 static void fill_in_meta_data(MetaData::Set &md,
-                              const ViewFileBrowser::FileItem *file_item,
-                              const MetaData::Reformatters &mdr)
+                              const ViewFileBrowser::FileItem *file_item)
 {
     if(file_item == nullptr)
         return;
 
     const auto &pl(file_item->get_preloaded_meta_data());
 
-    md.add(MetaData::Set::ARTIST, pl.artist_.c_str(), mdr);
-    md.add(MetaData::Set::ALBUM,  pl.album_.c_str(),  mdr);
-    md.add(MetaData::Set::TITLE,  pl.title_.c_str(),  mdr);
-    md.add(MetaData::Set::INTERNAL_DRCPD_TITLE, file_item->get_text(), mdr);
+    md.add(MetaData::Set::ARTIST, pl.artist_.c_str());
+    md.add(MetaData::Set::ALBUM,  pl.album_.c_str());
+    md.add(MetaData::Set::TITLE,  pl.title_.c_str());
+    md.add(MetaData::Set::INTERNAL_DRCPD_TITLE, file_item->get_text());
 }
 
 Playlist::Crawler::DirectoryCrawler::FindNextOp::Continue
@@ -272,8 +271,7 @@ Playlist::Crawler::DirectoryCrawler::FindNextOp::finish_with_current_item_or_con
     {
         /* we have a non-directory item right here */
         result_.pos_state_ = PositionalState::SOMEWHERE_IN_LIST;
-        fill_in_meta_data(result_.meta_data_, file_item_,
-                          ViewPlay::meta_data_reformatters);
+        fill_in_meta_data(result_.meta_data_, file_item_);
         return succeed_here();
     }
 
@@ -357,8 +355,7 @@ Playlist::Crawler::DirectoryCrawler::FindNextOp::continue_search()
     {
         /* because we are restricted to process a single item */
         result_.pos_state_ = PositionalState::SOMEWHERE_IN_LIST;
-        fill_in_meta_data(result_.meta_data_, file_item_,
-                          ViewPlay::meta_data_reformatters);
+        fill_in_meta_data(result_.meta_data_, file_item_);
         return succeed_here();
     }
 
@@ -368,8 +365,7 @@ Playlist::Crawler::DirectoryCrawler::FindNextOp::continue_search()
         result_.pos_state_ = is_forward_direction(direction_)
             ? PositionalState::REACHED_END_OF_LIST
             : PositionalState::REACHED_START_OF_LIST;
-        fill_in_meta_data(result_.meta_data_, file_item_,
-                          ViewPlay::meta_data_reformatters);
+        fill_in_meta_data(result_.meta_data_, file_item_);
         return succeed_here();
     }
 
@@ -547,8 +543,7 @@ void Playlist::Crawler::DirectoryCrawler::FindNextOp::enter_list_event(
             result_.pos_state_ = is_forward_direction(direction_)
                 ? PositionalState::REACHED_END_OF_LIST
                 : PositionalState::REACHED_START_OF_LIST;
-            fill_in_meta_data(result_.meta_data_, file_item_,
-                              ViewPlay::meta_data_reformatters);
+            fill_in_meta_data(result_.meta_data_, file_item_);
             operation_finished(true);
             break;
         }

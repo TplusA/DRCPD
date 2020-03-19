@@ -128,11 +128,11 @@ void dbussignal_dcpd_playback(GDBusProxy *proxy, const gchar *sender_name,
                 ID::Stream::make_from_raw_id(raw_stream_id), MetaData::Set());
 
         auto &md(std::get<1>(params->get_specific_non_const()));
-        md.add(MetaData::Set::ARTIST, artist, ViewPlay::meta_data_reformatters);
-        md.add(MetaData::Set::ALBUM, album, ViewPlay::meta_data_reformatters);
-        md.add(MetaData::Set::TITLE, title, ViewPlay::meta_data_reformatters);
-        md.add(MetaData::Set::INTERNAL_DRCPD_TITLE, alttrack, ViewPlay::meta_data_reformatters);
-        md.add(MetaData::Set::INTERNAL_DRCPD_URL, url, ViewPlay::meta_data_reformatters);
+        md.add(MetaData::Set::ARTIST, artist);
+        md.add(MetaData::Set::ALBUM, album);
+        md.add(MetaData::Set::TITLE, title);
+        md.add(MetaData::Set::INTERNAL_DRCPD_TITLE, alttrack);
+        md.add(MetaData::Set::INTERNAL_DRCPD_URL, url);
 
         data->event_sink_.store_event(UI::EventID::VIEW_PLAYER_STORE_PRELOADED_META_DATA,
                                       std::move(params));
@@ -358,7 +358,7 @@ static bool parse_meta_data(MetaData::Set &md, GVariantIter *meta_data_iter)
     const gchar *value;
 
     while(g_variant_iter_next(meta_data_iter, "(&s&s)", &key, &value))
-        md.add(key, value, ViewPlay::meta_data_reformatters);
+        md.add(key, value);
 
     return true;
 }

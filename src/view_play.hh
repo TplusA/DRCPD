@@ -40,8 +40,6 @@
 namespace ViewPlay
 {
 
-extern const MetaData::Reformatters meta_data_reformatters;
-
 enum class PlayMode
 {
     FRESH_START,

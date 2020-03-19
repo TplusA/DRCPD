@@ -72,19 +72,17 @@ void MetaData::Set::clear(bool keep_internals)
         this->values_[i].clear();
 }
 
-void MetaData::Set::add(const char *key, const char *value,
-                        const Reformatters &reformat)
+void MetaData::Set::add(const char *key, const char *value)
 {
     const auto &found(std::find_if(key_to_id.begin(), key_to_id.end(),
                                    [&key] (const auto &entry)
                                    { return strcmp(key, entry.key) == 0; }));
 
     if(found != key_to_id.end())
-        add(found->id, value, reformat);
+        add(found->id, value);
 }
 
-void MetaData::Set::add(const MetaData::Set::ID key_id, const char *value,
-                        const Reformatters &reformat)
+void MetaData::Set::add(const MetaData::Set::ID key_id, const char *value)
 {
     switch(key_id)
     {
@@ -92,11 +90,8 @@ void MetaData::Set::add(const MetaData::Set::ID key_id, const char *value,
       case BITRATE_MIN:
       case BITRATE_MAX:
       case BITRATE_NOM:
-        if(reformat.bitrate_fn_ == nullptr)
-            break;
-
         if(value != nullptr)
-            this->values_[key_id] = reformat.bitrate_fn_(value);
+            this->values_[key_id] = Reformatters::bitrate(value);
         else
             this->values_[key_id].clear();
 
@@ -120,8 +115,7 @@ void MetaData::Set::add(const MetaData::Set::ID key_id, const char *value,
         this->values_[key_id].clear();
 }
 
-void MetaData::Set::add(const MetaData::Set::ID key_id, std::string &&value,
-                        const Reformatters &reformat)
+void MetaData::Set::add(const MetaData::Set::ID key_id, std::string &&value)
 {
     switch(key_id)
     {
@@ -129,11 +123,7 @@ void MetaData::Set::add(const MetaData::Set::ID key_id, std::string &&value,
       case BITRATE_MIN:
       case BITRATE_MAX:
       case BITRATE_NOM:
-        if(reformat.bitrate_fn_ == nullptr)
-            break;
-
-        this->values_[key_id] = reformat.bitrate_fn_(value.c_str());
-
+        this->values_[key_id] = Reformatters::bitrate(value.c_str());
         return;
 
       case TITLE:

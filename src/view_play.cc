@@ -968,7 +968,7 @@ void ViewPlay::View::serialize(DCP::Queue &queue, DCP::Queue::Mode mode,
         *debug_os << "  " << i << ": \"" << md.values_[i] << "\"\n";
 }
 
-static const std::string reformat_bitrate(const char *in)
+std::string MetaData::Reformatters::bitrate(const char *in)
 {
     log_assert(in != NULL);
 
@@ -999,8 +999,3 @@ static const std::string reformat_bitrate(const char *in)
 
     return os.str();
 }
-
-const MetaData::Reformatters ViewPlay::meta_data_reformatters =
-{
-    .bitrate_fn_ = reformat_bitrate,
-};
