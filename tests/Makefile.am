@@ -72,6 +72,7 @@ test_cache_segment_la_CXXFLAGS = $(DRCPD_DEPENDENCIES_CFLAGS) $(AM_CXXFLAGS)
 
 test_contextmap_la_SOURCES = \
     test_contextmap.cc mock_expectation.hh \
+    mock_backtrace.hh mock_backtrace.cc \
     mock_messages.hh mock_messages.cc
 test_contextmap_la_LIBADD = $(top_builddir)/src/libcontextmap.la
 test_contextmap_la_CFLAGS = $(AM_CFLAGS)
