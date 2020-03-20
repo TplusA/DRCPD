@@ -1189,6 +1189,10 @@ ViewFileBrowser::View::process_event(UI::ViewEventID event_id,
          *               because the item below the cursor was not a
          *               directory */
 
+#if defined __GNUC__ && __GNUC__ >= 7
+        [[fallthrough]];
+#endif
+
       case UI::ViewEventID::PLAYBACK_COMMAND_START:
         {
             if(file_list_.empty())
