@@ -92,6 +92,8 @@ class GetRangeCallBase:
     get_cache_segment_state(const List::CacheSegment &segment,
                             unsigned int &size_of_loading_segment) const
     {
+        std::lock_guard<LoggedLock::Mutex> lock(lock_);
+
         if(list_error_.failed())
         {
             size_of_loading_segment = 0;

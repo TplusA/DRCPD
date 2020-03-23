@@ -175,7 +175,7 @@ class CallBase
     bool detached_;
 
   protected:
-    LoggedLock::Mutex lock_;
+    mutable LoggedLock::Mutex lock_;
     LoggedLock::ConditionVariable notified_;
 
   private:
