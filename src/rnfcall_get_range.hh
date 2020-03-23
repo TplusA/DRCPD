@@ -184,7 +184,7 @@ class GetRangeCall: public GetRangeCallBase
 
     virtual ~GetRangeCall() final override
     {
-        abort_request();
+        abort_request_internal(true);
     }
 
     std::shared_ptr<GetRangeCallBase> clone_modified(ID::List list_id) final override

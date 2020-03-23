@@ -293,6 +293,8 @@ class CallBase
 
     uint32_t get_cookie() const { return cookie_; }
 
+    bool abort_request_internal(bool suppress_errors);
+
     /*!
      * Get name for debugging.
      *

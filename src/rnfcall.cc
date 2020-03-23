@@ -30,6 +30,11 @@
 
 bool DBusRNF::CallBase::abort_request()
 {
+    return abort_request_internal(false);
+}
+
+bool DBusRNF::CallBase::abort_request_internal(bool suppress_errors)
+{
     std::unique_lock<LoggedLock::Mutex> lock(lock_);
 
     switch(state_)
@@ -43,7 +48,9 @@ bool DBusRNF::CallBase::abort_request()
       case CallState::FAILED:
         if(was_aborted_after_done_)
         {
-            BUG("Multiple aborts of finished RNF call (state %d)", int(state_));
+            if(!suppress_errors)
+                BUG("Multiple aborts of finished RNF call (state %d)", int(state_));
+
             return false;
         }
 
@@ -52,7 +59,9 @@ bool DBusRNF::CallBase::abort_request()
 
       case CallState::ABORTING:
       case CallState::ABORTED_BY_LIST_BROKER:
-        BUG("Multiple aborts of RNF call (state %d)", int(state_));
+        if(!suppress_errors)
+            BUG("Multiple aborts of RNF call (state %d)", int(state_));
+
         return false;
 
       case CallState::ABOUT_TO_DESTROY:
