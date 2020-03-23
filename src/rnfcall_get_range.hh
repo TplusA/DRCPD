@@ -131,7 +131,7 @@ class GetRangeCallBase:
         return List::CacheSegmentState::EMPTY;
     }
 
-    bool is_already_loading(const List::CacheSegment &segment, bool &can_abort) const
+    bool is_already_loading(unsigned int line, unsigned int count, bool &can_abort) const
     {
         std::lock_guard<LoggedLock::Mutex> lock(lock_);
 
@@ -146,7 +146,7 @@ class GetRangeCallBase:
           case DBusRNF::CallState::WAIT_FOR_NOTIFICATION:
           case DBusRNF::CallState::READY_TO_FETCH:
           case DBusRNF::CallState::RESULT_FETCHED:
-            if(segment == loading_segment_)
+            if(List::CacheSegment(line, count) == loading_segment_)
                 return true;
 
             break;

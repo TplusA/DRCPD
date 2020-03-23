@@ -907,16 +907,6 @@ List::DBusList::load_segment_in_background(const CacheSegment &prefetch_segment,
                                            DBusRNF::StatusWatcher &&status_watcher,
                                            HintItemDoneNotification &&hinted_fn)
 {
-    if(async_dbus_data_.get_range_query_ != nullptr)
-    {
-        bool can_abort;
-        if(async_dbus_data_.get_range_query_->is_already_loading(prefetch_segment, can_abort))
-            return List::AsyncListIface::OpResult::STARTED;
-
-        if(can_abort)
-            async_dbus_data_.cancel_get_range_query();
-    }
-
     CacheModifications cm;
     unsigned int fetch_head;
     unsigned int fetch_count;
@@ -947,6 +937,16 @@ List::DBusList::load_segment_in_background(const CacheSegment &prefetch_segment,
         fetch_count = prefetch_segment.count_;
         cache_list_replace_index = 0;
         cm.set(prefetch_segment.line_);
+    }
+
+    if(async_dbus_data_.get_range_query_ != nullptr)
+    {
+        bool can_abort;
+        if(async_dbus_data_.get_range_query_->is_already_loading(fetch_head, fetch_count, can_abort))
+            return List::AsyncListIface::OpResult::STARTED;
+
+        if(can_abort)
+            async_dbus_data_.cancel_get_range_query();
     }
 
     const uint32_t list_flags(list_contexts_[DBUS_LISTS_CONTEXT_GET(window_.list_id_.get_raw_id())].get_flags());
