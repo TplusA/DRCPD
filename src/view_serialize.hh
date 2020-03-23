@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, 2017, 2018, 2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016--2020  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -23,6 +23,7 @@
 #define VIEW_SERIALIZE_HH
 
 #include <ostream>
+#include <atomic>
 
 #include "screen_ids.hh"
 #include "dcp_transaction_queue.hh"
@@ -30,6 +31,7 @@
 #include "i18n.hh"
 #include "i18nstring.hh"
 #include "xmlescape.hh"
+#include "guard.hh"
 
 /* open up a bit for unit tests */
 namespace ViewMock { class View; }
@@ -72,6 +74,7 @@ class ViewSerializeBase
      */
     uint32_t update_flags_;
     I18n::String dynamic_title_;
+    std::atomic_bool is_serializing_;
 
   public:
     ViewSerializeBase(const ViewSerializeBase &) = delete;
@@ -150,6 +153,8 @@ class ViewSerializeBase
     virtual void clear_dynamic_title()                    { dynamic_title_.clear(); }
 
     const I18n::String &get_dynamic_title() const { return dynamic_title_; }
+
+    bool is_serializing() const { return is_serializing_; }
 
   protected:
     virtual uint32_t about_to_write_xml(const DCP::Queue::Data &data) const
@@ -245,9 +250,27 @@ class ViewSerializeBase
      */
     void add_update_flags(uint32_t flags) { update_flags_ |= flags; }
 
+    void serialize_begin()
+    {
+        BUG_IF(is_serializing_, "Already serializing");
+        is_serializing_ = true;
+    }
+
+    void serialize_end()
+    {
+        BUG_IF(!is_serializing_, "Not serializing");
+        is_serializing_ = false;
+    }
+
   private:
     bool do_serialize(DCP::Queue &queue, DCP::Queue::Mode mode, bool is_full_view)
     {
+        if(is_serializing())
+            return false;
+
+        serialize_begin();
+        const Guard end([this] { serialize_end(); });
+
         queue.add(this, is_full_view, update_flags_);
         update_flags_ = 0;
         return queue.start_transaction(mode);

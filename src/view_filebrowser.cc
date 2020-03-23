@@ -1521,6 +1521,12 @@ void ViewFileBrowser::View::serialize(DCP::Queue &queue, DCP::Queue::Mode mode,
     if(!debug_os)
         return;
 
+    if(is_serializing())
+        return;
+
+    serialize_begin();
+    const Guard end([this] { serialize_end(); });
+
     switch(may_access_list_for_serialization())
     {
       case ListAccessPermission::ALLOWED:

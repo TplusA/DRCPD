@@ -940,6 +940,12 @@ void ViewPlay::View::serialize(DCP::Queue &queue, DCP::Queue::Mode mode,
     if(!debug_os)
         return;
 
+    if(is_serializing())
+        return;
+
+    serialize_begin();
+    const Guard end([this] { serialize_end(); });
+
     /* matches enum #Player::VisibleStreamState */
     static const char *stream_state_string[] =
     {
