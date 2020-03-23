@@ -131,6 +131,37 @@ class GetRangeCallBase:
         return List::CacheSegmentState::EMPTY;
     }
 
+    bool is_already_loading(const List::CacheSegment &segment, bool &can_abort) const
+    {
+        std::lock_guard<LoggedLock::Mutex> lock(lock_);
+
+        can_abort = true;
+
+        switch(get_state())
+        {
+          case DBusRNF::CallState::INITIALIZED:
+            BUG("Unexpected call state");
+            break;
+
+          case DBusRNF::CallState::WAIT_FOR_NOTIFICATION:
+          case DBusRNF::CallState::READY_TO_FETCH:
+          case DBusRNF::CallState::RESULT_FETCHED:
+            if(segment == loading_segment_)
+                return true;
+
+            break;
+
+          case DBusRNF::CallState::ABORTING:
+          case DBusRNF::CallState::ABORTED_BY_LIST_BROKER:
+          case DBusRNF::CallState::FAILED:
+          case DBusRNF::CallState::ABOUT_TO_DESTROY:
+            can_abort = false;
+            break;
+        }
+
+        return false;
+    }
+
   protected:
     const void *get_proxy_ptr() const final override { return proxy_; }
 };

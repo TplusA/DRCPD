@@ -907,7 +907,15 @@ List::DBusList::load_segment_in_background(const CacheSegment &prefetch_segment,
                                            DBusRNF::StatusWatcher &&status_watcher,
                                            HintItemDoneNotification &&hinted_fn)
 {
-    async_dbus_data_.cancel_get_range_query();
+    if(async_dbus_data_.get_range_query_ != nullptr)
+    {
+        bool can_abort;
+        if(async_dbus_data_.get_range_query_->is_already_loading(prefetch_segment, can_abort))
+            return List::AsyncListIface::OpResult::STARTED;
+
+        if(can_abort)
+            async_dbus_data_.cancel_get_range_query();
+    }
 
     CacheModifications cm;
     unsigned int fetch_head;
