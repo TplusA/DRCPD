@@ -581,6 +581,27 @@ class ConditionVariable
                   get_context_hints().c_str(), name_, lock.get_mutex_name());
     }
 
+    template <class Rep, class Period, class Predicate>
+    bool wait_for(UniqueLock<Mutex> &lock,
+                  const std::chrono::duration<Rep, Period>& rel_time,
+                  Predicate pred)
+    {
+        if(lock.get_mutex_owner() != pthread_self())
+            LOGGED_LOCK_BUG("Cond %s: <%s> waiting with foreign mutex "
+                            "owned by <%08lx> with timeout",
+                            name_, get_context_hints().c_str(), lock.get_mutex_owner());
+
+        msg_vinfo(log_level_, "<%s> Cond %s: wait for %s with timeout",
+                  get_context_hints().c_str(), name_, lock.get_mutex_name());
+        lock.clear_mutex_owner();
+        const bool result = var_.wait_for(lock.get_raw_unique_lock(), rel_time, pred);
+        lock.set_mutex_owner();
+        msg_vinfo(log_level_, "<%s> Cond %s: waited for %s with timeout -> %s",
+                  get_context_hints().c_str(), name_, lock.get_mutex_name(),
+                  result ? "OK" : "timed out");
+        return result;
+    }
+
     void notify_all()
     {
         msg_vinfo(log_level_, "<%s> Cond %s: notify all",
