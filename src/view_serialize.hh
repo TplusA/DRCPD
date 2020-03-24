@@ -93,7 +93,8 @@ class ViewSerializeBase
         on_screen_name_(on_screen_name),
         drcp_view_id_(drcp_view_id),
         update_flags_(0),
-        dynamic_title_(false)
+        dynamic_title_(false),
+        is_serializing_(false)
     {}
 
     virtual ~ViewSerializeBase() {}
