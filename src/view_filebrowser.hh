@@ -296,6 +296,7 @@ class PendingCookies
         log_assert(cookie != 0);
         log_assert(fetch_fn != nullptr);
 
+        LOGGED_LOCK_CONTEXT_HINT;
         std::lock_guard<LoggedLock::Mutex> lock(lock_);
         notification_functions_.emplace(cookie, std::move(notify_fn));
         return fetch_functions_.emplace(cookie, std::move(fetch_fn)).second;
@@ -308,6 +309,7 @@ class PendingCookies
      */
     void drop(uint32_t cookie)
     {
+        LOGGED_LOCK_CONTEXT_HINT;
         std::lock_guard<LoggedLock::Mutex> lock(lock_);
         notification_functions_.erase(cookie);
         fetch_functions_.erase(cookie);
@@ -364,6 +366,7 @@ class PendingCookies
   private:
     void available(uint32_t cookie, ListError error, const char *what)
     {
+        LOGGED_LOCK_CONTEXT_HINT;
         std::lock_guard<LoggedLock::Mutex> lock(lock_);
 
         try
@@ -396,6 +399,7 @@ class PendingCookies
 
     void finish(uint32_t cookie, ListError error, const char *what)
     {
+        LOGGED_LOCK_CONTEXT_HINT;
         std::lock_guard<LoggedLock::Mutex> lock(lock_);
 
         try
@@ -478,6 +482,7 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
 
         std::unique_lock<LoggedLock::RecMutex> acquire_lock()
         {
+            LOGGED_LOCK_CONTEXT_HINT;
             return std::unique_lock<LoggedLock::RecMutex>(lock_);
         }
 

@@ -45,6 +45,7 @@ Playlist::Crawler::Handle Playlist::Crawler::Iface::activate(
     log_assert(cursor != nullptr);
     log_assert(settings != nullptr);
 
+    LOGGED_LOCK_CONTEXT_HINT;
     std::lock_guard<LoggedLock::Mutex> lock(lock_);
 
     bookmark_position(Bookmark::PINNED, cursor->clone());
@@ -77,6 +78,7 @@ Playlist::Crawler::Iface::activate_without_reference_point(
     log_assert(settings != nullptr);
     static InvalidIface invalid_iface;
 
+    LOGGED_LOCK_CONTEXT_HINT;
     std::lock_guard<LoggedLock::Mutex> lock(lock_);
 
     if(is_active_)
@@ -126,6 +128,7 @@ void Playlist::Crawler::Iface::set_reference_point(
         Playlist::Crawler::Iface::Handle &ch,
         std::shared_ptr<Playlist::Crawler::CursorBase> cursor)
 {
+    LOGGED_LOCK_CONTEXT_HINT;
     std::lock_guard<LoggedLock::Mutex> lock(lock_);
 
     log_assert(cursor != nullptr);
@@ -139,6 +142,7 @@ void Playlist::Crawler::Iface::set_reference_point(
 
 void Playlist::Crawler::Iface::deactivate()
 {
+    LOGGED_LOCK_CONTEXT_HINT;
     std::lock_guard<LoggedLock::Mutex> lock(lock_);
 
     log_assert(is_active_);
@@ -173,6 +177,7 @@ void Playlist::Crawler::Iface::deactivate()
 
 bool Playlist::Crawler::Iface::run(std::shared_ptr<OperationBase> op)
 {
+    LOGGED_LOCK_CONTEXT_HINT;
     std::lock_guard<LoggedLock::Mutex> lock(lock_);
 
     log_assert(op != nullptr);

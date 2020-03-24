@@ -117,6 +117,7 @@ class Skipper
      */
     void reset(const std::function<std::shared_ptr<Playlist::Crawler::FindNextOpBase>()> &do_revert)
     {
+        LOGGED_LOCK_CONTEXT_HINT;
         std::lock_guard<LoggedLock::Mutex> lock(lock_);
         reset__unlocked();
 
@@ -161,6 +162,7 @@ class Skipper
 
     bool has_pending_skip_requests() const
     {
+        LOGGED_LOCK_CONTEXT_HINT;
         std::lock_guard<LoggedLock::Mutex> lock(lock_);
         return find_next_op_ != nullptr && pending_skip_requests_ != 0;
     }

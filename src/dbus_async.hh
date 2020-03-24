@@ -193,6 +193,7 @@ class AsyncCall_: public std::enable_shared_from_this<AsyncCall_>
      */
     LoggedLock::UniqueLock<LoggedLock::RecMutex> lock() const
     {
+        LOGGED_LOCK_CONTEXT_HINT;
         return LoggedLock::UniqueLock<LoggedLock::RecMutex>(const_cast<AsyncCall_ *>(this)->lock_);
     }
 

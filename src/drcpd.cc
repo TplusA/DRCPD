@@ -89,6 +89,10 @@ using I18nConfigMgr = Configuration::ConfigManager<Configuration::I18nValues>;
 ssize_t (*os_read)(int fd, void *dest, size_t count) = read;
 ssize_t (*os_write)(int fd, const void *buf, size_t count) = write;
 
+#if LOGGED_LOCKS_ENABLED && LOGGED_LOCKS_THREAD_CONTEXTS
+thread_local LoggedLock::Context LoggedLock::context;
+#endif
+
 static void show_version_info(void)
 {
     printf("%s\n"
@@ -244,6 +248,8 @@ static int setup(const Parameters &parameters,
     }
 
     log_version_info();
+
+    LoggedLock::set_context_name("Main");
 
     I18n::init();
     ViewFileBrowser::init_i18n();
@@ -640,8 +646,10 @@ int main(int argc, char *argv[])
     static DBus::SignalData dbus_signal_data(view_manager,
                                              drcpd_config_manager,
                                              i18n_config_manager);
+    if(parameters.run_in_foreground)
+        view_manager.set_debug_stream(std::cout);
+
     view_manager.set_output_stream(fd_out);
-    view_manager.set_debug_stream(std::cout);
     view_manager.set_resume_playback_configuration_file(resume_config_file_name);
 
     language_changed(i18n_config_manager, view_manager, true);

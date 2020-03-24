@@ -1418,6 +1418,13 @@ bool ViewFileBrowser::View::write_xml(std::ostream &os, uint32_t bits,
     }
 
     size_t displayed_line = 0;
+    std::ostringstream debug_os;
+    debug_os
+        << "List view, size "
+        << navigation_.get_total_number_of_visible_items() << ", "
+        << (Busy::is_busy() ? "" : "not ") << "busy:\n";
+
+    Guard dump_debug_string([&debug_os] { msg_info("%s", debug_os.str().c_str()); });
 
     for(auto it : navigation_)
     {
@@ -1451,6 +1458,7 @@ bool ViewFileBrowser::View::write_xml(std::ostream &os, uint32_t bits,
         {
             /* we do not abort the serialization even in case of error,
              * otherwise the user would see no update at all */
+            debug_os << "   " << it << ": *NULL ENTRY*";
             return true;
         }
 
@@ -1497,10 +1505,20 @@ bool ViewFileBrowser::View::write_xml(std::ostream &os, uint32_t bits,
         }
 
         if(it == navigation_.get_cursor())
+        {
             flags.push_back('s');
+            debug_os << "-> ";
+        }
+        else
+            debug_os << "   ";
 
         os << "<text id=\"line" << displayed_line << "\" flag=\"" << flags << "\">"
            << XmlEscape(item->get_text()) << "</text>";
+
+        debug_os
+            << it << ": "
+            << '[' << static_cast<unsigned int>(item->get_kind().get_raw_code())
+            << "] " << item->get_text() << '\n';
 
         ++displayed_line;
     }
@@ -1520,6 +1538,12 @@ void ViewFileBrowser::View::serialize(DCP::Queue &queue, DCP::Queue::Mode mode,
 
     if(!debug_os)
         return;
+
+    if(is_serializing())
+        return;
+
+    serialize_begin();
+    const Guard end([this] { serialize_end(); });
 
     switch(may_access_list_for_serialization())
     {

@@ -92,6 +92,9 @@ class GetRangeCallBase:
     get_cache_segment_state(const List::CacheSegment &segment,
                             unsigned int &size_of_loading_segment) const
     {
+        LOGGED_LOCK_CONTEXT_HINT;
+        std::lock_guard<LoggedLock::Mutex> lock(lock_);
+
         if(list_error_.failed())
         {
             size_of_loading_segment = 0;
@@ -129,6 +132,38 @@ class GetRangeCallBase:
         return List::CacheSegmentState::EMPTY;
     }
 
+    bool is_already_loading(unsigned int line, unsigned int count, bool &can_abort) const
+    {
+        LOGGED_LOCK_CONTEXT_HINT;
+        std::lock_guard<LoggedLock::Mutex> lock(lock_);
+
+        can_abort = true;
+
+        switch(get_state())
+        {
+          case DBusRNF::CallState::INITIALIZED:
+            BUG("Unexpected call state");
+            break;
+
+          case DBusRNF::CallState::WAIT_FOR_NOTIFICATION:
+          case DBusRNF::CallState::READY_TO_FETCH:
+          case DBusRNF::CallState::RESULT_FETCHED:
+            if(List::CacheSegment(line, count) == loading_segment_)
+                return true;
+
+            break;
+
+          case DBusRNF::CallState::ABORTING:
+          case DBusRNF::CallState::ABORTED_BY_LIST_BROKER:
+          case DBusRNF::CallState::FAILED:
+          case DBusRNF::CallState::ABOUT_TO_DESTROY:
+            can_abort = false;
+            break;
+        }
+
+        return false;
+    }
+
   protected:
     const void *get_proxy_ptr() const final override { return proxy_; }
 };
@@ -151,11 +186,12 @@ class GetRangeCall: public GetRangeCallBase
 
     virtual ~GetRangeCall() final override
     {
-        abort_request();
+        abort_request_internal(true);
     }
 
     std::shared_ptr<GetRangeCallBase> clone_modified(ID::List list_id) final override
     {
+        LOGGED_LOCK_CONTEXT_HINT;
         std::lock_guard<LoggedLock::Mutex> lock(lock_);
         return std::make_shared<GetRangeCall>(
                     cm_, proxy_, iface_name_, list_id,
@@ -275,6 +311,7 @@ class GetRangeWithMetaDataCall: public GetRangeCallBase
 
     std::shared_ptr<GetRangeCallBase> clone_modified(ID::List list_id) final override
     {
+        LOGGED_LOCK_CONTEXT_HINT;
         std::lock_guard<LoggedLock::Mutex> lock(lock_);
         return std::make_shared<GetRangeWithMetaDataCall>(
                     cm_, proxy_, iface_name_, list_id,

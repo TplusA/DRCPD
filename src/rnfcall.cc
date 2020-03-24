@@ -30,6 +30,12 @@
 
 bool DBusRNF::CallBase::abort_request()
 {
+    return abort_request_internal(false);
+}
+
+bool DBusRNF::CallBase::abort_request_internal(bool suppress_errors)
+{
+    LOGGED_LOCK_CONTEXT_HINT;
     std::unique_lock<LoggedLock::Mutex> lock(lock_);
 
     switch(state_)
@@ -43,7 +49,9 @@ bool DBusRNF::CallBase::abort_request()
       case CallState::FAILED:
         if(was_aborted_after_done_)
         {
-            BUG("Multiple aborts of finished RNF call (state %d)", int(state_));
+            if(!suppress_errors)
+                BUG("Multiple aborts of finished RNF call (state %d)", int(state_));
+
             return false;
         }
 
@@ -52,7 +60,9 @@ bool DBusRNF::CallBase::abort_request()
 
       case CallState::ABORTING:
       case CallState::ABORTED_BY_LIST_BROKER:
-        BUG("Multiple aborts of RNF call (state %d)", int(state_));
+        if(!suppress_errors)
+            BUG("Multiple aborts of RNF call (state %d)", int(state_));
+
         return false;
 
       case CallState::ABOUT_TO_DESTROY:
@@ -88,6 +98,7 @@ bool DBusRNF::CallBase::abort_request()
 void DBusRNF::CallBase::notification(uint32_t cookie, CallState new_state,
                                      const char *what)
 {
+    LOGGED_LOCK_CONTEXT_HINT;
     std::lock_guard<LoggedLock::Mutex> lock(lock_);
 
     if(cookie == 0)

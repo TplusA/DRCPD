@@ -148,6 +148,7 @@ class EventQueue
         bool need_trigger;
 
         {
+            LOGGED_LOCK_CONTEXT_HINT;
             std::lock_guard<LoggedLock::Mutex> lock(lock_);
 
             need_trigger = queue_.empty();
@@ -160,6 +161,7 @@ class EventQueue
 
     std::unique_ptr<Events::BaseEvent> take()
     {
+        LOGGED_LOCK_CONTEXT_HINT;
         std::lock_guard<LoggedLock::Mutex> lock(lock_);
 
         if(queue_.empty())

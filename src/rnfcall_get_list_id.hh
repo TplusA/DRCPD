@@ -102,6 +102,7 @@ class GetListIDCall: public GetListIDCallBase
 
     std::shared_ptr<GetListIDCallBase> clone_modified(ID::List list_id) final override
     {
+        LOGGED_LOCK_CONTEXT_HINT;
         std::lock_guard<LoggedLock::Mutex> lock(lock_);
         return std::make_shared<GetListIDCall>(
                     cm_, proxy_, list_id, item_index_, std::move(context_data_),
@@ -199,6 +200,7 @@ class GetParameterizedListIDCall: public GetListIDCallBase
 
     std::shared_ptr<GetListIDCallBase> clone_modified(ID::List list_id) final override
     {
+        LOGGED_LOCK_CONTEXT_HINT;
         std::lock_guard<LoggedLock::Mutex> lock(lock_);
         return std::make_shared<GetParameterizedListIDCall>(
                     cm_, proxy_, list_id, item_index_, std::move(search_query_),

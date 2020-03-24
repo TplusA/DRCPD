@@ -53,6 +53,7 @@ namespace AsyncCallPool
 
 void register_call(std::shared_ptr<AsyncCall_> call)
 {
+    LOGGED_LOCK_CONTEXT_HINT;
     std::lock_guard<LoggedLock::Mutex> lock(async_call_pool_data.lock);
     auto &aq(async_call_pool_data.active_queries);
 
@@ -63,6 +64,7 @@ void register_call(std::shared_ptr<AsyncCall_> call)
 
 void unregister_call(std::shared_ptr<AsyncCall_> call)
 {
+    LOGGED_LOCK_CONTEXT_HINT;
     std::lock_guard<LoggedLock::Mutex> lock(async_call_pool_data.lock);
     auto &aq(async_call_pool_data.active_queries);
 

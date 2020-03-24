@@ -337,7 +337,7 @@ class DBusList: public ListIface, public AsyncListIface
         AsyncWatcher event_watcher_;
 
         std::shared_ptr<QueryContextEnterList> enter_list_query_;
-        std::shared_ptr<DBusRNF::GetRangeCallBase> get_item_query_;
+        std::shared_ptr<DBusRNF::GetRangeCallBase> get_range_query_;
 
         bool is_canceling_;
 
@@ -380,11 +380,12 @@ class DBusList: public ListIface, public AsyncListIface
          *
          * Must be called while holding #List::DBusList::AsyncDBusData::lock_.
          */
-        DBus::CancelResult cancel_get_item_query()
+        DBus::CancelResult cancel_get_range_query()
         {
+            LOGGED_LOCK_CONTEXT_HINT;
             std::lock_guard<LoggedLock::RecMutex> lock(lock_);
 
-            auto local_ref(std::move(get_item_query_));
+            auto local_ref(std::move(get_range_query_));
 
             if(local_ref == nullptr)
                 return DBus::CancelResult::NOT_RUNNING;
@@ -396,6 +397,7 @@ class DBusList: public ListIface, public AsyncListIface
 
         DBus::CancelResult cancel_all()
         {
+            LOGGED_LOCK_CONTEXT_HINT;
             std::lock_guard<LoggedLock::RecMutex> lock(lock_);
 
             if(is_canceling_)
@@ -404,7 +406,7 @@ class DBusList: public ListIface, public AsyncListIface
             is_canceling_ = true;
 
             DBus::CancelResult ret_enter_list = cancel_enter_list_query();
-            DBus::CancelResult ret_get_item = cancel_get_item_query();
+            DBus::CancelResult ret_get_item = cancel_get_range_query();
 
             is_canceling_ = false;
 
@@ -621,8 +623,8 @@ class DBusList: public ListIface, public AsyncListIface
 
     bool is_line_loading(unsigned int line) const
     {
-        if(async_dbus_data_.get_item_query_ != nullptr)
-            return async_dbus_data_.get_item_query_->loading_segment_.contains_line(line);
+        if(async_dbus_data_.get_range_query_ != nullptr)
+            return async_dbus_data_.get_range_query_->loading_segment_.contains_line(line);
         else
             return false;
     }

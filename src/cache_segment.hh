@@ -39,6 +39,11 @@ class CacheSegment
         count_(count)
     {}
 
+    bool operator==(const CacheSegment &other) const
+    {
+        return line_ == other.line_ && count_ == other.count_;
+    }
+
     enum Intersection
     {
         DISJOINT,

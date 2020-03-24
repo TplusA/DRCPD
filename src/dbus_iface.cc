@@ -32,6 +32,7 @@
 #include "gerrorwrapper.hh"
 #include "messages.h"
 #include "messages_dbus.h"
+#include "logged_lock.hh"
 
 struct DBusData
 {
@@ -77,6 +78,8 @@ struct ProcessData
 
 static gpointer process_dbus(gpointer user_data)
 {
+    LoggedLock::set_context_name("D-Bus I/O");
+
     auto &data = *static_cast<ProcessData *>(user_data);
 
     log_assert(data.loop != nullptr);

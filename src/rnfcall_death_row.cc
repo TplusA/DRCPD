@@ -39,6 +39,7 @@ void DBusRNF::DeathRow::enter(std::shared_ptr<CallBase> &&call)
     if(call == nullptr)
         return;
 
+    LOGGED_LOCK_CONTEXT_HINT;
     std::lock_guard<LoggedLock::Mutex> lock(lock_);
     zombies_.emplace_back(std::move(call));
     g_idle_add(do_execute, this);
@@ -46,6 +47,7 @@ void DBusRNF::DeathRow::enter(std::shared_ptr<CallBase> &&call)
 
 void DBusRNF::DeathRow::execute()
 {
+    LOGGED_LOCK_CONTEXT_HINT;
     std::lock_guard<LoggedLock::Mutex> lock(lock_);
     zombies_.clear();
 }

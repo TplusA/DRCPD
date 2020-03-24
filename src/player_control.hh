@@ -194,6 +194,7 @@ class Control
     {
         Control &ncthis(*const_cast<Control *>(this));
 
+        LOGGED_LOCK_CONTEXT_HINT;
         return std::make_tuple(LoggedLock::UniqueLock<LoggedLock::RecMutex>(ncthis.lock_),
                                player_data_ != nullptr
                                ? player_data_->lock()
