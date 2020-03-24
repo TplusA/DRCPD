@@ -89,6 +89,10 @@ using I18nConfigMgr = Configuration::ConfigManager<Configuration::I18nValues>;
 ssize_t (*os_read)(int fd, void *dest, size_t count) = read;
 ssize_t (*os_write)(int fd, const void *buf, size_t count) = write;
 
+#if LOGGED_LOCKS_ENABLED && LOGGED_LOCKS_THREAD_CONTEXTS
+thread_local LoggedLock::Context LoggedLock::context;
+#endif
+
 static void show_version_info(void)
 {
     printf("%s\n"
