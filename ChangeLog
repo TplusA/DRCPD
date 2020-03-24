@@ -1,3 +1,17 @@
+2020-03-24  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 5.3 released.
+
+	* Stability: Avoid crash on invalid stream ID in play view.
+
+	* Stability: Avoid crash when starting a stream from USB.
+
+	* Stability: Avoid crash when browsing long UPnP server lists.
+
+	* Meson: Several improvements and simplifications.
+
+	* Misc: Fixed compiler warnings.
+
 2020-03-04  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 5.2 released.
