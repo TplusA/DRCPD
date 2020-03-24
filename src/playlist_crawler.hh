@@ -119,6 +119,7 @@ class Iface
 
         const CursorBase &get_reference_point() const
         {
+            LOGGED_LOCK_CONTEXT_HINT;
             std::lock_guard<LoggedLock::Mutex> lock(crawler_.lock_);
             return *crawler_.reference_point_;
         }
@@ -131,30 +132,35 @@ class Iface
         void bookmark(Bookmark bm, std::unique_ptr<CursorBase> cursor) const
         {
             log_assert(cursor != nullptr);
+            LOGGED_LOCK_CONTEXT_HINT;
             std::lock_guard<LoggedLock::Mutex> lock(crawler_.lock_);
             crawler_.bookmark_position(bm, std::move(cursor));
         }
 
         void move_bookmark(Bookmark dest, Bookmark src) const
         {
+            LOGGED_LOCK_CONTEXT_HINT;
             std::lock_guard<LoggedLock::Mutex> lock(crawler_.lock_);
             crawler_.bookmark_move(dest, src);
         }
 
         void clear_bookmark(Bookmark bm) const
         {
+            LOGGED_LOCK_CONTEXT_HINT;
             std::lock_guard<LoggedLock::Mutex> lock(crawler_.lock_);
             crawler_.bookmark_clear(bm);
         }
 
         const CursorBase *get_bookmark(Bookmark bm) const
         {
+            LOGGED_LOCK_CONTEXT_HINT;
             std::lock_guard<LoggedLock::Mutex> lock(crawler_.lock_);
             return crawler_.get_bookmarked_position(bm);
         }
 
         const CursorBase *get_bookmark(Bookmark bm, Bookmark fallback) const
         {
+            LOGGED_LOCK_CONTEXT_HINT;
             std::lock_guard<LoggedLock::Mutex> lock(crawler_.lock_);
             const auto *const result = crawler_.get_bookmarked_position(bm);
             return result != nullptr
@@ -237,12 +243,14 @@ class Iface
 
     bool is_active() const
     {
+        LOGGED_LOCK_CONTEXT_HINT;
         std::lock_guard<LoggedLock::Mutex> lock(lock_);
         return is_active_;
     }
 
     bool is_busy() const
     {
+        LOGGED_LOCK_CONTEXT_HINT;
         std::lock_guard<LoggedLock::Mutex> lock(lock_);
         return is_active_ && !ops_.empty();
     }
@@ -445,6 +453,7 @@ class OperationBase
 
     void cancel()
     {
+        LOGGED_LOCK_CONTEXT_HINT;
         std::lock_guard<LoggedLock::Mutex> lock(lock_);
 
         switch(state_)
@@ -474,6 +483,7 @@ class OperationBase
      */
     bool restart()
     {
+        LOGGED_LOCK_CONTEXT_HINT;
         std::lock_guard<LoggedLock::Mutex> lock(lock_);
         return do_restart();
     }
@@ -486,6 +496,7 @@ class OperationBase
      */
     unsigned int get_number_of_attempts() const
     {
+        LOGGED_LOCK_CONTEXT_HINT;
         std::lock_guard<LoggedLock::Mutex> lock(lock_);
         return started_counter_;
     }
@@ -614,6 +625,7 @@ class OperationBase
   private:
     bool start(OperationDoneNotification &&op_done_callback)
     {
+        LOGGED_LOCK_CONTEXT_HINT;
         std::lock_guard<LoggedLock::Mutex> lock(lock_);
 
         op_done_notification_callback_ = std::move(op_done_callback);
@@ -650,6 +662,7 @@ class OperationBase
 
     bool continue_running()
     {
+        LOGGED_LOCK_CONTEXT_HINT;
         std::lock_guard<LoggedLock::Mutex> lock(lock_);
 
         switch(state_)
@@ -684,6 +697,7 @@ class OperationBase
      */
     bool notify_caller()
     {
+        LOGGED_LOCK_CONTEXT_HINT;
         LoggedLock::UniqueLock<LoggedLock::Mutex> lock(lock_);
 
         switch(state_)

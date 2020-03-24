@@ -154,6 +154,7 @@ void List::DBusList::enter_list(ID::List list_id, unsigned int line)
 
     if(list_id != window_.list_id_)
     {
+        LOGGED_LOCK_CONTEXT_HINT;
         std::lock_guard<LoggedLock::RecMutex> lock((const_cast<List::DBusList *>(this)->async_dbus_data_).lock_);
         const_cast<List::DBusList *>(this)->async_dbus_data_.cancel_enter_list_query();
     }
@@ -372,6 +373,7 @@ List::DBusList::enter_list_async(ID::List list_id, unsigned int line,
 {
     log_assert(list_id.is_valid());
 
+    LOGGED_LOCK_CONTEXT_HINT;
     LoggedLock::UniqueLock<LoggedLock::RecMutex> lock(async_dbus_data_.lock_);
 
     async_dbus_data_.cancel_enter_list_query();
@@ -495,6 +497,7 @@ restart_if_necessary(std::shared_ptr<DBusRNF::GetRangeCallBase> &call,
 
 void List::DBusList::list_invalidate(ID::List list_id, ID::List replacement_id)
 {
+    LOGGED_LOCK_CONTEXT_HINT;
     LoggedLock::UniqueLock<LoggedLock::RecMutex> lock(async_dbus_data_.lock_);
 
     if(window_.list_id_ == list_id)
@@ -958,6 +961,7 @@ List::DBusList::load_segment_in_background(const CacheSegment &prefetch_segment,
             [this, h = std::move(hinted_fn)]
             (DBusRNF::CallBase &call, DBusRNF::CallState)
             {
+                LOGGED_LOCK_CONTEXT_HINT;
                 LoggedLock::UniqueLock<LoggedLock::RecMutex> l(async_dbus_data_.lock_);
 
                 if(&call != async_dbus_data_.get_range_query_.get())
@@ -970,6 +974,7 @@ List::DBusList::load_segment_in_background(const CacheSegment &prefetch_segment,
                     [this, h = std::move(h), q = async_dbus_data_.get_range_query_]
                     () mutable
                     {
+                        LOGGED_LOCK_CONTEXT_HINT;
                         LoggedLock::UniqueLock<LoggedLock::RecMutex> ll(async_dbus_data_.lock_);
                         get_item_result_available_notification(std::move(h),
                                                                std::move(q));
@@ -1040,6 +1045,7 @@ List::DBusList::get_item_async_set_hint(unsigned int line, unsigned int count,
         return OpResult::FAILED;
     }
 
+    LOGGED_LOCK_CONTEXT_HINT;
     LoggedLock::UniqueLock<LoggedLock::RecMutex> lock(async_dbus_data_.lock_);
 
     /* already entering a list, cannot get items in this situation */
@@ -1126,6 +1132,7 @@ List::DBusList::get_item_async(unsigned int line, const Item *&item)
     if(!window_.list_id_.is_valid())
         return OpResult::FAILED;
 
+    LOGGED_LOCK_CONTEXT_HINT;
     LoggedLock::UniqueLock<LoggedLock::RecMutex> lock(async_dbus_data_.lock_);
 
     /* already entering a list, cannot get items in this situation */
@@ -1153,6 +1160,7 @@ List::DBusList::get_item_async(unsigned int line, const Item *&item)
 
 bool List::DBusList::cancel_all_async_calls()
 {
+    LOGGED_LOCK_CONTEXT_HINT;
     LoggedLock::UniqueLock<LoggedLock::RecMutex> lock(async_dbus_data_.lock_);
 
     switch(async_dbus_data_.cancel_all())
@@ -1300,6 +1308,7 @@ void List::DBusList::apply_cache_modifications(const CacheModifications &cm)
 
 void List::DBusList::async_done_notification(DBus::AsyncCall_ &async_call)
 {
+    LOGGED_LOCK_CONTEXT_HINT;
     LoggedLock::UniqueLock<LoggedLock::RecMutex> lock(async_dbus_data_.lock_);
 
     if(async_dbus_data_.enter_list_query_ != nullptr)
@@ -1324,6 +1333,7 @@ void List::DBusList::async_done_notification(DBus::AsyncCall_ &async_call)
 
 std::string List::DBusList::AsyncDBusData::get_description_get_item()
 {
+    LOGGED_LOCK_CONTEXT_HINT;
     std::lock_guard<LoggedLock::RecMutex> lock(lock_);
 
     if(get_range_query_ == nullptr)

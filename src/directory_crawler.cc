@@ -62,6 +62,7 @@ void Playlist::Crawler::DirectoryCrawler::deactivated(std::shared_ptr<CursorBase
 
 bool Playlist::Crawler::DirectoryCrawler::list_invalidate(ID::List list_id, ID::List replacement_id)
 {
+    LOGGED_LOCK_CONTEXT_HINT;
     std::lock_guard<LoggedLock::Mutex> lock(lock_);
 
     log_assert(list_id.is_valid());
@@ -150,6 +151,7 @@ void Playlist::Crawler::DirectoryCrawler::async_list__enter_list_event(
         break;
     }
 
+    LOGGED_LOCK_CONTEXT_HINT;
     std::lock_guard<LoggedLock::Mutex> lock(lock_);
 
     const auto cid(ctx->get_caller_id());

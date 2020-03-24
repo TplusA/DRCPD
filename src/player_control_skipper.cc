@@ -76,6 +76,7 @@ Player::Skipper::forward_request(
     if(pos == nullptr)
         return RequestResult::FAILED;
 
+    LOGGED_LOCK_CONTEXT_HINT;
     std::lock_guard<LoggedLock::Mutex> lock(lock_);
 
     if(should_reject_skip_request(player_data))
@@ -138,6 +139,7 @@ Player::Skipper::backward_request(
     if(pos == nullptr)
         return RequestResult::FAILED;
 
+    LOGGED_LOCK_CONTEXT_HINT;
     std::lock_guard<LoggedLock::Mutex> lock(lock_);
 
     if(should_reject_skip_request(player_data))
@@ -191,6 +193,7 @@ Player::Skipper::backward_request(
 bool Player::Skipper::found_or_failed(Playlist::Crawler::FindNextOpBase &op,
                                       SkipperDoneCallback &&done)
 {
+    LOGGED_LOCK_CONTEXT_HINT;
     std::unique_lock<LoggedLock::Mutex> lock(lock_);
 
     if(!op.is_op_successful())

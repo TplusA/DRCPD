@@ -92,6 +92,7 @@ class GetRangeCallBase:
     get_cache_segment_state(const List::CacheSegment &segment,
                             unsigned int &size_of_loading_segment) const
     {
+        LOGGED_LOCK_CONTEXT_HINT;
         std::lock_guard<LoggedLock::Mutex> lock(lock_);
 
         if(list_error_.failed())
@@ -133,6 +134,7 @@ class GetRangeCallBase:
 
     bool is_already_loading(unsigned int line, unsigned int count, bool &can_abort) const
     {
+        LOGGED_LOCK_CONTEXT_HINT;
         std::lock_guard<LoggedLock::Mutex> lock(lock_);
 
         can_abort = true;
@@ -189,6 +191,7 @@ class GetRangeCall: public GetRangeCallBase
 
     std::shared_ptr<GetRangeCallBase> clone_modified(ID::List list_id) final override
     {
+        LOGGED_LOCK_CONTEXT_HINT;
         std::lock_guard<LoggedLock::Mutex> lock(lock_);
         return std::make_shared<GetRangeCall>(
                     cm_, proxy_, iface_name_, list_id,
@@ -308,6 +311,7 @@ class GetRangeWithMetaDataCall: public GetRangeCallBase
 
     std::shared_ptr<GetRangeCallBase> clone_modified(ID::List list_id) final override
     {
+        LOGGED_LOCK_CONTEXT_HINT;
         std::lock_guard<LoggedLock::Mutex> lock(lock_);
         return std::make_shared<GetRangeWithMetaDataCall>(
                     cm_, proxy_, iface_name_, list_id,

@@ -249,6 +249,8 @@ static int setup(const Parameters &parameters,
 
     log_version_info();
 
+    LoggedLock::set_context_name("Main");
+
     I18n::init();
     ViewFileBrowser::init_i18n();
 

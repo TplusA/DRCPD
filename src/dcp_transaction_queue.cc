@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, 2017, 2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2017, 2019, 2020  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -34,6 +34,7 @@ std::function<void()> DCP::Queue::schedule_async_processing_callback;
 void DCP::Queue::add(ViewSerializeBase *view,
                      bool is_full_serialize, uint32_t view_update_flags)
 {
+    LOGGED_LOCK_CONTEXT_HINT;
     std::lock_guard<LoggedLock::Mutex> lock(q_.lock_);
 
     const auto &it(std::find_if(q_.data_.begin(), q_.data_.end(),
@@ -58,9 +59,11 @@ void DCP::Queue::add(ViewSerializeBase *view,
 bool DCP::Queue::start_transaction(Mode mode)
 {
     {
+        LOGGED_LOCK_CONTEXT_HINT;
         std::lock_guard<LoggedLock::RecMutex> txlock(active_.lock_);
 
         {
+            LOGGED_LOCK_CONTEXT_HINT;
             std::lock_guard<LoggedLock::Mutex> qlock(q_.lock_);
 
             if(q_.data_.empty())
@@ -104,11 +107,13 @@ bool DCP::Queue::process_pending_transactions()
 
 bool DCP::Queue::process()
 {
+    LOGGED_LOCK_CONTEXT_HINT;
     std::lock_guard<LoggedLock::RecMutex> txlock(active_.lock_);
 
     while(true)
     {
         {
+            LOGGED_LOCK_CONTEXT_HINT;
             std::lock_guard<LoggedLock::Mutex> qlock(q_.lock_);
 
             if(q_.data_.empty())
@@ -144,6 +149,7 @@ bool DCP::Queue::process()
 
 bool DCP::Queue::finish_transaction(DCP::Transaction::Result result)
 {
+    LOGGED_LOCK_CONTEXT_HINT;
     std::lock_guard<LoggedLock::RecMutex> txlock(active_.lock_);
 
     if(!active_.dcpd_.is_in_progress())

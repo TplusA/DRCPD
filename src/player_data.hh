@@ -636,6 +636,7 @@ class Data
      */
     LoggedLock::UniqueLock<LoggedLock::RecMutex> lock() const
     {
+        LOGGED_LOCK_CONTEXT_HINT;
         return LoggedLock::UniqueLock<LoggedLock::RecMutex>(const_cast<Data *>(this)->lock_);
     }
 

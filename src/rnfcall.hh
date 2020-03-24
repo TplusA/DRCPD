@@ -455,6 +455,7 @@ class Call: public CallBase
                       const std::function<void(uint32_t)> &manage_cookie,
                       const std::function<void()> &fast_path)
     {
+        LOGGED_LOCK_CONTEXT_HINT;
         std::lock_guard<LoggedLock::Mutex> lock(lock_);
 
         if(get_state() != CallState::INITIALIZED)
@@ -528,6 +529,7 @@ class Call: public CallBase
      */
     bool fetch(const std::function<void(uint32_t, std::promise<ResultType> &)> &do_fetch)
     {
+        LOGGED_LOCK_CONTEXT_HINT;
         std::lock_guard<LoggedLock::Mutex> lock(lock_);
         return fetch_unlocked(do_fetch);
     }
@@ -547,6 +549,7 @@ class Call: public CallBase
      */
     bool fetch_blocking(const std::function<void(uint32_t, std::promise<ResultType> &)> &do_fetch)
     {
+        LOGGED_LOCK_CONTEXT_HINT;
         LoggedLock::UniqueLock<LoggedLock::Mutex> lock(lock_);
 
         /* XXX: Possibly error out hard after a very pessimistic upper boundary
@@ -653,6 +656,7 @@ class Call: public CallBase
      */
     ResultType get_result_locked()
     {
+        LOGGED_LOCK_CONTEXT_HINT;
         std::lock_guard<LoggedLock::Mutex> lock(lock_);
         return get_result_unlocked();
     }

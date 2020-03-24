@@ -75,6 +75,7 @@ class GlobalBusyState
 
     void set_callback(const std::function<void(bool)> &callback)
     {
+        LOGGED_LOCK_CONTEXT_HINT;
         LoggedLock::UniqueLock<LoggedLock::Mutex> lock(lock_);
 
         notify_busy_state_changed_ = callback;
@@ -85,6 +86,7 @@ class GlobalBusyState
 
     bool set_direct(uint32_t mask)
     {
+        LOGGED_LOCK_CONTEXT_HINT;
         LoggedLock::UniqueLock<LoggedLock::Mutex> lock(lock_);
         busy_flags_ |= mask;
         return notify_if_necessary(lock);
@@ -92,6 +94,7 @@ class GlobalBusyState
 
     bool set(uint32_t mask)
     {
+        LOGGED_LOCK_CONTEXT_HINT;
         LoggedLock::UniqueLock<LoggedLock::Mutex> lock(lock_);
 
         busy_flags_ |= mask;
@@ -112,6 +115,7 @@ class GlobalBusyState
 
     bool clear_direct(uint32_t mask)
     {
+        LOGGED_LOCK_CONTEXT_HINT;
         LoggedLock::UniqueLock<LoggedLock::Mutex> lock(lock_);
         busy_flags_ &= ~mask;
         return notify_if_necessary(lock);
@@ -119,6 +123,7 @@ class GlobalBusyState
 
     bool clear(uint32_t mask)
     {
+        LOGGED_LOCK_CONTEXT_HINT;
         LoggedLock::UniqueLock<LoggedLock::Mutex> lock(lock_);
 
         uint32_t bit = 1U;
@@ -140,6 +145,7 @@ class GlobalBusyState
 
     bool has_busy_state_changed()
     {
+        LOGGED_LOCK_CONTEXT_HINT;
         std::lock_guard<LoggedLock::Mutex> lock(lock_);
 
         return has_busy_state_changed(last_read_busy_state_);
@@ -147,6 +153,7 @@ class GlobalBusyState
 
     bool is_busy()
     {
+        LOGGED_LOCK_CONTEXT_HINT;
         std::lock_guard<LoggedLock::Mutex> lock(lock_);
 
         last_read_busy_state_ = is_busy__uncached();

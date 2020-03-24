@@ -35,6 +35,7 @@ bool DBusRNF::CallBase::abort_request()
 
 bool DBusRNF::CallBase::abort_request_internal(bool suppress_errors)
 {
+    LOGGED_LOCK_CONTEXT_HINT;
     std::unique_lock<LoggedLock::Mutex> lock(lock_);
 
     switch(state_)
@@ -97,6 +98,7 @@ bool DBusRNF::CallBase::abort_request_internal(bool suppress_errors)
 void DBusRNF::CallBase::notification(uint32_t cookie, CallState new_state,
                                      const char *what)
 {
+    LOGGED_LOCK_CONTEXT_HINT;
     std::lock_guard<LoggedLock::Mutex> lock(lock_);
 
     if(cookie == 0)

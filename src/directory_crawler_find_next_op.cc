@@ -467,6 +467,7 @@ void Playlist::Crawler::DirectoryCrawler::FindNextOp::enter_list_event(
         List::AsyncListIface::OpResult op_result,
         const List::QueryContextEnterList &ctx)
 {
+    LOGGED_LOCK_CONTEXT_HINT;
     std::lock_guard<LoggedLock::Mutex> lock(lock_);
 
     const auto cid(ctx.get_caller_id());

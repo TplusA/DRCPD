@@ -382,6 +382,7 @@ class DBusList: public ListIface, public AsyncListIface
          */
         DBus::CancelResult cancel_get_range_query()
         {
+            LOGGED_LOCK_CONTEXT_HINT;
             std::lock_guard<LoggedLock::RecMutex> lock(lock_);
 
             auto local_ref(std::move(get_range_query_));
@@ -396,6 +397,7 @@ class DBusList: public ListIface, public AsyncListIface
 
         DBus::CancelResult cancel_all()
         {
+            LOGGED_LOCK_CONTEXT_HINT;
             std::lock_guard<LoggedLock::RecMutex> lock(lock_);
 
             if(is_canceling_)
