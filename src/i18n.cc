@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2018, 2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2018, 2019, 2020  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -26,6 +26,7 @@
 #ifdef ENABLE_NLS
 
 #include <vector>
+#include <string>
 #include <cstdlib>
 #include <clocale>
 #include <cstring>
