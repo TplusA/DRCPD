@@ -229,7 +229,7 @@ void test_get_existent_view_by_name_returns_view_interface(void)
     view.check();
 }
 
-};
+}
 
 namespace view_manager_tests
 {
@@ -457,7 +457,7 @@ void test_move_cursor_down_by_multiple_pages(void)
     check_and_clear_ostream("Mock update\n", *views_output);
 }
 
-};
+}
 
 namespace view_manager_tests_multiple_views
 {
@@ -1036,7 +1036,7 @@ void test_toggle_views_with_two_unknown_names_does_nothing(void)
     vm->process_pending_events();
 }
 
-};
+}
 
 /*!
  * Tests concerning serialization to DCPD and handling the result.
@@ -1265,6 +1265,6 @@ void test_view_update_does_not_affect_ongoing_transfer()
     vm->serialization_result(DCP::Transaction::OK);
 }
 
-};
+}
 
 /*!@}*/

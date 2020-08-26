@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2016, 2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016, 2019, 2020  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -1145,7 +1145,7 @@ void test_distance_from_top_and_bottom_in_empty_list()
     cppcut_assert_equal(0U, nav.distance_to_bottom());
 }
 
-};
+}
 
 
 namespace list_navigation_tests_with_unselectable_items
@@ -1345,7 +1345,7 @@ void test_late_binding_of_navigation_and_filter()
     cppcut_assert_equal(4U, expected_current_line);
 }
 
-};
+}
 
 
 namespace list_navigation_tests_with_invisible_items
@@ -1899,6 +1899,6 @@ void test_distance_from_top_and_bottom_in_filtered_list()
     cppcut_assert_equal(0U, nav.distance_to_bottom());
 }
 
-};
+}
 
 /*!@}*/

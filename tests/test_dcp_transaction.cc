@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2016, 2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016, 2019, 2020  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -308,7 +308,7 @@ void test_set_null_output_stream()
     cut_assert_true(dt->done());
 }
 
-};
+}
 
 
 namespace dcp_transaction_tests_observer
@@ -410,4 +410,4 @@ void test_abort_after_commit(void)
     dt->abort();
 }
 
-};
+}

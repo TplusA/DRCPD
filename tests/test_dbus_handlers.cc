@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2016, 2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016, 2019, 2020  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -409,6 +409,6 @@ void test_dcpd_listnav_unknown_signal_name(void)
                             "UnsupportedSignalName", nullptr, &dbus_signal_data);
 }
 
-};
+}
 
 /*!@}*/

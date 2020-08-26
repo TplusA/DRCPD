@@ -85,6 +85,6 @@ class View: public ViewIface, public ViewSerializeBase
     bool write_xml_end(std::ostream &os, uint32_t bits, const DCP::Queue::Data &data_full_view) override;
 };
 
-};
+}
 
 #endif /* !VIEW_MOCK_HH */
