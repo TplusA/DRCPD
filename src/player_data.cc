@@ -684,15 +684,22 @@ bool Player::Data::player_dropped_from_queue(const std::vector<ID::Stream> &drop
 
     for(const auto &dropped_id : dropped)
     {
+        std::unique_ptr<Player::QueuedStream> qs;
+
         try
         {
-            queued_streams_.remove_front(ID::OurStream::make_from_generic_id(dropped_id));
+            qs = queued_streams_.remove_front(ID::OurStream::make_from_generic_id(dropped_id));
         }
         catch(const QueueError &e)
         {
             player_failed();
             return false;
         }
+
+        if(qs != nullptr)
+            remove_data_for_stream(*qs, meta_data_db_, referenced_lists_);
+        else
+            meta_data_db_.forget_stream(dropped_id);
     }
 
     queued_streams_.log("After drop");
