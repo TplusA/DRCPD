@@ -349,7 +349,7 @@ using Handle = std::unique_ptr<Playlist::Crawler::Iface::Handle>;
 /*!
  * Base class for crawler operations.
  */
-class OperationBase
+class OperationBase: public std::enable_shared_from_this<OperationBase>
 {
   protected:
     /*!

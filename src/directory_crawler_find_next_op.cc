@@ -208,13 +208,14 @@ Playlist::Crawler::DirectoryCrawler::FindNextOp::finish_with_current_item_or_con
     const auto hint_result =
         position_->hint_planned_access(
             dbus_list_, is_forward_direction(direction_),
-            [this] (auto op_result)
+            [op = std::move(std::static_pointer_cast<FindNextOp>(shared_from_this()))]
+            (auto op_result)
             {
-                if(!is_op_active())
+                if(!op->is_op_active())
                     return;
 
-                is_waiting_for_item_hint_ = false;
-                run_as_far_as_possible();
+                op->is_waiting_for_item_hint_ = false;
+                op->run_as_far_as_possible();
             });
 
     switch(hint_result)
