@@ -187,6 +187,7 @@ class AsyncListIface
     enum class OpResult
     {
         STARTED,
+        BUSY,
         SUCCEEDED,
         FAILED,
         CANCELED,

@@ -370,7 +370,7 @@ class CallBase
  *     fundamental type for simpler results.
  */
 template <typename RT, Busy::Source BS>
-class Call: public CallBase
+class Call: public CallBase, public std::enable_shared_from_this<Call<RT, BS>>
 {
   public:
     using ResultType = RT;
@@ -466,6 +466,8 @@ class Call: public CallBase
 
         Busy::set(BS);
         busy_source_set_ = true;
+
+        const auto t(this->shared_from_this());
 
         try
         {

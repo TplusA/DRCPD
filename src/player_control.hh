@@ -299,7 +299,7 @@ class Control
     QueuedStream::OpResult
     queue_item_from_op(Playlist::Crawler::GetURIsOpBase &op,
                        Playlist::Crawler::Direction direction,
-                       QueueItemRedirectResolved callback,
+                       const QueueItemRedirectResolved &callback,
                        InsertMode insert_mode, PlayNewMode play_new_mode);
     QueuedStream::OpResult
     queue_item_from_op_tail(ID::OurStream stream_id, InsertMode insert_mode,

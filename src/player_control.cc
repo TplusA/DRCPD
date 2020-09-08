@@ -2118,7 +2118,7 @@ void Player::Control::unexpected_resolve_error(
 Player::QueuedStream::OpResult
 Player::Control::queue_item_from_op(Playlist::Crawler::GetURIsOpBase &op,
                                     Playlist::Crawler::Direction direction,
-                                    QueueItemRedirectResolved callback,
+                                    const QueueItemRedirectResolved &callback,
                                     InsertMode insert_mode, PlayNewMode play_new_mode)
 {
     using DirCursor = Playlist::Crawler::DirectoryCrawler::Cursor;

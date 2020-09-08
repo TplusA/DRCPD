@@ -96,6 +96,10 @@ static ID::List finish_async_enter_dir_op(List::AsyncListIface::OpResult result,
       case List::AsyncListIface::OpResult::CANCELED:
       case List::AsyncListIface::OpResult::STARTED:
         break;
+
+      case List::AsyncListIface::OpResult::BUSY:
+        MSG_UNREACHABLE();
+        break;
     }
 
     return current_list_id;
@@ -1129,6 +1133,7 @@ ViewFileBrowser::View::process_event(UI::ViewEventID event_id,
             switch(op_result)
             {
               case List::AsyncListIface::OpResult::STARTED:
+              case List::AsyncListIface::OpResult::BUSY:
               case List::AsyncListIface::OpResult::SUCCEEDED:
                 item = dynamic_cast<decltype(item)>(dbus_list_item);
                 break;
@@ -1407,6 +1412,7 @@ bool ViewFileBrowser::View::write_xml(std::ostream &os, uint32_t bits,
         break;
 
       case List::AsyncListIface::OpResult::CANCELED:
+      case List::AsyncListIface::OpResult::BUSY:
         return false;
     }
 
@@ -1440,6 +1446,7 @@ bool ViewFileBrowser::View::write_xml(std::ostream &os, uint32_t bits,
             switch(op_result)
             {
               case List::AsyncListIface::OpResult::STARTED:
+              case List::AsyncListIface::OpResult::BUSY:
               case List::AsyncListIface::OpResult::SUCCEEDED:
                 item = dynamic_cast<decltype(item)>(dbus_list_item);
                 break;
@@ -1580,6 +1587,9 @@ void ViewFileBrowser::View::serialize(DCP::Queue &queue, DCP::Queue::Mode mode,
       case List::AsyncListIface::OpResult::CANCELED:
       case List::AsyncListIface::OpResult::FAILED:
         break;
+
+      case List::AsyncListIface::OpResult::BUSY:
+        return;
     }
 
     for(auto it : navigation_)
@@ -1596,6 +1606,7 @@ void ViewFileBrowser::View::serialize(DCP::Queue &queue, DCP::Queue::Mode mode,
             switch(op_result)
             {
               case List::AsyncListIface::OpResult::STARTED:
+              case List::AsyncListIface::OpResult::BUSY:
               case List::AsyncListIface::OpResult::SUCCEEDED:
                 item = dynamic_cast<decltype(item)>(dbus_list_item);
                 break;
@@ -2193,6 +2204,7 @@ static std::string get_child_name(List::DBusList &file_list, unsigned int line)
 
         switch(op_result)
         {
+          case List::AsyncListIface::OpResult::BUSY:
           case List::AsyncListIface::OpResult::SUCCEEDED:
             item = dynamic_cast<decltype(item)>(dbus_list_item);
             break;
@@ -2290,6 +2302,10 @@ bool ViewFileBrowser::View::point_to_any_location(ID::List list_id,
       case List::AsyncListIface::OpResult::CANCELED:
         msg_error(0, LOG_ERR, "Failed jumping to previous location %u:%u",
                   list_id.get_raw_id(), line_number);
+        break;
+
+      case List::AsyncListIface::OpResult::BUSY:
+        MSG_UNREACHABLE();
         break;
     }
 

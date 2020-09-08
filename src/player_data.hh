@@ -244,7 +244,7 @@ class QueuedStream
     QueuedStream(QueuedStream &&) = default;
     QueuedStream &operator=(const QueuedStream &) = delete;
 
-    explicit QueuedStream(ID::OurStream stream_id,
+    explicit QueuedStream(const ID::OurStream &stream_id,
                           const GVariantWrapper &stream_key,
                           std::vector<std::string> &&uris,
                           Airable::SortedLinks &&airable_links,
@@ -472,14 +472,14 @@ class QueuedStreams
     const QueuedStream *get_stream_by_id(ID::OurStream stream_id) const;
 
     template <typename T>
-    auto with_stream(ID::OurStream stream_id,
+    auto with_stream(const ID::OurStream &stream_id,
                      const std::function<T(QueuedStream *qs)> &apply)
     {
         return apply(get_stream_by_id(stream_id));
     }
 
     template <typename T>
-    auto with_stream(ID::OurStream stream_id,
+    auto with_stream(const ID::OurStream &stream_id,
                      const std::function<T(QueuedStream &qs)> &apply)
     {
         auto *const s = get_stream_by_id(stream_id);

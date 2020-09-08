@@ -149,6 +149,10 @@ void Playlist::Crawler::DirectoryCrawler::async_list__enter_list_event(
       case List::AsyncListIface::OpResult::FAILED:
       case List::AsyncListIface::OpResult::CANCELED:
         break;
+
+      case List::AsyncListIface::OpResult::BUSY:
+        MSG_UNREACHABLE();
+        return;
     }
 
     LOGGED_LOCK_CONTEXT_HINT;

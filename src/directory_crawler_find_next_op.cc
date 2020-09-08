@@ -227,6 +227,9 @@ Playlist::Crawler::DirectoryCrawler::FindNextOp::finish_with_current_item_or_con
         is_waiting_for_item_hint_ = true;
         return Continue::LATER;
 
+      case List::AsyncListIface::OpResult::BUSY:
+        return Continue::LATER;
+
       case List::AsyncListIface::OpResult::FAILED:
         return fail_here();
 
@@ -255,6 +258,9 @@ Playlist::Crawler::DirectoryCrawler::FindNextOp::finish_with_current_item_or_con
       case List::AsyncListIface::OpResult::CANCELED:
         BUG("Unexpected canceled result");
         log_assert(is_op_canceled());
+        return Continue::LATER;
+
+      case List::AsyncListIface::OpResult::BUSY:
         return Continue::LATER;
     }
 
@@ -340,6 +346,10 @@ Playlist::Crawler::DirectoryCrawler::FindNextOp::finish_with_current_item_or_con
         BUG("Unexpected canceled result");
         log_assert(is_op_canceled());
         break;
+
+      case List::AsyncListIface::OpResult::BUSY:
+        MSG_UNREACHABLE();
+        break;
     }
 
     return Continue::LATER;
@@ -417,6 +427,10 @@ Playlist::Crawler::DirectoryCrawler::FindNextOp::continue_search()
       case List::AsyncListIface::OpResult::CANCELED:
         BUG("Canceled entering parent list");
         log_assert(is_op_canceled());
+        break;
+
+      case List::AsyncListIface::OpResult::BUSY:
+        MSG_UNREACHABLE();
         break;
     }
 
@@ -504,6 +518,10 @@ void Playlist::Crawler::DirectoryCrawler::FindNextOp::enter_list_event(
       case List::AsyncListIface::OpResult::CANCELED:
         /* not really interested in this */
         log_assert(is_op_canceled());
+        return;
+
+      case List::AsyncListIface::OpResult::BUSY:
+        MSG_UNREACHABLE();
         return;
     }
 
@@ -629,6 +647,10 @@ bool Playlist::Crawler::DirectoryCrawler::FindNextOp::do_start()
 
       case List::AsyncListIface::OpResult::FAILED:
       case List::AsyncListIface::OpResult::CANCELED:
+        break;
+
+      case List::AsyncListIface::OpResult::BUSY:
+        MSG_UNREACHABLE();
         break;
     }
 

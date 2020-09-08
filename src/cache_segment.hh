@@ -25,51 +25,85 @@
 namespace List
 {
 
-class CacheSegment
+enum class SegmentIntersection
 {
-  public:
+    DISJOINT,
+    EQUAL,
+    TOP_REMAINS,
+    BOTTOM_REMAINS,
+    CENTER_REMAINS,
+    INCLUDED_IN_OTHER,
+};
+
+class Segment
+{
+  private:
     unsigned int line_;
     unsigned int count_;
 
-    CacheSegment(CacheSegment &&) = default;
-    CacheSegment &operator=(const CacheSegment &) = default;
-
-    explicit CacheSegment(unsigned int line, unsigned int count):
-        line_(line),
-        count_(count)
-    {}
-
-    bool operator==(const CacheSegment &other) const
+  public:
+    Segment(Segment &&src):
+        line_(src.line_),
+        count_(src.count_)
     {
-        return line_ == other.line_ && count_ == other.count_;
+        src.count_ = 0;
     }
 
-    enum Intersection
-    {
-        DISJOINT,
-        EQUAL,
-        TOP_REMAINS,
-        BOTTOM_REMAINS,
-        CENTER_REMAINS,
-        INCLUDED_IN_OTHER,
-    };
+    Segment &operator=(const Segment &) = default;
+    explicit Segment(const Segment &src) = default;
 
-    Intersection intersection(const CacheSegment &other, unsigned int &size) const
+    explicit Segment(): Segment(0, 0) {}
+
+    explicit Segment(unsigned int seg_line, unsigned int seg_size):
+        line_(seg_line),
+        count_(seg_size)
+    {}
+
+    bool operator==(const Segment &other) const
+    {
+        return
+            (line_ == other.line_ && count_ == other.count_) ||
+            (count_ == 0 && other.count_ == 0);
+    }
+
+    unsigned int line() const { return line_; }
+    unsigned int beyond() const { return line_ + count_; }
+    unsigned int size() const { return count_; }
+    bool empty() const { return count_ == 0; }
+
+    void clear() { count_ = 0; }
+
+    void shrink_up(unsigned int s) { count_ -= s; }
+
+    void shrink_down(unsigned int s)
+    {
+        line_ += s;
+        count_ -= s;
+    }
+
+    SegmentIntersection
+    intersection(const Segment &other, unsigned int &isize) const
     {
         /* special cases for empty intervals */
         if(count_ == 0)
         {
-            size = 0;
+            isize = 0;
 
             if(other.count_ == 0)
-                return (line_ == other.line_) ? EQUAL : DISJOINT;
+                return (line_ == other.line_)
+                    ? SegmentIntersection::EQUAL
+                    : SegmentIntersection::DISJOINT;
             else
-                return other.contains_line(line_) ? INCLUDED_IN_OTHER : DISJOINT;
+                return other.contains_line(line_)
+                    ? SegmentIntersection::INCLUDED_IN_OTHER
+                    : SegmentIntersection::DISJOINT;
         }
         else if(other.count_ == 0)
         {
-            size = 0;
-            return contains_line(other.line_) ? CENTER_REMAINS : DISJOINT;
+            isize = 0;
+            return contains_line(other.line_)
+                ? SegmentIntersection::CENTER_REMAINS
+                : SegmentIntersection::DISJOINT;
         }
 
         /* neither interval is empty, i.e., both counts are positive */
@@ -78,18 +112,18 @@ class CacheSegment
             /* equal start lines */
             if(count_ < other.count_)
             {
-                size = count_;
-                return INCLUDED_IN_OTHER;
+                isize = count_;
+                return SegmentIntersection::INCLUDED_IN_OTHER;
             }
             else if(count_ > other.count_)
             {
-                size = other.count_;
-                return TOP_REMAINS;
+                isize = other.count_;
+                return SegmentIntersection::TOP_REMAINS;
             }
             else
             {
-                size = count_;
-                return EQUAL;
+                isize = count_;
+                return SegmentIntersection::EQUAL;
             }
         }
 
@@ -102,18 +136,18 @@ class CacheSegment
             /* this interval starts before the other interval */
             if(beyond_this_end <= other.line_)
             {
-                size = 0;
-                return DISJOINT;
+                isize = 0;
+                return SegmentIntersection::DISJOINT;
             }
             else if(beyond_this_end <= beyond_other_end)
             {
-                size = beyond_this_end - other.line_;
-                return BOTTOM_REMAINS;
+                isize = beyond_this_end - other.line_;
+                return SegmentIntersection::BOTTOM_REMAINS;
             }
             else
             {
-                size = other.count_;
-                return CENTER_REMAINS;
+                isize = other.count_;
+                return SegmentIntersection::CENTER_REMAINS;
             }
         }
         else
@@ -121,25 +155,25 @@ class CacheSegment
             /* this interval starts after the other interval */
             if(beyond_other_end <= line_)
             {
-                size = 0;
-                return DISJOINT;
+                isize = 0;
+                return SegmentIntersection::DISJOINT;
             }
             else if(beyond_other_end < beyond_this_end)
             {
-                size = beyond_other_end - line_;
-                return TOP_REMAINS;
+                isize = beyond_other_end - line_;
+                return SegmentIntersection::TOP_REMAINS;
             }
             else
             {
-                size = count_;
-                return INCLUDED_IN_OTHER;
+                isize = count_;
+                return SegmentIntersection::INCLUDED_IN_OTHER;
             }
         }
     }
 
-    bool contains_line(unsigned int line) const
+    bool contains_line(unsigned int n) const
     {
-        return line >= line_ && line < line_ + count_;
+        return n >= line_ && n < line_ + count_;
     }
 };
 

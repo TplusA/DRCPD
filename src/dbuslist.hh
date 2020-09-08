@@ -338,10 +338,12 @@ class DBusList: public ListIface, public AsyncListIface
 
         std::shared_ptr<QueryContextEnterList> enter_list_query_;
         std::shared_ptr<DBusRNF::GetRangeCallBase> get_range_query_;
+        bool get_range_query_completion_is_deferred_;
 
         bool is_canceling_;
 
         AsyncDBusData():
+            get_range_query_completion_is_deferred_(false),
             is_canceling_(false)
         {
             LoggedLock::configure(lock_, "DBusListAsyncData", MESSAGE_LEVEL_DEBUG);
@@ -390,9 +392,14 @@ class DBusList: public ListIface, public AsyncListIface
             if(local_ref == nullptr)
                 return DBus::CancelResult::NOT_RUNNING;
 
-            return local_ref->abort_request()
+            const auto result = local_ref->abort_request()
                 ? DBus::CancelResult::CANCELED
                 : DBus::CancelResult::NOT_RUNNING;
+
+            if(get_range_query_completion_is_deferred_)
+                get_range_query_ = std::move(local_ref);
+
+            return result;
         }
 
         DBus::CancelResult cancel_all()
@@ -460,15 +467,14 @@ class DBusList: public ListIface, public AsyncListIface
         ID::List list_id_;
         unsigned int first_item_line_;
         RamList items_;
-        CacheSegment valid_segment_;
+        Segment valid_segment_;
 
         CacheData(const CacheData &) = delete;
         CacheData &operator=(const CacheData &) = delete;
 
         explicit CacheData(const std::string &parent_list_iface_name, const char *which):
             first_item_line_(0),
-            items_(std::move(parent_list_iface_name + " segment " + which)),
-            valid_segment_(0, 0)
+            items_(std::move(parent_list_iface_name + " segment " + which))
         {}
 
         const List::Item *operator[](unsigned int line) const
@@ -484,8 +490,7 @@ class DBusList: public ListIface, public AsyncListIface
             list_id_ = src.list_id_;
             first_item_line_ = src.first_item_line_;
             items_.clear();
-            valid_segment_.line_ = src.valid_segment_.line_;
-            valid_segment_.count_ = 0;
+            valid_segment_ = Segment(src.valid_segment_.line(), 0);
         }
 
         void move_from(CacheData &other)
@@ -493,8 +498,7 @@ class DBusList: public ListIface, public AsyncListIface
             list_id_ = other.list_id_;
             first_item_line_ = other.first_item_line_;
             items_.move_from(other.items_);
-            valid_segment_ = other.valid_segment_;
-            other.valid_segment_.count_ = 0;
+            valid_segment_ = std::move(other.valid_segment_);
         }
 
         void clear_for_line(ID::List list_id, unsigned int line)
@@ -502,8 +506,7 @@ class DBusList: public ListIface, public AsyncListIface
             list_id_ = list_id;
             first_item_line_ = line;
             items_.clear();
-            valid_segment_.line_ = line;
-            valid_segment_.count_ = 0;
+            valid_segment_ = Segment(line, 0);
         }
     };
 
@@ -612,7 +615,7 @@ class DBusList: public ListIface, public AsyncListIface
     tdbuslistsNavigation *get_dbus_proxy() const { return dbus_proxy_; }
 
   private:
-    CacheSegmentState get_cache_segment_state(const CacheSegment &segment,
+    CacheSegmentState get_cache_segment_state(const Segment &segment,
                                               unsigned int &size_of_cached_segment,
                                               unsigned int &size_of_loading_segment) const;
 
@@ -632,8 +635,7 @@ class DBusList: public ListIface, public AsyncListIface
     bool is_position_unchanged(ID::List list_id, unsigned int line) const;
 
     bool can_scroll_to_line(unsigned int line, unsigned int prefetch_hint,
-                            CacheModifications &cm,
-                            unsigned int &fetch_head, unsigned int &fetch_count,
+                            CacheModifications &cm, Segment &missing_segment,
                             unsigned int &cache_list_replace_index) const;
 
     /*!
@@ -642,8 +644,7 @@ class DBusList: public ListIface, public AsyncListIface
      * Must be called while holding #List::DBusList::AsyncDBusData::lock_ of
      * the embedded #List::DBusList::async_dbus_data_ structure.
      * */
-    OpResult load_segment_in_background(const CacheSegment &prefetch_segment,
-                                        int keep_cache_entries,
+    OpResult load_segment_in_background(const Segment &hint, int keep_cache_entries,
                                         unsigned int current_number_of_loading_items,
                                         DBusRNF::StatusWatcher &&status_watcher,
                                         HintItemDoneNotification &&hinted_fn);
