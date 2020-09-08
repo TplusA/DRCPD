@@ -215,6 +215,26 @@ class Mutex
         msg_vinfo(log_level_, "<%s> Mutex %s: locked", get_context_hints().c_str(), name_);
     }
 
+    bool try_lock()
+    {
+        msg_vinfo(log_level_, "<%s> Mutex %s: try lock", get_context_hints().c_str(), name_);
+
+        const bool is_locked = lock_.try_lock();
+
+        if(is_locked)
+        {
+            set_owner();
+            msg_vinfo(log_level_, "<%s> Mutex %s: locked on try",
+                      get_context_hints().c_str(), name_);
+        }
+        else
+            msg_vinfo(log_level_, "<%s> Mutex %s: try locking failed (%s)",
+                      get_context_hints().c_str(), name_,
+                      owner_ == pthread_self() ? "avoided deadlock" : "different owner");
+
+        return is_locked;
+    }
+
     void unlock()
     {
         clear_owner();
