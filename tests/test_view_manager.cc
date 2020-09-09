@@ -1130,23 +1130,18 @@ void cut_teardown(void)
 void test_serialization_result_for_idle_transaction_is_logged(void)
 {
     mock_messages->expect_msg_error(0, LOG_CRIT, "BUG: Received result from DCPD for idle transaction");
-    mock_backtrace->expect_backtrace_log();
     vm->serialization_result(DCP::Transaction::OK);
 
     mock_messages->expect_msg_error(0, LOG_CRIT, "BUG: Received result from DCPD for idle transaction");
-    mock_backtrace->expect_backtrace_log();
     vm->serialization_result(DCP::Transaction::FAILED);
 
     mock_messages->expect_msg_error(0, LOG_CRIT, "BUG: Received result from DCPD for idle transaction");
-    mock_backtrace->expect_backtrace_log();
     vm->serialization_result(DCP::Transaction::TIMEOUT);
 
     mock_messages->expect_msg_error(0, LOG_CRIT, "BUG: Received result from DCPD for idle transaction");
-    mock_backtrace->expect_backtrace_log();
     vm->serialization_result(DCP::Transaction::INVALID_ANSWER);
 
     mock_messages->expect_msg_error(0, LOG_CRIT, "BUG: Received result from DCPD for idle transaction");
-    mock_backtrace->expect_backtrace_log();
     vm->serialization_result(DCP::Transaction::IO_ERROR);
 }
 
@@ -1196,7 +1191,6 @@ void test_dcpd_timeout(void)
     activate_view();
 
     mock_messages->expect_msg_error(0, LOG_CRIT, "BUG: Got no answer from DCPD");
-    mock_backtrace->expect_backtrace_log();
     vm->serialization_result(DCP::Transaction::TIMEOUT);
 }
 
@@ -1209,7 +1203,6 @@ void test_dcpd_invalid_answer(void)
     activate_view();
 
     mock_messages->expect_msg_error(0, LOG_CRIT, "BUG: Got invalid response from DCPD");
-    mock_backtrace->expect_backtrace_log();
     vm->serialization_result(DCP::Transaction::INVALID_ANSWER);
 }
 

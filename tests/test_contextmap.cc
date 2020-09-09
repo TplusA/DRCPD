@@ -266,7 +266,6 @@ void test_not_all_context_information_flags_can_be_set()
 void test_context_string_ids_must_be_unique()
 {
     mock_messages->expect_msg_error_formatted(0, LOG_CRIT, "BUG: Duplicate context ID \"first\"");
-    mock_backtrace->expect_backtrace_log();
     cppcut_assert_equal(List::ContextMap::INVALID_ID, cmap->append("first", "foo"));
 }
 
@@ -276,7 +275,6 @@ void test_context_string_ids_must_be_unique()
 void test_context_string_ids_must_not_be_empty()
 {
     mock_messages->expect_msg_error_formatted(0, LOG_CRIT, "BUG: Invalid context ID \"\"");
-    mock_backtrace->expect_backtrace_log();
     cppcut_assert_equal(List::ContextMap::INVALID_ID, cmap->append("", "foo"));
 }
 
@@ -287,7 +285,6 @@ void test_context_string_ids_must_not_be_empty()
 void test_context_string_ids_must_not_start_with_hash_character()
 {
     mock_messages->expect_msg_error_formatted(0, LOG_CRIT, "BUG: Invalid context ID \"#test\"");
-    mock_backtrace->expect_backtrace_log();
     cppcut_assert_equal(List::ContextMap::INVALID_ID, cmap->append("#test", "foo"));
 }
 
@@ -329,7 +326,6 @@ void test_warning_is_emitted_when_adding_too_many_contexts()
     while(expected_id <= DBUS_LISTS_CONTEXT_ID_MAX);
 
     mock_messages->expect_msg_error(0, LOG_CRIT, "BUG: Too many list contexts (ignored)");
-    mock_backtrace->expect_backtrace_log();
 
     List::context_id_t id = cmap->append(string_id, "foo");
     cppcut_assert_equal(expected_id, id);
@@ -348,7 +344,6 @@ void test_invalid_contexts_do_not_mess_up_numeric_context_ids()
     cut_assert_false(map.exists(List::context_id_t(2)));
 
     mock_messages->expect_msg_error_formatted(0, LOG_CRIT, "BUG: Invalid context ID \"#rejected\"");
-    mock_backtrace->expect_backtrace_log();
     cppcut_assert_equal(List::ContextMap::INVALID_ID, map.append("#rejected", "foo"));
     cut_assert_true(map.exists(List::context_id_t(2)));
 
