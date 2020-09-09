@@ -57,17 +57,6 @@ test('List Navigation',
     depends: listnav_tests
 )
 
-cache_segment_tests = shared_module('test_cache_segment',
-    'test_cache_segment.cc',
-    cpp_args: '-Wno-pedantic',
-    include_directories: dbus_iface_defs_includes,
-    dependencies: [cutter_dep, config_h, glib_deps],
-)
-test('Cache Segment',
-    cutter_wrap, args: [cutter_wrap_args, cache_segment_tests.full_path()],
-    depends: cache_segment_tests
-)
-
 dbus_handlers_tests = shared_module('test_dbus_handlers',
     ['test_dbus_handlers.cc', 'dbus_dummies.cc',
      'mock_messages.cc', 'mock_view_manager.cc'],

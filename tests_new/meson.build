@@ -34,8 +34,22 @@ test('Context Map',
     executable('test_contextmap',
         ['test_contextmap.cc', 'mock_os.cc', 'mock_messages.cc', 'mock_backtrace.cc'],
         include_directories: '../src',
+        dependencies: config_h,
         link_with: [testrunner_lib, contextmap_lib],
-        build_by_default: false),
-        workdir: meson.current_build_dir(),
-        args: ['--reporters=strboxml', '--out=test_contextmap.junit.xml']
+        build_by_default: false
+    ),
+    workdir: meson.current_build_dir(),
+    args: ['--reporters=strboxml', '--out=test_contextmap.junit.xml']
+)
+
+test('List Segment',
+    executable('test_list_segment',
+        ['test_list_segment.cc'],
+        include_directories: '../src',
+        dependencies: config_h,
+        link_with: testrunner_lib,
+        build_by_default: false
+    ),
+    workdir: meson.current_build_dir(),
+    args: ['--reporters=strboxml', '--out=test_list_segment.junit.xml']
 )
