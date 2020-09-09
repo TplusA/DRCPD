@@ -36,6 +36,7 @@ cutter_wrap_args = [
 
 list_tests = shared_module('test_list',
     ['test_list.cc', 'dbus_dummies.cc'],
+    cpp_args: '-Wno-pedantic',
     include_directories: dbus_iface_defs_includes,
     dependencies: [cutter_dep, config_h, glib_deps],
     link_with: [views_lib, list_lib, contextmap_lib]
@@ -47,6 +48,7 @@ test('List',
 
 listnav_tests = shared_module('test_listnav',
     ['test_listnav.cc', 'dbus_dummies.cc'],
+    cpp_args: '-Wno-pedantic',
     dependencies: [cutter_dep, config_h, glib_deps],
     link_with: [views_lib, list_lib, contextmap_lib]
 )
@@ -57,6 +59,7 @@ test('List Navigation',
 
 cache_segment_tests = shared_module('test_cache_segment',
     'test_cache_segment.cc',
+    cpp_args: '-Wno-pedantic',
     include_directories: dbus_iface_defs_includes,
     dependencies: [cutter_dep, config_h, glib_deps],
 )
@@ -68,6 +71,7 @@ test('Cache Segment',
 dbus_handlers_tests = shared_module('test_dbus_handlers',
     ['test_dbus_handlers.cc', 'dbus_dummies.cc',
      'mock_messages.cc', 'mock_view_manager.cc'],
+    cpp_args: '-Wno-pedantic',
     include_directories: dbus_iface_defs_includes,
     dependencies: [cutter_dep, config_h, glib_deps],
     link_with:
@@ -81,6 +85,7 @@ test('D-Bus Handlers',
 view_manager_tests = shared_module('test_view_manager',
     ['test_view_manager.cc', 'dbus_dummies.cc',
      'view_mock.cc', 'mock_backtrace.cc', 'mock_messages.cc'],
+    cpp_args: '-Wno-pedantic',
     include_directories: dbus_iface_defs_includes,
     dependencies: [cutter_dep, config_h, glib_deps],
     link_with:
@@ -93,6 +98,7 @@ test('View Manager',
 
 dcp_transaction_tests = shared_module('test_dcp_transaction',
     ['test_dcp_transaction.cc', 'mock_messages.cc'],
+    cpp_args: '-Wno-pedantic',
     dependencies: [cutter_dep, config_h],
     link_with: dcp_transaction_lib
 )
@@ -103,6 +109,7 @@ test('DCP Transaction Handling',
 
 busystate_tests = shared_module('test_busystate',
     'test_busystate.cc',
+    cpp_args: '-Wno-pedantic',
     dependencies: [cutter_dep, config_h],
     link_with: busystate_lib
 )
