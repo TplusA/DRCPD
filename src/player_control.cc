@@ -506,7 +506,7 @@ bool Player::Control::found_item_for_playing(Playlist::Crawler::FindNextOpBase &
     bool stop = true;
 
     if(op.is_op_failure())
-        BUG("Hard error: should be reported");
+        BUG("Item found for playing: FAILED");
     else
     {
         using PositionalState =
@@ -1863,7 +1863,7 @@ bool Player::Control::found_prefetched_item(Playlist::Crawler::FindNextOpBase &o
 
     if(op.is_op_failure())
     {
-        BUG("Hard error: should be reported");
+        BUG("Item prefetched: FAILED");
         return false;
     }
 
