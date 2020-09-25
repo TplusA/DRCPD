@@ -30,6 +30,9 @@
 
 #include "mock_messages.hh"
 #include "mock_backtrace.hh"
+#include "mock_os.hh"
+
+#include <memory>
 
 constexpr const uint32_t List::ContextInfo::HAS_EXTERNAL_META_DATA;
 constexpr const uint32_t List::ContextInfo::HAS_PROPER_SEARCH_FORM;
@@ -51,25 +54,31 @@ constexpr const List::context_id_t List::ContextMap::INVALID_ID;
 namespace context_map_tests
 {
 
-static MockMessages *mock_messages;
-static MockBacktrace *mock_backtrace;
+static std::unique_ptr<MockMessages> mock_messages;
+static std::unique_ptr<MockBacktrace> mock_backtrace;
+static std::unique_ptr<MockOs> mock_os;
 
-static List::ContextMap *cmap;
+static std::unique_ptr<List::ContextMap> cmap;
 
 void cut_setup()
 {
-    mock_messages = new MockMessages;
-    cppcut_assert_not_null(mock_messages);
+    mock_messages = std::make_unique<MockMessages>();
+    cppcut_assert_not_null(mock_messages.get());
     mock_messages->init();
-    mock_messages_singleton = mock_messages;
+    mock_messages_singleton = mock_messages.get();
 
-    mock_backtrace = new MockBacktrace;
-    cppcut_assert_not_null(mock_backtrace);
+    mock_backtrace = std::make_unique<MockBacktrace>();
+    cppcut_assert_not_null(mock_backtrace.get());
     mock_backtrace->init();
-    mock_backtrace_singleton = mock_backtrace;
+    mock_backtrace_singleton = mock_backtrace.get();
 
-    cmap = new List::ContextMap();
-    cut_assert_not_null(cmap);
+    mock_os = std::make_unique<MockOs>();
+    cppcut_assert_not_null(mock_os.get());
+    mock_os->init();
+    mock_os_singleton = mock_os.get();
+
+    cmap = std::make_unique<List::ContextMap>();
+    cut_assert_not_null(cmap.get());
 
     cppcut_assert_equal(List::context_id_t(0),
                         cmap->append("first",  "First list context"));
@@ -80,18 +89,19 @@ void cut_setup()
 
 void cut_teardown()
 {
-    delete cmap;
     cmap = nullptr;
 
     mock_messages->check();
     mock_messages_singleton = nullptr;
-    delete mock_messages;
     mock_messages = nullptr;
 
     mock_backtrace->check();
     mock_backtrace_singleton = nullptr;
-    delete mock_backtrace;
     mock_backtrace = nullptr;
+
+    mock_os->check();
+    mock_os_singleton = nullptr;
+    mock_os = nullptr;
 }
 
 template <typename T>

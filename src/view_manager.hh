@@ -112,7 +112,7 @@ class VMIface
 
     virtual ~VMIface() {}
 
-    virtual bool add_view(ViewIface *view) = 0;
+    virtual bool add_view(ViewIface &view) = 0;
     virtual bool invoke_late_init_functions() = 0;
     virtual void set_output_stream(std::ostream &os) = 0;
     virtual void set_debug_stream(std::ostream &os) = 0;
@@ -186,7 +186,7 @@ class Manager: public VMIface, public UI::EventStoreIface, public DBusRNF::Cooki
 
     virtual ~Manager();
 
-    bool add_view(ViewIface *view) override;
+    bool add_view(ViewIface &view) override;
     bool invoke_late_init_functions() override;
     void set_output_stream(std::ostream &os) override;
     void set_debug_stream(std::ostream &os) override;
@@ -246,7 +246,6 @@ class Manager: public VMIface, public UI::EventStoreIface, public DBusRNF::Cooki
                             NotifyByCookieFn &&notify, FetchByCookieFn &&fetch)
         final override;
     bool abort_cookie(const void *proxy, uint32_t cookie) final override;
-    void invalidate_cookie(const void *proxy, uint32_t) final override;
 
   private:
     void notify_main_thread_if_necessary(UI::EventID event_id,

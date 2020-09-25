@@ -33,6 +33,7 @@
 #include "view_mock.hh"
 #include "mock_messages.hh"
 #include "mock_backtrace.hh"
+#include "mock_os.hh"
 
 /*!
  * \addtogroup view_manager_tests Unit tests
@@ -138,14 +139,6 @@ void cut_teardown(void)
 }
 
 /*!\test
- * Attempt to add nothingness to the views is handled and leads to failure.
- */
-void test_add_nullptr_view_fails(void)
-{
-    cut_assert_false(vm->add_view(nullptr));
-}
-
-/*!\test
  * Attempt to add a NOP view is rejected and leads to failure.
  */
 void test_add_nop_view_fails(void)
@@ -153,7 +146,7 @@ void test_add_nop_view_fails(void)
     ViewNop::View view;
 
     cut_assert_true(view.init());
-    cut_assert_false(vm->add_view(&view));
+    cut_assert_false(vm->add_view(view));
 }
 
 /*!\test
@@ -164,7 +157,7 @@ void test_add_view(void)
     ViewMock::View view(standard_mock_view_name, ViewIface::Flags());
 
     cut_assert_true(view.init());
-    cut_assert_true(vm->add_view(&view));
+    cut_assert_true(vm->add_view(view));
     view.check();
 }
 
@@ -176,8 +169,8 @@ void test_add_views_with_same_name_fails(void)
     ViewMock::View view(standard_mock_view_name, ViewIface::Flags());
 
     cut_assert_true(view.init());
-    cut_assert_true(vm->add_view(&view));
-    cut_assert_false(vm->add_view(&view));
+    cut_assert_true(vm->add_view(view));
+    cut_assert_false(vm->add_view(view));
     view.check();
 }
 
@@ -192,7 +185,7 @@ void test_add_view_and_activate(void)
     ViewMock::View view(standard_mock_view_name, ViewIface::Flags());
 
     cut_assert_true(view.init());
-    cut_assert_true(vm->add_view(&view));
+    cut_assert_true(vm->add_view(view));
     view.check();
 
     mock_messages->expect_msg_info_formatted("Requested to activate view \"Mock\"");
@@ -224,7 +217,7 @@ void test_get_existent_view_by_name_returns_view_interface(void)
     ViewMock::View view(standard_mock_view_name, ViewIface::Flags());
 
     cut_assert_true(view.init());
-    cut_assert_true(vm->add_view(&view));
+    cut_assert_true(vm->add_view(view));
     cut_assert_not_null(vm->get_view_by_name(standard_mock_view_name));
     view.check();
 }
@@ -268,7 +261,7 @@ void cut_setup(void)
     vm = new ViewManager::Manager(*ui_queue, *dcp_queue, *config_manager);
     cppcut_assert_not_null(vm);
     vm->set_output_stream(*views_output);
-    cut_assert_true(vm->add_view(mock_view));
+    cut_assert_true(vm->add_view(*mock_view));
 
     mock_messages->ignore_all_ = true;
     mock_view->ignore_all_ = true;
@@ -462,8 +455,9 @@ void test_move_cursor_down_by_multiple_pages(void)
 namespace view_manager_tests_multiple_views
 {
 
-static void populate_view_manager(ViewManager::Manager &vm,
-                                  std::array<ViewMock::View *, 4> &all_views)
+static void populate_view_manager(
+        ViewManager::Manager &vm,
+        std::array<std::unique_ptr<ViewMock::View>, 4> &all_views)
 {
     static const struct
     {
@@ -480,22 +474,23 @@ static void populate_view_manager(ViewManager::Manager &vm,
 
     for(size_t i = 0; i < sizeof(names) / sizeof(names[0]); ++i)
     {
-        ViewMock::View *view =
-            new ViewMock::View(names[i].name,
-                               names[i].is_browse_view
-                               ? ViewIface::Flags(ViewIface::Flags::CAN_RETURN_TO_THIS)
-                               : ViewIface::Flags());
+        auto view = std::make_unique<ViewMock::View>(
+                            names[i].name,
+                            names[i].is_browse_view
+                            ? ViewIface::Flags(ViewIface::Flags::CAN_RETURN_TO_THIS)
+                            : ViewIface::Flags());
 
+        cut_assert_not_null(view.get());
         cut_assert_true(view->init());
-        cut_assert_true(vm.add_view(view));
+        cut_assert_true(vm.add_view(*view));
         view->check();
 
-        all_views[i] = view;
+        all_views[i] = std::move(view);
     }
 }
 
 static MockMessages *mock_messages;
-static std::array<ViewMock::View *, 4> all_mock_views;
+static std::array<std::unique_ptr<ViewMock::View>, 4> all_mock_views;
 static UI::EventQueue *ui_queue;
 static Configuration::ConfigManager<Configuration::DrcpdValues> *config_manager;
 static DCP::Queue *dcp_queue;
@@ -524,7 +519,7 @@ void cut_setup(void)
     cppcut_assert_not_null(vm);
 
     mock_messages->ignore_all_ = true;
-    all_mock_views.fill(nullptr);
+    std::generate(all_mock_views.begin(), all_mock_views.end(), [] { return nullptr; });
     populate_view_manager(*vm,  all_mock_views);
     all_mock_views[0]->ignore_all_ = true;
     vm->sync_activate_view_by_name("First", true);
@@ -542,7 +537,7 @@ void cut_teardown(void)
 
     mock_messages->check();
 
-    for(auto view: all_mock_views)
+    for(auto &view : all_mock_views)
         view->check();
 
     delete mock_messages;
@@ -559,10 +554,7 @@ void cut_teardown(void)
     dcp_queue = nullptr;
     views_output = nullptr;
 
-    for(auto view: all_mock_views)
-        delete view;
-
-    all_mock_views.fill(nullptr);
+    std::generate(all_mock_views.begin(), all_mock_views.end(), [] { return nullptr; });
 }
 
 /*!\test
@@ -807,7 +799,7 @@ void test_input_command_with_data(void)
 
     ViewMock::View view("Play", ViewIface::Flags());
     cut_assert_true(view.init());
-    cut_assert_true(vm->add_view(&view));
+    cut_assert_true(vm->add_view(view));
 
     speed_factor = UI::Events::mk_params<UI::EventID::PLAYBACK_FAST_WIND_SET_SPEED>(12.5);
     view.expect_process_event_with_callback(ViewIface::InputResult::OK,
@@ -833,7 +825,7 @@ void test_input_command_with_missing_data(void)
 
     ViewMock::View view("Play", ViewIface::Flags());
     cut_assert_true(view.init());
-    cut_assert_true(vm->add_view(&view));
+    cut_assert_true(vm->add_view(view));
 
     view.expect_process_event_with_callback(ViewIface::InputResult::OK,
                                             UI::ViewEventID::PLAYBACK_FAST_WIND_SET_SPEED,
@@ -1050,33 +1042,40 @@ void test_toggle_views_with_two_unknown_names_does_nothing(void)
 namespace view_manager_tests_serialization
 {
 
-static MockMessages *mock_messages;
-static MockBacktrace *mock_backtrace;
+static std::unique_ptr<MockMessages> mock_messages;
+static std::unique_ptr<MockBacktrace> mock_backtrace;
+static std::unique_ptr<MockOs> mock_os;
+static std::unique_ptr<ViewMock::View> mock_view;
 static UI::EventQueue *ui_queue;
 static Configuration::ConfigManager<Configuration::DrcpdValues> *config_manager;
 static DCP::Queue *dcp_queue;
 static ViewManager::Manager *vm;
 static std::ostringstream *views_output;
 static const char standard_mock_view_name[] = "Mock";
-static ViewMock::View *mock_view;
 
 void cut_setup(void)
 {
     views_output = new std::ostringstream();
     cppcut_assert_not_null(views_output);
 
-    mock_messages = new MockMessages();
-    cppcut_assert_not_null(mock_messages);
+    mock_messages = std::make_unique<MockMessages>();
+    cppcut_assert_not_null(mock_messages.get());
     mock_messages->init();
-    mock_messages_singleton = mock_messages;
+    mock_messages_singleton = mock_messages.get();
 
-    mock_backtrace = new MockBacktrace();
-    cppcut_assert_not_null(mock_backtrace);
+    mock_backtrace = std::make_unique<MockBacktrace>();
+    cppcut_assert_not_null(mock_backtrace.get());
     mock_backtrace->init();
-    mock_backtrace_singleton = mock_backtrace;
+    mock_backtrace_singleton = mock_backtrace.get();
 
-    mock_view = new ViewMock::View(standard_mock_view_name, ViewIface::Flags());
-    cppcut_assert_not_null(mock_view);
+    mock_os = std::make_unique<MockOs>();
+    cppcut_assert_not_null(mock_os.get());
+    mock_os->init();
+    mock_os_singleton = mock_os.get();
+
+    mock_view = std::make_unique<ViewMock::View>(standard_mock_view_name,
+                                                 ViewIface::Flags());
+    cppcut_assert_not_null(mock_view.get());
     cut_assert_true(mock_view->init());
 
     ui_queue = new UI::EventQueue(deferred_ui_event_observer);
@@ -1090,7 +1089,7 @@ void cut_setup(void)
     vm = new ViewManager::Manager(*ui_queue, *dcp_queue, *config_manager);
     cppcut_assert_not_null(vm);
     vm->set_output_stream(*views_output);
-    cut_assert_true(vm->add_view(mock_view));
+    cut_assert_true(vm->add_view(*mock_view));
 
     cut_assert_false(dcp_queue->get_introspection_iface().is_in_progress());
 }
@@ -1103,19 +1102,18 @@ void cut_teardown(void)
     mock_messages->check();
     mock_backtrace->check();
     mock_view->check();
+    mock_os->check();
 
     delete vm;
     delete config_manager;
     delete ui_queue;
     delete dcp_queue;
-    delete mock_view;
-    delete mock_messages;
-    delete mock_backtrace;
     delete views_output;
 
     mock_messages = nullptr;
     mock_backtrace = nullptr;
     mock_view = nullptr;
+    mock_os = nullptr;
     vm =nullptr;
     config_manager = nullptr;
     ui_queue = nullptr;

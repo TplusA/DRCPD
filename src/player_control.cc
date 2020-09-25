@@ -112,13 +112,25 @@ static void set_audio_player_dbus_proxies(const std::string &audio_player_id,
         audio_source.set_proxies(nullptr, nullptr);
 }
 
+void Player::Control::plug(std::shared_ptr<List::ListViewportBase> skipper_viewport,
+                           const List::ListIface *list)
+{
+    log_assert((skipper_viewport != nullptr && list != nullptr) ||
+               (skipper_viewport == nullptr && list == nullptr));
+
+    if(list != nullptr)
+        skip_requests_.tie(std::move(skipper_viewport), list);
+    else
+        skip_requests_.get_item_filter().untie();
+}
+
 void Player::Control::plug(AudioSource &audio_source, bool with_enforced_intentions,
                            const std::function<void()> &finished_playing_notification,
                            const std::string *external_player_id)
 {
     log_assert(!is_any_audio_source_plugged());
     log_assert(finished_playing_notification_ == nullptr);
-    log_assert(ch_ == nullptr);
+    log_assert(crawler_handle_ == nullptr);
     log_assert(permissions_ == nullptr);
     log_assert(finished_playing_notification != nullptr);
 
@@ -159,7 +171,7 @@ void Player::Control::plug(AudioSource &audio_source, bool with_enforced_intenti
 void Player::Control::plug(Data &player_data)
 {
     log_assert(player_data_ == nullptr);
-    log_assert(ch_ == nullptr);
+    log_assert(crawler_handle_ == nullptr);
     log_assert(permissions_ == nullptr);
 
     player_data_ = &player_data;
@@ -171,17 +183,17 @@ void Player::Control::plug(
         const LocalPermissionsIface &permissions)
 {
     plug(permissions);
-    ch_.reset();
-    ch_ = get_crawler_handle();
+    crawler_handle_.reset();
+    crawler_handle_ = get_crawler_handle();
 }
 
 void Player::Control::plug(const LocalPermissionsIface &permissions)
 {
-    ch_ = nullptr;
+    crawler_handle_ = nullptr;
     permissions_ = &permissions;
     skip_requests_.reset(nullptr);
     prefetch_next_item_op_ = nullptr;
-    prefetch_next_uris_op_ = nullptr;
+    prefetch_uris_op_ = nullptr;
     retry_data_.reset();
 }
 
@@ -195,8 +207,8 @@ void Player::Control::forget_queued_and_playing(bool also_forget_playing)
 }
 
 static void cancel_prefetch_ops(
-        std::shared_ptr<Playlist::Crawler::FindNextOpBase> &find_next,
-        std::shared_ptr<Playlist::Crawler::GetURIsOpBase> &get_uris,
+        std::shared_ptr<Playlist::Crawler::FindNextOpBase> find_next,
+        std::shared_ptr<Playlist::Crawler::GetURIsOpBase> get_uris,
         Playlist::Crawler::Handle &ch)
 {
     if(find_next != nullptr)
@@ -237,12 +249,15 @@ void Player::Control::unplug(bool is_complete_unplug)
     }
 
     skip_requests_.reset(nullptr);
-    cancel_prefetch_ops(prefetch_next_item_op_, prefetch_next_uris_op_, ch_);
+
+    cancel_prefetch_ops(std::move(prefetch_next_item_op_),
+                        std::move(prefetch_uris_op_), crawler_handle_);
 
     if(is_complete_unplug)
     {
         permissions_ = nullptr;
-        ch_ = nullptr;
+        crawler_handle_ = nullptr;
+        skip_requests_.get_item_filter().untie();
     }
 }
 
@@ -344,7 +359,7 @@ void Player::Control::repeat_mode_toggle_request() const
         return;
     }
 
-    if(ch_ != nullptr)
+    if(crawler_handle_ != nullptr)
     {
         msg_error(ENOSYS, LOG_NOTICE,
                   "Repeat mode not implemented yet (see ticket #250)");
@@ -379,7 +394,7 @@ void Player::Control::shuffle_mode_toggle_request() const
         return;
     }
 
-    if(ch_ != nullptr)
+    if(crawler_handle_ != nullptr)
     {
         msg_error(ENOSYS, LOG_NOTICE,
                   "Shuffle mode not implemented yet (see tickets #27, #40, #80)");
@@ -448,15 +463,21 @@ void Player::Control::play_request(std::shared_ptr<Playlist::Crawler::FindNextOp
 
     if(find_op != nullptr)
     {
-        log_assert(ch_ != nullptr);
+        log_assert(crawler_handle_ != nullptr);
         prefetch_next_item_op_ = find_op;
 
         /* so we first need to go to our entry point as prescribed by
          * \p find_op, then find out its details, and then play it */
         find_op->set_completion_callback(
-            [this] (auto &op) { return found_item_for_playing(op); },
+            [this, fop = find_op] (auto &op) mutable
+            {
+                return found_item_for_playing(std::move(fop));
+            },
             Playlist::Crawler::OperationBase::CompletionCallbackFilter::SUPPRESS_CANCELED);
-        ch_->run(std::move(find_op));
+
+        if(!crawler_handle_->run(std::move(find_op)))
+            prefetch_next_item_op_ = nullptr;
+
         return;
     }
 
@@ -493,26 +514,28 @@ static void set_intention_after_skipping(Player::Data &data)
     }
 }
 
-bool Player::Control::found_item_for_playing(Playlist::Crawler::FindNextOpBase &op)
+bool Player::Control::found_item_for_playing(
+        std::shared_ptr<Playlist::Crawler::FindNextOpBase> op)
 {
     auto locks(lock());
 
-    if(op.is_op_canceled())
-        return false;
-
-    log_assert(&op == prefetch_next_item_op_.get());
+    log_assert(op != nullptr);
+    log_assert(prefetch_next_item_op_ == nullptr || prefetch_next_item_op_ == op);
     prefetch_next_item_op_ = nullptr;
+
+    if(op->is_op_canceled())
+        return false;
 
     bool stop = true;
 
-    if(op.is_op_failure())
+    if(op->is_op_failure())
         BUG("Item found for playing: FAILED");
     else
     {
         using PositionalState =
             Playlist::Crawler::FindNextOpBase::PositionalState;
 
-        switch(op.result_.pos_state_)
+        switch(op->result_.pos_state_)
         {
           case PositionalState::SOMEWHERE_IN_LIST:
             stop = false;
@@ -543,21 +566,21 @@ bool Player::Control::found_item_for_playing(Playlist::Crawler::FindNextOpBase &
         return false;
     }
 
-    auto pos(op.extract_position());
+    auto pos(op->extract_position());
     pos->sync_request_with_pos();
 
-    ch_->bookmark(Playlist::Crawler::Bookmark::ABOUT_TO_PLAY, pos->clone());
+    crawler_handle_->bookmark(Playlist::Crawler::Bookmark::ABOUT_TO_PLAY, pos->clone());
 
-    prefetch_next_uris_op_ =
-        Playlist::Crawler::DirectoryCrawler::get_crawler(*ch_)
+    prefetch_uris_op_ =
+        Playlist::Crawler::DirectoryCrawler::get_crawler(*crawler_handle_)
         .mk_op_get_uris(
             "Fetch item's URIs for direct playing",
-            std::move(pos), std::move(op.result_.meta_data_),
-            [this, d = op.direction_] (auto &op_inner)
+            std::move(pos), std::move(op->result_.meta_data_),
+            [this, d = op->direction_] (auto &op_inner)
             { return found_item_uris_for_playing(op_inner, d); },
             Playlist::Crawler::OperationBase::CompletionCallbackFilter::SUPPRESS_CANCELED);
 
-    ch_->run(prefetch_next_uris_op_);
+    crawler_handle_->run(prefetch_uris_op_);
 
     return false;
 }
@@ -571,8 +594,8 @@ bool Player::Control::found_item_uris_for_playing(
     if(op.is_op_canceled())
         return false;
 
-    log_assert(&op == prefetch_next_uris_op_.get());
-    prefetch_next_uris_op_ = nullptr;
+    log_assert(&op == prefetch_uris_op_.get());
+    prefetch_uris_op_ = nullptr;
 
     if(player_data_ == nullptr)
     {
@@ -981,6 +1004,8 @@ bool Player::Control::skip_request_prepare(
         break;
     }
 
+    using DirCursor = Playlist::Crawler::DirectoryCrawler::Cursor;
+
     run_new_find_next_fn =
         [this]
         (std::string &&debug_description,
@@ -990,29 +1015,33 @@ bool Player::Control::skip_request_prepare(
          Playlist::Crawler::OperationBase::CompletionCallbackFilter filter)
             -> std::shared_ptr<Playlist::Crawler::FindNextOpBase>
         {
-            const auto lock_ctrl(lock());
-
-            cancel_prefetch_ops(prefetch_next_item_op_, prefetch_next_uris_op_, ch_);
-
-            if(ch_ == nullptr)
-                return nullptr;
-
             if(mark_here == nullptr)
                 return nullptr;
 
-            ch_->bookmark(Playlist::Crawler::Bookmark::SKIP_CURSOR,
-                          std::move(mark_here));
+            const auto lock_ctrl(lock());
+
+            cancel_prefetch_ops(std::move(prefetch_next_item_op_),
+                                std::move(prefetch_uris_op_), crawler_handle_);
+
+            if(crawler_handle_ == nullptr)
+                return nullptr;
+
+            auto pos(mark_here->clone_as<DirCursor>());
+
+            crawler_handle_->bookmark(Playlist::Crawler::Bookmark::SKIP_CURSOR,
+                                      std::move(mark_here));
 
             auto op =
-                Playlist::Crawler::DirectoryCrawler::get_crawler(*ch_)
+                Playlist::Crawler::DirectoryCrawler::get_crawler(*crawler_handle_)
                 .mk_op_find_next(
                     std::move(debug_description),
-                    ch_->get_settings<Playlist::Crawler::DefaultSettings>().recursive_mode_,
-                    direction, Playlist::Crawler::Bookmark::SKIP_CURSOR,
+                    Playlist::Crawler::DirectoryCrawler::FindNextOp::Tag::SKIPPER,
+                    crawler_handle_->get_settings<Playlist::Crawler::DefaultSettings>().recursive_mode_,
+                    direction, std::move(pos),
                     I18n::String(false), std::move(cc), filter,
                     Playlist::Crawler::FindNextOpBase::FindMode::FIND_NEXT);
 
-            if(op != nullptr && ch_->run(op))
+            if(op != nullptr && crawler_handle_->run(op))
                 return op;
 
             return nullptr;
@@ -1024,7 +1053,7 @@ bool Player::Control::skip_request_prepare(
         {
             auto locks(lock());
 
-            if(player_data_ == nullptr || ch_ == nullptr)
+            if(player_data_ == nullptr || crawler_handle_ == nullptr)
                 return false;
 
             if(op->is_op_canceled())
@@ -1053,24 +1082,32 @@ bool Player::Control::skip_request_prepare(
             if(found)
             {
                 if(prefetch_next_item_op_ != nullptr)
+                {
                     prefetch_next_item_op_->cancel();
+                    prefetch_next_item_op_ = nullptr;
+                }
 
-                prefetch_next_item_op_ = std::move(op);
-
-                auto op_ref = prefetch_next_item_op_;
-                return found_item_for_playing(*op_ref);
+                return found_item_for_playing(std::move(op));
             }
 
             skip_requests_.reset(
                 [this] () -> std::shared_ptr<Playlist::Crawler::FindNextOpBase>
                 {
+                    const auto *playing =
+                        static_cast<const DirCursor *>(crawler_handle_->get_bookmark(
+                            Playlist::Crawler::Bookmark::CURRENTLY_PLAYING));
+
+                    auto pos =
+                        playing->clone_for_nav_filter(Player::Skipper::CACHE_SIZE,
+                                                      skip_requests_.get_item_filter());
+
                     auto inner_op =
-                        Playlist::Crawler::DirectoryCrawler::get_crawler(*ch_)
+                        Playlist::Crawler::DirectoryCrawler::get_crawler(*crawler_handle_)
                         .mk_op_find_next(
                             "Jump back to currently playing item",
+                            Playlist::Crawler::DirectoryCrawler::FindNextOp::Tag::JUMP_BACK_TO_CURRENTLY_PLAYING,
                             Playlist::Crawler::FindNextOpBase::RecursiveMode::FLAT,
-                            Playlist::Crawler::Direction::NONE,
-                            Playlist::Crawler::Bookmark::CURRENTLY_PLAYING,
+                            Playlist::Crawler::Direction::NONE, std::move(pos),
                             I18n::String(false),
                             [this] (auto &)
                             {
@@ -1080,7 +1117,7 @@ bool Player::Control::skip_request_prepare(
                             Playlist::Crawler::OperationBase::CompletionCallbackFilter::SUPPRESS_CANCELED,
                             Playlist::Crawler::FindNextOpBase::FindMode::FIND_FIRST);
 
-                    if(inner_op != nullptr && ch_->run(inner_op))
+                    if(inner_op != nullptr && crawler_handle_->run(inner_op))
                         return inner_op;
 
                     return nullptr;
@@ -1094,7 +1131,7 @@ bool Player::Control::skip_request_prepare(
 
 void Player::Control::skip_forward_request()
 {
-    if(player_data_ == nullptr || ch_ == nullptr)
+    if(player_data_ == nullptr || crawler_handle_ == nullptr)
     {
         send_simple_skip_forward_command(audio_source_);
         return;
@@ -1118,14 +1155,14 @@ void Player::Control::skip_forward_request()
       case Player::UserIntention::PAUSING:
       case Player::UserIntention::LISTENING:
         reference_position =
-            ch_->get_bookmark(Playlist::Crawler::Bookmark::ABOUT_TO_PLAY,
-                              Playlist::Crawler::Bookmark::CURRENTLY_PLAYING);
+            crawler_handle_->get_bookmark(Playlist::Crawler::Bookmark::ABOUT_TO_PLAY,
+                                          Playlist::Crawler::Bookmark::CURRENTLY_PLAYING);
         break;
 
       case Player::UserIntention::SKIPPING_PAUSED:
       case Player::UserIntention::SKIPPING_LIVE:
         reference_position =
-            ch_->get_bookmark(Playlist::Crawler::Bookmark::SKIP_CURSOR);
+            crawler_handle_->get_bookmark(Playlist::Crawler::Bookmark::SKIP_CURSOR);
         break;
     }
 
@@ -1160,7 +1197,7 @@ void Player::Control::skip_forward_request()
 
 void Player::Control::skip_backward_request()
 {
-    if(player_data_ == nullptr || ch_ == nullptr)
+    if(player_data_ == nullptr || crawler_handle_ == nullptr)
     {
         send_simple_skip_backward_command(audio_source_);
         return;
@@ -1184,14 +1221,14 @@ void Player::Control::skip_backward_request()
       case Player::UserIntention::PAUSING:
       case Player::UserIntention::LISTENING:
         reference_position =
-            ch_->get_bookmark(Playlist::Crawler::Bookmark::ABOUT_TO_PLAY,
-                              Playlist::Crawler::Bookmark::CURRENTLY_PLAYING);
+            crawler_handle_->get_bookmark(Playlist::Crawler::Bookmark::ABOUT_TO_PLAY,
+                                          Playlist::Crawler::Bookmark::CURRENTLY_PLAYING);
         break;
 
       case Player::UserIntention::SKIPPING_PAUSED:
       case Player::UserIntention::SKIPPING_LIVE:
         reference_position =
-            ch_->get_bookmark(Playlist::Crawler::Bookmark::SKIP_CURSOR);
+            crawler_handle_->get_bookmark(Playlist::Crawler::Bookmark::SKIP_CURSOR);
         break;
     }
 
@@ -1325,7 +1362,7 @@ void Player::Control::play_notification(ID::Stream stream_id,
     if(player_data_ == nullptr)
         return;
 
-    if(ch_ != nullptr)
+    if(crawler_handle_ != nullptr)
     {
         const auto *const qs =
             player_data_->queued_streams_get().get_stream_by_id(
@@ -1336,15 +1373,15 @@ void Player::Control::play_notification(ID::Stream stream_id,
         else if(audio_source_ != nullptr)
         {
             if(is_new_stream)
-                ch_->bookmark(Playlist::Crawler::Bookmark::CURRENTLY_PLAYING,
-                              qs->originating_cursor_->clone());
+                crawler_handle_->bookmark(Playlist::Crawler::Bookmark::CURRENTLY_PLAYING,
+                                          qs->originating_cursor_->clone());
 
             const auto *const ref_point =
                 dynamic_cast<const Playlist::Crawler::DirectoryCrawler::Cursor *>(
-                    &ch_->get_reference_point());
+                    &crawler_handle_->get_reference_point());
             const auto *const marked =
                 dynamic_cast<const Playlist::Crawler::DirectoryCrawler::Cursor *>(
-                    ch_->get_bookmark(Playlist::Crawler::Bookmark::CURRENTLY_PLAYING));
+                    crawler_handle_->get_bookmark(Playlist::Crawler::Bookmark::CURRENTLY_PLAYING));
 
             if(ref_point != nullptr && marked != nullptr)
                 audio_source_->resume_data_update(CrawlerResumeData(
@@ -1374,7 +1411,7 @@ Player::Control::StopReaction
 Player::Control::stop_notification_ok(ID::Stream stream_id)
 {
 
-    if(player_data_ == nullptr || ch_ == nullptr)
+    if(player_data_ == nullptr || crawler_handle_ == nullptr)
         return StopReaction::NOT_ATTACHED;
 
     bool stop_regardless_of_intention = false;
@@ -1391,7 +1428,7 @@ Player::Control::stop_notification_ok(ID::Stream stream_id)
         /* this case is a result of very fast skipping or some internal
          * processing error; in the latter case, we'll just accept the player's
          * stop notification and do not attempt to fight it */
-        stop_regardless_of_intention = (ch_ == nullptr);
+        stop_regardless_of_intention = (crawler_handle_ == nullptr);
         break;
 
       case StreamExpected::EMPTY_AS_EXPECTED:
@@ -1430,7 +1467,7 @@ Player::Control::stop_notification_ok(ID::Stream stream_id)
     player_data_->player_has_stopped();
     retry_data_.reset();
 
-    if(prefetch_next_item_op_ == nullptr && prefetch_next_uris_op_ == nullptr)
+    if(prefetch_next_item_op_ == nullptr && prefetch_uris_op_ == nullptr)
     {
         /* probably end of list */
         clear_resume_data(audio_source_);
@@ -1602,7 +1639,7 @@ Player::Control::stop_notification_with_error(ID::Stream stream_id,
 {
     log_assert(!error_id.empty());
 
-    if(player_data_ == nullptr || ch_ == nullptr)
+    if(player_data_ == nullptr || crawler_handle_ == nullptr)
         return StopReaction::NOT_ATTACHED;
 
     bool stop_regardless_of_intention = false;
@@ -1741,7 +1778,7 @@ Player::Control::stop_notification_with_error(ID::Stream stream_id,
              * everything is fine */
             return StopReaction::QUEUED;
         }
-        else if(Playlist::Crawler::DirectoryCrawler::get_crawler(*ch_).is_busy())
+        else if(Playlist::Crawler::DirectoryCrawler::get_crawler(*crawler_handle_).is_busy())
         {
             /* empty URL FIFO, and we haven't anything either---crawler is
              * already busy fetching the next stream, so everything is fine,
@@ -1801,22 +1838,25 @@ void Player::Control::start_prefetch_next_item(
     if(!is_active_controller())
         return;
 
-    if(ch_ == nullptr)
+    if(crawler_handle_ == nullptr)
         return;
 
     if(prefetch_next_item_op_ != nullptr)
         return;
 
+    if(skip_requests_.is_active())
+        return;
+
     if(player_data_->queued_streams_get().is_full(permissions_->maximum_number_of_prefetched_streams()))
         return;
 
-    const auto *from_pos = ch_->get_bookmark(from_where);
+    const auto *from_pos = crawler_handle_->get_bookmark(from_where);
 
     if(from_where == Playlist::Crawler::Bookmark::PREFETCH_CURSOR &&
        from_pos == nullptr)
     {
         from_where = Playlist::Crawler::Bookmark::CURRENTLY_PLAYING;
-        from_pos = ch_->get_bookmark(from_where);
+        from_pos = crawler_handle_->get_bookmark(from_where);
     }
 
     if(from_where != Playlist::Crawler::Bookmark::PREFETCH_CURSOR)
@@ -1826,7 +1866,7 @@ void Player::Control::start_prefetch_next_item(
         {
             auto pos(from_pos->clone());
             pos->sync_request_with_pos();
-            ch_->bookmark(Playlist::Crawler::Bookmark::PREFETCH_CURSOR, std::move(pos));
+            crawler_handle_->bookmark(Playlist::Crawler::Bookmark::PREFETCH_CURSOR, std::move(pos));
         }
     }
 
@@ -1835,11 +1875,14 @@ void Player::Control::start_prefetch_next_item(
      * operation; we do not, however, fetch the next item's detailed data
      * because this may cause problems on non-gapless sources */
     auto find_op =
-        Playlist::Crawler::DirectoryCrawler::get_crawler(*ch_)
+        Playlist::Crawler::DirectoryCrawler::get_crawler(*crawler_handle_)
         .mk_op_find_next(
             std::string("Prefetch next item for gapless playback (") + reason + ")",
-            ch_->get_settings<Playlist::Crawler::DefaultSettings>().recursive_mode_,
-            direction, Playlist::Crawler::Bookmark::PREFETCH_CURSOR,
+            Playlist::Crawler::DirectoryCrawler::FindNextOp::Tag::PREFETCH,
+            crawler_handle_->get_settings<Playlist::Crawler::DefaultSettings>().recursive_mode_,
+            direction,
+            crawler_handle_->get_bookmark(Playlist::Crawler::Bookmark::PREFETCH_CURSOR)
+                ->clone_as<Playlist::Crawler::DirectoryCrawler::Cursor>(),
             I18n::String(false),
             [this] (auto &op) { return found_prefetched_item(op); },
             Playlist::Crawler::OperationBase::CompletionCallbackFilter::SUPPRESS_CANCELED,
@@ -1847,7 +1890,7 @@ void Player::Control::start_prefetch_next_item(
 
     prefetch_next_item_op_ = find_op;
 
-    if(find_op != nullptr && !ch_->run(std::move(find_op)))
+    if(find_op != nullptr && !crawler_handle_->run(std::move(find_op)))
         prefetch_next_item_op_ = nullptr;
 }
 
@@ -1896,12 +1939,12 @@ bool Player::Control::found_prefetched_item(Playlist::Crawler::FindNextOpBase &o
     auto pos(op.extract_position());
     pos->sync_request_with_pos();
 
-    ch_->bookmark(Playlist::Crawler::Bookmark::PREFETCH_CURSOR, pos->clone());
+    crawler_handle_->bookmark(Playlist::Crawler::Bookmark::PREFETCH_CURSOR, pos->clone());
 
     //if(crawler.retrieve_item_information(
     //        [this] (auto &c, auto r) { async_stream_details_prefetched(c, r); }))
-    prefetch_next_uris_op_ =
-        Playlist::Crawler::DirectoryCrawler::get_crawler(*ch_)
+    prefetch_uris_op_ =
+        Playlist::Crawler::DirectoryCrawler::get_crawler(*crawler_handle_)
         .mk_op_get_uris(
             "Prefetch next item's URIs for gapless playback",
             std::move(pos), std::move(op.result_.meta_data_),
@@ -1909,7 +1952,7 @@ bool Player::Control::found_prefetched_item(Playlist::Crawler::FindNextOpBase &o
             { return found_prefetched_item_uris(op_inner, d); },
             Playlist::Crawler::OperationBase::CompletionCallbackFilter::SUPPRESS_CANCELED);
 
-    ch_->run(prefetch_next_uris_op_);
+    crawler_handle_->run(prefetch_uris_op_);
 
     return false;
 }
@@ -1923,14 +1966,14 @@ bool Player::Control::found_prefetched_item_uris(
     if(op.is_op_canceled())
         return false;
 
-    if(&op != prefetch_next_uris_op_.get())
+    if(&op != prefetch_uris_op_.get())
     {
-        log_assert(prefetch_next_uris_op_ != nullptr);
+        log_assert(prefetch_uris_op_ != nullptr);
         log_assert(op.is_op_failure());
         return false;
     }
 
-    prefetch_next_uris_op_ = nullptr;
+    prefetch_uris_op_ = nullptr;
 
     if(player_data_ == nullptr)
     {
@@ -2019,7 +2062,8 @@ void Player::Control::async_redirect_resolved_for_playing(
 {
     auto locks(lock());
 
-    if(!async_redirect_check_preconditions(player_data_, ch_.get(), result, idx,
+    if(!async_redirect_check_preconditions(player_data_, crawler_handle_.get(),
+                                           result, idx,
                                            "Resolved redirect for playing"))
         return;
 
@@ -2075,7 +2119,8 @@ void Player::Control::async_redirect_resolved_prefetched(
 {
     auto locks(lock());
 
-    if(!async_redirect_check_preconditions(player_data_, ch_.get(), result, idx,
+    if(!async_redirect_check_preconditions(player_data_, crawler_handle_.get(),
+                                           result, idx,
                                            "Resolved redirect for prefetching"))
         return;
 
@@ -2123,7 +2168,7 @@ Player::Control::queue_item_from_op(Playlist::Crawler::GetURIsOpBase &op,
 {
     using DirCursor = Playlist::Crawler::DirectoryCrawler::Cursor;
 
-    if(player_data_ == nullptr || ch_ == nullptr)
+    if(player_data_ == nullptr || crawler_handle_ == nullptr)
         return QueuedStream::OpResult::CANCELED;
 
     if(dynamic_cast<const Playlist::Crawler::DirectoryCrawler::GetURIsOp *>(&op) == nullptr)
@@ -2148,7 +2193,7 @@ Player::Control::queue_item_from_op(Playlist::Crawler::GetURIsOpBase &op,
 
       case InsertMode::REPLACE_QUEUE:
       case InsertMode::REPLACE_ALL:
-        ch_->bookmark(Playlist::Crawler::Bookmark::ABOUT_TO_PLAY, pos->clone());
+        crawler_handle_->bookmark(Playlist::Crawler::Bookmark::ABOUT_TO_PLAY, pos->clone());
         break;
     }
 

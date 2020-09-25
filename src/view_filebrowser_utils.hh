@@ -124,7 +124,7 @@ class Utils
                               ID::List list_id, unsigned int line,
                               bool reverse = false)
     {
-        file_list.enter_list(list_id, line);
+        file_list.enter_list(list_id);
         item_flags.list_content_changed();
 
         const unsigned int lines = navigation.get_total_number_of_visible_items();

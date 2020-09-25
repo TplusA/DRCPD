@@ -53,6 +53,16 @@ class GetRangeResult
 class GetRangeCallBase:
     public DBusRNF::CookieCall<GetRangeResult, Busy::Source::GETTING_LIST_RANGE>
 {
+  public:
+    enum class LoadingState
+    {
+        INACTIVE,
+        OUT_OF_RANGE,
+        LOADING,
+        DONE,
+        FAILED_OR_ABORTED,
+    };
+
   protected:
     tdbuslistsNavigation *const proxy_;
 
@@ -78,6 +88,8 @@ class GetRangeCallBase:
     GetRangeCallBase(GetRangeCallBase &&) = default;
     GetRangeCallBase &operator=(GetRangeCallBase &&) = default;
     virtual ~GetRangeCallBase() = default;
+
+    ID::List get_list_id() const { return list_id_; }
 
     std::string get_description() const override
     {
@@ -165,6 +177,35 @@ class GetRangeCallBase:
         }
 
         return false;
+    }
+
+    LoadingState is_already_loading(unsigned int line)
+    {
+        LOGGED_LOCK_CONTEXT_HINT;
+        std::lock_guard<LoggedLock::Mutex> lock(lock_);
+
+        if(!loading_segment_.contains_line(line))
+            return LoadingState::OUT_OF_RANGE;
+
+        switch(get_state())
+        {
+          case DBusRNF::CallState::INITIALIZED:
+          case DBusRNF::CallState::WAIT_FOR_NOTIFICATION:
+          case DBusRNF::CallState::READY_TO_FETCH:
+            return LoadingState::LOADING;
+
+          case DBusRNF::CallState::ABORTING:
+          case DBusRNF::CallState::ABORTED_BY_LIST_BROKER:
+          case DBusRNF::CallState::FAILED:
+            return LoadingState::FAILED_OR_ABORTED;
+
+          case DBusRNF::CallState::RESULT_FETCHED:
+          case DBusRNF::CallState::ABOUT_TO_DESTROY:
+            return LoadingState::DONE;
+        }
+
+        MSG_UNREACHABLE();
+        return LoadingState::FAILED_OR_ABORTED;
     }
 
   protected:

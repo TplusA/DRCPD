@@ -61,8 +61,9 @@ class NavItemFlags: public List::NavItemFilterIface
     NavItemFlags(const NavItemFlags &) = delete;
     NavItemFlags &operator=(const NavItemFlags &) = delete;
 
-    constexpr explicit NavItemFlags(const List::ListIface *list):
-        NavItemFilterIface(list),
+    explicit NavItemFlags(std::shared_ptr<List::ListViewportBase> vp,
+                          const List::ListIface *list):
+        NavItemFilterIface(std::move(vp), list),
         are_cached_values_valid_(false),
         cached_first_selectable_item_(0),
         cached_last_selectable_item_(0),
@@ -158,7 +159,7 @@ class NavItemFlags: public List::NavItemFilterIface
     unsigned int get_flags_for_item(unsigned int item) const override
     {
         log_assert(list_ != nullptr);
-        return list_->get_item(item)->get_flags();
+        return const_cast<List::ListIface *>(list_)->get_item(viewport_, item)->get_flags();
     }
 
     bool map_line_number_to_item(unsigned int line_number,
@@ -168,7 +169,8 @@ class NavItemFlags: public List::NavItemFilterIface
 
         for(unsigned int i = 0; i < n; ++i)
         {
-            const unsigned int flags = list_->get_item(i)->get_flags();
+            const unsigned int flags =
+                const_cast<List::ListIface *>(list_)->get_item(viewport_, i)->get_flags();
 
             if(!is_visible(flags))
                 continue;
@@ -191,7 +193,8 @@ class NavItemFlags: public List::NavItemFilterIface
 
         for(unsigned int i = 0; i < n; ++i)
         {
-            const unsigned int flags = list_->get_item(i)->get_flags();
+            const unsigned int flags =
+                const_cast<List::ListIface *>(list_)->get_item(viewport_, i)->get_flags();
 
             if(i == item)
             {
@@ -239,8 +242,10 @@ class NavItemFlags: public List::NavItemFilterIface
 
         for(unsigned int i = 0; i < n - i; ++i)
         {
-            const unsigned int first_flags = list_->get_item(i)->get_flags();
-            const unsigned int last_flags = list_->get_item(n - i - 1)->get_flags();
+            const unsigned int first_flags =
+                const_cast<List::ListIface *>(list_)->get_item(viewport_, i)->get_flags();
+            const unsigned int last_flags =
+                const_cast<List::ListIface *>(list_)->get_item(viewport_, n - i - 1)->get_flags();
 
             if(!is_first_selectable_set && is_selectable(first_flags))
             {
@@ -282,7 +287,7 @@ class NavItemFlags: public List::NavItemFilterIface
     }
 };
 
-static List::RamList *list;
+static std::unique_ptr<List::RamList> list;
 static const char *list_texts[] =
     { "First", "Second", "Third", "Fourth", "Fifth", "Sixth", "Seventh", };
 
@@ -312,18 +317,24 @@ static void check_display(const List::RamList &l, const List::Nav &nav,
 namespace list_navigation_tests
 {
 
+static std::shared_ptr<List::ListViewportBase> viewport;
+
 void cut_setup()
 {
-    list = new List::RamList("list_navigation_tests");
-    cppcut_assert_not_null(list);
+    list = std::make_unique<List::RamList>("list_navigation_tests");
+    cppcut_assert_not_null(list.get());
+
+    viewport = std::make_shared<List::RamList::Viewport>();
+    cppcut_assert_not_null(viewport.get());
+
     for(auto t : list_texts)
-        List::append(list, List::TextItem(t, false, 0));
+        List::append(*list, List::TextItem(t, false, 0));
 }
 
 void cut_teardown()
 {
-    delete list;
     list = nullptr;
+    viewport = nullptr;
 }
 
 /*!\test
@@ -331,7 +342,7 @@ void cut_teardown()
  */
 void test_simple_navigation_init()
 {
-    List::NavItemNoFilter no_filter(list);
+    List::NavItemNoFilter no_filter(viewport, list.get());
     List::Nav nav(3, List::Nav::WrapMode::NO_WRAP, no_filter);
 
     cppcut_assert_equal(0U, nav.get_cursor());
@@ -343,7 +354,7 @@ void test_simple_navigation_init()
  */
 void test_move_down_and_up_within_displayed_lines()
 {
-    List::NavItemNoFilter no_filter(list);
+    List::NavItemNoFilter no_filter(viewport, list.get());
     List::Nav nav(3, List::Nav::WrapMode::NO_WRAP, no_filter);
 
     cut_assert_true(nav.down());
@@ -362,7 +373,7 @@ void test_move_down_and_up_within_displayed_lines()
  */
 void test_move_up_by_zero_fails()
 {
-    List::NavItemNoFilter no_filter(list);
+    List::NavItemNoFilter no_filter(viewport, list.get());
     List::Nav nav(3, List::Nav::WrapMode::NO_WRAP, no_filter);
 
     cut_assert_true(nav.down());
@@ -375,7 +386,7 @@ void test_move_up_by_zero_fails()
  */
 void test_move_down_by_zero_fails()
 {
-    List::NavItemNoFilter no_filter(list);
+    List::NavItemNoFilter no_filter(viewport, list.get());
     List::Nav nav(3, List::Nav::WrapMode::NO_WRAP, no_filter);
 
     cut_assert_false(nav.down(0));
@@ -387,7 +398,7 @@ void test_move_down_by_zero_fails()
  */
 void test_move_down_and_up_with_scrolling()
 {
-    List::NavItemNoFilter no_filter(list);
+    List::NavItemNoFilter no_filter(viewport, list.get());
     List::Nav nav(2, List::Nav::WrapMode::NO_WRAP, no_filter);
 
     cut_assert_true(nav.down());
@@ -420,7 +431,7 @@ void test_move_down_and_up_with_scrolling()
  */
 void test_cannot_move_before_first_line()
 {
-    List::NavItemNoFilter no_filter(list);
+    List::NavItemNoFilter no_filter(viewport, list.get());
     List::Nav nav(2, List::Nav::WrapMode::NO_WRAP, no_filter);
 
     cut_assert_false(nav.up());
@@ -438,7 +449,7 @@ void test_cannot_move_before_first_line()
  */
 void test_cannot_move_beyond_last_line()
 {
-    List::NavItemNoFilter no_filter(list);
+    List::NavItemNoFilter no_filter(viewport, list.get());
     List::Nav nav(3, List::Nav::WrapMode::NO_WRAP, no_filter);
 
     const unsigned int N = list->get_number_of_items() - 1;
@@ -502,7 +513,7 @@ static void move_multiple_lines_with_no_attempt_to_cross_boundaries(List::Nav &n
  */
 void test_move_multiple_lines_in_nonwrapping_list()
 {
-    List::NavItemNoFilter no_filter(list);
+    List::NavItemNoFilter no_filter(viewport, list.get());
     List::Nav nav(3, List::Nav::WrapMode::NO_WRAP, no_filter);
 
     move_multiple_lines_with_no_attempt_to_cross_boundaries(nav);
@@ -595,7 +606,7 @@ static void move_multiple_lines_up_with_crossing_boundaries(List::Nav &nav)
  */
 void test_move_multiple_lines_down_in_fully_wrapping_list()
 {
-    List::NavItemNoFilter no_filter(list);
+    List::NavItemNoFilter no_filter(viewport, list.get());
     List::Nav nav(3, List::Nav::WrapMode::FULL_WRAP, no_filter);
 
     move_multiple_lines_down_with_crossing_boundaries(nav);
@@ -607,7 +618,7 @@ void test_move_multiple_lines_down_in_fully_wrapping_list()
  */
 void test_move_multiple_lines_down_in_wrap_to_top_list()
 {
-    List::NavItemNoFilter no_filter(list);
+    List::NavItemNoFilter no_filter(viewport, list.get());
     List::Nav nav(3, List::Nav::WrapMode::WRAP_TO_TOP, no_filter);
 
     move_multiple_lines_down_with_crossing_boundaries(nav);
@@ -619,7 +630,7 @@ void test_move_multiple_lines_down_in_wrap_to_top_list()
  */
 void test_move_multiple_lines_up_in_fully_wrapping_list()
 {
-    List::NavItemNoFilter no_filter(list);
+    List::NavItemNoFilter no_filter(viewport, list.get());
     List::Nav nav(3, List::Nav::WrapMode::FULL_WRAP, no_filter);
 
     move_multiple_lines_up_with_crossing_boundaries(nav);
@@ -631,7 +642,7 @@ void test_move_multiple_lines_up_in_fully_wrapping_list()
  */
 void test_move_multiple_lines_up_in_wrap_to_bottom_list()
 {
-    List::NavItemNoFilter no_filter(list);
+    List::NavItemNoFilter no_filter(viewport, list.get());
     List::Nav nav(3, List::Nav::WrapMode::WRAP_TO_BOTTOM, no_filter);
 
     move_multiple_lines_up_with_crossing_boundaries(nav);
@@ -639,7 +650,7 @@ void test_move_multiple_lines_up_in_wrap_to_bottom_list()
 
 static void can_wrap_from_top_to_bottom(List::Nav::WrapMode wrap_mode)
 {
-    List::NavItemNoFilter no_filter(list);
+    List::NavItemNoFilter no_filter(viewport, list.get());
     List::Nav nav(3, wrap_mode, no_filter);
 
     const unsigned int N = list->get_number_of_items() - 1;
@@ -661,7 +672,7 @@ static void can_wrap_from_top_to_bottom(List::Nav::WrapMode wrap_mode)
 
 static void can_wrap_from_bottom_to_top(List::Nav::WrapMode wrap_mode)
 {
-    List::NavItemNoFilter no_filter(list);
+    List::NavItemNoFilter no_filter(viewport, list.get());
     List::Nav nav(3, wrap_mode, no_filter);
 
     const unsigned int N = list->get_number_of_items() - 1;
@@ -702,7 +713,7 @@ void test_move_beyond_last_line_in_fully_wrapped_list()
  */
 void test_cannot_move_before_first_line_in_wrap_to_top_list()
 {
-    List::NavItemNoFilter no_filter(list);
+    List::NavItemNoFilter no_filter(viewport, list.get());
     List::Nav nav(5, List::Nav::WrapMode::WRAP_TO_TOP, no_filter);
 
     cppcut_assert_equal(0U, nav.get_cursor());
@@ -734,7 +745,7 @@ void test_move_before_first_line_in_wrap_to_bottom_list()
  */
 void test_cannot_move_beyond_last_line_in_wrap_to_bottom_list()
 {
-    List::NavItemNoFilter no_filter(list);
+    List::NavItemNoFilter no_filter(viewport, list.get());
     List::Nav nav(5, List::Nav::WrapMode::WRAP_TO_BOTTOM, no_filter);
 
     cppcut_assert_equal(0U, nav.get_cursor());
@@ -759,7 +770,7 @@ void test_cannot_move_beyond_last_line_in_wrap_to_bottom_list()
  */
 void test_const_iterator_steps_through_visible_lines_from_first()
 {
-    List::NavItemNoFilter no_filter(list);
+    List::NavItemNoFilter no_filter(viewport, list.get());
     List::Nav nav(3, List::Nav::WrapMode::NO_WRAP, no_filter);
 
     unsigned int expected_current_line = 0;
@@ -779,7 +790,7 @@ void test_const_iterator_steps_through_visible_lines_from_first()
  */
 void test_const_iterator_steps_through_visible_lines_scrolled_down()
 {
-    List::NavItemNoFilter no_filter(list);
+    List::NavItemNoFilter no_filter(viewport, list.get());
     List::Nav nav(3, List::Nav::WrapMode::NO_WRAP, no_filter);
 
     /* move some steps down */
@@ -808,7 +819,7 @@ void test_const_iterator_steps_through_visible_lines_scrolled_down()
  */
 void test_const_iterator_steps_through_visible_lines_at_end_of_list()
 {
-    List::NavItemNoFilter no_filter(list);
+    List::NavItemNoFilter no_filter(viewport, list.get());
     List::Nav nav(3, List::Nav::WrapMode::NO_WRAP, no_filter);
 
     while(nav.down())
@@ -835,7 +846,7 @@ void test_const_iterator_steps_through_visible_lines_at_end_of_list()
  */
 void test_const_iterator_steps_through_visible_lines_on_big_display()
 {
-    List::NavItemNoFilter no_filter(list);
+    List::NavItemNoFilter no_filter(viewport, list.get());
     List::Nav nav(50, List::Nav::WrapMode::NO_WRAP, no_filter);
 
     cppcut_assert_operator(list->get_number_of_items(), <=, 50U,
@@ -858,7 +869,7 @@ void test_const_iterator_on_empty_list()
 
     cppcut_assert_equal(0U, empty_list.get_number_of_items());
 
-    List::NavItemNoFilter no_filter(&empty_list);
+    List::NavItemNoFilter no_filter(viewport, &empty_list);
     List::Nav nav(10, List::Nav::WrapMode::NO_WRAP, no_filter);
 
     unsigned int count = 0;
@@ -872,7 +883,7 @@ void test_const_iterator_on_empty_list()
  */
 void test_late_binding_of_navigation_and_filter()
 {
-    List::NavItemNoFilter no_filter(nullptr);
+    List::NavItemNoFilter no_filter(viewport, nullptr);
     List::Nav nav(4, List::Nav::WrapMode::NO_WRAP, no_filter);
 
     unsigned int expected_current_line = 0;
@@ -883,7 +894,7 @@ void test_late_binding_of_navigation_and_filter()
     cppcut_assert_equal(0U, expected_current_line);
 
     /* associate list and do it again */
-    no_filter.tie(list);
+    no_filter.tie(viewport, list.get());
     expected_current_line = 0;
 
     for(auto it : nav)
@@ -901,7 +912,7 @@ void test_late_binding_of_navigation_and_filter()
  */
 void test_set_cursor_by_line_number()
 {
-    List::NavItemNoFilter no_filter(list);
+    List::NavItemNoFilter no_filter(viewport, list.get());
     List::Nav nav(4, List::Nav::WrapMode::NO_WRAP, no_filter);
 
     cppcut_assert_equal(0U, nav.get_cursor());
@@ -929,7 +940,7 @@ void test_set_cursor_by_line_number()
  */
 void test_set_cursor_by_invalid_line_number()
 {
-    List::NavItemNoFilter no_filter(list);
+    List::NavItemNoFilter no_filter(viewport, list.get());
     List::Nav nav(4, List::Nav::WrapMode::NO_WRAP, no_filter);
 
     cppcut_assert_equal(0U, nav.get_cursor());
@@ -950,7 +961,7 @@ void test_set_cursor_by_invalid_line_number()
 void test_set_cursor_in_empty_list()
 {
     List::RamList empty_list(__func__);
-    List::NavItemNoFilter no_filter(&empty_list);
+    List::NavItemNoFilter no_filter(viewport, &empty_list);
     List::Nav nav(4, List::Nav::WrapMode::NO_WRAP, no_filter);
 
     cppcut_assert_equal(0U, nav.get_cursor());
@@ -970,7 +981,7 @@ void test_set_cursor_in_empty_list()
  */
 void test_set_cursor_in_half_filled_screen()
 {
-    List::NavItemNoFilter no_filter(list);
+    List::NavItemNoFilter no_filter(viewport, list.get());
     List::Nav nav(50, List::Nav::WrapMode::NO_WRAP, no_filter);
 
     cppcut_assert_operator(list->get_number_of_items(), <, 50U,
@@ -999,7 +1010,7 @@ void test_set_cursor_in_half_filled_screen()
  */
 void test_set_cursor_in_exactly_fitting_list()
 {
-    List::NavItemNoFilter no_filter(list);
+    List::NavItemNoFilter no_filter(viewport, list.get());
     List::Nav nav(7, List::Nav::WrapMode::NO_WRAP, no_filter);
 
     cppcut_assert_equal(7U, list->get_number_of_items());
@@ -1025,7 +1036,7 @@ void test_set_cursor_in_exactly_fitting_list()
  */
 void test_get_line_number_by_item()
 {
-    List::NavItemNoFilter no_filter(list);
+    List::NavItemNoFilter no_filter(viewport, list.get());
     List::Nav nav(2, List::Nav::WrapMode::NO_WRAP, no_filter);
 
     cppcut_assert_equal(0, nav.get_line_number_by_item(0));
@@ -1038,7 +1049,7 @@ void test_get_line_number_by_item()
  */
 void test_get_line_number_by_item_fails_for_invalid_item()
 {
-    List::NavItemNoFilter no_filter(list);
+    List::NavItemNoFilter no_filter(viewport, list.get());
     List::Nav nav(2, List::Nav::WrapMode::NO_WRAP, no_filter);
 
     cppcut_assert_equal(-1, nav.get_line_number_by_item(7));
@@ -1052,7 +1063,7 @@ void test_get_line_number_by_item_fails_for_invalid_item()
  */
 void test_get_line_number_by_cursor()
 {
-    List::NavItemNoFilter no_filter(list);
+    List::NavItemNoFilter no_filter(viewport, list.get());
     List::Nav nav(2, List::Nav::WrapMode::NO_WRAP, no_filter);
 
     cppcut_assert_equal(0, nav.get_line_number_by_cursor());
@@ -1068,7 +1079,7 @@ void test_get_line_number_by_cursor()
 void test_get_line_number_in_empty_list()
 {
     List::RamList empty_list(__func__);
-    List::NavItemNoFilter no_filter(&empty_list);
+    List::NavItemNoFilter no_filter(viewport, &empty_list);
     List::Nav nav(2, List::Nav::WrapMode::NO_WRAP, no_filter);
 
     cppcut_assert_equal(-1, nav.get_line_number_by_item(0));
@@ -1083,7 +1094,7 @@ void test_get_line_number_in_empty_list()
  */
 void test_distance_from_top_and_bottom_in_filled_screen()
 {
-    List::NavItemNoFilter no_filter(list);
+    List::NavItemNoFilter no_filter(viewport, list.get());
     List::Nav nav(3, List::Nav::WrapMode::NO_WRAP, no_filter);
 
     cppcut_assert_operator(list->get_number_of_items(), >=, 3U,
@@ -1110,7 +1121,7 @@ void test_distance_from_top_and_bottom_in_filled_screen()
  */
 void test_distance_from_top_and_bottom_in_half_filled_screen()
 {
-    List::NavItemNoFilter no_filter(list);
+    List::NavItemNoFilter no_filter(viewport, list.get());
     List::Nav nav(50, List::Nav::WrapMode::NO_WRAP, no_filter);
 
     cppcut_assert_operator(list->get_number_of_items(), <, 50U,
@@ -1138,7 +1149,7 @@ void test_distance_from_top_and_bottom_in_empty_list()
 
     cppcut_assert_equal(0U, empty_list.get_number_of_items());
 
-    List::NavItemNoFilter no_filter(&empty_list);
+    List::NavItemNoFilter no_filter(viewport, &empty_list);
     List::Nav nav(5, List::Nav::WrapMode::NO_WRAP, no_filter);
 
     cppcut_assert_equal(0U, nav.distance_to_top());
@@ -1151,10 +1162,15 @@ void test_distance_from_top_and_bottom_in_empty_list()
 namespace list_navigation_tests_with_unselectable_items
 {
 
+static std::shared_ptr<List::ListViewportBase> viewport;
+
 void cut_setup()
 {
-    list = new List::RamList("list_navigation_tests_with_unselectable_items");
-    cppcut_assert_not_null(list);
+    list = std::make_unique<List::RamList>("list_navigation_tests_with_unselectable_items");
+    cppcut_assert_not_null(list.get());
+
+    viewport = std::make_shared<List::RamList::Viewport>();
+    cppcut_assert_not_null(viewport.get());
 
     int count = 0;
     unsigned int item_flags;
@@ -1170,14 +1186,14 @@ void cut_setup()
 
         ++count;
 
-        List::append(list, List::TextItem(t, false, item_flags));
+        List::append(*list, List::TextItem(t, false, item_flags));
     }
 }
 
 void cut_teardown()
 {
-    delete list;
     list = nullptr;
+    viewport = nullptr;
 }
 
 /*!\test
@@ -1185,7 +1201,7 @@ void cut_teardown()
  */
 void test_navigation_init_with_first_lines_unselectable()
 {
-    NavItemFlags flags(list);
+    NavItemFlags flags(viewport, list.get());
     List::Nav nav(4, List::Nav::WrapMode::NO_WRAP, flags);
 
     flags.set_selectable_mask(NavItemFlags::item_is_on_top);
@@ -1200,15 +1216,15 @@ void test_navigation_init_with_first_lines_unselectable()
 void test_navigation_init_with_first_lines_unselectable_with_late_list_population()
 {
     List::RamList local_list(__func__);
-    NavItemFlags flags(&local_list);
+    NavItemFlags flags(viewport, &local_list);
     List::Nav nav(10, List::Nav::WrapMode::NO_WRAP, flags);
 
     cut_assert_false(flags.is_list_nonempty());
 
-    List::append(&local_list, List::TextItem(list_texts[0], false, NavItemFlags::item_is_on_top));
-    List::append(&local_list, List::TextItem(list_texts[1], false, 0));
-    List::append(&local_list, List::TextItem(list_texts[2], false, 0));
-    List::append(&local_list, List::TextItem(list_texts[3], false, 0));
+    List::append(local_list, List::TextItem(list_texts[0], false, NavItemFlags::item_is_on_top));
+    List::append(local_list, List::TextItem(list_texts[1], false, 0));
+    List::append(local_list, List::TextItem(list_texts[2], false, 0));
+    List::append(local_list, List::TextItem(list_texts[3], false, 0));
 
     flags.list_content_changed();
     cut_assert_true(flags.is_list_nonempty());
@@ -1225,7 +1241,7 @@ void test_navigation_init_with_first_lines_unselectable_with_late_list_populatio
 void test_navigation_init_with_empty_list()
 {
     List::RamList empty_list(__func__);
-    NavItemFlags flags(&empty_list);
+    NavItemFlags flags(viewport, &empty_list);
     List::Nav nav(5, List::Nav::WrapMode::NO_WRAP, flags);
 
     cut_assert_false(flags.is_list_nonempty());
@@ -1240,7 +1256,7 @@ void test_navigation_init_with_empty_list()
  */
 void test_cannot_select_unselectable_first_lines()
 {
-    NavItemFlags flags(list);
+    NavItemFlags flags(viewport, list.get());
     List::Nav nav(4, List::Nav::WrapMode::NO_WRAP, flags);
 
     flags.set_selectable_mask(NavItemFlags::item_is_on_top);
@@ -1261,7 +1277,7 @@ void test_cannot_select_unselectable_first_lines()
  */
 void test_scroll_to_unselectable_first_lines()
 {
-    NavItemFlags flags(list);
+    NavItemFlags flags(viewport, list.get());
     List::Nav nav(4, List::Nav::WrapMode::NO_WRAP, flags);
 
     flags.set_selectable_mask(NavItemFlags::item_is_on_top);
@@ -1293,7 +1309,7 @@ void test_scroll_to_unselectable_first_lines()
  */
 void test_scroll_to_unselectable_last_line()
 {
-    NavItemFlags flags(list);
+    NavItemFlags flags(viewport, list.get());
     List::Nav nav(3, List::Nav::WrapMode::NO_WRAP, flags);
 
     flags.set_selectable_mask(NavItemFlags::item_is_at_bottom);
@@ -1321,7 +1337,7 @@ void test_scroll_to_unselectable_last_line()
  */
 void test_late_binding_of_navigation_and_filter()
 {
-    NavItemFlags flags(nullptr);
+    NavItemFlags flags(viewport, nullptr);
     List::Nav nav(4, List::Nav::WrapMode::NO_WRAP, flags);
 
     unsigned int expected_current_line = 0;
@@ -1332,7 +1348,7 @@ void test_late_binding_of_navigation_and_filter()
     cppcut_assert_equal(0U, expected_current_line);
 
     /* associate list and do it again */
-    flags.tie(list);
+    flags.tie(viewport, list.get());
     expected_current_line = 0;
 
     for(auto it : nav)
@@ -1351,10 +1367,15 @@ void test_late_binding_of_navigation_and_filter()
 namespace list_navigation_tests_with_invisible_items
 {
 
+static std::shared_ptr<List::ListViewportBase> viewport;
+
 void cut_setup()
 {
-    list = new List::RamList("list_navigation_tests_with_invisible_items");
-    cppcut_assert_not_null(list);
+    list = std::make_unique<List::RamList>("list_navigation_tests_with_invisible_items");
+    cppcut_assert_not_null(list.get());
+
+    viewport = std::make_shared<List::RamList::Viewport>();
+    cppcut_assert_not_null(viewport.get());
 
     int count = 0;
 
@@ -1376,14 +1397,14 @@ void cut_setup()
 
         ++count;
 
-        List::append(list, List::TextItem(t, false, item_flags));
+        List::append(*list, List::TextItem(t, false, item_flags));
     }
 }
 
 void cut_teardown()
 {
-    delete list;
     list = nullptr;
+    viewport = nullptr;
 }
 
 /*!\test
@@ -1392,7 +1413,7 @@ void cut_teardown()
  */
 void test_navigation_with_first_line_invisible()
 {
-    NavItemFlags flags(list);
+    NavItemFlags flags(viewport, list.get());
     List::Nav nav(4, List::Nav::WrapMode::NO_WRAP, flags);
 
     cppcut_assert_equal(0U, nav.get_cursor());
@@ -1410,7 +1431,7 @@ void test_navigation_with_first_line_invisible()
  */
 void test_navigation_with_last_line_invisible()
 {
-    NavItemFlags flags(list);
+    NavItemFlags flags(viewport, list.get());
     List::Nav nav(4, List::Nav::WrapMode::NO_WRAP, flags);
 
     flags.set_visible_mask(NavItemFlags::item_is_at_bottom);
@@ -1436,7 +1457,7 @@ void test_navigation_with_last_line_invisible()
  */
 void test_navigation_with_odd_lines_invisible()
 {
-    NavItemFlags flags(list);
+    NavItemFlags flags(viewport, list.get());
     List::Nav nav(4, List::Nav::WrapMode::NO_WRAP, flags);
 
     flags.set_visible_mask(NavItemFlags::item_is_at_odd_position);
@@ -1460,7 +1481,7 @@ void test_navigation_with_odd_lines_invisible()
  */
 void test_navigation_with_every_third_line_invisible()
 {
-    NavItemFlags flags(list);
+    NavItemFlags flags(viewport, list.get());
     List::Nav nav(4, List::Nav::WrapMode::NO_WRAP, flags);
 
     flags.set_visible_mask(NavItemFlags::item_is_at_position_divisible_by_3);
@@ -1485,7 +1506,7 @@ void test_navigation_with_every_third_line_invisible()
  */
 void test_navigation_with_odd_and_every_third_line_invisible()
 {
-    NavItemFlags flags(list);
+    NavItemFlags flags(viewport, list.get());
     List::Nav nav(4, List::Nav::WrapMode::NO_WRAP, flags);
 
     flags.set_visible_mask(NavItemFlags::item_is_at_odd_position |
@@ -1516,7 +1537,7 @@ void test_navigation_with_odd_and_every_third_line_invisible()
  */
 void test_get_number_of_visible_items()
 {
-    NavItemFlags flags(list);
+    NavItemFlags flags(viewport, list.get());
     List::Nav nav(2, List::Nav::WrapMode::NO_WRAP, flags);
 
     cppcut_assert_equal(list->get_number_of_items(), nav.get_total_number_of_visible_items());
@@ -1542,7 +1563,7 @@ void test_get_number_of_visible_items()
  */
 void test_set_cursor_by_line_number()
 {
-    NavItemFlags flags(list);
+    NavItemFlags flags(viewport, list.get());
     List::Nav nav(3, List::Nav::WrapMode::NO_WRAP, flags);
 
     flags.set_visible_mask(NavItemFlags::item_is_at_odd_position);
@@ -1572,7 +1593,7 @@ void test_set_cursor_by_line_number()
  */
 void test_set_cursor_by_invalid_line_number()
 {
-    NavItemFlags flags(list);
+    NavItemFlags flags(viewport, list.get());
     List::Nav nav(4, List::Nav::WrapMode::NO_WRAP, flags);
 
     flags.set_visible_mask(NavItemFlags::item_is_at_odd_position);
@@ -1600,11 +1621,11 @@ void test_set_cursor_in_filtered_list()
 {
     List::RamList short_list(__func__);
 
-    List::append(&short_list, List::TextItem(list_texts[0], false, NavItemFlags::item_is_on_top));
-    List::append(&short_list, List::TextItem(list_texts[1], false, NavItemFlags::item_is_on_top));
-    List::append(&short_list, List::TextItem(list_texts[2], false, NavItemFlags::item_is_on_top));
+    List::append(short_list, List::TextItem(list_texts[0], false, NavItemFlags::item_is_on_top));
+    List::append(short_list, List::TextItem(list_texts[1], false, NavItemFlags::item_is_on_top));
+    List::append(short_list, List::TextItem(list_texts[2], false, NavItemFlags::item_is_on_top));
 
-    NavItemFlags flags(&short_list);
+    NavItemFlags flags(viewport, &short_list);
     List::Nav nav(5, List::Nav::WrapMode::NO_WRAP, flags);
 
     cut_assert_true(nav.down());
@@ -1633,7 +1654,7 @@ void test_set_cursor_in_filtered_list()
  */
 void test_set_cursor_in_half_filled_screen()
 {
-    NavItemFlags flags(list);
+    NavItemFlags flags(viewport, list.get());
     List::Nav nav(6, List::Nav::WrapMode::NO_WRAP, flags);
 
     cppcut_assert_operator(list->get_number_of_items(), >, 6U,
@@ -1664,7 +1685,7 @@ void test_set_cursor_in_half_filled_screen()
  */
 void test_set_cursor_in_exactly_fitting_list()
 {
-    NavItemFlags flags(list);
+    NavItemFlags flags(viewport, list.get());
     List::Nav nav(4, List::Nav::WrapMode::NO_WRAP, flags);
 
     cppcut_assert_operator(list->get_number_of_items(), >, 4U,
@@ -1693,7 +1714,7 @@ void test_set_cursor_in_exactly_fitting_list()
  */
 void test_get_line_number_by_item()
 {
-    NavItemFlags flags(list);
+    NavItemFlags flags(viewport, list.get());
     List::Nav nav(10, List::Nav::WrapMode::NO_WRAP, flags);
 
     flags.set_visible_mask(NavItemFlags::item_is_at_odd_position);
@@ -1711,7 +1732,7 @@ void test_get_line_number_by_item()
  */
 void test_get_line_number_by_item_changes_with_different_filters()
 {
-    NavItemFlags flags(list);
+    NavItemFlags flags(viewport, list.get());
     List::Nav nav(10, List::Nav::WrapMode::NO_WRAP, flags);
 
     flags.set_visible_mask(NavItemFlags::item_is_at_odd_position);
@@ -1740,7 +1761,7 @@ void test_get_line_number_by_item_changes_with_different_filters()
  */
 void test_get_line_number_by_item_fails_or_succeeds_for_different_filters()
 {
-    NavItemFlags flags(list);
+    NavItemFlags flags(viewport, list.get());
     List::Nav nav(10, List::Nav::WrapMode::NO_WRAP, flags);
 
     flags.set_visible_mask(NavItemFlags::item_is_at_odd_position);
@@ -1761,7 +1782,7 @@ void test_get_line_number_by_item_fails_or_succeeds_for_different_filters()
  */
 void test_get_line_number_by_item_fails_for_invalid_item()
 {
-    NavItemFlags flags(list);
+    NavItemFlags flags(viewport, list.get());
     List::Nav nav(10, List::Nav::WrapMode::NO_WRAP, flags);
 
     flags.set_visible_mask(NavItemFlags::item_is_at_odd_position);
@@ -1777,7 +1798,7 @@ void test_get_line_number_by_item_fails_for_invalid_item()
  */
 void test_get_line_number_by_cursor()
 {
-    NavItemFlags flags(list);
+    NavItemFlags flags(viewport, list.get());
     List::Nav nav(2, List::Nav::WrapMode::NO_WRAP, flags);
 
     flags.set_visible_mask(NavItemFlags::item_is_at_odd_position);
@@ -1801,11 +1822,11 @@ void test_get_line_number_in_filtered_list()
 {
     List::RamList short_list(__func__);
 
-    List::append(&short_list, List::TextItem(list_texts[0], false, NavItemFlags::item_is_on_top));
-    List::append(&short_list, List::TextItem(list_texts[1], false, NavItemFlags::item_is_on_top));
-    List::append(&short_list, List::TextItem(list_texts[2], false, NavItemFlags::item_is_on_top));
+    List::append(short_list, List::TextItem(list_texts[0], false, NavItemFlags::item_is_on_top));
+    List::append(short_list, List::TextItem(list_texts[1], false, NavItemFlags::item_is_on_top));
+    List::append(short_list, List::TextItem(list_texts[2], false, NavItemFlags::item_is_on_top));
 
-    NavItemFlags flags(&short_list);
+    NavItemFlags flags(viewport, &short_list);
     List::Nav nav(2, List::Nav::WrapMode::NO_WRAP, flags);
 
     flags.set_visible_mask(NavItemFlags::item_is_on_top);
@@ -1821,7 +1842,7 @@ void test_get_line_number_in_filtered_list()
  */
 void test_distance_from_top_and_bottom_in_filled_screen()
 {
-    NavItemFlags flags(list);
+    NavItemFlags flags(viewport, list.get());
     List::Nav nav(3, List::Nav::WrapMode::NO_WRAP, flags);
 
     flags.set_visible_mask(NavItemFlags::item_is_at_odd_position);
@@ -1850,7 +1871,7 @@ void test_distance_from_top_and_bottom_in_filled_screen()
  */
 void test_distance_from_top_and_bottom_in_half_filled_screen()
 {
-    NavItemFlags flags(list);
+    NavItemFlags flags(viewport, list.get());
     List::Nav nav(10, List::Nav::WrapMode::NO_WRAP, flags);
 
     flags.set_visible_mask(NavItemFlags::item_is_at_odd_position);
@@ -1877,11 +1898,11 @@ void test_distance_from_top_and_bottom_in_filtered_list()
 {
     List::RamList short_list(__func__);
 
-    List::append(&short_list, List::TextItem(list_texts[0], false, NavItemFlags::item_is_on_top));
-    List::append(&short_list, List::TextItem(list_texts[1], false, NavItemFlags::item_is_on_top));
-    List::append(&short_list, List::TextItem(list_texts[2], false, NavItemFlags::item_is_on_top));
+    List::append(short_list, List::TextItem(list_texts[0], false, NavItemFlags::item_is_on_top));
+    List::append(short_list, List::TextItem(list_texts[1], false, NavItemFlags::item_is_on_top));
+    List::append(short_list, List::TextItem(list_texts[2], false, NavItemFlags::item_is_on_top));
 
-    NavItemFlags flags(&short_list);
+    NavItemFlags flags(viewport, &short_list);
     List::Nav nav(5, List::Nav::WrapMode::NO_WRAP, flags);
 
     cut_assert_true(nav.down());

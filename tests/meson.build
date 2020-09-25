@@ -57,6 +57,18 @@ test('List Navigation',
     depends: listnav_tests
 )
 
+contextmap_tests = shared_module('test_contextmap',
+    ['test_contextmap.cc', 'mock_backtrace.cc', 'mock_messages.cc', 'mock_os.cc'],
+    cpp_args: '-Wno-pedantic',
+    include_directories: dbus_iface_defs_includes,
+    dependencies: [cutter_dep, config_h],
+    link_with: [contextmap_lib]
+)
+test('Context Map',
+    cutter_wrap, args: [cutter_wrap_args, contextmap_tests.full_path()],
+    depends: contextmap_tests
+)
+
 dbus_handlers_tests = shared_module('test_dbus_handlers',
     ['test_dbus_handlers.cc', 'dbus_dummies.cc',
      'mock_messages.cc', 'mock_view_manager.cc'],
@@ -73,7 +85,7 @@ test('D-Bus Handlers',
 
 view_manager_tests = shared_module('test_view_manager',
     ['test_view_manager.cc', 'dbus_dummies.cc',
-     'view_mock.cc', 'mock_backtrace.cc', 'mock_messages.cc'],
+     'view_mock.cc', 'mock_backtrace.cc', 'mock_messages.cc', 'mock_os.cc'],
     cpp_args: '-Wno-pedantic',
     include_directories: dbus_iface_defs_includes,
     dependencies: [cutter_dep, config_h, glib_deps],

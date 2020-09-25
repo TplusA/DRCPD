@@ -67,6 +67,7 @@ test_listnav_la_CXXFLAGS = $(DRCPD_DEPENDENCIES_CFLAGS) $(AM_CXXFLAGS)
 
 test_contextmap_la_SOURCES = \
     test_contextmap.cc mock_expectation.hh \
+    mock_os.hh mock_os.cc \
     mock_backtrace.hh mock_backtrace.cc \
     mock_messages.hh mock_messages.cc
 test_contextmap_la_LIBADD = $(top_builddir)/src/libcontextmap.la
@@ -91,6 +92,7 @@ test_view_manager_la_SOURCES = \
     test_view_manager.cc $(top_builddir)/src/view_names.hh \
     dbus_dummies.cc \
     view_mock.hh view_mock.cc \
+    mock_os.hh mock_os.cc \
     mock_backtrace.hh mock_backtrace.cc \
     mock_messages.hh mock_messages.cc
 test_view_manager_la_LIBADD = \

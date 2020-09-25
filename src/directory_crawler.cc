@@ -30,19 +30,11 @@
 
 void Playlist::Crawler::DirectoryCrawler::init_dbus_list_watcher()
 {
-    traversal_list_.register_watcher(
-        [this] (List::AsyncListIface::OpEvent event,
-                List::AsyncListIface::OpResult result,
-                std::shared_ptr<List::QueryContext_> ctx)
+    traversal_list_.register_enter_list_watcher(
+        [this] (List::AsyncListIface::OpResult result,
+                std::shared_ptr<List::QueryContextEnterList> ctx)
         {
-            switch(event)
-            {
-              case List::AsyncListIface::OpEvent::ENTER_LIST:
-                async_list__enter_list_event(result, std::move(std::static_pointer_cast<List::QueryContextEnterList>(ctx)));
-                return;
-            }
-
-            BUG("Asynchronous event %u not handled", static_cast<unsigned int>(event));
+            async_list__enter_list_event(result, std::move(ctx));
         });
 }
 
@@ -95,12 +87,13 @@ Playlist::Crawler::DirectoryCrawler::Cursor::hint_planned_access(
         List::DBusList &list, bool forward,
         List::AsyncListIface::HintItemDoneNotification &&hinted_fn)
 {
-    const unsigned int total_list_size = nav_.get_total_number_of_visible_items();
-    const unsigned int &hint_count = nav_.maximum_number_of_displayed_lines_;
+    const auto total_list_size = nav_.get_total_number_of_visible_items();
+    const auto hint_count = nav_.maximum_number_of_displayed_lines_;
     log_assert(hint_count > 0);
 
     if(total_list_size <= hint_count)
-        return list.get_item_async_set_hint(0, total_list_size, nullptr,
+        return list.get_item_async_set_hint(nav_.get_viewport(),
+                                            0, total_list_size, nullptr,
                                             std::move(hinted_fn));
 
     const auto cursor_pos = nav_.get_cursor();
@@ -115,7 +108,8 @@ Playlist::Crawler::DirectoryCrawler::Cursor::hint_planned_access(
                      ? cursor_pos - (hint_count - 1)
                      : 0);
 
-    return list.get_item_async_set_hint(start_pos, hint_count, nullptr,
+    return list.get_item_async_set_hint(nav_.get_viewport(),
+                                        start_pos, hint_count, nullptr,
                                         std::move(hinted_fn));
 }
 

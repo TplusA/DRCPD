@@ -63,7 +63,7 @@ class MockViewManager: public ViewManager::VMIface, public UI::EventStoreIface
     void store_event(UI::EventID event_id,
                      std::unique_ptr<UI::Parameters> parameters = nullptr) override;
 
-    bool add_view(ViewIface *view) override;
+    bool add_view(ViewIface &view) override;
     bool invoke_late_init_functions() override;
     void set_output_stream(std::ostream &os) override;
     void set_debug_stream(std::ostream &os) override;

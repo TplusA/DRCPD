@@ -63,8 +63,16 @@ Playlist::Crawler::Handle Playlist::Crawler::Iface::activate(
         return Playlist::Crawler::Handle(
                 new Handle(*this, public_iface, std::move(settings)));
     }
+    catch(const std::exception &e)
+    {
+        BUG("Exception during crawler activation: %s", e.what());
+        is_active_ = false;
+        reference_point_ = nullptr;
+        throw;
+    }
     catch(...)
     {
+        BUG("Exception during crawler activation");
         is_active_ = false;
         reference_point_ = nullptr;
         throw;
@@ -93,8 +101,16 @@ Playlist::Crawler::Iface::activate_without_reference_point(
         return Playlist::Crawler::Handle(
                 new Handle(*this, invalid_iface, std::move(settings)));
     }
+    catch(const std::exception &e)
+    {
+        BUG("Exception during crawler activation (no reference point): %s",
+            e.what());
+        is_active_ = false;
+        throw;
+    }
     catch(...)
     {
+        BUG("Exception during crawler activation (no reference point)");
         is_active_ = false;
         throw;
     }
@@ -258,6 +274,13 @@ std::ostream &operator<<(std::ostream &os,
         "NONE", "SUPPRESS_CANCELED",
     };
     return dump_enum_value(os, names, "CompletionCallbackFilter", cf);
+}
+
+std::string Playlist::Crawler::OperationBase::get_state_name() const
+{
+    std::ostringstream os;
+    os << state_;
+    return os.str();
 }
 
 std::string Playlist::Crawler::OperationBase::get_base_description(const char *const prefix) const

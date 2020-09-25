@@ -67,7 +67,7 @@ foreach d : dbus_iface_data
 endforeach
 
 list_lib = static_library('list',
-    ['ramlist.cc', 'dbuslist.cc', 'dbus_async.cc'],
+    ['ramlist.cc', 'dbuslist.cc', 'dbuslist_viewport.cc', 'dbus_async.cc'],
     include_directories: dbus_iface_defs_includes,
     dependencies: [glib_deps, config_h]
 )

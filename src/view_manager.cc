@@ -61,21 +61,18 @@ static inline bool is_view_name_valid(const char *view_name)
     return view_name != nullptr && view_name[0] != '#' && view_name[0] != '\0';
 }
 
-bool ViewManager::Manager::add_view(ViewIface *view)
+bool ViewManager::Manager::add_view(ViewIface &view)
 {
-    if(view == nullptr)
+    if(dynamic_cast<ViewSerializeBase *>(&view) == nullptr)
         return false;
 
-    if(dynamic_cast<ViewSerializeBase *>(view) == nullptr)
+    if(!is_view_name_valid(view.name_))
         return false;
 
-    if(!is_view_name_valid(view->name_))
+    if(all_views_.find(view.name_) != all_views_.end())
         return false;
 
-    if(all_views_.find(view->name_) != all_views_.end())
-        return false;
-
-    all_views_.insert(ViewsContainer::value_type(view->name_, view));
+    all_views_.insert(ViewsContainer::value_type(view.name_, &view));
 
     return true;
 }
@@ -808,6 +805,12 @@ bool ViewManager::Manager::set_pending_cookie(
         return false;
     }
 
+    if(notify == nullptr)
+    {
+        BUG("Notify function for cookie not given");
+        return false;
+    }
+
     if(fetch == nullptr)
     {
         BUG("Fetch function for cookie not given");
@@ -844,26 +847,6 @@ bool ViewManager::Manager::abort_cookie(const void *proxy, uint32_t cookie)
     }
 
     return view->data_cookie_abort(cookie);
-}
-
-void ViewManager::Manager::invalidate_cookie(const void *proxy, uint32_t cookie)
-{
-    if(cookie == 0)
-    {
-        BUG("Attempted to invalidate invalid cookie");
-        return;
-    }
-
-    auto *const view =
-        dynamic_cast<ViewFileBrowser::View *>(get_view_by_dbus_proxy(proxy));
-
-    if(view == nullptr)
-    {
-        BUG("No file browser view for given proxy, cannot invalidate cookie %u", cookie);
-        return;
-    }
-
-    view->data_cookie_drop(cookie);
 }
 
 void ViewManager::Manager::configuration_changed_notification(

@@ -369,7 +369,7 @@ void MockViewManager::expect_sync_toggle_views_by_name(const char *view_name_a,
 }
 
 
-bool MockViewManager::add_view(ViewIface *view)
+bool MockViewManager::add_view(ViewIface &view)
 {
     cut_fail("Not implemented");
     return false;

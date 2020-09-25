@@ -532,6 +532,16 @@ static void connect_everything(ViewManager::Manager &views,
     static ViewSearch::View search(N_("Search parameters"),
                                    views.NUMBER_OF_LINES_ON_DISPLAY, views);
 
+    views.add_view(error_sink);
+    views.add_view(inactive);
+    views.add_view(fs);
+    views.add_view(tunein);
+    views.add_view(upnp);
+    views.add_view(app);
+    views.add_view(roon);
+    views.add_view(play);
+    views.add_view(search);
+
     if(!error_sink.init())
         return;
 
@@ -555,16 +565,6 @@ static void connect_everything(ViewManager::Manager &views,
 
     if(!search.init())
         return;
-
-    views.add_view(&error_sink);
-    views.add_view(&inactive);
-    views.add_view(&fs);
-    views.add_view(&tunein);
-    views.add_view(&upnp);
-    views.add_view(&app);
-    views.add_view(&roon);
-    views.add_view(&play);
-    views.add_view(&search);
 
     if(!views.invoke_late_init_functions())
         return;

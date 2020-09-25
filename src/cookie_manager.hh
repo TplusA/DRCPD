@@ -49,7 +49,6 @@ class CookieManagerIface
             const void *proxy, uint32_t cookie,
             NotifyByCookieFn &&notify, FetchByCookieFn &&fetch) = 0;
     virtual bool abort_cookie(const void *proxy, uint32_t cookie) = 0;
-    virtual void invalidate_cookie(const void *proxy, uint32_t) = 0;
 };
 
 }

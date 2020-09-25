@@ -44,6 +44,14 @@ namespace Crawler
 class DirectoryCrawler: public Iface, public PublicIface
 {
   public:
+    /*!
+     * Cursor pointing into some list.
+     *
+     * This cursor contains a #List::Nav object, thus a reference to an item
+     * filter (#List::NavItemFilterIface) and a viewport. Cursors with
+     * different item filters should be mixed with care. See
+     * #Playlist::Crawler::DirectoryCrawler::Cursor::clone_for_nav_filter().
+     */
     class Cursor: public CursorBase
     {
         friend DirectoryCrawler;
@@ -56,31 +64,39 @@ class DirectoryCrawler: public Iface, public PublicIface
         ID::List requested_list_id_;
         unsigned int requested_line_;
 
-        explicit Cursor(const List::NavItemFilterIface &filter,
-                        ID::List list_id, unsigned int line,
+        explicit Cursor(unsigned int max_display_lines,
+                        List::NavItemFilterIface &filter, ID::List list_id,
+                        ID::List req_list, unsigned int req_line,
                         unsigned int directory_depth):
             list_id_(list_id),
-            nav_(DirectoryCrawler::PREFETCHED_ITEMS_COUNT,
-                 List::Nav::WrapMode::NO_WRAP, filter),
+            nav_(max_display_lines, List::Nav::WrapMode::NO_WRAP, filter),
             directory_depth_(directory_depth),
-            requested_list_id_(list_id),
-            requested_line_(line)
+            requested_list_id_(req_list),
+            requested_line_(req_line)
         {
-            nav_.set_cursor_by_line_number(line);
+            nav_.set_cursor_by_line_number(req_line);
         }
 
-        explicit Cursor(const List::NavItemFilterIface &filter):
-            Cursor(filter, ID::List(), 0, 0)
+      public:
+        explicit Cursor(unsigned int max_display_lines,
+                        List::NavItemFilterIface &filter):
+            Cursor(max_display_lines, filter, ID::List(), ID::List(), 0, 0)
         {}
 
-      public:
+        explicit Cursor(unsigned int max_display_lines,
+                        List::NavItemFilterIface &filter, const Cursor &src):
+            Cursor(max_display_lines, filter,
+                   src.list_id_, src.requested_list_id_,
+                   src.requested_line_, src.directory_depth_)
+        {}
+
         Cursor(const Cursor &) = default;
         Cursor &operator=(Cursor &&) = default;
 
         Cursor &operator=(const Cursor &src)
         {
             list_id_ = src.list_id_;
-            nav_ = List::Nav(src.nav_);
+            nav_.copy_state_from(src.nav_);
             directory_depth_ = src.directory_depth_;
             requested_list_id_ = src.requested_list_id_;
             requested_line_ = src.requested_line_;
@@ -130,6 +146,14 @@ class DirectoryCrawler: public Iface, public PublicIface
             return std::make_unique<Cursor>(*this);
         }
 
+        std::unique_ptr<Cursor>
+        clone_for_nav_filter(unsigned int max_display_lines,
+                             List::NavItemFilterIface &filter) const
+        {
+            log_assert(&filter != &nav_.get_item_filter());
+            return std::make_unique<Cursor>(max_display_lines, filter, *this);
+        }
+
         bool list_invalidate(ID::List list_id, ID::List replacement_id)
         {
             if(requested_list_id_ == list_id)
@@ -160,17 +184,33 @@ class DirectoryCrawler: public Iface, public PublicIface
                             List::AsyncListIface::HintItemDoneNotification &&hinted_fn);
 
         std::string get_description(bool full = true) const final override;
+
+        auto get_viewport() const
+        {
+            return std::static_pointer_cast<List::DBusListViewport>(nav_.get_viewport());
+        }
     };
 
     class FindNextOp: public FindNextOpBase
     {
         friend DirectoryCrawler;
 
+      public:
+        enum class Tag
+        {
+            PREFETCH,
+            SKIPPER,
+            JUMP_BACK_TO_CURRENTLY_PLAYING,
+            DIRECT_JUMP_FOR_RESUME,
+            DIRECT_JUMP_TO_STRBO_URL,
+        };
+
+        const Tag tag_;
+
       private:
         static constexpr unsigned int MAX_DIRECTORY_DEPTH = 100;
 
         List::DBusList &dbus_list_;
-        List::NavItemFilterIface &item_filter_;
         std::unique_ptr<Cursor> position_;
         I18n::String root_list_title_;
 
@@ -186,9 +226,8 @@ class DirectoryCrawler: public Iface, public PublicIface
         FindNextOp &operator=(const FindNextOp &) = delete;
         FindNextOp &operator=(FindNextOp &&) = default;
 
-        explicit FindNextOp(std::string &&debug_description,
+        explicit FindNextOp(std::string &&debug_description, Tag tag,
                             List::DBusList &dbus_list,
-                            List::NavItemFilterIface &item_filter,
                             CompletionCallback &&completion_callback,
                             CompletionCallbackFilter filter,
                             RecursiveMode recursive_mode, Direction direction,
@@ -198,8 +237,8 @@ class DirectoryCrawler: public Iface, public PublicIface
                            std::move(completion_callback), filter,
                            recursive_mode, direction,
                            position->get_directory_depth(), find_mode),
+            tag_(tag),
             dbus_list_(dbus_list),
-            item_filter_(item_filter),
             position_(std::move(position)),
             root_list_title_(std::move(root_list_title)),
             entering_list_caller_id_(direction == Direction::NONE
@@ -215,6 +254,7 @@ class DirectoryCrawler: public Iface, public PublicIface
         const CursorBase &get_position() const final override { return *position_; }
         std::unique_ptr<CursorBase> extract_position() final override { return std::move(position_); }
 
+        std::string get_short_name() const final override;
         std::string get_description() const final override;
 
       protected:
@@ -301,6 +341,7 @@ class DirectoryCrawler: public Iface, public PublicIface
                 : result_.simple_uris_.empty();
         }
 
+        std::string get_short_name() const final override;
         std::string get_description() const final override;
 
       protected:
@@ -319,11 +360,8 @@ class DirectoryCrawler: public Iface, public PublicIface
   private:
     /* list for the crawling directories */
     List::DBusList traversal_list_;
-    List::NavItemNoFilter item_filter_;
 
     std::unique_ptr<CacheEnforcer> cache_enforcer_;
-
-    static constexpr const unsigned int PREFETCHED_ITEMS_COUNT = 5;
 
   public:
     DirectoryCrawler (const DirectoryCrawler &) = delete;
@@ -333,11 +371,10 @@ class DirectoryCrawler: public Iface, public PublicIface
                               tdbuslistsNavigation *dbus_listnav_proxy,
                               UI::EventStoreIface &event_sink,
                               const List::ContextMap &list_contexts,
-                              List::DBusList::NewItemFn new_item_fn):
+                              const List::DBusListViewport::NewItemFn &new_item_fn):
         Iface(event_sink),
         traversal_list_("crawler traversal", cm, dbus_listnav_proxy,
-                        list_contexts, PREFETCHED_ITEMS_COUNT, new_item_fn),
-        item_filter_(&traversal_list_)
+                        list_contexts, new_item_fn)
     {}
 
     void init_dbus_list_watcher();
@@ -347,71 +384,54 @@ class DirectoryCrawler: public Iface, public PublicIface
         return get_crawler_from_handle<DirectoryCrawler>(h);
     }
 
-    Cursor mk_cursor(ID::List list_id, unsigned int line, unsigned int depth)
+    /*!
+     * Create a cursor.
+     *
+     * \param item_filter
+     *     The item filter plugged into the cursor's List::Nav instance.
+     *
+     * \param list_id, line, depth
+     *     Cursor position.
+     */
+    static Cursor mk_cursor(List::NavItemFilterIface &item_filter,
+                            ID::List list_id,
+                            unsigned int line, unsigned int depth)
     {
-        return Cursor(item_filter_, list_id, line, depth);
+        return Cursor(item_filter.get_viewport()->get_default_view_size(),
+                      item_filter, list_id, list_id, line, depth);
     }
 
     /* regular version including a completion callback */
     std::shared_ptr<FindNextOpBase>
     mk_op_find_next(
-            std::string &&debug_description,
+            std::string &&debug_description, FindNextOp::Tag tag,
             FindNextOpBase::RecursiveMode recursive_mode, Direction direction,
             std::unique_ptr<Cursor> position, I18n::String &&list_title,
             FindNextOpBase::CompletionCallback &&completion_notification,
-            OperationBase::CompletionCallbackFilter filter)
+            OperationBase::CompletionCallbackFilter filter,
+            FindNextOpBase::FindMode find_mode = FindNextOpBase::FindMode::FIND_FIRST)
     {
         log_assert(position != nullptr);
         log_assert(completion_notification != nullptr);
 
         return std::make_shared<FindNextOp>(
-                    std::move(debug_description),
-                    traversal_list_, item_filter_,
+                    std::move(debug_description), tag, traversal_list_,
                     std::move(completion_notification), filter,
                     recursive_mode, direction, std::move(position),
-                    std::move(list_title),
-                    FindNextOpBase::FindMode::FIND_FIRST);
-    }
-
-    /* version for starting from a bookmarked position */
-    std::shared_ptr<FindNextOpBase>
-    mk_op_find_next(
-            std::string &&debug_description,
-            FindNextOpBase::RecursiveMode recursive_mode, Direction direction,
-            Bookmark bm, I18n::String &&list_title,
-            FindNextOpBase::CompletionCallback &&completion_notification,
-            OperationBase::CompletionCallbackFilter filter,
-            FindNextOpBase::FindMode find_mode)
-    {
-        log_assert(completion_notification != nullptr);
-
-        const auto *pos = get_bookmark(bm);
-        if(pos == nullptr)
-        {
-            BUG("Tried to find next item from empty bookmark %d", int(bm));
-            return nullptr;
-        }
-
-        return std::make_shared<FindNextOp>(
-                    std::move(debug_description),
-                    traversal_list_, item_filter_,
-                    std::move(completion_notification), filter,
-                    recursive_mode, direction, std::make_unique<Cursor>(*pos),
                     std::move(list_title), find_mode);
     }
 
     /* version for passing the completion callback later */
     std::shared_ptr<FindNextOpBase>
     mk_op_find_next(
-            std::string &&debug_description,
+            std::string &&debug_description, FindNextOp::Tag tag,
             FindNextOpBase::RecursiveMode recursive_mode, Direction direction,
             std::unique_ptr<Cursor> position, I18n::String &&list_title)
     {
         log_assert(position != nullptr);
 
         return std::make_shared<FindNextOp>(
-                    std::move(debug_description),
-                    traversal_list_, item_filter_,
+                    std::move(debug_description), tag, traversal_list_,
                     nullptr, OperationBase::CompletionCallbackFilter::NONE,
                     recursive_mode, direction, std::move(position),
                     std::move(list_title),

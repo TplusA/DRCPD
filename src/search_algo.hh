@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, 2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2019, 2020  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -35,8 +35,7 @@ class UnsortedException
     explicit UnsortedException() {}
 };
 
-ssize_t binary_search_utf8(const List::DBusList &list,
-                           const std::string &query);
+ssize_t binary_search_utf8(List::DBusList &list, const std::string &query);
 
 }
 

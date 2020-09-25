@@ -242,9 +242,12 @@ bool Player::Skipper::found_or_failed(Playlist::Crawler::FindNextOpBase &op,
     else
         ++pending_skip_requests_;
 
+    auto pos(op.extract_position());
+    pos->sync_request_with_pos();
+
     find_next_op_ = run_new_find_next_fn_(
             "Follow-up skip request",
-            op.extract_position(), direction,
+            std::move(pos), direction,
             [this, done = std::move(done)] (auto &next_op) mutable
             { return found_or_failed(next_op, std::move(done)); },
             Playlist::Crawler::OperationBase::CompletionCallbackFilter::SUPPRESS_CANCELED);

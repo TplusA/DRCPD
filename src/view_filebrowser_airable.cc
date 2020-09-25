@@ -36,7 +36,8 @@ bool ViewFileBrowser::AirableView::try_jump_to_stored_position(StoredPosition &p
     if(!pos.is_set())
         return false;
 
-    if(point_to_any_location(pos.get_list_id(), pos.get_line_number(),
+    if(point_to_any_location(get_viewport().get(),
+                             pos.get_list_id(), pos.get_line_number(),
                              pos.get_context_root()))
         return true;
 
@@ -54,8 +55,9 @@ void ViewFileBrowser::AirableView::append_referenced_lists(std::vector<ID::List>
     }
 }
 
-void ViewFileBrowser::AirableView::audio_source_state_changed(const Player::AudioSource &audio_source,
-                                                              Player::AudioSourceState prev_state)
+void ViewFileBrowser::AirableView::audio_source_state_changed(
+        const Player::AudioSource &audio_source,
+        Player::AudioSourceState prev_state)
 {
     switch(audio_source.get_state())
     {
@@ -64,7 +66,7 @@ void ViewFileBrowser::AirableView::audio_source_state_changed(const Player::Audi
         {
             auto &stash(audio_source_navigation_stash_[get_audio_source_index(audio_source)]);
 
-            stash.set(current_list_id_, navigation_.get_line_number_by_cursor(),
+            stash.set(current_list_id_, browse_navigation_.get_line_number_by_cursor(),
                       context_restriction_.get_root_list_id(),
                       get_dynamic_title());
         }
@@ -389,7 +391,7 @@ void ViewFileBrowser::AirableView::finish_async_point_to_child_directory()
 
     /* use synchronous API to successively load all items in the list and find
      * the search form---list should be empty anyway */
-    file_list_.push_cache_state();
+    auto viewport = file_list_.mk_viewport(10, "find search form");;
 
     for(i = 0; i < num; ++i)
     {
@@ -397,7 +399,7 @@ void ViewFileBrowser::AirableView::finish_async_point_to_child_directory()
 
         try
         {
-            item = dynamic_cast<const FileItem *>(file_list_.get_item(i));
+            item = dynamic_cast<const FileItem *>(file_list_.get_item(viewport, i));
         }
         catch(const List::DBusListException &e)
         {
@@ -437,7 +439,7 @@ void ViewFileBrowser::AirableView::finish_async_point_to_child_directory()
         BUG("Expected to find search form link for context %s in list %u",
             ctx.string_id_.c_str(), current_list_id_.get_raw_id());
 
-    file_list_.pop_cache_state();
+    file_list_.detach_viewport(std::move(viewport));
 }
 
 void ViewFileBrowser::AirableView::handle_enter_list_event(List::AsyncListIface::OpResult result,
@@ -476,7 +478,8 @@ bool ViewFileBrowser::AirableView::point_to_child_directory(const SearchParamete
         return View::point_to_child_directory(search_parameters);
     }
 
-    async_calls_deco_.point_to_child_directory_.selected_line_from_root_ = navigation_.get_cursor();
+    async_calls_deco_.point_to_child_directory_.selected_line_from_root_ =
+        browse_navigation_.get_cursor();
 
     if(View::point_to_child_directory())
         return true;
@@ -507,26 +510,27 @@ ViewFileBrowser::AirableView::point_to_search_form(List::context_id_t ctx_id)
     const auto &path(form->second);
 
     const ID::List revert_to_list_id = current_list_id_;
-    const unsigned int revert_to_cursor = navigation_.get_cursor();
+    const unsigned int revert_to_cursor = browse_navigation_.get_cursor();
 
     try
     {
-        Utils::enter_list_at(file_list_, item_filter_, navigation_,
+        Utils::enter_list_at(file_list_, browse_item_filter_, browse_navigation_,
                              get_root_list_id(), path.first);
         current_list_id_ = get_root_list_id();
 
         std::string list_title;
         const ID::List list_id =
             Utils::get_child_item_id(file_list_, current_list_id_,
-                                     navigation_, nullptr, nullptr, list_title);
+                                     browse_navigation_, nullptr, nullptr,
+                                     list_title);
 
         if(list_id.is_valid())
         {
-            Utils::enter_list_at(file_list_, item_filter_, navigation_,
-                                 list_id, path.second);
+            Utils::enter_list_at(file_list_, browse_item_filter_,
+                                 browse_navigation_, list_id, path.second);
             current_list_id_ = list_id;
 
-            if(navigation_.get_cursor() == path.second)
+            if(browse_navigation_.get_cursor() == path.second)
                 return GoToSearchForm::FOUND;
         }
     }
@@ -538,7 +542,7 @@ ViewFileBrowser::AirableView::point_to_search_form(List::context_id_t ctx_id)
     try
     {
         /* in case of any failure, try go back to old location */
-        Utils::enter_list_at(file_list_, item_filter_, navigation_,
+        Utils::enter_list_at(file_list_, browse_item_filter_, browse_navigation_,
                              revert_to_list_id, revert_to_cursor);
         current_list_id_ = revert_to_list_id;
     }

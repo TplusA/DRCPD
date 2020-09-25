@@ -63,18 +63,9 @@ class CookieCall: public Call<RT, BS>
         cm_(cm)
     {}
 
-  private:
-    std::function<void(CookieManagerIface &)> invalidate_cookie_fn_;
-
   public:
     CookieCall(CookieCall &&) = default;
     CookieCall &operator=(CookieCall &&) = default;
-
-    virtual ~CookieCall()
-    {
-        if(invalidate_cookie_fn_ != nullptr)
-            invalidate_cookie_fn_(cm_);
-    }
 
   private:
     void fetch_and_notify_unlocked()
@@ -94,10 +85,6 @@ class CookieCall: public Call<RT, BS>
             // manage_cookie
             [this] (uint32_t c)
             {
-                invalidate_cookie_fn_ =
-                    [c, p = this->get_proxy_ptr()] (auto &cm)
-                    { cm.invalidate_cookie(p, c); };
-
                 cm_.set_pending_cookie(
                     get_proxy_ptr(), c,
                     // DBusRNF::CookieManagerIface::NotifyByCookieFn

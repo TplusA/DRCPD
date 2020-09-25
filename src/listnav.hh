@@ -43,28 +43,49 @@ class NavItemFilterIface
 {
   protected:
     const List::ListIface *list_;
+    std::shared_ptr<List::ListViewportBase> viewport_;
 
-    constexpr explicit NavItemFilterIface(const List::ListIface *list = nullptr):
-        list_(list)
+    explicit NavItemFilterIface(std::shared_ptr<List::ListViewportBase> vp,
+                                const List::ListIface *list = nullptr):
+        list_(list),
+        viewport_(std::move(vp))
     {}
 
   public:
     NavItemFilterIface(const NavItemFilterIface &) = delete;
+    NavItemFilterIface(NavItemFilterIface &&) = default;
     NavItemFilterIface &operator=(const NavItemFilterIface &) = delete;
 
     virtual ~NavItemFilterIface() {}
 
-    virtual void tie(const List::ListIface *list)
+    virtual void tie(std::shared_ptr<List::ListViewportBase> vp,
+                     const List::ListIface *list)
     {
-        if(list_ == list)
+        log_assert(vp != nullptr);
+        log_assert(list != nullptr);
+
+        if(viewport_ == vp && list_ == list)
             return;
 
-        list_ = list;
-        list_content_changed();
+        viewport_ = std::move(vp);
+
+        if(list_ != list)
+        {
+            list_ = list;
+            list_content_changed();
+        }
+    }
+
+    void untie()
+    {
+        list_ = nullptr;
+        viewport_ = nullptr;
     }
 
     bool is_tied() const { return list_ != nullptr; }
     bool is_list_nonempty() const { return is_tied() && !list_->empty(); }
+
+    auto get_viewport() const { return viewport_; }
 
     virtual void list_content_changed() = 0;
 
@@ -96,10 +117,12 @@ class NavItemNoFilter: public NavItemFilterIface
 
   public:
     NavItemNoFilter(const NavItemNoFilter &) = delete;
+    NavItemNoFilter(NavItemNoFilter &&) = default;
     NavItemNoFilter &operator=(const NavItemNoFilter &) = delete;
 
-    explicit NavItemNoFilter(const List::ListIface *list):
-        NavItemFilterIface::NavItemFilterIface(list)
+    explicit NavItemNoFilter(std::shared_ptr<List::ListViewportBase> vp,
+                             List::ListIface *list):
+        NavItemFilterIface::NavItemFilterIface(std::move(vp), list)
     {
         list_content_changed();
     }
@@ -197,31 +220,14 @@ class Nav
     const unsigned int maximum_number_of_displayed_lines_;
 
   private:
-    const NavItemFilterIface &item_filter_;
+    NavItemFilterIface &item_filter_;
 
   public:
     Nav(const Nav &) = default;
     Nav &operator=(const Nav &) = delete;
 
-    Nav &operator=(Nav &&src)
-    {
-        if(this == &src)
-            return *this;
-
-        cursor_ = src.cursor_;
-        first_displayed_item_ = src.first_displayed_item_;
-        selected_line_number_ = src.selected_line_number_;
-        wrap_mode_ = src.wrap_mode_;
-
-        src.cursor_ = 0;
-        src.first_displayed_item_ = 0;
-        src.selected_line_number_ = 0;
-        src.cursor_ = 0;
-        return *this;
-    }
-
     explicit Nav(unsigned int max_display_lines, WrapMode initial_wrap_mode,
-                 const NavItemFilterIface &item_filter):
+                 NavItemFilterIface &item_filter):
         first_displayed_item_(0),
         wrap_mode_(initial_wrap_mode),
         maximum_number_of_displayed_lines_(max_display_lines),
@@ -229,6 +235,29 @@ class Nav
     {
         recover_cursor_and_selection();
     }
+
+    /*!
+     * Copy state from source object into this object.
+     *
+     * The item filters must be the same for both objects.
+     */
+    void copy_state_from(const Nav &src)
+    {
+        if(this == &src)
+            return;
+
+        BUG_IF(&src.item_filter_ != &item_filter_,
+               "Incompatible item filters");
+
+        cursor_ = src.cursor_;
+        first_displayed_item_ = src.first_displayed_item_;
+        selected_line_number_ = src.selected_line_number_;
+        wrap_mode_ = src.wrap_mode_;
+    }
+
+    auto get_viewport() const { return item_filter_.get_viewport(); }
+
+    auto &get_item_filter() const { return item_filter_; }
 
     void check_selection()
     {

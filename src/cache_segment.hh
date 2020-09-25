@@ -25,6 +25,11 @@
 namespace List
 {
 
+/*!
+ * Result of an intersection operation.
+ *
+ * \see #List::Segment::intersection()
+ */
 enum class SegmentIntersection
 {
     DISJOINT,
@@ -81,6 +86,43 @@ class Segment
         count_ -= s;
     }
 
+    /*!
+     * Compute intersection between this segment and another segment.
+     *
+     * This function does not modify any of the segments. It only computes the
+     * outcome of an intersection in terms of a symbolic representation. This
+     * representation may be used to construct a new segment which represents
+     * the actual intersection or difference.
+     *
+     * \param other
+     *     Other segment to intersect with this.
+     *
+     * \param isize
+     *     Number of elements remaining in the intersection.
+     *
+     * \retval #SegmentIntersection::DISJOINT
+     *     The two segments do not overlap. Size of intersection is 0.
+     * \retval #SegmentIntersection::EQUAL
+     *     The segments are equal. Size of intersection is the size of this
+     *     segment.
+     * \retval #SegmentIntersection::TOP_REMAINS
+     *     The intersection cuts off the bottom part of this segment so that
+     *     only its top remains.
+     * \retval #SegmentIntersection::BOTTOM_REMAINS
+     *     The intersection cuts off the top part of this segment so that
+     *     only its bottom remains.
+     * \retval #SegmentIntersection::CENTER_REMAINS
+     *     The intersection cuts off both, top and bottom, parts of this
+     *     segment. That is, the other segment is smaller than this segment,
+     *     and the other segment is embedded into this segment. The resulting
+     *     intersection is equal to the other segment, corresponding to some
+     *     portion in the center of this segment.
+     * \retval #SegmentIntersection::INCLUDED_IN_OTHER
+     *     The intersection cuts the other segment so that the resulting
+     *     intersection is equal to this segment. That is, the other segment is
+     *     larger than this segment, and this segment is embedded into the
+     *     other segment.
+     */
     SegmentIntersection
     intersection(const Segment &other, unsigned int &isize) const
     {
