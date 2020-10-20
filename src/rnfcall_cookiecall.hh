@@ -88,19 +88,21 @@ class CookieCall: public Call<RT, BS>
                 cm_.set_pending_cookie(
                     get_proxy_ptr(), c,
                     // DBusRNF::CookieManagerIface::NotifyByCookieFn
-                    [this] (uint32_t c2, const ListError &e)
+                    [call = std::move(std::static_pointer_cast<CookieCall>(this->shared_from_this()))]
+                    (uint32_t c2, const ListError &e) mutable
                     {
-                        this->list_error_ = e;
+                        call->list_error_ = e;
 
                         if(e.failed())
-                            this->aborted_notification(c2);
+                            call->aborted_notification(c2);
                         else
-                            this->result_available_notification(c2);
+                            call->result_available_notification(c2);
                     },
                     // DBusRNF::CookieManagerIface::FetchByCookieFn
-                    [this] (uint32_t c2, const ListError &e)
+                    [call = std::move(std::static_pointer_cast<CookieCall>(this->shared_from_this()))]
+                    (uint32_t c2, const ListError &e) mutable
                     {
-                        this->fetch_and_notify_unlocked();
+                        call->fetch_and_notify_unlocked();
                     }
                 );
             },
