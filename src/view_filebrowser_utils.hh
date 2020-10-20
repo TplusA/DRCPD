@@ -44,16 +44,17 @@ namespace
     {
         if(search_parameters == nullptr)
         {
-            DBusRNF::GetListIDCall
-                call(file_list.get_cookie_manager(), file_list.get_dbus_proxy(),
-                     current_list_id, navigation.get_cursor(),
-                     nullptr, std::move(status_watcher));
-            call.request();
-            call.fetch_blocking();
+            auto call =
+                std::make_shared<DBusRNF::GetListIDCall>(
+                    file_list.get_cookie_manager(), file_list.get_dbus_proxy(),
+                    current_list_id, navigation.get_cursor(),
+                    nullptr, std::move(status_watcher));
+            call->request();
+            call->fetch_blocking();
 
             try
             {
-                return call.get_result_locked();
+                return call->get_result_locked();
             }
             catch(const DBusRNF::AbortedError &)
             {
@@ -70,17 +71,18 @@ namespace
         }
         else
         {
-            DBusRNF::GetParameterizedListIDCall
-                call(file_list.get_cookie_manager(), file_list.get_dbus_proxy(),
-                     current_list_id, navigation.get_cursor(),
-                     std::string(search_parameters->get_query()),
-                     nullptr, std::move(status_watcher));
-            call.request();
-            call.fetch_blocking();
+            auto call =
+                std::make_shared<DBusRNF::GetParameterizedListIDCall>(
+                    file_list.get_cookie_manager(), file_list.get_dbus_proxy(),
+                    current_list_id, navigation.get_cursor(),
+                    std::string(search_parameters->get_query()),
+                    nullptr, std::move(status_watcher));
+            call->request();
+            call->fetch_blocking();
 
             try
             {
-                return call.get_result_locked();
+                return call->get_result_locked();
             }
             catch(const DBusRNF::AbortedError &)
             {
