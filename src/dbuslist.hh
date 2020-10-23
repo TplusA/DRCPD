@@ -49,7 +49,6 @@ class QueryContextEnterList: public QueryContext_
   public:
     enum class CallerID
     {
-        SYNC_WRAPPER,
         ENTER_ROOT,
         ENTER_CHILD,
         ENTER_PARENT,

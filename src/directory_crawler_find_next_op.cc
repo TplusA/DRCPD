@@ -193,14 +193,27 @@ Playlist::Crawler::DirectoryCrawler::FindNextOp::finish_with_current_item_or_con
 
       case Direction::FORWARD:
         if(!has_skipped_first_ &&
-           position_->nav_.get_cursor() >= position_->nav_.get_total_number_of_visible_items())
+           (position_->nav_.get_cursor() >= position_->nav_.get_total_number_of_visible_items() ||
+            entering_list_caller_id_ == List::QueryContextEnterList::CallerID::CRAWLER_ASCEND))
+        {
+            if(entering_list_caller_id_ == List::QueryContextEnterList::CallerID::CRAWLER_ASCEND)
+                has_skipped_first_ = true;
+
             return continue_search();
+        }
 
         break;
 
       case Direction::BACKWARD:
-        if(!has_skipped_first_ && position_->nav_.get_cursor() == 0)
+        if(!has_skipped_first_ &&
+           (position_->nav_.get_cursor() == 0 ||
+            entering_list_caller_id_ == List::QueryContextEnterList::CallerID::CRAWLER_ASCEND))
+        {
+            if(entering_list_caller_id_ == List::QueryContextEnterList::CallerID::CRAWLER_ASCEND)
+                has_skipped_first_ = true;
+
             return continue_search();
+        }
 
         break;
     }
@@ -493,6 +506,24 @@ void Playlist::Crawler::DirectoryCrawler::FindNextOp::enter_list_event(
     {
       case List::AsyncListIface::OpResult::SUCCEEDED:
         {
+            switch(cid)
+            {
+              case List::QueryContextEnterList::CallerID::ENTER_ROOT:
+              case List::QueryContextEnterList::CallerID::ENTER_CHILD:
+              case List::QueryContextEnterList::CallerID::ENTER_PARENT:
+              case List::QueryContextEnterList::CallerID::ENTER_CONTEXT_ROOT:
+              case List::QueryContextEnterList::CallerID::ENTER_ANYWHERE:
+              case List::QueryContextEnterList::CallerID::RELOAD_LIST:
+              case List::QueryContextEnterList::CallerID::CRAWLER_DESCEND:
+              case List::QueryContextEnterList::CallerID::CRAWLER_ASCEND:
+                file_item_ = nullptr;
+                break;
+
+              case List::QueryContextEnterList::CallerID::CRAWLER_RESET_POSITION:
+              case List::QueryContextEnterList::CallerID::CRAWLER_FIRST_ENTRY:
+                break;
+            }
+
             has_succeeded = true;
             const unsigned int line = position_->requested_line_;
             update_navigation(
@@ -528,7 +559,6 @@ void Playlist::Crawler::DirectoryCrawler::FindNextOp::enter_list_event(
 
     switch(cid)
     {
-      case List::QueryContextEnterList::CallerID::SYNC_WRAPPER:
       case List::QueryContextEnterList::CallerID::ENTER_ROOT:
       case List::QueryContextEnterList::CallerID::ENTER_CHILD:
       case List::QueryContextEnterList::CallerID::ENTER_PARENT:
@@ -705,7 +735,7 @@ std::ostream &operator<<(std::ostream &os,
     {
         "FLAT", "DEPTH_FIRST",
     };
-    return dump_enum_value(os, names, "Recursive", rm);
+    return dump_enum_value(os, names, "RecursiveMode", rm);
 }
 
 std::ostream &operator<<(std::ostream &os,
@@ -716,7 +746,7 @@ std::ostream &operator<<(std::ostream &os,
         "UNKNOWN", "SOMEWHERE_IN_LIST",
         "REACHED_START_OF_LIST", "REACHED_END_OF_LIST",
     };
-    return dump_enum_value(os, names, "Pos", ps);
+    return dump_enum_value(os, names, "PositionalState", ps);
 }
 
 std::ostream &operator<<(std::ostream &os,

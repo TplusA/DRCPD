@@ -114,9 +114,6 @@ bool ViewFileBrowser::View::handle_enter_list_event_finish(
 
     switch(ctx->get_caller_id())
     {
-      case List::QueryContextEnterList::CallerID::SYNC_WRAPPER:
-        break;
-
       case List::QueryContextEnterList::CallerID::ENTER_ROOT:
       case List::QueryContextEnterList::CallerID::ENTER_CHILD:
       case List::QueryContextEnterList::CallerID::ENTER_PARENT:
@@ -202,7 +199,6 @@ void ViewFileBrowser::View::handle_enter_list_event_update_after_finish(
             async_calls_.jump_anywhere_context_boundary_ = ID::List();
             break;
 
-          case List::QueryContextEnterList::CallerID::SYNC_WRAPPER:
           case List::QueryContextEnterList::CallerID::ENTER_ROOT:
           case List::QueryContextEnterList::CallerID::ENTER_CHILD:
           case List::QueryContextEnterList::CallerID::ENTER_PARENT:
@@ -226,7 +222,6 @@ void ViewFileBrowser::View::handle_enter_list_event_update_after_finish(
           case List::QueryContextEnterList::CallerID::ENTER_CONTEXT_ROOT:
             break;
 
-          case List::QueryContextEnterList::CallerID::SYNC_WRAPPER:
           case List::QueryContextEnterList::CallerID::ENTER_CHILD:
           case List::QueryContextEnterList::CallerID::ENTER_PARENT:
           case List::QueryContextEnterList::CallerID::ENTER_ANYWHERE:
@@ -953,15 +948,13 @@ void ViewFileBrowser::View::try_resume_from_arguments(
 {
     auto ref_point =
         std::make_shared<Playlist::Crawler::DirectoryCrawler::Cursor>(
-            Playlist::Crawler::DirectoryCrawler::mk_cursor(
-                browse_item_filter_,
+            crawler_.mk_cursor(
                 ref_list_id.is_valid() ? ref_list_id : list_id,
                 ref_list_id.is_valid() ? ref_line    : current_line,
                 0));
     auto start_pos =
         std::make_unique<Playlist::Crawler::DirectoryCrawler::Cursor>(
-            crawler_.mk_cursor(browse_item_filter_,
-                               list_id, current_line, directory_depth));
+            crawler_.mk_cursor(list_id, current_line, directory_depth));
     auto find_op =
         crawler_.mk_op_find_next(
             std::move(debug_description), tag,
@@ -1031,7 +1024,6 @@ static void initiate_playback_from_selected_position(
         const Player::LocalPermissionsIface &permissions,
         Playlist::Crawler::DirectoryCrawler &crawler,
         const Playlist::Crawler::DefaultSettings &settings,
-        List::NavItemFilterIface &item_filter,
         ID::List list_id, unsigned int line)
 {
     using Cursor = Playlist::Crawler::DirectoryCrawler::Cursor;
@@ -1041,17 +1033,15 @@ static void initiate_playback_from_selected_position(
             "Find first item for direct playback",
             Playlist::Crawler::DirectoryCrawler::FindNextOp::Tag::PREFETCH,
             settings.recursive_mode_, Playlist::Crawler::Direction::FORWARD,
-            std::make_unique<Cursor>(crawler.mk_cursor(item_filter,
-                                                       list_id, line, 0)),
+            std::make_unique<Cursor>(crawler.mk_cursor(list_id, line, 0)),
             I18n::String(false));
 
     play_view.prepare_for_playing(
         audio_source,
-        [&crawler, &settings, &item_filter, list_id, line] ()
+        [&crawler, &settings, list_id, line] ()
         {
             return crawler.activate(
-                std::make_shared<Cursor>(crawler.mk_cursor(item_filter,
-                                                           list_id, line, 0)),
+                std::make_shared<Cursor>(crawler.mk_cursor(list_id, line, 0)),
                 std::make_unique<Playlist::Crawler::DefaultSettings>(settings));
         },
         std::move(find_op), permissions);
@@ -1205,8 +1195,7 @@ ViewFileBrowser::View::process_event(UI::ViewEventID event_id,
                 initiate_playback_from_selected_position(
                     *static_cast<ViewPlay::View *>(play_view_),
                     get_audio_source(), permissions,
-                    crawler_, crawler_defaults_,
-                    browse_item_filter_, file_list_.get_list_id(),
+                    crawler_, crawler_defaults_, file_list_.get_list_id(),
                     browse_navigation_.get_line_number_by_cursor());
 
             if(crawler_.is_active())

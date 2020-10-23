@@ -360,6 +360,7 @@ class DirectoryCrawler: public Iface, public PublicIface
   private:
     /* list for the crawling directories */
     List::DBusList traversal_list_;
+    List::NavItemNoFilter traversal_item_filter_;
 
     std::unique_ptr<CacheEnforcer> cache_enforcer_;
 
@@ -374,7 +375,9 @@ class DirectoryCrawler: public Iface, public PublicIface
                               const List::DBusListViewport::NewItemFn &new_item_fn):
         Iface(event_sink),
         traversal_list_("crawler traversal", cm, dbus_listnav_proxy,
-                        list_contexts, new_item_fn)
+                        list_contexts, new_item_fn),
+        traversal_item_filter_(traversal_list_.mk_viewport(1, "traversal"),
+                               &traversal_list_)
     {}
 
     void init_dbus_list_watcher();
@@ -387,18 +390,13 @@ class DirectoryCrawler: public Iface, public PublicIface
     /*!
      * Create a cursor.
      *
-     * \param item_filter
-     *     The item filter plugged into the cursor's List::Nav instance.
-     *
      * \param list_id, line, depth
      *     Cursor position.
      */
-    static Cursor mk_cursor(List::NavItemFilterIface &item_filter,
-                            ID::List list_id,
-                            unsigned int line, unsigned int depth)
+    Cursor mk_cursor(ID::List list_id, unsigned int line, unsigned int depth)
     {
-        return Cursor(item_filter.get_viewport()->get_default_view_size(),
-                      item_filter, list_id, list_id, line, depth);
+        return Cursor(traversal_item_filter_.get_viewport()->get_default_view_size(),
+                      traversal_item_filter_, list_id, list_id, line, depth);
     }
 
     /* regular version including a completion callback */

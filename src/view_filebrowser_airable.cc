@@ -450,7 +450,6 @@ void ViewFileBrowser::AirableView::handle_enter_list_event(List::AsyncListIface:
 
     switch(ctx->get_caller_id())
     {
-      case List::QueryContextEnterList::CallerID::SYNC_WRAPPER:
       case List::QueryContextEnterList::CallerID::ENTER_ROOT:
       case List::QueryContextEnterList::CallerID::ENTER_PARENT:
       case List::QueryContextEnterList::CallerID::ENTER_ANYWHERE:
