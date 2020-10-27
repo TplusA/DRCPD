@@ -302,8 +302,11 @@ void List::DBusList::list_invalidate(ID::List list_id, ID::List replacement_id)
         list_id_ = replacement_id;
 
         if(replacement_id.is_valid())
+        {
             for(auto &vp : viewports_and_fetchers_)
-                vp.second->cancel_op();
+                if(vp.second != nullptr)
+                    vp.second->cancel_op();
+        }
         else
             for(auto &vp : viewports_and_fetchers_)
                 vp.first->clear_for_line(0);
