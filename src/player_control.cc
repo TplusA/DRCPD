@@ -580,7 +580,8 @@ bool Player::Control::found_item_for_playing(
             { return found_item_uris_for_playing(op_inner, d); },
             Playlist::Crawler::OperationBase::CompletionCallbackFilter::SUPPRESS_CANCELED);
 
-    crawler_handle_->run(prefetch_uris_op_);
+    if(!crawler_handle_->run(prefetch_uris_op_))
+        BUG("Failed running prefetch URIs for direct playback");
 
     return false;
 }
@@ -1952,7 +1953,8 @@ bool Player::Control::found_prefetched_item(Playlist::Crawler::FindNextOpBase &o
             { return found_prefetched_item_uris(op_inner, d); },
             Playlist::Crawler::OperationBase::CompletionCallbackFilter::SUPPRESS_CANCELED);
 
-    crawler_handle_->run(prefetch_uris_op_);
+    if(!crawler_handle_->run(prefetch_uris_op_))
+        BUG("Failed running prefetch URIs for gapless playback");
 
     return false;
 }
