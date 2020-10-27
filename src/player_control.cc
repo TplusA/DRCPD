@@ -636,6 +636,13 @@ bool Player::Control::found_item_uris_for_playing(
         /* so we have prefetched something for nothing---such is life */
         break;
 
+      case UserIntention::SKIPPING_PAUSED:
+        msg_vinfo(MESSAGE_LEVEL_DIAG,
+                  "Found URIs while skipping and paused, "
+                  "treating like non-skipping");
+
+        /* fall-through */
+
       case UserIntention::PAUSING:
         switch(queue_item_from_op(op, from_direction,
                                   &Player::Control::async_redirect_resolved_for_playing,
@@ -656,6 +663,13 @@ bool Player::Control::found_item_uris_for_playing(
 
         break;
 
+      case UserIntention::SKIPPING_LIVE:
+        msg_vinfo(MESSAGE_LEVEL_DIAG,
+                  "Found URIs while skipping and playing, "
+                  "treating like non-skipping");
+
+        /* fall-through */
+
       case UserIntention::LISTENING:
         switch(queue_item_from_op(op, from_direction,
                                   &Player::Control::async_redirect_resolved_for_playing,
@@ -673,11 +687,6 @@ bool Player::Control::found_item_uris_for_playing(
             break;
         }
 
-        break;
-
-      case UserIntention::SKIPPING_PAUSED:
-      case UserIntention::SKIPPING_LIVE:
-        MSG_UNREACHABLE();
         break;
     }
 
@@ -2003,6 +2012,16 @@ bool Player::Control::found_prefetched_item_uris(
         /* so we have prefetched something for nothing---such is life */
         break;
 
+      case UserIntention::SKIPPING_PAUSED:
+      case UserIntention::SKIPPING_LIVE:
+        msg_vinfo(MESSAGE_LEVEL_DIAG,
+                  "Found item while skipping and %s, treating like non-skipping",
+                  player_data_->get_intention() == UserIntention::SKIPPING_PAUSED
+                  ? "paused"
+                  : "playing");
+
+        /* fall-through */
+
       case UserIntention::PAUSING:
       case UserIntention::LISTENING:
         switch(queue_item_from_op(op, from_direction,
@@ -2021,11 +2040,6 @@ bool Player::Control::found_prefetched_item_uris(
             break;
         }
 
-        break;
-
-      case UserIntention::SKIPPING_PAUSED:
-      case UserIntention::SKIPPING_LIVE:
-        MSG_UNREACHABLE();
         break;
     }
 
