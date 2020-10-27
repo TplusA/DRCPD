@@ -89,7 +89,7 @@ class GetURIsCall:
 
     virtual ~GetURIsCall() final override
     {
-        abort_request();
+        abort_request_internal(true);
     }
 
     std::string get_description() const override
