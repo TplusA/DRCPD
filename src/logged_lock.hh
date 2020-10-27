@@ -527,6 +527,8 @@ class UniqueLock
             MTraits::destroy_owned(logged_mutex_);
     }
 
+    void configure() { lock_name_ = logged_mutex_.get_name(); }
+
     void lock()
     {
         msg_vinfo(logged_mutex_.get_log_level(),
@@ -652,6 +654,12 @@ static inline void configure(T &object,
     object.configure(name, log_level);
 }
 
+template <typename T>
+static inline void configure(LoggedLock::UniqueLock<T> &lk)
+{
+    lk.configure();
+}
+
 #else /* /!LOGGED_LOCKS_ENABLED */
 
 static inline void set_context_name(const char *name) {}
@@ -666,6 +674,12 @@ using ConditionVariable = std::condition_variable;
 template <typename T>
 static inline void configure(T &object,
                              const char *name, MessageVerboseLevel log_level)
+{
+    /* nothing */
+}
+
+template <typename T>
+static inline void configure(LoggedLock::UniqueLock<T> &lk)
 {
     /* nothing */
 }
