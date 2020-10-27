@@ -80,8 +80,15 @@ class CookieCall: public Call<RT, BS>
     CallState request()
     {
         return Call<RT, BS>::request(
+            // block_async_result_notifications
+            [this] (bool is_blocked)
+            {
+                cm_.block_async_result_notifications(get_proxy_ptr(), is_blocked);
+            },
+
             // do_request
             [this] (auto &r) { return do_request(r); },
+
             // manage_cookie
             [this] (uint32_t c)
             {
@@ -106,6 +113,7 @@ class CookieCall: public Call<RT, BS>
                     }
                 );
             },
+
             // fast_path
             [this] { this->fetch_and_notify_unlocked(); }
         );

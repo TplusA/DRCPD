@@ -405,6 +405,11 @@ class Call: public CallBase, public std::enable_shared_from_this<Call<RT, BS>>
     /*!
      * Request some data from list broker via D-Bus.
      *
+     * \param block_async_result_notifications
+     *     Function for blocking and unblocking processing of asynchronous
+     *     cookie result notifications. This is required to avoid race
+     *     conditions.
+     *
      * \param do_request
      *     The code for sending the request and processing a possible fast-path
      *     answer is to be implemented in this function. The #DBusRNF::Call
@@ -451,9 +456,11 @@ class Call: public CallBase, public std::enable_shared_from_this<Call<RT, BS>>
      * \throws
      *     #DBusRNF::BadStateError The object is in wrong state.
      */
-    CallState request(const std::function<uint32_t(std::promise<ResultType> &)> &do_request,
-                      const std::function<void(uint32_t)> &manage_cookie,
-                      const std::function<void()> &fast_path)
+    CallState request(
+            const std::function<void(bool)> &block_async_result_notifications,
+            const std::function<uint32_t(std::promise<ResultType> &)> &do_request,
+            const std::function<void(uint32_t)> &manage_cookie,
+            const std::function<void()> &fast_path)
     {
         LOGGED_LOCK_CONTEXT_HINT;
         std::lock_guard<LoggedLock::Mutex> lock(lock_);
@@ -469,6 +476,20 @@ class Call: public CallBase, public std::enable_shared_from_this<Call<RT, BS>>
 
         const auto t(this->shared_from_this());
 
+        /*
+         * The call of \p do_request() below may cause an asynchronous cookie
+         * available notification being delivered to the D-Bus thread. This
+         * happens if the RNF call is not answered via fath path, but the
+         * availability notification is still being sent before
+         * \p manage_cookie() can be called. This is a data race which is
+         * avoided by bracing this section of code by calls of
+         * \p block_async_result_notifications().
+         *
+         * On the slow CM1, this happens frequently when the system is loaded
+         * as a result of intense user interaction.
+         */
+        block_async_result_notifications(true);
+
         try
         {
             const uint32_t cookie = do_request(promise_);
@@ -483,6 +504,8 @@ class Call: public CallBase, public std::enable_shared_from_this<Call<RT, BS>>
                 log_assert(get_cookie() == 0);
 
             set_state(cookie == 0 ? CallState::RESULT_FETCHED : CallState::WAIT_FOR_NOTIFICATION);
+
+            block_async_result_notifications(false);
 
             if(cookie == 0)
                 fast_path();
@@ -501,6 +524,7 @@ class Call: public CallBase, public std::enable_shared_from_this<Call<RT, BS>>
             }
 
             set_state(CallState::FAILED);
+            block_async_result_notifications(false);
         }
 
         return get_state();

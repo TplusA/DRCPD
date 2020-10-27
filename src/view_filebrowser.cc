@@ -1714,6 +1714,14 @@ bool ViewFileBrowser::View::data_cookie_abort(uint32_t cookie)
     return !error.log_failure("Abort data cookie");
 }
 
+void ViewFileBrowser::View::data_cookies_block_notifications(bool is_blocked)
+{
+    if(is_blocked)
+        pending_cookies_.block_notifications();
+    else
+        pending_cookies_.unblock_notifications();
+}
+
 void ViewFileBrowser::View::data_cookies_available_announcement(
         const std::vector<uint32_t> &cookies)
 {

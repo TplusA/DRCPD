@@ -254,7 +254,8 @@ class PendingCookies
     using FetchFnType = DBusRNF::CookieManagerIface::FetchByCookieFn;
 
   private:
-    LoggedLock::Mutex lock_;
+    LoggedLock::RecMutex lock_;
+    LoggedLock::UniqueLock<LoggedLock::RecMutex> blocked_externally_;
     std::unordered_map<uint32_t, NotifyFnType> notification_functions_;
     std::unordered_map<uint32_t, FetchFnType> fetch_functions_;
 
@@ -264,10 +265,23 @@ class PendingCookies
     PendingCookies &operator=(const PendingCookies &) = delete;
     PendingCookies &operator=(PendingCookies &&) = delete;
 
-    explicit PendingCookies()
+    explicit PendingCookies():
+        blocked_externally_(lock_, std::defer_lock)
     {
         LoggedLock::configure(lock_, "ViewFileBrowser::PendingCookies",
                               MESSAGE_LEVEL_DEBUG);
+        LoggedLock::configure(blocked_externally_);
+    }
+
+    void block_notifications()
+    {
+        LOGGED_LOCK_CONTEXT_HINT;
+        blocked_externally_.lock();
+    }
+
+    void unblock_notifications()
+    {
+        blocked_externally_.unlock();
     }
 
     /*!
@@ -297,7 +311,7 @@ class PendingCookies
         log_assert(fetch_fn != nullptr);
 
         LOGGED_LOCK_CONTEXT_HINT;
-        std::lock_guard<LoggedLock::Mutex> lock(lock_);
+        std::lock_guard<LoggedLock::RecMutex> lock(lock_);
         notification_functions_.emplace(cookie, std::move(notify_fn));
         return fetch_functions_.emplace(cookie, std::move(fetch_fn)).second;
     }
@@ -354,7 +368,7 @@ class PendingCookies
     void available(uint32_t cookie, ListError error, const char *what)
     {
         LOGGED_LOCK_CONTEXT_HINT;
-        LoggedLock::UniqueLock<LoggedLock::Mutex> lock(lock_);
+        LoggedLock::UniqueLock<LoggedLock::RecMutex> lock(lock_);
 
         const auto it(notification_functions_.find(cookie));
 
@@ -387,7 +401,7 @@ class PendingCookies
     void finish(uint32_t cookie, ListError error, const char *what)
     {
         LOGGED_LOCK_CONTEXT_HINT;
-        LoggedLock::UniqueLock<LoggedLock::Mutex> lock(lock_);
+        LoggedLock::UniqueLock<LoggedLock::RecMutex> lock(lock_);
 
         const auto it(fetch_functions_.find(cookie));
 
@@ -649,6 +663,13 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
      * Abort operation associated with cookie, drop cookie.
      */
     bool data_cookie_abort(uint32_t cookie);
+
+    /*!
+     * Block and queue cookie notifications.
+     *
+     * Any pending notifications are processed when unblocked.
+     */
+    void data_cookies_block_notifications(bool is_blocked);
 
     /*!
      * Notification from list broker about available results for cookies (1).

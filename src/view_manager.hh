@@ -242,6 +242,8 @@ class Manager: public VMIface, public UI::EventStoreIface, public DBusRNF::Cooki
         return config_manager_.values();
     }
 
+    void block_async_result_notifications(const void *proxy, bool is_blocked)
+        final override;
     bool set_pending_cookie(const void *proxy, uint32_t cookie,
                             NotifyByCookieFn &&notify, FetchByCookieFn &&fetch)
         final override;
