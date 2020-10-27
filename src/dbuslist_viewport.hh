@@ -429,8 +429,6 @@ class DBusListSegmentFetcher: public std::enable_shared_from_this<DBusListSegmen
             result
         };
     }
-
-    std::string get_get_range_op_description(const DBusListViewport &viewport) const;
 };
 
 }
