@@ -173,7 +173,9 @@ bool Playlist::Crawler::DirectoryCrawler::GetURIsOp::do_restart()
 
 std::string Playlist::Crawler::DirectoryCrawler::GetURIsOp::get_short_name() const
 {
-    return "GetURIsOp";
+    std::ostringstream os;
+    os << "GetURIsOp [" << debug_description_ << "] " << get_state_name();
+    return os.str();
 }
 
 std::string Playlist::Crawler::DirectoryCrawler::GetURIsOp::get_description() const
