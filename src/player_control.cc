@@ -1385,8 +1385,12 @@ void Player::Control::play_notification(ID::Stream stream_id,
         else if(audio_source_ != nullptr)
         {
             if(is_new_stream)
+            {
                 crawler_handle_->bookmark(Playlist::Crawler::Bookmark::CURRENTLY_PLAYING,
                                           qs->originating_cursor_->clone());
+                crawler_handle_->bookmark(Playlist::Crawler::Bookmark::ABOUT_TO_PLAY,
+                                          qs->originating_cursor_->clone());
+            }
 
             const auto *const ref_point =
                 dynamic_cast<const Playlist::Crawler::DirectoryCrawler::Cursor *>(
