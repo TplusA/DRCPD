@@ -1,3 +1,25 @@
+2020-10-28  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 5.4 released.
+
+	* Stability: The whole D-Bus list management has been rewritten to
+	  cope with the new flexibility of RNF calls. The old code base relied
+	  on certain assumptions such as single-call-at-a-time, completion of
+	  calls in specific order, and other things that were true in the old
+	  implementation. Emulating overall behaviour to match the old
+	  implementation would have been very complicated and misguided, so
+	  instead the list filling and caching code has been rewritten to make
+	  use of the added flexibility.
+
+	* Stability: Avoid crash on play caused by deferencing a dangling
+	  pointer.
+
+	* Playback: Handling of dropped streams, especially during skipping,
+	  has been improved. Streamplayer v5.2 or later is required to make
+	  this work.
+
+	* Misc: Fixed compiler warnings.
+
 2020-03-24  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 5.3 released.
