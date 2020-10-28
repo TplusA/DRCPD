@@ -171,6 +171,13 @@ bool Playlist::Crawler::DirectoryCrawler::GetURIsOp::do_restart()
     return false;
 }
 
+std::string Playlist::Crawler::DirectoryCrawler::GetURIsOp::get_short_name() const
+{
+    std::ostringstream os;
+    os << "GetURIsOp [" << debug_description_ << "] " << get_state_name();
+    return os.str();
+}
+
 std::string Playlist::Crawler::DirectoryCrawler::GetURIsOp::get_description() const
 {
     static const char prefix[] = "\n    GetURIsOp: ";

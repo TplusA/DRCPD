@@ -62,6 +62,12 @@ class CursorBase
     virtual bool advance(Direction direction) = 0;
     virtual void sync_request_with_pos() = 0;
     virtual std::string get_description(bool full = true) const = 0;
+
+    template <typename T>
+    std::unique_ptr<T> clone_as() const
+    {
+        return std::make_unique<T>(*static_cast<const T *>(this));
+    }
 };
 
 }

@@ -254,7 +254,8 @@ class PendingCookies
     using FetchFnType = DBusRNF::CookieManagerIface::FetchByCookieFn;
 
   private:
-    LoggedLock::Mutex lock_;
+    LoggedLock::RecMutex lock_;
+    LoggedLock::UniqueLock<LoggedLock::RecMutex> blocked_externally_;
     std::unordered_map<uint32_t, NotifyFnType> notification_functions_;
     std::unordered_map<uint32_t, FetchFnType> fetch_functions_;
 
@@ -264,10 +265,23 @@ class PendingCookies
     PendingCookies &operator=(const PendingCookies &) = delete;
     PendingCookies &operator=(PendingCookies &&) = delete;
 
-    explicit PendingCookies()
+    explicit PendingCookies():
+        blocked_externally_(lock_, std::defer_lock)
     {
         LoggedLock::configure(lock_, "ViewFileBrowser::PendingCookies",
                               MESSAGE_LEVEL_DEBUG);
+        LoggedLock::configure(blocked_externally_);
+    }
+
+    void block_notifications()
+    {
+        LOGGED_LOCK_CONTEXT_HINT;
+        blocked_externally_.lock();
+    }
+
+    void unblock_notifications()
+    {
+        blocked_externally_.unlock();
     }
 
     /*!
@@ -297,22 +311,9 @@ class PendingCookies
         log_assert(fetch_fn != nullptr);
 
         LOGGED_LOCK_CONTEXT_HINT;
-        std::lock_guard<LoggedLock::Mutex> lock(lock_);
+        std::lock_guard<LoggedLock::RecMutex> lock(lock_);
         notification_functions_.emplace(cookie, std::move(notify_fn));
         return fetch_functions_.emplace(cookie, std::move(fetch_fn)).second;
-    }
-
-    /*!
-     * Simply remove a cookie from the store.
-     *
-     * The associated fetch function is not called by this function.
-     */
-    void drop(uint32_t cookie)
-    {
-        LOGGED_LOCK_CONTEXT_HINT;
-        std::lock_guard<LoggedLock::Mutex> lock(lock_);
-        notification_functions_.erase(cookie);
-        fetch_functions_.erase(cookie);
     }
 
     /*!
@@ -367,25 +368,25 @@ class PendingCookies
     void available(uint32_t cookie, ListError error, const char *what)
     {
         LOGGED_LOCK_CONTEXT_HINT;
-        std::lock_guard<LoggedLock::Mutex> lock(lock_);
+        LoggedLock::UniqueLock<LoggedLock::RecMutex> lock(lock_);
+
+        const auto it(notification_functions_.find(cookie));
+
+        if(it == notification_functions_.end())
+        {
+            BUG("No notification function for cookie %u (%s)", cookie, what);
+            return;
+        }
+
+        const auto fn(std::move(it->second));
+        notification_functions_.erase(it);
+
+        lock.unlock();
 
         try
         {
-            const auto &fn(notification_functions_.at(cookie));
-
             if(fn != nullptr)
                 fn(cookie, error);
-        }
-        catch(const std::out_of_range &e)
-        {
-            if(notification_functions_.find(cookie) == notification_functions_.end())
-            {
-                BUG("Got %s notification for unknown cookie %u (available)",
-                    what, cookie);
-                return;
-            }
-
-            BUG("Got exception while notifying cookie %u (%s)", cookie, e.what());
         }
         catch(const std::exception &e)
         {
@@ -400,22 +401,24 @@ class PendingCookies
     void finish(uint32_t cookie, ListError error, const char *what)
     {
         LOGGED_LOCK_CONTEXT_HINT;
-        std::lock_guard<LoggedLock::Mutex> lock(lock_);
+        LoggedLock::UniqueLock<LoggedLock::RecMutex> lock(lock_);
+
+        const auto it(fetch_functions_.find(cookie));
+
+        if(it == fetch_functions_.end())
+        {
+            BUG("Got %s notification for unknown cookie %u (finish)", what, cookie);
+            return;
+        }
+
+        const auto fn(std::move(it->second));
+        fetch_functions_.erase(it);
+
+        lock.unlock();
 
         try
         {
-            fetch_functions_.at(cookie)(cookie, error);
-        }
-        catch(const std::out_of_range &e)
-        {
-            if(fetch_functions_.find(cookie) == fetch_functions_.end())
-            {
-                BUG("Got %s notification for unknown cookie %u (finish)",
-                    what, cookie);
-                return;
-            }
-
-            BUG("Got exception while fetching cookie %u (%s)", cookie, e.what());
+            fn(cookie, error);
         }
         catch(const std::exception &e)
         {
@@ -425,9 +428,6 @@ class PendingCookies
         {
             BUG("Got exception while fetching cookie %u", cookie);
         }
-
-        notification_functions_.erase(cookie);
-        fetch_functions_.erase(cookie);
     }
 };
 
@@ -540,8 +540,8 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
     /* list for the user */
     List::DBusList file_list_;
 
-    List::NavItemNoFilter item_filter_;
-    List::Nav navigation_;
+    List::NavItemNoFilter browse_item_filter_;  // contains viewport for browsing
+    List::Nav browse_navigation_;
 
     ViewIface *play_view_;
     const char *const default_audio_source_name_;
@@ -584,9 +584,10 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
         current_list_id_(0),
         file_list_(std::move(std::string(name) + " view"), cm,
                    DBus::get_lists_navigation_iface(listbroker_id_),
-                   list_contexts_, max_lines, construct_file_item),
-        item_filter_(&file_list_),
-        navigation_(max_lines, List::Nav::WrapMode::FULL_WRAP, item_filter_),
+                   list_contexts_, construct_file_item),
+        browse_item_filter_(file_list_.mk_viewport(max_lines, "view"), &file_list_),
+        browse_navigation_(max_lines, List::Nav::WrapMode::FULL_WRAP,
+                           browse_item_filter_),
         play_view_(nullptr),
         default_audio_source_name_(audio_source_name),
         crawler_(cm, DBus::get_lists_navigation_iface(listbroker_id_),
@@ -624,6 +625,12 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
     bool owns_dbus_proxy(const void *dbus_proxy) const;
     virtual bool list_invalidate(ID::List list_id, ID::List replacement_id);
 
+    auto get_viewport() const
+    {
+        return std::static_pointer_cast<List::DBusListViewport>(
+                                        browse_item_filter_.get_viewport());
+    }
+
     /*!
      * Store new cookie, associate with fetch function.
      *
@@ -658,12 +665,11 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
     bool data_cookie_abort(uint32_t cookie);
 
     /*!
-     * Drop now invalid cookie.
+     * Block and queue cookie notifications.
+     *
+     * Any pending notifications are processed when unblocked.
      */
-    void data_cookie_drop(uint32_t cookie)
-    {
-        pending_cookies_.drop(cookie);
-    }
+    void data_cookies_block_notifications(bool is_blocked);
 
     /*!
      * Notification from list broker about available results for cookies (1).
@@ -790,7 +796,8 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
      */
     virtual bool point_to_child_directory(const SearchParameters *search_parameters = nullptr);
 
-    bool point_to_any_location(ID::List list_id, unsigned int line_number,
+    bool point_to_any_location(const List::DBusListViewport *associated_viewport,
+                               ID::List list_id, unsigned int line_number,
                                ID::List context_boundary);
 
     enum class GoToSearchForm
@@ -910,6 +917,7 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
 
     void try_resume_from_arguments(
             std::string &&debug_description,
+            Playlist::Crawler::DirectoryCrawler::FindNextOp::Tag tag,
             Playlist::Crawler::Handle crawler_handle,
             ID::List ref_list_id, unsigned int ref_line,
             ID::List list_id, unsigned int current_line,

@@ -95,6 +95,9 @@ class View: public ViewIface, public ViewSerializeBase
     void focus() override;
     void defocus() override;
 
+    void configure_skipper(std::shared_ptr<List::ListViewportBase> skipper_viewport,
+                           const List::ListIface *list);
+
     InputResult process_event(UI::ViewEventID event_id,
                               std::unique_ptr<UI::Parameters> parameters) final override;
     void process_broadcast(UI::BroadcastEventID event_id,

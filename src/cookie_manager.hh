@@ -45,11 +45,12 @@ class CookieManagerIface
     CookieManagerIface &operator=(CookieManagerIface &&) = default;
     virtual ~CookieManagerIface() = default;
 
+    virtual void block_async_result_notifications(const void *proxy,
+                                                  bool is_blocked) = 0;
     virtual bool set_pending_cookie(
             const void *proxy, uint32_t cookie,
             NotifyByCookieFn &&notify, FetchByCookieFn &&fetch) = 0;
     virtual bool abort_cookie(const void *proxy, uint32_t cookie) = 0;
-    virtual void invalidate_cookie(const void *proxy, uint32_t) = 0;
 };
 
 }

@@ -43,6 +43,12 @@ namespace List
  */
 class RamList: public ListIface
 {
+  public:
+    class Viewport: public ListViewportBase
+    {
+        unsigned int get_default_view_size() const final override { return 0; }
+    };
+
   private:
     const std::string list_iface_name_;
     std::vector<Item *> items_;
@@ -52,6 +58,7 @@ class RamList: public ListIface
   public:
     RamList(const RamList &) = delete;
     RamList &operator=(const RamList &) = delete;
+    RamList(RamList &&) = default;
 
     explicit RamList(std::string &&list_iface_name):
         list_iface_name_(std::move(list_iface_name))
@@ -64,17 +71,28 @@ class RamList: public ListIface
     unsigned int get_number_of_items() const override;
     bool empty() const override { return get_number_of_items() == 0; }
 
-    void enter_list(ID::List list_id, unsigned int line) override
+    void enter_list(ID::List list_id) override
     {
         clear();
     }
 
-    const Item *get_item(unsigned int line) const override;
-
-    ID::List get_list_id() const override
+    const Item *get_item(std::shared_ptr<ListViewportBase> vp,
+                         unsigned int line) override
     {
-        return ID::List();
+        return get_nonconst_item(line);
     }
+
+    const Item *get_item(unsigned int line)
+    {
+        return get_nonconst_item(line);
+    }
+
+    const Item *get_item(unsigned int line) const
+    {
+        return const_cast<RamList *>(this)->get_nonconst_item(line);
+    }
+
+    ID::List get_list_id() const override { return ID::List(); }
 
     void clear();
     unsigned int append(Item *item);
@@ -102,9 +120,9 @@ class RamList: public ListIface
  *     probably use a memory pool. Time (and profiling) will tell.
  */
 template <typename T>
-static unsigned int append(RamList *l, T &&item)
+static unsigned int append(RamList &l, T &&item)
 {
-    return l->append(new T(std::move(item)));
+    return l.append(new T(std::move(item)));
 }
 
 }

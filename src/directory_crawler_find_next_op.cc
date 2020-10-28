@@ -193,14 +193,27 @@ Playlist::Crawler::DirectoryCrawler::FindNextOp::finish_with_current_item_or_con
 
       case Direction::FORWARD:
         if(!has_skipped_first_ &&
-           position_->nav_.get_cursor() >= position_->nav_.get_total_number_of_visible_items())
+           (position_->nav_.get_cursor() >= position_->nav_.get_total_number_of_visible_items() ||
+            entering_list_caller_id_ == List::QueryContextEnterList::CallerID::CRAWLER_ASCEND))
+        {
+            if(entering_list_caller_id_ == List::QueryContextEnterList::CallerID::CRAWLER_ASCEND)
+                has_skipped_first_ = true;
+
             return continue_search();
+        }
 
         break;
 
       case Direction::BACKWARD:
-        if(!has_skipped_first_ && position_->nav_.get_cursor() == 0)
+        if(!has_skipped_first_ &&
+           (position_->nav_.get_cursor() == 0 ||
+            entering_list_caller_id_ == List::QueryContextEnterList::CallerID::CRAWLER_ASCEND))
+        {
+            if(entering_list_caller_id_ == List::QueryContextEnterList::CallerID::CRAWLER_ASCEND)
+                has_skipped_first_ = true;
+
             return continue_search();
+        }
 
         break;
     }
@@ -227,6 +240,9 @@ Playlist::Crawler::DirectoryCrawler::FindNextOp::finish_with_current_item_or_con
         is_waiting_for_item_hint_ = true;
         return Continue::LATER;
 
+      case List::AsyncListIface::OpResult::BUSY:
+        return Continue::LATER;
+
       case List::AsyncListIface::OpResult::FAILED:
         return fail_here();
 
@@ -238,7 +254,8 @@ Playlist::Crawler::DirectoryCrawler::FindNextOp::finish_with_current_item_or_con
 
     /* may have the item in cache now */
     const List::Item *item;
-    auto op_result(dbus_list_.get_item_async(position_->nav_.get_cursor(), item));
+    auto op_result(dbus_list_.get_item_async(position_->nav_.get_viewport(),
+                                             position_->nav_.get_cursor(), item));
 
     switch(op_result)
     {
@@ -255,6 +272,9 @@ Playlist::Crawler::DirectoryCrawler::FindNextOp::finish_with_current_item_or_con
       case List::AsyncListIface::OpResult::CANCELED:
         BUG("Unexpected canceled result");
         log_assert(is_op_canceled());
+        return Continue::LATER;
+
+      case List::AsyncListIface::OpResult::BUSY:
         return Continue::LATER;
     }
 
@@ -314,7 +334,8 @@ Playlist::Crawler::DirectoryCrawler::FindNextOp::finish_with_current_item_or_con
     position_->requested_line_ = 0;
 
     const auto enter_result =
-        dbus_list_.enter_list_async(position_->requested_list_id_,
+        dbus_list_.enter_list_async(position_->get_viewport().get(),
+                                    position_->requested_list_id_,
                                     position_->requested_line_,
                                     entering_list_caller_id_,
                                     I18n::String(false));
@@ -339,6 +360,10 @@ Playlist::Crawler::DirectoryCrawler::FindNextOp::finish_with_current_item_or_con
       case List::AsyncListIface::OpResult::CANCELED:
         BUG("Unexpected canceled result");
         log_assert(is_op_canceled());
+        break;
+
+      case List::AsyncListIface::OpResult::BUSY:
+        MSG_UNREACHABLE();
         break;
     }
 
@@ -395,7 +420,7 @@ Playlist::Crawler::DirectoryCrawler::FindNextOp::continue_search()
     position_->requested_line_ = item_id;
 
     switch(dbus_list_.enter_list_async(
-                list_id, item_id,
+                position_->get_viewport().get(), list_id, item_id,
                 List::QueryContextEnterList::CallerID::CRAWLER_ASCEND,
                 I18n::String(false)))
     {
@@ -417,6 +442,10 @@ Playlist::Crawler::DirectoryCrawler::FindNextOp::continue_search()
       case List::AsyncListIface::OpResult::CANCELED:
         BUG("Canceled entering parent list");
         log_assert(is_op_canceled());
+        break;
+
+      case List::AsyncListIface::OpResult::BUSY:
+        MSG_UNREACHABLE();
         break;
     }
 
@@ -443,11 +472,10 @@ bool Playlist::Crawler::DirectoryCrawler::FindNextOp::matches_async_result(
 }
 
 static void update_navigation(List::Nav &nav,
-                              List::NavItemFilterIface &item_filter,
                               Playlist::Crawler::Direction direction,
                               unsigned int line)
 {
-    item_filter.list_content_changed();
+    nav.get_item_filter().list_content_changed();
 
     const unsigned int lines = nav.get_total_number_of_visible_items();
 
@@ -478,10 +506,28 @@ void Playlist::Crawler::DirectoryCrawler::FindNextOp::enter_list_event(
     {
       case List::AsyncListIface::OpResult::SUCCEEDED:
         {
+            switch(cid)
+            {
+              case List::QueryContextEnterList::CallerID::ENTER_ROOT:
+              case List::QueryContextEnterList::CallerID::ENTER_CHILD:
+              case List::QueryContextEnterList::CallerID::ENTER_PARENT:
+              case List::QueryContextEnterList::CallerID::ENTER_CONTEXT_ROOT:
+              case List::QueryContextEnterList::CallerID::ENTER_ANYWHERE:
+              case List::QueryContextEnterList::CallerID::RELOAD_LIST:
+              case List::QueryContextEnterList::CallerID::CRAWLER_DESCEND:
+              case List::QueryContextEnterList::CallerID::CRAWLER_ASCEND:
+                file_item_ = nullptr;
+                break;
+
+              case List::QueryContextEnterList::CallerID::CRAWLER_RESET_POSITION:
+              case List::QueryContextEnterList::CallerID::CRAWLER_FIRST_ENTRY:
+                break;
+            }
+
             has_succeeded = true;
             const unsigned int line = position_->requested_line_;
             update_navigation(
-                position_->nav_, item_filter_,
+                position_->nav_,
                 cid != List::QueryContextEnterList::CallerID::CRAWLER_ASCEND
                 ? direction_
                 : Direction::FORWARD,
@@ -505,11 +551,14 @@ void Playlist::Crawler::DirectoryCrawler::FindNextOp::enter_list_event(
         /* not really interested in this */
         log_assert(is_op_canceled());
         return;
+
+      case List::AsyncListIface::OpResult::BUSY:
+        MSG_UNREACHABLE();
+        return;
     }
 
     switch(cid)
     {
-      case List::QueryContextEnterList::CallerID::SYNC_WRAPPER:
       case List::QueryContextEnterList::CallerID::ENTER_ROOT:
       case List::QueryContextEnterList::CallerID::ENTER_CHILD:
       case List::QueryContextEnterList::CallerID::ENTER_PARENT:
@@ -613,6 +662,7 @@ bool Playlist::Crawler::DirectoryCrawler::FindNextOp::do_start()
     /* we have not entered the list yet nor do we have a meaningful cursor,
      * so let's have that sorted out first */
     switch(dbus_list_.enter_list_async(
+                position_->get_viewport().get(),
                 position_->requested_list_id_, position_->requested_line_,
                 entering_list_caller_id_, std::move(root_list_title_)))
     {
@@ -629,6 +679,10 @@ bool Playlist::Crawler::DirectoryCrawler::FindNextOp::do_start()
 
       case List::AsyncListIface::OpResult::FAILED:
       case List::AsyncListIface::OpResult::CANCELED:
+        break;
+
+      case List::AsyncListIface::OpResult::BUSY:
+        MSG_UNREACHABLE();
         break;
     }
 
@@ -681,7 +735,7 @@ std::ostream &operator<<(std::ostream &os,
     {
         "FLAT", "DEPTH_FIRST",
     };
-    return dump_enum_value(os, names, "Recursive", rm);
+    return dump_enum_value(os, names, "RecursiveMode", rm);
 }
 
 std::ostream &operator<<(std::ostream &os,
@@ -692,7 +746,7 @@ std::ostream &operator<<(std::ostream &os,
         "UNKNOWN", "SOMEWHERE_IN_LIST",
         "REACHED_START_OF_LIST", "REACHED_END_OF_LIST",
     };
-    return dump_enum_value(os, names, "Pos", ps);
+    return dump_enum_value(os, names, "PositionalState", ps);
 }
 
 std::ostream &operator<<(std::ostream &os,
@@ -705,13 +759,21 @@ std::ostream &operator<<(std::ostream &os,
     return dump_enum_value(os, names, "FindMode", fm);
 }
 
+std::string Playlist::Crawler::DirectoryCrawler::FindNextOp::get_short_name() const
+{
+    std::ostringstream os;
+    os << "FindNextOp [" << debug_description_ << "] " << get_state_name();
+    return os.str();
+}
+
 std::string Playlist::Crawler::DirectoryCrawler::FindNextOp::get_description() const
 {
     static const char prefix[] = "\n    FindNextOp: ";
     std::ostringstream os;
 
     os << "DirectoryCrawler::FindNextOp " << static_cast<const void *>(this)
-       << " (caller ID " << int(entering_list_caller_id_) << ")"
+       << " (tag " << int(tag_)
+       << ", caller ID " << int(entering_list_caller_id_) << ")"
        << prefix << debug_description_ << get_base_description(prefix);
 
     if(position_ != nullptr)
@@ -731,9 +793,14 @@ std::string Playlist::Crawler::DirectoryCrawler::FindNextOp::get_description() c
        << " directories, entered " << directories_entered_
        << " directories";
 
-    const auto &temp(dbus_list_.get_description_get_item());
-    if(!temp.empty())
-        os << prefix << "GetRangeCallBase " << temp;
+    if(position_ != nullptr)
+    {
+        const auto vp(std::static_pointer_cast<const List::DBusListViewport>(
+                                        position_->nav_.get_viewport()));
+        const auto &temp(dbus_list_.get_get_range_op_description(*vp));
+        if(!temp.empty())
+            os << prefix << "GetRangeCallBase " << temp;
+    }
 
     if(file_item_ == nullptr)
         os << prefix << "Have no file item";

@@ -31,6 +31,18 @@
 
 #include <algorithm>
 
+namespace std
+{
+    template <>
+    struct hash<ID::OurStream>
+    {
+        std::size_t operator()(ID::OurStream const &id) const noexcept
+        {
+            return std::hash<uint32_t>{}(id.get().get_raw_id());
+        }
+    };
+}
+
 static std::shared_ptr<Player::AsyncResolveRedirect>
 mk_async_resolve_redirect(tdbusAirable *proxy,
                           DBus::AsyncResultAvailableFunction &&result_available_fn)
@@ -262,11 +274,14 @@ erase_stream_from_container(
             << "Cannot erase " << stream_id.get()
             << " from container: not found [" << reason << "]";
 
+    log_assert(found->first == stream_id);
+
     fn(*found->second);
 
     auto result = std::move(found->second);
     log_assert(result != nullptr);
 
+    log_assert(found->first == stream_id);
     streams.erase(found);
     result->set_state(Player::QueuedStream::State::ABOUT_TO_DIE, reason);
 
@@ -274,18 +289,20 @@ erase_stream_from_container(
 }
 
 std::unique_ptr<Player::QueuedStream>
-Player::QueuedStreams::remove_front(ID::OurStream expected_id)
+Player::QueuedStreams::remove_front(std::unordered_set<ID::OurStream> &ids)
 {
     if(queue_.empty())
         return nullptr;
 
     const auto stream_id = queue_.front();
-    if(stream_id != expected_id)
+    if(ids.find(stream_id) == ids.end())
         ErrorThrower<QueueError>()
-            << "Cannot remove front: expected " << expected_id.get()
-            << ", have " << stream_id.get();
+            << "Cannot remove front: stream " << stream_id.get()
+            << " not in set";
 
-    auto result(erase_stream_from_container(streams_, expected_id,
+    ids.erase(stream_id);
+
+    auto result(erase_stream_from_container(streams_, stream_id,
                                             "remove front element",
                                             on_remove_cb_));
     queue_.pop_front();
@@ -294,16 +311,15 @@ Player::QueuedStreams::remove_front(ID::OurStream expected_id)
 }
 
 std::unique_ptr<Player::QueuedStream>
-Player::QueuedStreams::shift(ID::OurStream expected_current_id,
-                             ID::OurStream expected_next_id)
+Player::QueuedStreams::shift(ID::OurStream expected_next_id)
 {
     const ID::OurStream next_id(
         queue_.empty() ? ID::OurStream::make_invalid() : queue_.front());
 
-    if(stream_in_flight_ != expected_current_id || next_id != expected_next_id)
+    if(next_id != expected_next_id)
         ErrorThrower<QueueError>()
-            << "Cannot shift queue: expected [" << expected_current_id.get()
-            << ", " << expected_next_id.get() << "], have ["
+            << "Cannot shift queue: expected next "
+            << expected_next_id.get() << ", have ["
             << stream_in_flight_.get() << ", " << next_id.get() << "]";
 
     return shift();
@@ -637,21 +653,15 @@ void Player::Data::player_failed()
     playback_speed_ = 1.0;
 }
 
-bool Player::Data::player_skipped_as_requested(ID::Stream skipped_stream_id,
-                                               ID::Stream next_stream_id)
+bool Player::Data::stream_has_changed(ID::Stream next_stream_id)
 {
-    queued_streams_.log("Before skip notification");
+    queued_streams_.log("Before change notification");
 
-    if(next_stream_id.is_valid())
-        log_assert(!queued_streams_.empty());
-    else
-        log_assert(queued_streams_.empty());
+    log_assert(next_stream_id.is_valid() || queued_streams_.empty());
 
     try
     {
-        queued_streams_.shift(
-            ID::OurStream::make_from_generic_id(skipped_stream_id),
-            ID::OurStream::make_from_generic_id(next_stream_id));
+        queued_streams_.shift(ID::OurStream::make_from_generic_id(next_stream_id));
         queued_streams_.log("After skip notification");
         return true;
     }
@@ -682,16 +692,21 @@ bool Player::Data::player_dropped_from_queue(const std::vector<ID::Stream> &drop
 
     queued_streams_.log("Before drop");
 
+    std::unordered_set<ID::OurStream> drop_set;
     for(const auto &dropped_id : dropped)
+        drop_set.insert(ID::OurStream::make_from_generic_id(dropped_id));
+
+    while(!drop_set.empty())
     {
         std::unique_ptr<Player::QueuedStream> qs;
 
         try
         {
-            qs = queued_streams_.remove_front(ID::OurStream::make_from_generic_id(dropped_id));
+            qs = queued_streams_.remove_front(drop_set);
         }
         catch(const QueueError &e)
         {
+            msg_error(0, LOG_ERR, "Failed dropping streams: %s", e.what());
             player_failed();
             return false;
         }
@@ -699,7 +714,7 @@ bool Player::Data::player_dropped_from_queue(const std::vector<ID::Stream> &drop
         if(qs != nullptr)
             remove_data_for_stream(*qs, meta_data_db_, referenced_lists_);
         else
-            meta_data_db_.forget_stream(dropped_id);
+            meta_data_db_.forget_stream(qs->stream_id_.get());
     }
 
     queued_streams_.log("After drop");

@@ -514,6 +514,11 @@ class OperationBase: public std::enable_shared_from_this<OperationBase>
     /*!
      * For logging and debugging purposes.
      */
+    virtual std::string get_short_name() const = 0;
+
+    /*!
+     * For logging and debugging purposes.
+     */
     virtual std::string get_description() const = 0;
 
   protected:
@@ -621,6 +626,8 @@ class OperationBase: public std::enable_shared_from_this<OperationBase>
     }
 
     std::string get_base_description(const char *const prefix) const;
+
+    std::string get_state_name() const;
 
   private:
     bool start(OperationDoneNotification &&op_done_callback)

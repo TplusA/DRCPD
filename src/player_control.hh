@@ -80,7 +80,7 @@ class Control
     Data *player_data_;
     LoggedLock::RecMutex player_dummy_lock_;
 
-    Playlist::Crawler::Handle ch_;
+    Playlist::Crawler::Handle crawler_handle_;
 
     const LocalPermissionsIface *permissions_;
 
@@ -105,7 +105,7 @@ class Control
      * This operation logically follows a #Playlist::Crawler::FindNextOpBase
      * operation.
      */
-    std::shared_ptr<Playlist::Crawler::GetURIsOpBase> prefetch_next_uris_op_;
+    std::shared_ptr<Playlist::Crawler::GetURIsOpBase> prefetch_uris_op_;
 
     /* simple function which tells us whether or not we can play a stream at
      * given bit rate */
@@ -176,7 +176,7 @@ class Control
         with_enforced_intentions_(false),
         player_data_(nullptr),
         permissions_(nullptr),
-        bitrate_limiter_(bitrate_limiter)
+        bitrate_limiter_(std::move(bitrate_limiter))
     {
         LoggedLock::configure(lock_, "Player::Control", MESSAGE_LEVEL_DEBUG);
         LoggedLock::configure(player_dummy_lock_, "Player::Data dummy", MESSAGE_LEVEL_DEBUG);
@@ -225,6 +225,8 @@ class Control
 
     const AudioSource *get_plugged_audio_source() const { return audio_source_; }
 
+    void plug(std::shared_ptr<List::ListViewportBase> skipper_viewport,
+              const List::ListIface *list);
     void plug(AudioSource &audio_source, bool with_enforced_intentions,
               const std::function<void()> &finished_playing_notification,
               const std::string *external_player_id = nullptr);
@@ -271,7 +273,7 @@ class Control
                               Skipper::SkipperDoneCallback &done_fn);
 
     /* play request handling (immediate playback) */
-    bool found_item_for_playing(Playlist::Crawler::FindNextOpBase &op);
+    bool found_item_for_playing(std::shared_ptr<Playlist::Crawler::FindNextOpBase> op);
     bool found_item_uris_for_playing(Playlist::Crawler::GetURIsOpBase &op,
                                      Playlist::Crawler::Direction from_direction);
 
@@ -299,7 +301,7 @@ class Control
     QueuedStream::OpResult
     queue_item_from_op(Playlist::Crawler::GetURIsOpBase &op,
                        Playlist::Crawler::Direction direction,
-                       QueueItemRedirectResolved callback,
+                       const QueueItemRedirectResolved &callback,
                        InsertMode insert_mode, PlayNewMode play_new_mode);
     QueuedStream::OpResult
     queue_item_from_op_tail(ID::OurStream stream_id, InsertMode insert_mode,

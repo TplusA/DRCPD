@@ -48,6 +48,13 @@ void ViewPlay::View::defocus()
     is_visible_ = false;
 }
 
+void ViewPlay::View::configure_skipper(
+        std::shared_ptr<List::ListViewportBase> skipper_viewport,
+        const List::ListIface *list)
+{
+    player_control_.plug(std::move(skipper_viewport), list);
+}
+
 void ViewPlay::View::register_audio_source(Player::AudioSource &audio_source,
                                            const ViewIface &associated_view)
 {

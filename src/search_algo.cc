@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, 2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2019, 2020  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -23,10 +23,10 @@
 #include <config.h>
 #endif /* HAVE_CONFIG_H */
 
+#include "search_algo.hh"
+
 #include <glib.h>
 #include <string.h>
-
-#include "search_algo.hh"
 
 /*!
  * RAII wrapper around string allocated by GLib.
@@ -87,12 +87,13 @@ class ComparedString
 /*!
  * Pull string from D-Bus list, convert for case-insensitive comparison.
  */
-static bool get_casefolded_string(const List::DBusList &list,
+static bool get_casefolded_string(List::DBusList &list,
+                                  std::shared_ptr<List::DBusListViewport> vp,
                                   unsigned int position,
                                   ComparedString &string)
 {
     const List::TextItem *const item =
-        dynamic_cast<const List::TextItem *>(list.get_item(position));
+        dynamic_cast<const List::TextItem *>(list.get_item(vp, position));
 
     if(item == nullptr)
     {
@@ -297,6 +298,8 @@ class BSearchState
         }
     };
 
+    const std::shared_ptr<List::DBusListViewport> viewport_;
+
     Partition upper_;
     Partition lower_;
 
@@ -310,7 +313,8 @@ class BSearchState
     BSearchState(const BSearchState &) = delete;
     BSearchState &operator=(const BSearchState &) = delete;
 
-    explicit BSearchState(unsigned int elements) throw():
+    explicit BSearchState(const List::DBusList &list, unsigned int elements) throw():
+        viewport_(list.mk_viewport(1, "binary search")),
         all_top_(elements > 0 ? 0 : UINT_MAX),
         all_bottom_(elements > 0 ? elements - 1 : 0),
         bottom_candidate_(UINT_MAX),
@@ -350,12 +354,11 @@ class BSearchState
         all_bottom_ = lower_.bottom_;
     }
 
-    Result bsearch_top_most(const List::DBusList &list,
-                            ComparedString &temp_string)
+    Result bsearch_top_most(List::DBusList &list, ComparedString &temp_string)
     {
         while(true)
         {
-            if(!get_casefolded_string(list, upper_.center_, temp_string))
+            if(!get_casefolded_string(list, viewport_, upper_.center_, temp_string))
                 return Result::INTERNAL_FAILURE;
 
             dump_state("before iteration", true);
@@ -380,12 +383,11 @@ class BSearchState
         }
     }
 
-    Result bsearch_bottom_most(const List::DBusList &list,
-                               ComparedString &temp_string)
+    Result bsearch_bottom_most(List::DBusList &list, ComparedString &temp_string)
     {
         while(true)
         {
-            if(!get_casefolded_string(list, lower_.center_, temp_string))
+            if(!get_casefolded_string(list, viewport_, lower_.center_, temp_string))
                 return Result::INTERNAL_FAILURE;
 
             dump_state("before iteration", false);
@@ -550,8 +552,7 @@ class BSearchState
     }
 };
 
-ssize_t Search::binary_search_utf8(const List::DBusList &list,
-                                   const std::string &query)
+ssize_t Search::binary_search_utf8(List::DBusList &list, const std::string &query)
 {
     if(query.empty())
         return -1;
@@ -569,7 +570,7 @@ ssize_t Search::binary_search_utf8(const List::DBusList &list,
         return -1;
     }
 
-    BSearchState state(list.get_number_of_items());
+    BSearchState state(list, list.get_number_of_items());
     BSearchState::Result result = BSearchState::Result::INTERNAL_FAILURE;
     ComparedString temp_string;
 

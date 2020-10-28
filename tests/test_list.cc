@@ -55,17 +55,16 @@ class TextTreeItem: public List::TreeItem, public List::TextItem
     {}
 };
 
-static List::RamList *list;
+static std::unique_ptr<List::RamList> list;
 
 void cut_setup(void)
 {
-    list = new List::RamList("ram_list_tests");
-    cut_assert_not_null(list);
+    list = std::make_unique<List::RamList>("ram_list_tests");
+    cut_assert_not_null(list.get());
 }
 
 void cut_teardown(void)
 {
-    delete list;
     list = nullptr;
 }
 
@@ -84,7 +83,7 @@ void test_list_is_empty_on_startup(void)
 void test_add_single_list_item(void)
 {
     unsigned int line =
-        List::append(list, TextTreeItem("Test entry", false, 0));
+        List::append(*list, TextTreeItem("Test entry", false, 0));
 
     cut_assert_equal_uint(0, line);
     cut_assert_equal_uint(1, list->get_number_of_items());
@@ -96,9 +95,9 @@ void test_add_single_list_item(void)
     cut_assert_equal_string("Test entry", item->get_text());
 }
 
-static void append_items_to_list(List::RamList *l, const char *strings[])
+static void append_items_to_list(List::RamList &l, const char *strings[])
 {
-    unsigned int old_size = l->get_number_of_items();
+    unsigned int old_size = l.get_number_of_items();
     unsigned int expected_size = old_size;
 
     for(const char **s = strings; *s != nullptr; ++s)
@@ -107,8 +106,8 @@ static void append_items_to_list(List::RamList *l, const char *strings[])
         ++expected_size;
     }
 
-    cut_assert_equal_uint(expected_size, l->get_number_of_items());
-    cut_assert_false(l->empty());
+    cut_assert_equal_uint(expected_size, l.get_number_of_items());
+    cut_assert_false(l.empty());
 }
 
 /*!\test
@@ -118,7 +117,7 @@ void test_add_multiple_list_items(void)
 {
     static const char *strings[] = { "first", "second", "foo", "bar", nullptr };
 
-    append_items_to_list(list, strings);
+    append_items_to_list(*list, strings);
 
     for(unsigned int i = 0; i < sizeof(strings) / sizeof(strings[0]) - 1; ++i)
     {

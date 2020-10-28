@@ -53,18 +53,28 @@ class GetRangeResult
 class GetRangeCallBase:
     public DBusRNF::CookieCall<GetRangeResult, Busy::Source::GETTING_LIST_RANGE>
 {
+  public:
+    enum class LoadingState
+    {
+        INACTIVE,
+        OUT_OF_RANGE,
+        LOADING,
+        DONE,
+        FAILED_OR_ABORTED,
+    };
+
   protected:
     tdbuslistsNavigation *const proxy_;
 
   public:
     const std::string &iface_name_;
     const ID::List list_id_;
-    const List::CacheSegment loading_segment_;
+    const List::Segment loading_segment_;
 
   protected:
     explicit GetRangeCallBase(CookieManagerIface &cm, tdbuslistsNavigation *proxy,
                               const std::string &list_iface_name,
-                              ID::List list_id, List::CacheSegment &&segment,
+                              ID::List list_id, List::Segment &&segment,
                               std::unique_ptr<ContextData> context_data,
                               StatusWatcher &&status_watcher):
         CookieCall(cm, std::move(context_data), std::move(status_watcher)),
@@ -79,17 +89,22 @@ class GetRangeCallBase:
     GetRangeCallBase &operator=(GetRangeCallBase &&) = default;
     virtual ~GetRangeCallBase() = default;
 
+    ID::List get_list_id() const { return list_id_; }
+
     std::string get_description() const override
     {
         return
             CallBase::get_description() +
-            ", list ID " + std::to_string(list_id_.get_raw_id());
+            ", list ID " + std::to_string(list_id_.get_raw_id()) +
+            ", get range at line " + std::to_string(loading_segment_.line()) +
+            ", " + std::to_string(loading_segment_.size()) +
+            " items";
     }
 
     virtual std::shared_ptr<GetRangeCallBase> clone_modified(ID::List list_id) = 0;
 
     List::CacheSegmentState
-    get_cache_segment_state(const List::CacheSegment &segment,
+    get_cache_segment_state(const List::Segment &segment,
                             unsigned int &size_of_loading_segment) const
     {
         LOGGED_LOCK_CONTEXT_HINT;
@@ -105,23 +120,23 @@ class GetRangeCallBase:
 
         switch(segment.intersection(loading_segment_, size_of_loading_segment))
         {
-          case List::CacheSegment::DISJOINT:
+          case List::SegmentIntersection::DISJOINT:
             break;
 
-          case List::CacheSegment::EQUAL:
-          case List::CacheSegment::INCLUDED_IN_OTHER:
+          case List::SegmentIntersection::EQUAL:
+          case List::SegmentIntersection::INCLUDED_IN_OTHER:
             retval = List::CacheSegmentState::LOADING;
             break;
 
-          case List::CacheSegment::TOP_REMAINS:
+          case List::SegmentIntersection::TOP_REMAINS:
             retval = List::CacheSegmentState::LOADING_TOP_EMPTY_BOTTOM;
             break;
 
-          case List::CacheSegment::BOTTOM_REMAINS:
+          case List::SegmentIntersection::BOTTOM_REMAINS:
             retval = List::CacheSegmentState::LOADING_BOTTOM_EMPTY_TOP;
             break;
 
-          case List::CacheSegment::CENTER_REMAINS:
+          case List::SegmentIntersection::CENTER_REMAINS:
             retval = List::CacheSegmentState::LOADING_CENTER;
             break;
         }
@@ -132,7 +147,7 @@ class GetRangeCallBase:
         return List::CacheSegmentState::EMPTY;
     }
 
-    bool is_already_loading(unsigned int line, unsigned int count, bool &can_abort) const
+    bool is_already_loading(const List::Segment &segment, bool &can_abort) const
     {
         LOGGED_LOCK_CONTEXT_HINT;
         std::lock_guard<LoggedLock::Mutex> lock(lock_);
@@ -148,7 +163,7 @@ class GetRangeCallBase:
           case DBusRNF::CallState::WAIT_FOR_NOTIFICATION:
           case DBusRNF::CallState::READY_TO_FETCH:
           case DBusRNF::CallState::RESULT_FETCHED:
-            if(List::CacheSegment(line, count) == loading_segment_)
+            if(segment == loading_segment_)
                 return true;
 
             break;
@@ -164,6 +179,35 @@ class GetRangeCallBase:
         return false;
     }
 
+    LoadingState is_already_loading(unsigned int line)
+    {
+        LOGGED_LOCK_CONTEXT_HINT;
+        std::lock_guard<LoggedLock::Mutex> lock(lock_);
+
+        if(!loading_segment_.contains_line(line))
+            return LoadingState::OUT_OF_RANGE;
+
+        switch(get_state())
+        {
+          case DBusRNF::CallState::INITIALIZED:
+          case DBusRNF::CallState::WAIT_FOR_NOTIFICATION:
+          case DBusRNF::CallState::READY_TO_FETCH:
+            return LoadingState::LOADING;
+
+          case DBusRNF::CallState::ABORTING:
+          case DBusRNF::CallState::ABORTED_BY_LIST_BROKER:
+          case DBusRNF::CallState::FAILED:
+            return LoadingState::FAILED_OR_ABORTED;
+
+          case DBusRNF::CallState::RESULT_FETCHED:
+          case DBusRNF::CallState::ABOUT_TO_DESTROY:
+            return LoadingState::DONE;
+        }
+
+        MSG_UNREACHABLE();
+        return LoadingState::FAILED_OR_ABORTED;
+    }
+
   protected:
     const void *get_proxy_ptr() const final override { return proxy_; }
 };
@@ -176,7 +220,7 @@ class GetRangeCall: public GetRangeCallBase
 
     explicit GetRangeCall(CookieManagerIface &cm, tdbuslistsNavigation *proxy,
                           const std::string &list_iface_name,
-                          ID::List list_id, List::CacheSegment &&segment,
+                          ID::List list_id, List::Segment &&segment,
                           std::unique_ptr<ContextData> context_data,
                           StatusWatcher &&status_watcher):
         GetRangeCallBase(cm, proxy, list_iface_name, list_id,
@@ -195,7 +239,7 @@ class GetRangeCall: public GetRangeCallBase
         std::lock_guard<LoggedLock::Mutex> lock(lock_);
         return std::make_shared<GetRangeCall>(
                     cm_, proxy_, iface_name_, list_id,
-                    List::CacheSegment(loading_segment_.line_, loading_segment_.count_),
+                    List::Segment(loading_segment_),
                     std::move(context_data_), std::move(status_watcher_fn_));
     }
 
@@ -209,16 +253,16 @@ class GetRangeCall: public GetRangeCallBase
         GErrorWrapper error;
 
         tdbus_lists_navigation_call_get_range_sync(
-            proxy_, list_id_.get_raw_id(), loading_segment_.line_,
-            loading_segment_.count_, &cookie, &error_code,
+            proxy_, list_id_.get_raw_id(), loading_segment_.line(),
+            loading_segment_.size(), &cookie, &error_code,
             &first_item_id, &out_list, nullptr, error.await());
 
         if(error.log_failure("Get range"))
         {
             msg_error(0, LOG_NOTICE,
                       "Failed obtaining contents of list %u, item %u, count %u [%s]",
-                      list_id_.get_raw_id(), loading_segment_.line_,
-                      loading_segment_.count_, iface_name_.c_str());
+                      list_id_.get_raw_id(), loading_segment_.line(),
+                      loading_segment_.size(), iface_name_.c_str());
             list_error_ = ListError::Code::INTERNAL;
             throw List::DBusListException(error);
         }
@@ -260,8 +304,8 @@ class GetRangeCall: public GetRangeCallBase
             msg_error(0, LOG_NOTICE,
                       "Failed obtaining contents of list %u "
                       "by cookie %u, item %u, count %u [%s]",
-                      list_id_.get_raw_id(), cookie, loading_segment_.line_,
-                      loading_segment_.count_, iface_name_.c_str());
+                      list_id_.get_raw_id(), cookie, loading_segment_.line(),
+                      loading_segment_.size(), iface_name_.c_str());
             list_error_ = ListError::Code::INTERNAL;
             throw List::DBusListException(error);
         }
@@ -296,7 +340,7 @@ class GetRangeWithMetaDataCall: public GetRangeCallBase
     explicit GetRangeWithMetaDataCall(CookieManagerIface &cm,
                                       tdbuslistsNavigation *proxy,
                                       const std::string &list_iface_name,
-                                      ID::List list_id, List::CacheSegment &&segment,
+                                      ID::List list_id, List::Segment &&segment,
                                       std::unique_ptr<ContextData> context_data,
                                       StatusWatcher &&status_watcher):
         GetRangeCallBase(cm, proxy, list_iface_name, list_id,
@@ -315,7 +359,7 @@ class GetRangeWithMetaDataCall: public GetRangeCallBase
         std::lock_guard<LoggedLock::Mutex> lock(lock_);
         return std::make_shared<GetRangeWithMetaDataCall>(
                     cm_, proxy_, iface_name_, list_id,
-                    List::CacheSegment(loading_segment_.line_, loading_segment_.count_),
+                    List::Segment(loading_segment_),
                     std::move(context_data_), std::move(status_watcher_fn_));
     }
 
@@ -329,8 +373,8 @@ class GetRangeWithMetaDataCall: public GetRangeCallBase
         GErrorWrapper error;
 
         tdbus_lists_navigation_call_get_range_with_meta_data_sync(
-            proxy_, list_id_.get_raw_id(), loading_segment_.line_,
-            loading_segment_.count_, &cookie, &error_code,
+            proxy_, list_id_.get_raw_id(), loading_segment_.line(),
+            loading_segment_.size(), &cookie, &error_code,
             &first_item_id, &out_list, nullptr, error.await());
 
         if(error.log_failure("Get range with meta data"))
@@ -338,8 +382,8 @@ class GetRangeWithMetaDataCall: public GetRangeCallBase
             msg_error(0, LOG_NOTICE,
                       "Failed obtaining contents with meta data of list %u, "
                       "item %u, count %u [%s]",
-                      list_id_.get_raw_id(), loading_segment_.line_,
-                      loading_segment_.count_, iface_name_.c_str());
+                      list_id_.get_raw_id(), loading_segment_.line(),
+                      loading_segment_.size(), iface_name_.c_str());
             throw List::DBusListException(error);
         }
 
@@ -381,8 +425,8 @@ class GetRangeWithMetaDataCall: public GetRangeCallBase
             msg_error(0, LOG_NOTICE,
                       "Failed obtaining contents with meta data of list %u "
                       "by cookie %u, item %u, count %u [%s]",
-                      list_id_.get_raw_id(), cookie, loading_segment_.line_,
-                      loading_segment_.count_, iface_name_.c_str());
+                      list_id_.get_raw_id(), cookie, loading_segment_.line(),
+                      loading_segment_.size(), iface_name_.c_str());
             list_error_ = ListError::Code::INTERNAL;
             throw List::DBusListException(error);
         }

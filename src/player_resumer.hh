@@ -39,7 +39,7 @@ class Resumer
     DBusRNF::RealizeLocationCall call_;
     bool is_audio_source_available_;
     bool already_notified_;
-    Playlist::Crawler::Handle ch_;
+    Playlist::Crawler::Handle crawler_handle_;
     UI::EventStoreIface &event_sink_;
 
   public:
@@ -53,7 +53,7 @@ class Resumer
               [this] (const auto &, auto state, bool) { call_state_changed(state); }),
         is_audio_source_available_(false),
         already_notified_(false),
-        ch_(std::move(ch)),
+        crawler_handle_(std::move(ch)),
         event_sink_(event_sink)
     {
         Busy::set(Busy::Source::RESUMING_PLAYBACK);
@@ -82,7 +82,10 @@ class Resumer
         return call_.get_result_locked();
     }
 
-    Playlist::Crawler::Handle get_crawler_handle() { return std::move(ch_); }
+    Playlist::Crawler::Handle take_crawler_handle()
+    {
+        return std::move(crawler_handle_);
+    }
 
   private:
     void call_state_changed(DBusRNF::CallState state)

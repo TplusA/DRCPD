@@ -20,7 +20,9 @@
 #
 
 if WITH_DOCTEST
-check_PROGRAMS = test_contextmap
+check_PROGRAMS = \
+    test_contextmap \
+    test_list_segment
 
 TESTS = run_tests.sh
 
@@ -54,6 +56,11 @@ test_contextmap_LDADD = \
     $(top_builddir)/src/libcontextmap.la
 test_contextmap_CPPFLAGS = $(AM_CPPFLAGS)
 test_contextmap_CXXFLAGS = $(AM_CXXFLAGS)
+
+test_list_segment_SOURCES = test_list_segment.cc
+test_list_segment_LDADD = libtestrunner.la
+test_list_segment_CFLAGS = $(AM_CFLAGS)
+test_list_segment_CXXFLAGS = $(AM_CXXFLAGS)
 
 doctest: $(check_PROGRAMS)
 	for p in $(check_PROGRAMS); do \

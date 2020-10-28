@@ -44,16 +44,17 @@ namespace
     {
         if(search_parameters == nullptr)
         {
-            DBusRNF::GetListIDCall
-                call(file_list.get_cookie_manager(), file_list.get_dbus_proxy(),
-                     current_list_id, navigation.get_cursor(),
-                     nullptr, std::move(status_watcher));
-            call.request();
-            call.fetch_blocking();
+            auto call =
+                std::make_shared<DBusRNF::GetListIDCall>(
+                    file_list.get_cookie_manager(), file_list.get_dbus_proxy(),
+                    current_list_id, navigation.get_cursor(),
+                    nullptr, std::move(status_watcher));
+            call->request();
+            call->fetch_blocking();
 
             try
             {
-                return call.get_result_locked();
+                return call->get_result_locked();
             }
             catch(const DBusRNF::AbortedError &)
             {
@@ -70,17 +71,18 @@ namespace
         }
         else
         {
-            DBusRNF::GetParameterizedListIDCall
-                call(file_list.get_cookie_manager(), file_list.get_dbus_proxy(),
-                     current_list_id, navigation.get_cursor(),
-                     std::string(search_parameters->get_query()),
-                     nullptr, std::move(status_watcher));
-            call.request();
-            call.fetch_blocking();
+            auto call =
+                std::make_shared<DBusRNF::GetParameterizedListIDCall>(
+                    file_list.get_cookie_manager(), file_list.get_dbus_proxy(),
+                    current_list_id, navigation.get_cursor(),
+                    std::string(search_parameters->get_query()),
+                    nullptr, std::move(status_watcher));
+            call->request();
+            call->fetch_blocking();
 
             try
             {
-                return call.get_result_locked();
+                return call->get_result_locked();
             }
             catch(const DBusRNF::AbortedError &)
             {
@@ -124,7 +126,7 @@ class Utils
                               ID::List list_id, unsigned int line,
                               bool reverse = false)
     {
-        file_list.enter_list(list_id, line);
+        file_list.enter_list(list_id);
         item_flags.list_content_changed();
 
         const unsigned int lines = navigation.get_total_number_of_visible_items();

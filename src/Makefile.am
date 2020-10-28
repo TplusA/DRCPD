@@ -37,7 +37,7 @@ drcpd_SOURCES = \
     rnfcall_get_uris.hh rnfcall_realize_location.hh \
     cookie_manager.hh main_context.hh \
     list.hh ramlist.hh dbuslist.hh dbuslist_exception.hh listnav.hh \
-    cache_segment.hh \
+    dbuslist_query_context.hh cache_segment.hh \
     view.hh view_serialize.hh view_audiosource.hh view_names.hh view_nop.hh \
     view_manager.hh ui_events.hh ui_event_queue.hh xmlescape.hh \
     view_filebrowser.hh view_filebrowser_fileitem.hh view_filebrowser_airable.hh \
@@ -96,6 +96,7 @@ drcpd_LDFLAGS = $(LTLIBINTL)
 liblist_la_SOURCES = \
     list.hh cache_segment.hh ramlist.hh ramlist.cc \
     dbuslist.hh dbuslist_exception.hh dbuslist.cc dbus_async.hh dbus_async.cc \
+    dbuslist_viewport.cc dbuslist_viewport.hh dbuslist_query_context.hh \
     idtypes.hh stream_id.h stream_id.hh gerrorwrapper.hh
 liblist_la_CFLAGS = $(AM_CFLAGS)
 liblist_la_CXXFLAGS = $(AM_CXXFLAGS)
@@ -138,7 +139,7 @@ libviews_la_SOURCES = \
     playback_modes.hh \
     search_algo.hh \
     actor_id.h \
-    dbuslist.hh dbuslist_exception.hh \
+    dbuslist.hh dbuslist_exception.hh dbuslist_query_context.hh \
     rnfcall.hh rnfcall.cc rnfcall_death_row.hh rnfcall_death_row.cc \
     logged_lock.hh
 libviews_la_CFLAGS = $(AM_CFLAGS)

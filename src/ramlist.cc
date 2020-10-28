@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2019, 2020  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -44,11 +44,6 @@ void List::RamList::clear()
         delete i;
 
     items_.clear();
-}
-
-const List::Item *List::RamList::get_item(unsigned int line) const
-{
-    return const_cast<List::RamList *>(this)->get_nonconst_item(line);
 }
 
 List::Item *List::RamList::get_nonconst_item(unsigned int line)

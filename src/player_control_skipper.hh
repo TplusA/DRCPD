@@ -24,6 +24,7 @@
 
 #include "player_data.hh"
 #include "playlist_crawler_ops.hh"
+#include "listnav.hh"
 #include "logged_lock.hh"
 
 namespace Player
@@ -64,10 +65,20 @@ class Skipper
     using SkipperDoneCallback =
         std::function<bool(std::shared_ptr<Playlist::Crawler::FindNextOpBase>)>;
 
+    static constexpr unsigned int CACHE_SIZE = 4;
+
   private:
     mutable LoggedLock::Mutex lock_;
 
     static constexpr const signed char MAX_PENDING_SKIP_REQUESTS = 5;
+
+    /*!
+     * Item filter with viewport for skipping in lists.
+     *
+     * This is needed to enable cloning of cursors which operate on a different
+     * viewport.
+     */
+    List::NavItemNoFilter skip_item_filter_;
 
     /*!
      * The current operation for finding the next item.
@@ -104,6 +115,7 @@ class Skipper
     Skipper &operator=(const Skipper &) = delete;
 
     explicit Skipper():
+        skip_item_filter_(nullptr, nullptr),
         pending_skip_requests_(0)
     {
         LoggedLock::configure(lock_, "Player::Skipper", MESSAGE_LEVEL_DEBUG);
@@ -123,6 +135,21 @@ class Skipper
 
         if(do_revert != nullptr)
             find_next_op_ = do_revert();
+    }
+
+    void tie(std::shared_ptr<List::ListViewportBase> skipper_viewport,
+             const List::ListIface *list)
+    {
+        if(skip_item_filter_.is_tied())
+            skip_item_filter_.untie();
+
+        skip_item_filter_.tie(std::move(skipper_viewport), list);
+    }
+
+    List::NavItemFilterIface &get_item_filter()
+    {
+        log_assert(skip_item_filter_.is_tied());
+        return skip_item_filter_;
     }
 
     /*!
@@ -160,11 +187,11 @@ class Skipper
             RunNewFindNextOp &&run_new_find_next_fn,
             SkipperDoneCallback &&done);
 
-    bool has_pending_skip_requests() const
+    bool is_active() const
     {
         LOGGED_LOCK_CONTEXT_HINT;
         std::lock_guard<LoggedLock::Mutex> lock(lock_);
-        return find_next_op_ != nullptr && pending_skip_requests_ != 0;
+        return find_next_op_ != nullptr;
     }
 
   private:

@@ -89,7 +89,7 @@ class GetURIsCall:
 
     virtual ~GetURIsCall() final override
     {
-        abort_request();
+        abort_request_internal(true);
     }
 
     std::string get_description() const override
@@ -97,7 +97,7 @@ class GetURIsCall:
         return
             CallBase::get_description() +
             ", list ID " + std::to_string(list_id_.get_raw_id()) +
-            ", item index " + std::to_string(item_index_);
+            ", get URI at item index " + std::to_string(item_index_);
     }
 
   protected:

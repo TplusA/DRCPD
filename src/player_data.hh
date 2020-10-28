@@ -34,6 +34,7 @@
 
 #include <map>
 #include <deque>
+#include <unordered_set>
 
 namespace Player
 {
@@ -244,7 +245,7 @@ class QueuedStream
     QueuedStream(QueuedStream &&) = default;
     QueuedStream &operator=(const QueuedStream &) = delete;
 
-    explicit QueuedStream(ID::OurStream stream_id,
+    explicit QueuedStream(const ID::OurStream &stream_id,
                           const GVariantWrapper &stream_key,
                           std::vector<std::string> &&uris,
                           Airable::SortedLinks &&airable_links,
@@ -382,13 +383,51 @@ class QueuedStreams
   private:
     static constexpr const size_t MAX_ENTRIES = 20;
 
+    /*!
+     * Information about all our streams.
+     *
+     * For each stream ID stored in #Player::QueuedStreams::queue_ or
+     * #Player::QueuedStreams::stream_in_flight_, there is an entry in this
+     * container storing the details about the stream.
+     */
     std::map<ID::OurStream, std::unique_ptr<QueuedStream>> streams_;
 
+    /*!
+     * Play queue as submitted to streamplayer.
+     */
     std::deque<ID::OurStream> queue_;
+
+    /*!
+     * The "hot" stream supposed to be played by streamplayer.
+     *
+     * It is possible for a stream which is supposed to be played next to be
+     * killed off before it had a chance to play. This may happen if there is a
+     * skip request sent to the player before it could hand over the stream to
+     * the GStreamer backend. In this case, the stream is never played, and we
+     * never receive a NowPlaying signal (instead, we will encounter it in some
+     * drop list).
+     *
+     * Since such a stream is not really in queue anymore, we keep it around in
+     * this special place. It tells us that we have sent the stream to
+     * streamplayer and that streamplayer should know that this is the stream
+     * it needs to play.
+     */
     ID::OurStream stream_in_flight_;
 
+    /*!
+     * A fresh, unused, valid stream ID for any stream to come.
+     *
+     * This ID is increased whenever it is used for some new stream. To be
+     * absolutely sure that collisions are avoided, the increased value is
+     * checked against #Player::QueuedStreams::streams_. In case of a
+     * collision, the ID is increased and checked again until a vacant ID is
+     * found.
+     */
     ID::OurStream next_free_stream_id_;
 
+    /*!
+     * This function is called whenever a stream is removed from the queue.
+     */
     const std::function<void(const QueuedStream &)> on_remove_cb_;
 
   public:
@@ -415,28 +454,33 @@ class QueuedStreams
                          std::unique_ptr<Playlist::Crawler::CursorBase> originating_cursor);
 
     /*
-     * Remove front item from queue.
+     * Remove next item from queue.
      *
-     * Returns the removed stream, or \c nullptr if the queue is empty.
+     * \param ids
+     *     A set of stream IDs to be removed. The stream ID removed from the
+     *     queue is also removed from this set.
+     *
+     * \returns
+     *     The removed stream, or \c nullptr if the queue is empty or if
+     *     the stream does not occur in \c ids.
      *
      * \throws
      *     #Player::QueueError Given stream ID invalid, not found, or unexpected.
      */
-    std::unique_ptr<QueuedStream> remove_front(ID::OurStream expected_id);
+    std::unique_ptr<QueuedStream> remove_front(std::unordered_set<ID::OurStream> &ids);
 
     /*!
      * Move stream from queue to currently playing, remove currently playing.
      *
      * This function checks if the queue is populated with the given expected
-     * values. It will throw a #Player::QueueError in case of a mismatch. This
+     * value. It will throw a #Player::QueueError in case of a mismatch. This
      * enables us to detect situations where we went out of sync with the
      * stream player.
      *
      * \throws
      *     #Player::QueueError Given stream ID invalid, not found, or unexpected.
      */
-    std::unique_ptr<QueuedStream>
-    shift(ID::OurStream expected_current_id, ID::OurStream expected_next_id);
+    std::unique_ptr<QueuedStream> shift(ID::OurStream expected_next_id);
 
     /*!
      * Move stream from queue to currently playing, remove currently playing.
@@ -472,14 +516,14 @@ class QueuedStreams
     const QueuedStream *get_stream_by_id(ID::OurStream stream_id) const;
 
     template <typename T>
-    auto with_stream(ID::OurStream stream_id,
+    auto with_stream(const ID::OurStream &stream_id,
                      const std::function<T(QueuedStream *qs)> &apply)
     {
         return apply(get_stream_by_id(stream_id));
     }
 
     template <typename T>
-    auto with_stream(ID::OurStream stream_id,
+    auto with_stream(const ID::OurStream &stream_id,
                      const std::function<T(QueuedStream &qs)> &apply)
     {
         auto *const s = get_stream_by_id(stream_id);
@@ -717,16 +761,14 @@ class Data
     void player_failed();
 
     /*!
-     * Update queue: we have just told the streamplayer to skip to the next
-     * item in its queue, successfully so.
+     * Update queue: streamplayer has just gave us a new currently playing
+     * stream.
      *
-     * The two parameters are the return value from streamplayer, containing
-     * the concrete IDs of the skipped (previously playing) stream and the
-     * stream which is going to be played next, respectively. Thus, we forget
-     * the currently playing stream and replace it by the next stream in queue.
+     * The parameter is the ID of the stream the player has just switched to.
+     * Thus, we forget the currently playing stream and replace it by the next
+     * stream in queue (which is expected to match the ID passed in \p next_stream_id).
      */
-    bool player_skipped_as_requested(ID::Stream skipped_stream_id,
-                                     ID::Stream next_stream_id);
+    bool stream_has_changed(ID::Stream next_stream_id);
 
   public:
     /*!
@@ -737,14 +779,19 @@ class Data
      */
     bool player_dropped_from_queue(const std::vector<ID::Stream> &dropped);
 
+    /*!
+     * Player has told us that it now playing a particular stream.
+     *
+     * This function does nothing if the stream has not been switched, i.e., if
+     * \p switched_stream is false.
+     */
     bool player_now_playing_stream(ID::Stream stream_id, bool switched_stream)
     {
         if(!switched_stream)
             return set_player_state(Player::PlayerState::PLAYING);
 
         if(ID::OurStream::compatible_with(stream_id))
-            player_skipped_as_requested(queued_streams_.get_head_stream_id().get(),
-                                        stream_id);
+            stream_has_changed(stream_id);
 
         now_playing_.now_playing(stream_id);
         return set_player_state(stream_id, Player::PlayerState::PLAYING);

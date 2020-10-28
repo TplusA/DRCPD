@@ -148,6 +148,23 @@ class TextItem: virtual public Item
     void update(I18n::String &&text) { text_ = std::move(text); }
 };
 
+class ListViewportBase
+{
+  protected:
+    ID::List referenced_list_id_;
+
+    explicit ListViewportBase() = default;
+
+  public:
+    ListViewportBase(const ListViewportBase &) = delete;
+    ListViewportBase(ListViewportBase &&) = default;
+    ListViewportBase &operator=(const ListViewportBase &) = delete;
+    ListViewportBase &operator=(ListViewportBase &&) = default;
+    virtual ~ListViewportBase() = default;
+
+    virtual unsigned int get_default_view_size() const = 0;
+};
+
 /*!
  * Generic interface to lists of #List::Item elements.
  *
@@ -160,6 +177,7 @@ class ListIface
 
   public:
     ListIface(const ListIface &) = delete;
+    ListIface(ListIface &&) = default;
     ListIface &operator=(const ListIface &) = delete;
 
     virtual ~ListIface() {}
@@ -168,9 +186,10 @@ class ListIface
 
     virtual unsigned int get_number_of_items() const = 0;
     virtual bool empty() const = 0;
-    virtual void enter_list(ID::List list_id, unsigned int line) = 0;
+    virtual void enter_list(ID::List list_id) = 0;
 
-    virtual const Item *get_item(unsigned int line) const = 0;
+    virtual const Item *get_item(std::shared_ptr<ListViewportBase> vp,
+                                 unsigned int line) = 0;
     virtual ID::List get_list_id() const = 0;
 };
 
@@ -187,14 +206,10 @@ class AsyncListIface
     enum class OpResult
     {
         STARTED,
+        BUSY,
         SUCCEEDED,
         FAILED,
         CANCELED,
-    };
-
-    enum class OpEvent
-    {
-        ENTER_LIST,
     };
 
   protected:
@@ -218,6 +233,23 @@ class AsyncListIface
      * implements this interface updates itself using the retrieved result. A
      * registered watcher is notified about the change, or failure of change.
      *
+     * \param associated_viewport
+     *     Which viewport is associated with this enter-list action, if any.
+     *     Passing a viewport avoids losing line information for that viewport
+     *     while all other viewports tied to the list are going to be cleared
+     *     and reset to line 0.
+     *
+     * \param list_id, line
+     *     Which list to enter and where to load the first fragment from.
+     *
+     * \param caller_id
+     *     ID of the caller of this function, providing additional context for
+     *     the function and follow-up functions so that they can do the right
+     *     thing.
+     *
+     * \param dynamic_title
+     *     Pre-determined title of the entered list.
+     *
      * \retval #List::AsyncListIface::OpResult::STARTED
      *     The result is not available and an asynchronous operation has been
      *     started to retrieve the result. The registered watcher, if any, is
@@ -227,7 +259,8 @@ class AsyncListIface
      * \retval #List::AsyncListIface::OpResult::FAILED
      *     The function failed before starting the asynchronous call.
      */
-    virtual OpResult enter_list_async(ID::List list_id, unsigned int line,
+    virtual OpResult enter_list_async(const ListViewportBase *associated_viewport,
+                                      ID::List list_id, unsigned int line,
                                       unsigned short caller_id,
                                       I18n::String &&dynamic_title) = 0;
 
@@ -242,9 +275,11 @@ class AsyncListIface
      * As soon as the result is available (successful or not), a registered
      * watcher is notified about the change, or failure of change.
      */
-    virtual OpResult get_item_async_set_hint(unsigned int line, unsigned int count,
-                                             DBusRNF::StatusWatcher &&status_watcher,
-                                             HintItemDoneNotification &&hinted_fn) = 0;
+    virtual OpResult
+    get_item_async_set_hint(std::shared_ptr<ListViewportBase> vp,
+                            unsigned int line, unsigned int count,
+                            DBusRNF::StatusWatcher &&status_watcher,
+                            HintItemDoneNotification &&hinted_fn) = 0;
 
     /*!
      * Get list item asynchronously.
@@ -261,7 +296,8 @@ class AsyncListIface
      * \retval #List::AsyncListIface::OpResult::FAILED
      *     The function failed before starting the asynchronous call.
      */
-    virtual OpResult get_item_async(unsigned int line, const Item *&item) = 0;
+    virtual OpResult get_item_async(std::shared_ptr<ListViewportBase> vp,
+                                    unsigned int line, const Item *&item) = 0;
 
     /*!
      * Cancel all asynchronous operations, if any.

@@ -57,15 +57,16 @@ test('List Navigation',
     depends: listnav_tests
 )
 
-cache_segment_tests = shared_module('test_cache_segment',
-    'test_cache_segment.cc',
+contextmap_tests = shared_module('test_contextmap',
+    ['test_contextmap.cc', 'mock_backtrace.cc', 'mock_messages.cc', 'mock_os.cc'],
     cpp_args: '-Wno-pedantic',
     include_directories: dbus_iface_defs_includes,
-    dependencies: [cutter_dep, config_h, glib_deps],
+    dependencies: [cutter_dep, config_h],
+    link_with: [contextmap_lib]
 )
-test('Cache Segment',
-    cutter_wrap, args: [cutter_wrap_args, cache_segment_tests.full_path()],
-    depends: cache_segment_tests
+test('Context Map',
+    cutter_wrap, args: [cutter_wrap_args, contextmap_tests.full_path()],
+    depends: contextmap_tests
 )
 
 dbus_handlers_tests = shared_module('test_dbus_handlers',
@@ -84,7 +85,7 @@ test('D-Bus Handlers',
 
 view_manager_tests = shared_module('test_view_manager',
     ['test_view_manager.cc', 'dbus_dummies.cc',
-     'view_mock.cc', 'mock_backtrace.cc', 'mock_messages.cc'],
+     'view_mock.cc', 'mock_backtrace.cc', 'mock_messages.cc', 'mock_os.cc'],
     cpp_args: '-Wno-pedantic',
     include_directories: dbus_iface_defs_includes,
     dependencies: [cutter_dep, config_h, glib_deps],
