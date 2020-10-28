@@ -84,6 +84,9 @@ static gpointer process_dbus(gpointer user_data)
 
     log_assert(data.loop != nullptr);
 
+    while(!g_main_context_acquire(data.ctx))
+        ;
+
     g_main_context_push_thread_default(data.ctx);
     g_main_loop_run(data.loop);
 
