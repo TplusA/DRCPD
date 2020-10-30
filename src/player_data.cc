@@ -41,6 +41,15 @@ namespace std
             return std::hash<uint32_t>{}(id.get().get_raw_id());
         }
     };
+
+    template <>
+    struct hash<ID::Stream>
+    {
+        std::size_t operator()(ID::Stream const &id) const noexcept
+        {
+            return std::hash<uint32_t>{}(id.get_raw_id());
+        }
+    };
 }
 
 static std::shared_ptr<Player::AsyncResolveRedirect>
@@ -692,17 +701,25 @@ bool Player::Data::player_dropped_from_queue(const std::vector<ID::Stream> &drop
 
     queued_streams_.log("Before drop");
 
-    std::unordered_set<ID::OurStream> drop_set;
-    for(const auto &dropped_id : dropped)
-        drop_set.insert(ID::OurStream::make_from_generic_id(dropped_id));
+    std::unordered_set<ID::OurStream> drop_set_ours;
+    std::unordered_set<ID::Stream> drop_set_other;
 
-    while(!drop_set.empty())
+    for(const auto &dropped_id : dropped)
+    {
+        const auto id(ID::OurStream::make_from_generic_id(dropped_id));
+        if(id.get().is_valid())
+            drop_set_ours.insert(id);
+        else
+            drop_set_other.insert(dropped_id);
+    }
+
+    while(!drop_set_ours.empty())
     {
         std::unique_ptr<Player::QueuedStream> qs;
 
         try
         {
-            qs = queued_streams_.remove_front(drop_set);
+            qs = queued_streams_.remove_front(drop_set_ours);
         }
         catch(const QueueError &e)
         {
@@ -714,10 +731,14 @@ bool Player::Data::player_dropped_from_queue(const std::vector<ID::Stream> &drop
         if(qs != nullptr)
             remove_data_for_stream(*qs, meta_data_db_, referenced_lists_);
         else
-            meta_data_db_.forget_stream(qs->stream_id_.get());
+            BUG("Player dropped our stream %u which we don't know about",
+                qs->stream_id_.get().get_raw_id());
     }
 
     queued_streams_.log("After drop");
+
+    for(const auto &id : drop_set_other)
+        meta_data_db_.forget_stream(id);
 
     return true;
 }
