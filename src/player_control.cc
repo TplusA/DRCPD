@@ -257,7 +257,7 @@ void Player::Control::unplug(bool is_complete_unplug)
     {
         permissions_ = nullptr;
         crawler_handle_ = nullptr;
-        skip_requests_.get_item_filter().untie();
+        skip_requests_.get_item_filter(false).untie();
     }
 }
 

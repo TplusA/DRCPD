@@ -146,9 +146,10 @@ class Skipper
         skip_item_filter_.tie(std::move(skipper_viewport), list);
     }
 
-    List::NavItemFilterIface &get_item_filter()
+    List::NavItemFilterIface &get_item_filter(bool expecting_tied = true)
     {
-        log_assert(skip_item_filter_.is_tied());
+        const auto is_tied = skip_item_filter_.is_tied();
+        BUG_IF(expecting_tied && !is_tied, "Returning untied item filter");
         return skip_item_filter_;
     }
 
