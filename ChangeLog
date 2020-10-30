@@ -1,3 +1,11 @@
+2020-10-30  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 5.5 released.
+
+	* Stability: Fix two crashes related to playing from the app.
+
+	* Stability: Fix another (very rare) crash happening at startup.
+
 2020-10-28  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 5.4 released.
