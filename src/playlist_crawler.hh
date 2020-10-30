@@ -53,7 +53,7 @@ class DefaultSettingsBase
 enum class Bookmark
 {
     PINNED,             // usually the reference point
-    ABOUT_TO_PLAY,      // whet the player is about to play next
+    ABOUT_TO_PLAY,      // what the player is about to play next
     CURRENTLY_PLAYING,  // what the player is currently playing
     PREFETCH_CURSOR,    // what the lookahead code is looking at
     SKIP_CURSOR,        // what the skipping code is looking at
