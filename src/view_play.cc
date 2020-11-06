@@ -357,7 +357,8 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
                 view_manager_->update_view_if_active(this, DCP::Queue::Mode::FORCE_ASYNC);
             }
 
-            if(!queue_is_full && switched_stream)
+            if(player_control_.is_active_controller() &&
+               !queue_is_full && switched_stream)
             {
                 msg_info("Trigger prefetching next item because queue isn't full");
                 player_control_.start_prefetch_next_item(
@@ -436,6 +437,23 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
 
             msg_info("Play view: stream paused, %s",
                      is_visible_ ? "send screen update" : "but view is invisible");
+
+            add_update_flags(UPDATE_FLAGS_PLAYBACK_STATE);
+            view_manager_->update_view_if_active(this, DCP::Queue::Mode::FORCE_ASYNC);
+        }
+
+        break;
+
+      case UI::ViewEventID::NOTIFY_STREAM_UNPAUSED:
+        {
+            const auto stream_id =
+                UI::Events::downcast<UI::ViewEventID::NOTIFY_STREAM_UNPAUSED>(parameters);
+
+            if(stream_id == nullptr)
+                break;
+
+            player_data_.player_now_playing_stream(stream_id->get_specific(), false);
+            player_control_.play_notification(stream_id->get_specific(), false);
 
             add_update_flags(UPDATE_FLAGS_PLAYBACK_STATE);
             view_manager_->update_view_if_active(this, DCP::Queue::Mode::FORCE_ASYNC);

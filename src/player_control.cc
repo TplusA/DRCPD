@@ -1105,7 +1105,7 @@ bool Player::Control::skip_request_prepare(
             skip_requests_.reset(
                 [this] () -> std::shared_ptr<Playlist::Crawler::FindNextOpBase>
                 {
-                    const auto *playing =
+                    const auto *const playing =
                         static_cast<const DirCursor *>(crawler_handle_->get_bookmark(
                             Playlist::Crawler::Bookmark::CURRENTLY_PLAYING));
 
@@ -1866,13 +1866,24 @@ void Player::Control::start_prefetch_next_item(
     if(player_data_->queued_streams_get().is_full(permissions_->maximum_number_of_prefetched_streams()))
         return;
 
-    const auto *from_pos = crawler_handle_->get_bookmark(from_where);
+    const Playlist::Crawler::CursorBase *from_pos = nullptr;
 
-    if(from_where == Playlist::Crawler::Bookmark::PREFETCH_CURSOR &&
-       from_pos == nullptr)
+    if(from_where == Playlist::Crawler::Bookmark::PREFETCH_CURSOR)
     {
-        from_where = Playlist::Crawler::Bookmark::CURRENTLY_PLAYING;
-        from_pos = crawler_handle_->get_bookmark(from_where);
+        static constexpr const std::array<Playlist::Crawler::Bookmark, 3> refs
+        {
+            Playlist::Crawler::Bookmark::PREFETCH_CURSOR,
+            Playlist::Crawler::Bookmark::CURRENTLY_PLAYING,
+            Playlist::Crawler::Bookmark::ABOUT_TO_PLAY,
+        };
+
+        for(const auto &bm : refs)
+        {
+            from_where = bm;
+            from_pos = crawler_handle_->get_bookmark(from_where);
+            if(from_pos != nullptr)
+                break;
+        }
     }
 
     if(from_where != Playlist::Crawler::Bookmark::PREFETCH_CURSOR)

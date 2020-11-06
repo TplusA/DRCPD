@@ -292,7 +292,7 @@ static void check_ui_parameters_equality(std::unique_ptr<const UI::Parameters> e
     using Checker = std::function<bool(const std::unique_ptr<const UI::Parameters> &,
                                        const std::unique_ptr<const UI::Parameters> &)>;
 
-    static const std::array<const Checker, 15> checkers
+    static const std::array<const Checker, 16> checkers
     {
         check_equality<UI::EventID::PLAYBACK_FAST_WIND_SET_SPEED>,
         check_equality<UI::EventID::PLAYBACK_SEEK_STREAM_POS>,
@@ -306,6 +306,7 @@ static void check_ui_parameters_equality(std::unique_ptr<const UI::Parameters> e
         check_equality<UI::EventID::VIEW_PLAYER_STORE_STREAM_META_DATA>,
         check_equality<UI::EventID::VIEW_PLAYER_STREAM_STOPPED>,
         check_equality<UI::EventID::VIEW_PLAYER_STREAM_PAUSED>,
+        check_equality<UI::EventID::VIEW_PLAYER_STREAM_UNPAUSED>,
         check_equality<UI::EventID::VIEW_PLAYER_STREAM_POSITION>,
         check_equality<UI::EventID::VIEW_SEARCH_STORE_PARAMETERS>,
         check_equality<UI::EventID::VIEW_AIRABLE_SERVICE_LOGIN_STATUS_UPDATE>,

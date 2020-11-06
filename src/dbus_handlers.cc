@@ -527,18 +527,30 @@ void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
         data->event_sink_.store_event(UI::EventID::VIEW_PLAYER_STREAM_STOPPED,
                                       std::move(params));
     }
-    else if(strcmp(signal_name, "Paused") == 0)
+    else if(strcmp(signal_name, "PauseState") == 0)
     {
-        check_parameter_assertions(parameters, 1);
+        check_parameter_assertions(parameters, 2);
 
         guint16 raw_stream_id;
-        g_variant_get(parameters, "(q)", &raw_stream_id);
+        gboolean raw_is_paused;
+        g_variant_get(parameters, "(qb)", &raw_stream_id, &raw_is_paused);
 
-        auto params =
-            UI::Events::mk_params<UI::EventID::VIEW_PLAYER_STREAM_PAUSED>(
-                ID::Stream::make_from_raw_id(raw_stream_id));
-        data->event_sink_.store_event(UI::EventID::VIEW_PLAYER_STREAM_PAUSED,
-                                      std::move(params));
+        if(raw_is_paused)
+        {
+            auto params =
+                UI::Events::mk_params<UI::EventID::VIEW_PLAYER_STREAM_PAUSED>(
+                    ID::Stream::make_from_raw_id(raw_stream_id));
+            data->event_sink_.store_event(UI::EventID::VIEW_PLAYER_STREAM_PAUSED,
+                                          std::move(params));
+        }
+        else
+        {
+            auto params =
+                UI::Events::mk_params<UI::EventID::VIEW_PLAYER_STREAM_UNPAUSED>(
+                    ID::Stream::make_from_raw_id(raw_stream_id));
+            data->event_sink_.store_event(UI::EventID::VIEW_PLAYER_STREAM_UNPAUSED,
+                                          std::move(params));
+        }
     }
     else if(strcmp(signal_name, "PositionChanged") == 0)
     {

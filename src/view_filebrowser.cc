@@ -1307,6 +1307,7 @@ ViewFileBrowser::View::process_event(UI::ViewEventID event_id,
       case UI::ViewEventID::NOTIFY_NOW_PLAYING:
       case UI::ViewEventID::NOTIFY_STREAM_STOPPED:
       case UI::ViewEventID::NOTIFY_STREAM_PAUSED:
+      case UI::ViewEventID::NOTIFY_STREAM_UNPAUSED:
       case UI::ViewEventID::NOTIFY_STREAM_POSITION:
       case UI::ViewEventID::NOTIFY_SPEED_CHANGED:
       case UI::ViewEventID::NOTIFY_PLAYBACK_MODE_CHANGED:
