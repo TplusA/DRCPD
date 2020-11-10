@@ -1,3 +1,22 @@
+2020-11-23  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 5.6 released.
+
+	* Playback: Fix handling of pause/play state.
+
+	* Playback: Selected track via app is actually played, not the next or
+	  the one following the next.
+
+	* Playback: Fix a bug while skipping back and forth which caused the
+	  skipping mechanism to stop working.
+
+	* Stability: Hitting the blue search button while a list operation was
+	  active caused the system to enter an infinite loop, flooding the log
+	  and leaving the UI unresponsive. This has been fixed.
+
+	* Stability: Fix several crashes while playing and skipping through a
+	  list.
+
 2020-10-30  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 5.5 released.
