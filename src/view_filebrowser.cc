@@ -238,8 +238,8 @@ void ViewFileBrowser::View::handle_enter_list_event_update_after_finish(
         }
     }
 
-    if((result == List::AsyncListIface::OpResult::SUCCEEDED ||
-        result == List::AsyncListIface::OpResult::FAILED))
+    if(result == List::AsyncListIface::OpResult::SUCCEEDED ||
+       result == List::AsyncListIface::OpResult::FAILED)
     {
         view_manager_->serialize_view_if_active(this, DCP::Queue::Mode::FORCE_ASYNC);
     }
@@ -1065,8 +1065,8 @@ ViewFileBrowser::View::process_event(UI::ViewEventID event_id,
         break;
 
       case UI::ViewEventID::SEARCH_COMMENCE:
-        if((!wait_helper.was_waiting() ||
-            !have_search_parameters(search_parameters_view_)))
+        if(!wait_helper.was_waiting() ||
+           !have_search_parameters(search_parameters_view_))
         {
             ViewIface::InputResult result;
 
