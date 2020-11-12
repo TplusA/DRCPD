@@ -597,8 +597,6 @@ bool Player::Control::found_item_uris_for_playing(
 
     if(&op == prefetch_uris_op_.get())
         prefetch_uris_op_ = nullptr;
-    else
-        log_assert(op.is_op_canceled());
 
     if(player_data_ == nullptr)
     {
