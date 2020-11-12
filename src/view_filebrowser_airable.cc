@@ -489,66 +489,205 @@ bool ViewFileBrowser::AirableView::point_to_child_directory(const SearchParamete
     return false;
 }
 
+/*!
+ * Chained from #ViewFileBrowser::AirableView::point_to_search_form().
+ *
+ * Called when the ID of the root list has been determined.
+ */
+void ViewFileBrowser::AirableView::point_to_search_form__got_root_list_id(
+        DBusRNF::GetListIDCall &call, List::context_id_t ctx_id)
+{
+    auto lock(lock_async_calls());
+
+    if(&call != async_calls_.get_get_list_id().get())
+        return;
+
+    async_calls_.delete_get_list_id();
+
+    ID::List root_id;
+
+    try
+    {
+        auto result(call.get_result_unlocked());
+
+        if(result.error_ != ListError::Code::OK)
+            msg_error(0, LOG_NOTICE,
+                      "Got error for root list ID, error code %s",
+                      result.error_.to_string());
+        else if(!result.list_id_.is_valid())
+            BUG("Got invalid list ID for root list, but no error code");
+        else
+            root_id = result.list_id_;
+    }
+    catch(const List::DBusListException &e)
+    {
+        msg_error(0, LOG_ERR,
+                  "Failed obtaining ID for root list for search: %s error: %s",
+                  e.get_internal_detail_string_or_fallback("async call"),
+                  e.what());
+    }
+    catch(const std::exception &e)
+    {
+        msg_error(0, LOG_ERR,
+                  "Failed obtaining ID for root list for search: %s", e.what());
+    }
+    catch(...)
+    {
+        msg_error(0, LOG_ERR, "Failed obtaining ID for root list for search");
+    }
+
+    if(!root_id.is_valid())
+    {
+        point_to_root_directory();
+        return;
+    }
+
+    auto chain_call =
+        std::make_unique<DBusRNF::Chain<DBusRNF::GetListIDCall>>(
+            [this, ctx_id, root_id] (auto &c, DBusRNF::CallState)
+            {
+                this->point_to_search_form__got_service_list_id(c, ctx_id,
+                                                                root_id);
+            });
+
+    auto next_call(async_calls_.set_call(std::make_shared<DBusRNF::GetListIDCall>(
+        file_list_.get_cookie_manager(), file_list_.get_dbus_proxy(),
+        root_id, search_forms_[ctx_id].first, std::move(chain_call), nullptr)));
+
+    if(next_call == nullptr)
+    {
+        msg_out_of_memory("async go to service for search");
+        point_to_root_directory();
+        return;
+    }
+
+    switch(next_call->request())
+    {
+      case DBusRNF::CallState::WAIT_FOR_NOTIFICATION:
+      case DBusRNF::CallState::RESULT_FETCHED:
+        return;
+
+      case DBusRNF::CallState::ABORTING:
+        break;
+
+      case DBusRNF::CallState::INITIALIZED:
+      case DBusRNF::CallState::READY_TO_FETCH:
+      case DBusRNF::CallState::ABOUT_TO_DESTROY:
+        BUG("GetListIDCall for service list for search ended up in unexpected state");
+        async_calls_.delete_get_list_id();
+        break;
+
+      case DBusRNF::CallState::ABORTED_BY_LIST_BROKER:
+      case DBusRNF::CallState::FAILED:
+        async_calls_.delete_get_list_id();
+        break;
+    }
+
+    point_to_root_directory();
+}
+
+/*!
+ * Chained from #ViewFileBrowser::AirableView::point_to_search_form__got_root_list_id().
+ *
+ * Called when the ID of the service's list has been determined.
+ */
+void ViewFileBrowser::AirableView::point_to_search_form__got_service_list_id(
+        DBusRNF::GetListIDCall &call, List::context_id_t ctx_id,
+        ID::List context_root)
+{
+    auto lock(lock_async_calls());
+
+    if(&call != async_calls_.get_get_list_id().get())
+        return;
+
+    async_calls_.delete_get_list_id();
+
+    try
+    {
+        auto result(call.get_result_unlocked());
+
+        if(result.error_ != ListError::Code::OK)
+            msg_error(0, LOG_NOTICE,
+                      "Got error for root list ID, error code %s",
+                      result.error_.to_string());
+        else if(!result.list_id_.is_valid())
+            BUG("Got invalid list ID for root list, but no error code");
+        else if(point_to_any_location(get_viewport().get(), result.list_id_,
+                                      search_forms_[ctx_id].second,
+                                      result.list_id_))
+            return;
+    }
+    catch(const List::DBusListException &e)
+    {
+        msg_error(0, LOG_ERR,
+                  "Failed obtaining ID for root list for search: %s error: %s",
+                  e.get_internal_detail_string_or_fallback("async call"),
+                  e.what());
+    }
+    catch(const std::exception &e)
+    {
+        msg_error(0, LOG_ERR,
+                  "Failed obtaining ID for root list for search: %s", e.what());
+    }
+    catch(...)
+    {
+        msg_error(0, LOG_ERR, "Failed obtaining ID for root list for search");
+    }
+
+    point_to_root_directory();
+}
+
 ViewFileBrowser::View::GoToSearchForm
 ViewFileBrowser::AirableView::point_to_search_form(List::context_id_t ctx_id)
 {
-    const auto &ctx(list_contexts_[ctx_id]);
+    auto lock(lock_async_calls());
+    cancel_and_delete_all_async_calls();
 
+    const auto &ctx(list_contexts_[ctx_id]);
     if(!ctx.check_flags(List::ContextInfo::HAS_PROPER_SEARCH_FORM))
         return GoToSearchForm::NOT_SUPPORTED;
 
     const auto &form(search_forms_.find(ctx_id));
-
     if(form == search_forms_.end())
         return GoToSearchForm::NOT_AVAILABLE;
 
+    auto chain_call =
+        std::make_unique<DBusRNF::Chain<DBusRNF::GetListIDCall>>(
+            [this, ctx_id] (auto &call, DBusRNF::CallState)
+            {
+                this->point_to_search_form__got_root_list_id(call, ctx_id);
+            });
+
+    auto call(async_calls_.set_call(std::make_shared<DBusRNF::GetListIDCall>(
+        file_list_.get_cookie_manager(), file_list_.get_dbus_proxy(),
+        ID::List(), 0, std::move(chain_call), nullptr)));
+
+    if(call == nullptr)
     {
-        auto lock(lock_async_calls());
-        cancel_and_delete_all_async_calls();
+        msg_out_of_memory("async go to root for search");
+        return GoToSearchForm::NOT_AVAILABLE;
     }
 
-    const auto &path(form->second);
-
-    const ID::List revert_to_list_id = current_list_id_;
-    const unsigned int revert_to_cursor = browse_navigation_.get_cursor();
-
-    try
+    switch(call->request())
     {
-        Utils::enter_list_at(file_list_, browse_item_filter_, browse_navigation_,
-                             get_root_list_id(), path.first);
-        current_list_id_ = get_root_list_id();
+      case DBusRNF::CallState::WAIT_FOR_NOTIFICATION:
+      case DBusRNF::CallState::RESULT_FETCHED:
+        return GoToSearchForm::NAVIGATING;
 
-        std::string list_title;
-        const ID::List list_id =
-            Utils::get_child_item_id(file_list_, current_list_id_,
-                                     browse_navigation_, nullptr, nullptr,
-                                     list_title);
+      case DBusRNF::CallState::ABORTING:
+        break;
 
-        if(list_id.is_valid())
-        {
-            Utils::enter_list_at(file_list_, browse_item_filter_,
-                                 browse_navigation_, list_id, path.second);
-            current_list_id_ = list_id;
+      case DBusRNF::CallState::INITIALIZED:
+      case DBusRNF::CallState::READY_TO_FETCH:
+      case DBusRNF::CallState::ABOUT_TO_DESTROY:
+        BUG("GetListIDCall for root for search ended up in unexpected state");
+        async_calls_.delete_get_list_id();
+        break;
 
-            if(browse_navigation_.get_cursor() == path.second)
-                return GoToSearchForm::FOUND;
-        }
-    }
-    catch(const List::DBusListException &e)
-    {
-        /* handled below */
-    }
-
-    try
-    {
-        /* in case of any failure, try go back to old location */
-        Utils::enter_list_at(file_list_, browse_item_filter_, browse_navigation_,
-                             revert_to_list_id, revert_to_cursor);
-        current_list_id_ = revert_to_list_id;
-    }
-    catch(const List::DBusListException &e)
-    {
-        /* pity... */
+      case DBusRNF::CallState::ABORTED_BY_LIST_BROKER:
+      case DBusRNF::CallState::FAILED:
+        async_calls_.delete_get_list_id();
+        break;
     }
 
     return GoToSearchForm::NOT_AVAILABLE;

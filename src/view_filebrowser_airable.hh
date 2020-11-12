@@ -181,6 +181,12 @@ class AirableView: public View
   private:
     bool try_jump_to_stored_position(StoredPosition &pos);
 
+    void point_to_search_form__got_root_list_id(DBusRNF::GetListIDCall &call,
+                                                List::context_id_t ctx_id);
+    void point_to_search_form__got_service_list_id(DBusRNF::GetListIDCall &call,
+                                                   List::context_id_t ctx_id,
+                                                   ID::List context_root);
+
     void finish_async_point_to_child_directory();
 
     void audio_source_state_changed(const Player::AudioSource &audio_source,

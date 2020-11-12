@@ -814,7 +814,7 @@ bool ViewFileBrowser::View::point_to_search_form_and_wait(WaitForParametersHelpe
         result = InputResult::OK;
         return !waiting_for_search_parameters(wait_helper);
 
-      case GoToSearchForm::FOUND:
+      case GoToSearchForm::NAVIGATING:
         result = InputResult::UPDATE_NEEDED;
         return !waiting_for_search_parameters(wait_helper);
 

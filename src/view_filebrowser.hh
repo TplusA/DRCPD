@@ -560,6 +560,7 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
     ViewIface *search_parameters_view_;
     bool waiting_for_search_parameters_;
 
+  protected:
     AsyncCalls async_calls_;
 
   public:
@@ -804,7 +805,7 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
     {
         NOT_SUPPORTED, /*!< Search forms are not supported at all. */
         NOT_AVAILABLE, /*!< Search form should be there, but isn't (error). */
-        FOUND,         /*!< Search form found. */
+        NAVIGATING,    /*!< Search form available, moving there. */
     };
 
     virtual GoToSearchForm point_to_search_form(List::context_id_t ctx_id)
