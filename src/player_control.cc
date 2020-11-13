@@ -1992,14 +1992,8 @@ bool Player::Control::found_prefetched_item_uris(
     if(op.is_op_canceled())
         return false;
 
-    if(&op != prefetch_uris_op_.get())
-    {
-        log_assert(prefetch_uris_op_ != nullptr);
-        log_assert(op.is_op_failure());
-        return false;
-    }
-
-    prefetch_uris_op_ = nullptr;
+    if(&op == prefetch_uris_op_.get())
+        prefetch_uris_op_ = nullptr;
 
     if(player_data_ == nullptr)
     {
