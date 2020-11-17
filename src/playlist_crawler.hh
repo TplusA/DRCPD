@@ -505,6 +505,7 @@ class OperationBase: public std::enable_shared_from_this<OperationBase>
     bool is_op_successful() const { return state_ == State::DONE; }
     bool is_op_failure() const { return state_ == State::FAILED; }
 
+    bool is_op_canceling() const { return state_ == State::CANCELING; }
     bool is_op_canceled() const
     {
         return (state_ == State::CANCELING || state_ == State::CANCELED ||

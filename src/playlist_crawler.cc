@@ -305,15 +305,18 @@ std::string Playlist::Crawler::OperationBase::get_base_description(const char *c
         if(is_op_active())
             os << ", alive for "
                << std::chrono::duration_cast<std::chrono::microseconds>(
-                        std::chrono::steady_clock::now() - created_time_).count();
+                        std::chrono::steady_clock::now() - created_time_).count()
+               << " us";
+        else if(is_op_canceling())
+            os << ", canceling";
         else
             os << ", completed after "
                << std::chrono::duration_cast<std::chrono::microseconds>(
-                        completion_time_ - created_time_).count();
+                        completion_time_ - created_time_).count()
+               << " us";
     }
 
-    os << " us"
-       << prefix << "#started " << started_counter_
+    os << prefix << "#started " << started_counter_
        << ", #yielded " << yielded_counter_
        << ", " << completion_callback_filter_;
 
