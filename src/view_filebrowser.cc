@@ -1386,7 +1386,10 @@ bool ViewFileBrowser::View::write_xml(std::ostream &os, uint32_t bits,
                         static_cast<const DBusRNF::GetRangeCallBase &>(call),
                         state, false);
                 },
-                nullptr))
+                [] (List::AsyncListIface::OpResult result)
+                {
+                    msg_info("Hinted (write_xml()), result %d ignored", int(result));
+                }))
     {
       case List::AsyncListIface::OpResult::STARTED:
       case List::AsyncListIface::OpResult::SUCCEEDED:
@@ -1563,7 +1566,10 @@ void ViewFileBrowser::View::serialize(DCP::Queue &queue, DCP::Queue::Mode mode,
                         static_cast<const DBusRNF::GetRangeCallBase &>(call),
                         state, true);
                 },
-                nullptr))
+                [] (List::AsyncListIface::OpResult result)
+                {
+                    msg_info("Hinted (serialize()), result %d ignored", int(result));
+                }))
     {
       case List::AsyncListIface::OpResult::STARTED:
       case List::AsyncListIface::OpResult::SUCCEEDED:

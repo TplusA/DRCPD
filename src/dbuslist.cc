@@ -906,6 +906,7 @@ void List::DBusList::get_item_result_available_notification(
 
         if(vfpair->second.get() != &fetcher)
         {
+            log_assert(hinted_fn != nullptr);
             hinted_fn(OpResult::CANCELED);
             return;
         }
@@ -952,6 +953,7 @@ void List::DBusList::get_item_result_available_notification(
                   call->loading_segment_.line() + call->loading_segment_.size() - 1,
                   call->list_id_.get_raw_id(), list_iface_name_.c_str());
 
+    log_assert(hinted_fn != nullptr);
     hinted_fn(op_result);
 }
 
