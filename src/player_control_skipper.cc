@@ -72,6 +72,7 @@ Player::Skipper::forward_request(
         SkipperDoneCallback &&done)
 {
     log_assert(run_new_find_next_fn != nullptr);
+    log_assert(done != nullptr);
 
     if(pos == nullptr)
         return RequestResult::FAILED;
