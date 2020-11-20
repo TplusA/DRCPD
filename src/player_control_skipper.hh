@@ -70,7 +70,7 @@ class Skipper
   private:
     mutable LoggedLock::Mutex lock_;
 
-    static constexpr const signed char MAX_PENDING_SKIP_REQUESTS = 5;
+    static constexpr const signed char MAX_PENDING_SKIP_REQUESTS = 0;
 
     /*!
      * Item filter with viewport for skipping in lists.

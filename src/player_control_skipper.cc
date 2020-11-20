@@ -98,6 +98,7 @@ Player::Skipper::forward_request(
     if(find_next_op_ != nullptr)
     {
         /* user is starting to get nervous */
+        // cppcheck-suppress knownConditionTrueFalse
         if(MAX_PENDING_SKIP_REQUESTS > 0)
             ++pending_skip_requests_;
 
@@ -163,6 +164,7 @@ Player::Skipper::backward_request(
     if(find_next_op_ != nullptr)
     {
         /* user is starting to get nervous */
+        // cppcheck-suppress knownConditionTrueFalse
         if(MAX_PENDING_SKIP_REQUESTS > 0)
             --pending_skip_requests_;
 
