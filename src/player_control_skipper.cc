@@ -98,7 +98,9 @@ Player::Skipper::forward_request(
     if(find_next_op_ != nullptr)
     {
         /* user is starting to get nervous */
-        ++pending_skip_requests_;
+        if(MAX_PENDING_SKIP_REQUESTS > 0)
+            ++pending_skip_requests_;
+
         return RequestResult::SKIPPING;
     }
 
@@ -161,7 +163,9 @@ Player::Skipper::backward_request(
     if(find_next_op_ != nullptr)
     {
         /* user is starting to get nervous */
-        --pending_skip_requests_;
+        if(MAX_PENDING_SKIP_REQUESTS > 0)
+            --pending_skip_requests_;
+
         return RequestResult::SKIPPING;
     }
 
