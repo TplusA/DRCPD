@@ -351,6 +351,10 @@ using Handle = std::unique_ptr<Playlist::Crawler::Iface::Handle>;
  */
 class OperationBase: public std::enable_shared_from_this<OperationBase>
 {
+  public:
+    static constexpr const char *const EXECUTION_PREFIX = "CRAWLER-OP";
+    static constexpr MessageVerboseLevel EXECUTION_VERBOSITY = MESSAGE_LEVEL_TRACE;
+
   protected:
     /*!
      * Callback for client code (specialized by operations).
@@ -453,6 +457,8 @@ class OperationBase: public std::enable_shared_from_this<OperationBase>
 
     void cancel()
     {
+        msg_vinfo(EXECUTION_VERBOSITY, "%s %s [%p]: Cancel", EXECUTION_PREFIX,
+                  get_short_name().c_str(), static_cast<const void *>(this));
         LOGGED_LOCK_CONTEXT_HINT;
         std::lock_guard<LoggedLock::Mutex> lock(lock_);
 
@@ -483,6 +489,8 @@ class OperationBase: public std::enable_shared_from_this<OperationBase>
      */
     bool restart()
     {
+        msg_vinfo(EXECUTION_VERBOSITY, "%s %s [%p]: Restart", EXECUTION_PREFIX,
+                  get_short_name().c_str(), static_cast<const void *>(this));
         LOGGED_LOCK_CONTEXT_HINT;
         std::lock_guard<LoggedLock::Mutex> lock(lock_);
         return do_restart();
@@ -537,6 +545,8 @@ class OperationBase: public std::enable_shared_from_this<OperationBase>
     /* called by derived classes to temporarily suspend the operation */
     void operation_yield()
     {
+        msg_vinfo(EXECUTION_VERBOSITY, "%s %s [%p]: Yield", EXECUTION_PREFIX,
+                  get_short_name().c_str(), static_cast<const void *>(this));
         switch(state_)
         {
           case State::RUNNING:
@@ -558,6 +568,9 @@ class OperationBase: public std::enable_shared_from_this<OperationBase>
     /* called by derived classes when the operation has completed */
     void operation_finished(bool is_successful)
     {
+        msg_vinfo(EXECUTION_VERBOSITY, "%s %s [%p]: Finished %ssuccessfully",
+                  EXECUTION_PREFIX, get_short_name().c_str(),
+                  static_cast<const void *>(this), is_successful ? "" : "un");
         switch(state_)
         {
           case State::RUNNING:
@@ -600,6 +613,9 @@ class OperationBase: public std::enable_shared_from_this<OperationBase>
     bool notify_caller_template(LoggedLock::UniqueLock<LoggedLock::Mutex> &&lock,
                                 CompletionCallbackBase<OpType> &completion_callback)
     {
+        msg_vinfo(EXECUTION_VERBOSITY, "%s %s [%p]: Notify (2)",
+                  EXECUTION_PREFIX, get_short_name().c_str(),
+                  static_cast<const void *>(this));
         const auto fn(std::move(completion_callback));
         completion_callback = nullptr;
 
@@ -633,6 +649,8 @@ class OperationBase: public std::enable_shared_from_this<OperationBase>
   private:
     bool start(OperationDoneNotification &&op_done_callback)
     {
+        msg_vinfo(EXECUTION_VERBOSITY, "%s %s [%p]: Start", EXECUTION_PREFIX,
+                  get_short_name().c_str(), static_cast<const void *>(this));
         LOGGED_LOCK_CONTEXT_HINT;
         std::lock_guard<LoggedLock::Mutex> lock(lock_);
 
@@ -670,6 +688,8 @@ class OperationBase: public std::enable_shared_from_this<OperationBase>
 
     bool continue_running()
     {
+        msg_vinfo(EXECUTION_VERBOSITY, "%s %s [%p]: Continue", EXECUTION_PREFIX,
+                  get_short_name().c_str(), static_cast<const void *>(this));
         LOGGED_LOCK_CONTEXT_HINT;
         std::lock_guard<LoggedLock::Mutex> lock(lock_);
 
@@ -705,6 +725,9 @@ class OperationBase: public std::enable_shared_from_this<OperationBase>
      */
     bool notify_caller()
     {
+        msg_vinfo(EXECUTION_VERBOSITY, "%s %s [%p]: Notify (1)",
+                  EXECUTION_PREFIX, get_short_name().c_str(),
+                  static_cast<const void *>(this));
         LOGGED_LOCK_CONTEXT_HINT;
         LoggedLock::UniqueLock<LoggedLock::Mutex> lock(lock_);
 
