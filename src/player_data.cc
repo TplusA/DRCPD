@@ -690,7 +690,7 @@ bool Player::Data::player_dropped_from_queue(const std::vector<ID::Stream> &drop
 
     if(dropped.empty())
         return true;
-    else
+    else if(msg_is_verbose(MESSAGE_LEVEL_DIAG))
     {
         std::ostringstream os;
         os << "Dropping " << dropped.size() << " streams:";
@@ -724,6 +724,7 @@ bool Player::Data::player_dropped_from_queue(const std::vector<ID::Stream> &drop
         catch(const QueueError &e)
         {
             msg_error(0, LOG_ERR, "Failed dropping streams: %s", e.what());
+            queued_streams_.log("After drop and failure");
             player_failed();
             return false;
         }

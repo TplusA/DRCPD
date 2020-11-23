@@ -551,7 +551,7 @@ class QueuedStreams
     bool is_player_queue_filled() const { return !queue_.empty(); }
 
     void log(const char *prefix = nullptr,
-             MessageVerboseLevel level = MESSAGE_LEVEL_NORMAL) const;
+             MessageVerboseLevel level = MESSAGE_LEVEL_DIAG) const;
 
   private:
     QueuedStream *get_stream_by_id(ID::OurStream stream_id)
