@@ -621,9 +621,18 @@ List::DBusList::get_item(std::shared_ptr<DBusListViewport> vp, unsigned int line
     return vp->item_at(line).first;
 }
 
-static bool announce_viewport(List::DBusList::ViewportsAndFetchersMap &vfm,
-                              std::shared_ptr<List::DBusListViewport> viewport,
-                              unsigned int line)
+enum class AnnounceResult
+{
+    REGISTERED_AND_CLEARED_VIEWPORT,
+    NO_ACTIVE_FILLER,
+    FILLER_UP_TO_DATE,
+    CANCELED_OLD_FILLER,
+};
+
+static AnnounceResult
+announce_viewport(List::DBusList::ViewportsAndFetchersMap &vfm,
+                  std::shared_ptr<List::DBusListViewport> viewport,
+                  unsigned int line)
 {
     auto vf(vfm.find(viewport));
 
@@ -632,25 +641,25 @@ static bool announce_viewport(List::DBusList::ViewportsAndFetchersMap &vfm,
         /* viewport is yet unknown, so clear it and add it to our map */
         viewport->clear_for_line(line);
         vfm[viewport] = nullptr;
-        return true;
+        return AnnounceResult::REGISTERED_AND_CLEARED_VIEWPORT;
     }
 
     if(vf->second == nullptr)
     {
         /* viewport is known, but there is no active filler */
-        return true;
+        return AnnounceResult::NO_ACTIVE_FILLER;
     }
 
     if(vf->second->is_filling_viewport(*viewport))
     {
         /* we are currently filling in the range we want */
-        return false;
+        return AnnounceResult::FILLER_UP_TO_DATE;
     }
 
     /* viewport is known, filler is out of date */
     vf->second->cancel_op();
     vf->second = nullptr;
-    return true;
+    return AnnounceResult::CANCELED_OLD_FILLER;
 }
 
 void List::DBusList::detach_viewport(std::shared_ptr<DBusListViewport> vp)
@@ -719,27 +728,52 @@ List::DBusList::get_item_async_set_hint(std::shared_ptr<DBusListViewport> vp,
         return OpResult::FAILED;
     }
 
-    if(!announce_viewport(viewports_and_fetchers_, vp, line))
+    switch(announce_viewport(viewports_and_fetchers_, vp, line))
     {
-        const auto &fetcher = viewports_and_fetchers_[vp];
-        const auto is_loading_result(fetcher->is_line_loading(line));
-        const auto &loading_state(is_loading_result.first);
-
-        switch(loading_state)
+      case AnnounceResult::FILLER_UP_TO_DATE:
         {
-          case DBusRNF::GetRangeCallBase::LoadingState::INACTIVE:
-          case DBusRNF::GetRangeCallBase::LoadingState::OUT_OF_RANGE:
-            break;
+            const auto &fetcher = viewports_and_fetchers_[vp];
+            const auto is_loading_result(fetcher->is_line_loading(line));
+            const auto &loading_state(is_loading_result.first);
 
-          case DBusRNF::GetRangeCallBase::LoadingState::LOADING:
-            return OpResult::STARTED;
+            switch(loading_state)
+            {
+              case DBusRNF::GetRangeCallBase::LoadingState::INACTIVE:
+              case DBusRNF::GetRangeCallBase::LoadingState::OUT_OF_RANGE:
+                break;
 
-          case DBusRNF::GetRangeCallBase::LoadingState::DONE:
-            return OpResult::SUCCEEDED;
+              case DBusRNF::GetRangeCallBase::LoadingState::LOADING:
+                switch(is_loading_result.second)
+                {
+                  case DBusRNF::GetRangeCallBase::LoadingState::LOADING:
+                    return OpResult::STARTED;
 
-          case DBusRNF::GetRangeCallBase::LoadingState::FAILED_OR_ABORTED:
-            return OpResult::FAILED;
+                  case DBusRNF::GetRangeCallBase::LoadingState::INACTIVE:
+                  case DBusRNF::GetRangeCallBase::LoadingState::OUT_OF_RANGE:
+                  case DBusRNF::GetRangeCallBase::LoadingState::DONE:
+                  case DBusRNF::GetRangeCallBase::LoadingState::FAILED_OR_ABORTED:
+                    break;
+                }
+
+                viewports_and_fetchers_[vp]->cancel_op();
+                detach_viewport(vp);
+
+                break;
+
+              case DBusRNF::GetRangeCallBase::LoadingState::DONE:
+                return OpResult::SUCCEEDED;
+
+              case DBusRNF::GetRangeCallBase::LoadingState::FAILED_OR_ABORTED:
+                return OpResult::FAILED;
+            }
         }
+
+        break;
+
+      case AnnounceResult::REGISTERED_AND_CLEARED_VIEWPORT:
+      case AnnounceResult::NO_ACTIVE_FILLER:
+      case AnnounceResult::CANCELED_OLD_FILLER:
+        break;
     }
 
     unsigned int cached_lines_count;
@@ -834,24 +868,34 @@ List::DBusList::get_item_async(std::shared_ptr<DBusListViewport> vp,
     if(line >= number_of_items_)
         return OpResult::FAILED;
 
-    if(!announce_viewport(viewports_and_fetchers_, vp, line))
+    switch(announce_viewport(viewports_and_fetchers_, vp, line))
     {
-        auto &fetcher = viewports_and_fetchers_[vp];
-        const auto is_loading_result(fetcher->is_line_loading(line));
-        const auto &loading_state(is_loading_result.first);
-
-        switch(loading_state)
+      case AnnounceResult::FILLER_UP_TO_DATE:
         {
-          case DBusRNF::GetRangeCallBase::LoadingState::INACTIVE:
-          case DBusRNF::GetRangeCallBase::LoadingState::OUT_OF_RANGE:
-          case DBusRNF::GetRangeCallBase::LoadingState::DONE:
-          case DBusRNF::GetRangeCallBase::LoadingState::FAILED_OR_ABORTED:
-            break;
+            auto &fetcher = viewports_and_fetchers_[vp];
+            const auto is_loading_result(fetcher->is_line_loading(line));
+            const auto &loading_state(is_loading_result.first);
 
-          case DBusRNF::GetRangeCallBase::LoadingState::LOADING:
-            item = &ViewFileBrowser::FileItem::get_loading_placeholder();
-            return OpResult::STARTED;
+            switch(loading_state)
+            {
+              case DBusRNF::GetRangeCallBase::LoadingState::INACTIVE:
+              case DBusRNF::GetRangeCallBase::LoadingState::OUT_OF_RANGE:
+              case DBusRNF::GetRangeCallBase::LoadingState::DONE:
+              case DBusRNF::GetRangeCallBase::LoadingState::FAILED_OR_ABORTED:
+                break;
+
+              case DBusRNF::GetRangeCallBase::LoadingState::LOADING:
+                item = &ViewFileBrowser::FileItem::get_loading_placeholder();
+                return OpResult::STARTED;
+            }
         }
+
+        break;
+
+      case AnnounceResult::REGISTERED_AND_CLEARED_VIEWPORT:
+      case AnnounceResult::NO_ACTIVE_FILLER:
+      case AnnounceResult::CANCELED_OLD_FILLER:
+        break;
     }
 
     const auto it = vp->item_at(line);
@@ -947,11 +991,12 @@ void List::DBusList::get_item_result_available_notification(
 
     if(op_result != OpResult::SUCCEEDED)
         msg_error(0, LOG_NOTICE,
-                  "%s obtaining lines %u through %u of list %u [%s]",
+                  "%s obtaining lines %u through %u of list %u [%s], result %d",
                   op_result == OpResult::FAILED ? "Failed" : "Canceled",
                   call->loading_segment_.line(),
                   call->loading_segment_.line() + call->loading_segment_.size() - 1,
-                  call->list_id_.get_raw_id(), list_iface_name_.c_str());
+                  call->list_id_.get_raw_id(), list_iface_name_.c_str(),
+                  int(op_result));
 
     log_assert(hinted_fn != nullptr);
     hinted_fn(op_result);
