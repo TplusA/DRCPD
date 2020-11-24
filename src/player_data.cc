@@ -713,7 +713,7 @@ bool Player::Data::player_dropped_from_queue(const std::vector<ID::Stream> &drop
             drop_set_other.insert(dropped_id);
     }
 
-    while(!drop_set_ours.empty())
+    while(!drop_set_ours.empty() && !queued_streams_.empty())
     {
         std::unique_ptr<Player::QueuedStream> qs;
 
@@ -729,11 +729,25 @@ bool Player::Data::player_dropped_from_queue(const std::vector<ID::Stream> &drop
             return false;
         }
 
-        if(qs != nullptr)
-            remove_data_for_stream(*qs, meta_data_db_, referenced_lists_);
-        else
-            BUG("Player dropped our stream %u which we don't know about",
-                qs->stream_id_.get().get_raw_id());
+        if(qs == nullptr)
+        {
+            auto it = drop_set_ours.begin();
+
+            std::ostringstream os;
+            os << it->get();
+
+            for(++it; it != drop_set_ours.end(); ++it)
+                os << ", " << it->get();
+
+            BUG("Player dropped our streams [%s] which we don't know about",
+                os.str().c_str());
+
+            queued_streams_.log("After drop unknowns");
+            player_failed();
+            return false;
+        }
+
+        remove_data_for_stream(*qs, meta_data_db_, referenced_lists_);
     }
 
     queued_streams_.log("After drop");
