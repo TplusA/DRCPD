@@ -1886,7 +1886,6 @@ void Player::Control::start_prefetch_next_item(
 
     if(from_where != Playlist::Crawler::Bookmark::PREFETCH_CURSOR)
     {
-        BUG_IF(from_pos == nullptr, "Empty bookmark: %s", reason);
         if(from_pos != nullptr)
         {
             auto pos(from_pos->clone());
@@ -1894,6 +1893,11 @@ void Player::Control::start_prefetch_next_item(
             crawler_handle_->bookmark(Playlist::Crawler::Bookmark::PREFETCH_CURSOR, std::move(pos));
         }
     }
+
+    const auto *const pfc =
+        crawler_handle_->get_bookmark(Playlist::Crawler::Bookmark::PREFETCH_CURSOR);
+    if(pfc == nullptr)
+        return;
 
     /* we always prefetch the next item even for sources that do not support
      * gapless playback to mask possible network latencies caused by that
@@ -1906,8 +1910,7 @@ void Player::Control::start_prefetch_next_item(
             Playlist::Crawler::DirectoryCrawler::FindNextOp::Tag::PREFETCH,
             crawler_handle_->get_settings<Playlist::Crawler::DefaultSettings>().recursive_mode_,
             direction,
-            crawler_handle_->get_bookmark(Playlist::Crawler::Bookmark::PREFETCH_CURSOR)
-                ->clone_as<Playlist::Crawler::DirectoryCrawler::Cursor>(),
+            pfc->clone_as<Playlist::Crawler::DirectoryCrawler::Cursor>(),
             I18n::String(false),
             [this] (auto &op) { return found_prefetched_item(op); },
             Playlist::Crawler::OperationBase::CompletionCallbackFilter::SUPPRESS_CANCELED,
