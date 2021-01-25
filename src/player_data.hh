@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, 2017, 2019, 2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2017, 2019--2021  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
