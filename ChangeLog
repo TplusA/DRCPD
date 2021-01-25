@@ -1,3 +1,9 @@
+2021-01-25  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 5.9 released.
+
+	* Playback: Avoid crash on playback failure due to stream error.
+
 2020-12-14  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 5.8 released.
@@ -942,4 +948,4 @@
 	* First release for testing.
 
 
-Copyright 2015--2020 T+A elektroakustik GmbH & Co. KG
+Copyright 2015--2021 T+A elektroakustik GmbH & Co. KG
