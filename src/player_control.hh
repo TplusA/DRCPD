@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016--2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016--2021  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -35,14 +35,24 @@ class Control
   public:
     enum class StopReaction
     {
+        /*! Player data or crawler not attached to player control, ignore */
         NOT_ATTACHED,
+
+        /*! Unexpected stream, notification is to be ignored */
         STREAM_IGNORED,
+
+        /*! Streamplayer has stopped, and we should keep it this way */
         STOPPED,
+
+        /*! Streamplayer has stopped, its queue is empty, but more streams are
+         * currently being fetched by the crawler or have already been
+         * submitted to Streamplayer */
         QUEUED,
-        RETRIEVE_QUEUED,
-        NOP,
+
+        /*! Streamplayer failed, stream has been restarted */
         RETRY,
-        REPLAY_QUEUE,
+
+        /*! Told Streamplayer to play the next queue from its queue */
         TAKE_NEXT,
     };
 
