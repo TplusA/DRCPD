@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016--2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016--2021  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -969,7 +969,7 @@ is_stream_expected_playing(const Player::QueuedStreams &queued,
             break;
         }
 
-        if(!queued.empty())
+        if(queued.is_player_queue_filled())
         {
             if(result == StreamExpected::UNEXPECTEDLY_OURS)
                 BUG("Out of sync: %s our stream %u that we don't know about",

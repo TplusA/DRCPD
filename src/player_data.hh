@@ -447,8 +447,6 @@ class QueuedStreams
         return queue_.size() >= max_length;
     }
 
-    bool empty() const { return queue_.empty(); }
-
     ID::OurStream append(const GVariantWrapper &stream_key,
                          std::vector<std::string> &&uris,
                          Airable::SortedLinks &&airable_links, ID::List list_id,

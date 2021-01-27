@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, 2017, 2019, 2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2017, 2019--2021  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -666,7 +666,7 @@ bool Player::Data::stream_has_changed(ID::Stream next_stream_id)
 {
     queued_streams_.log("Before change notification");
 
-    log_assert(next_stream_id.is_valid() || queued_streams_.empty());
+    log_assert(next_stream_id.is_valid() || !queued_streams_.is_player_queue_filled());
 
     try
     {
@@ -713,7 +713,7 @@ bool Player::Data::player_dropped_from_queue(const std::vector<ID::Stream> &drop
             drop_set_other.insert(dropped_id);
     }
 
-    while(!drop_set_ours.empty() && !queued_streams_.empty())
+    while(!drop_set_ours.empty() && queued_streams_.is_player_queue_filled())
     {
         std::unique_ptr<Player::QueuedStream> qs;
 
