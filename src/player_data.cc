@@ -428,7 +428,7 @@ size_t Player::QueuedStreams::clear_if(const std::function<bool(const QueuedStre
     decltype(queue_) queue;
 
     std::copy_if(
-        queue_.begin(), queue_.end(), std::back_inserter(queue_),
+        queue_.begin(), queue_.end(), std::back_inserter(queue),
         [this] (const auto &stream_id)
         {
             return streams_.find(stream_id) != streams_.end();
