@@ -299,10 +299,7 @@ class QueuedStream
             break;
 
           case State::MAY_HAVE_DIRECT_URI:
-            log_assert(state_ == State::FLOATING ||
-                       state_ == State::RESOLVING_INDIRECT_URI ||
-                       state_ == State::MAY_HAVE_DIRECT_URI ||
-                       state_ == State::QUEUED);
+            log_assert(state_ != State::ABOUT_TO_DIE);
             break;
 
           case State::QUEUED:
