@@ -408,9 +408,14 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
                 break;
 
               case Player::Control::StopReaction::QUEUED:
-              case Player::Control::StopReaction::TAKE_NEXT:
                 msg_info("Play view: stream stopped%s, but player keeps going",
                          error_id.empty() ? "" : " with error");
+                break;
+
+              case Player::Control::StopReaction::TAKE_NEXT:
+                msg_info("Play view: stream stopped%s, player can go on",
+                         error_id.empty() ? "" : " with error");
+                player_data_.queued_stream_playing_next();
                 break;
 
               case Player::Control::StopReaction::RETRY:

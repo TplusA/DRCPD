@@ -1801,7 +1801,8 @@ Player::Control::stop_notification_with_error(ID::Stream stream_id,
         }
 
         /* nothing queued anywhere or gave up---maybe we can find some other
-         * stream to play below */
+         * stream to play */
+        return StopReaction::TAKE_NEXT;
     }
     else
     {

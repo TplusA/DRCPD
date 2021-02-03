@@ -450,11 +450,13 @@ class QueuedStreams
                          std::unique_ptr<Playlist::Crawler::CursorBase> originating_cursor);
 
     /*
-     * Remove next item from queue.
+     * Remove front item from queue if exists in a given set of IDs.
      *
      * \param ids
-     *     A set of stream IDs to be removed. The stream ID removed from the
-     *     queue is also removed from this set.
+     *     A set of stream IDs allowed/expected as front element of the queue.
+     *     If the ID of the queue front element is found in this set, then the
+     *     front element is removed from the queue and the ID is removed from
+     *     the \p ids set.
      *
      * \returns
      *     The removed stream, or \c nullptr if the queue is empty or if
@@ -486,7 +488,13 @@ class QueuedStreams
      * \throws
      *     #Player::QueueError Given stream ID invalid or not found.
      */
-    std::unique_ptr<QueuedStream> shift();
+    std::unique_ptr<QueuedStream> shift_if_not_flying(const ID::OurStream &id);
+
+    /*!
+     * Move stream from queue to currently playing slot if there is no
+     * currently playing entry.
+     */
+    bool shift_if_not_flying();
 
     std::vector<ID::OurStream> copy_all_stream_ids() const;
 
@@ -738,6 +746,8 @@ class Data
                                        std::unique_ptr<Playlist::Crawler::CursorBase> originating_cursor);
 
     void queued_stream_sent_to_player(ID::OurStream stream_id);
+
+    void queued_stream_playing_next();
 
     std::vector<ID::OurStream> copy_all_queued_streams_for_recovery();
 
