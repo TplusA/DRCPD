@@ -364,7 +364,7 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
                 player_control_.start_prefetch_next_item(
                         "triggered by play notification",
                         Playlist::Crawler::Bookmark::PREFETCH_CURSOR,
-                        Playlist::Crawler::Direction::FORWARD);
+                        Playlist::Crawler::Direction::FORWARD, false);
             }
 
             if(!switched_stream)
@@ -413,7 +413,7 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
                 break;
 
               case Player::Control::StopReaction::TAKE_NEXT:
-                msg_info("Play view: stream stopped%s, player can go on",
+                msg_info("Play view: stream stopped%s, need to find more items",
                          error_id.empty() ? "" : " with error");
                 player_data_.queued_stream_playing_next();
                 break;

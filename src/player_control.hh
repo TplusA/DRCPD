@@ -52,7 +52,8 @@ class Control
         /*! Streamplayer failed, stream has been restarted */
         RETRY,
 
-        /*! Told Streamplayer to play the next queue from its queue */
+        /*! Told Streamplayer to play the next queue from its queue, and we
+         * need to find the next entry in our list */
         TAKE_NEXT,
     };
 
@@ -274,7 +275,8 @@ class Control
     void pause_notification(ID::Stream stream_id);
     void start_prefetch_next_item(const char *const reason,
                                   Playlist::Crawler::Bookmark from_where,
-                                  Playlist::Crawler::Direction direction);
+                                  Playlist::Crawler::Direction direction,
+                                  bool force_play_uri_when_available);
 
   private:
     /* skip request handling */
@@ -288,9 +290,11 @@ class Control
                                      Playlist::Crawler::Direction from_direction);
 
     /* prefetch handling (play when possible) */
-    bool found_prefetched_item(Playlist::Crawler::FindNextOpBase &op);
+    bool found_prefetched_item(Playlist::Crawler::FindNextOpBase &op,
+                               bool force_play_uri_when_available);
     bool found_prefetched_item_uris(Playlist::Crawler::GetURIsOpBase &op,
-                                    Playlist::Crawler::Direction from_direction);
+                                    Playlist::Crawler::Direction from_direction,
+                                    bool force_play_uri_when_available);
 
     void async_redirect_resolved_for_playing(
             size_t idx, QueuedStream::ResolvedRedirectResult result,
