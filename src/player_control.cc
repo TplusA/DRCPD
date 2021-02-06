@@ -1430,8 +1430,11 @@ Player::Control::stop_notification_ok(ID::Stream stream_id)
 
     bool stop_regardless_of_intention = false;
 
-    switch(is_stream_expected_playing(player_data_->queued_streams_get(), stream_id,
-                                      ExpectedPlayingCheckMode::STOPPED))
+    const auto expected =
+        is_stream_expected_playing(player_data_->queued_streams_get(), stream_id,
+                                   ExpectedPlayingCheckMode::STOPPED);
+
+    switch(expected)
     {
       case StreamExpected::OURS_AS_EXPECTED:
         break;
@@ -1481,7 +1484,9 @@ Player::Control::stop_notification_ok(ID::Stream stream_id)
     player_data_->player_has_stopped();
     retry_data_.reset();
 
-    if(prefetch_next_item_op_ == nullptr && prefetch_uris_op_ == nullptr)
+    if(prefetch_next_item_op_ == nullptr && prefetch_uris_op_ == nullptr &&
+       (!player_data_->queued_streams_get().is_player_queue_filled() ||
+        expected != StreamExpected::OURS_WRONG_ID))
     {
         /* probably end of list */
         clear_resume_data(audio_source_);
