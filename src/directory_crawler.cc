@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016--2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016--2021  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -117,13 +117,13 @@ std::string Playlist::Crawler::DirectoryCrawler::Cursor::get_description(bool fu
 {
     std::ostringstream os;
 
-    os << "Position: [" << list_id_.get_raw_id()
-       << "/" << nav_.get_cursor_unchecked()
-       << "-" << directory_depth_ << "]";
+    os << "Position: [list " << list_id_.get_raw_id()
+       << " line " << nav_.get_cursor_unchecked()
+       << " depth " << directory_depth_ << "]";
 
     if(full)
-       os << "; Requested: [" << requested_list_id_.get_raw_id()
-          << "/" << requested_line_
+       os << "; Requested: [list " << requested_list_id_.get_raw_id()
+          << " line " << requested_line_
           << "]; " << nav_.get_total_number_of_visible_items()
           << " visible items";
 
