@@ -188,8 +188,6 @@ class QueuedStream
 
     /* for jumping back to this stream, for recovering the list crawler state,
      * for diagnostics */
-    const std::unique_ptr<Playlist::Crawler::CursorBase> originating_cursor_;
-
     enum class State
     {
         /*! This object has just been constructed, no actions going on */
@@ -240,6 +238,8 @@ class QueuedStream
 
     std::shared_ptr<AsyncResolveRedirect> async_resolve_redirect_call_;
 
+    const std::unique_ptr<Playlist::Crawler::CursorBase> originating_cursor_;
+
   public:
     QueuedStream(const QueuedStream &) = delete;
     QueuedStream(QueuedStream &&) = default;
@@ -253,12 +253,12 @@ class QueuedStream
                           std::unique_ptr<Playlist::Crawler::CursorBase> originating_cursor):
         stream_id_(stream_id),
         list_id_(list_id),
-        originating_cursor_(std::move(originating_cursor)),
         state_(State::FLOATING),
         stream_key_(stream_key),
         uris_(std::move(uris)),
         airable_links_(std::move(airable_links)),
-        next_uri_to_try_(0)
+        next_uri_to_try_(0),
+        originating_cursor_(std::move(originating_cursor))
     {}
 
     ~QueuedStream()

@@ -1385,9 +1385,9 @@ void Player::Control::play_notification(ID::Stream stream_id,
             if(is_new_stream)
             {
                 crawler_handle_->bookmark(Playlist::Crawler::Bookmark::CURRENTLY_PLAYING,
-                                          qs->originating_cursor_->clone());
+                                          qs->get_originating_cursor().clone());
                 crawler_handle_->bookmark(Playlist::Crawler::Bookmark::ABOUT_TO_PLAY,
-                                          qs->originating_cursor_->clone());
+                                          qs->get_originating_cursor().clone());
             }
 
             const auto *const ref_point =
