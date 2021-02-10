@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015--2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015--2021  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -124,7 +124,7 @@ class View: public ViewIface, public ViewSerializeBase
      */
     bool write_xml(std::ostream &os, uint32_t bits,
                    const DCP::Queue::Data &data) override;
-    void player_finished_playing();
+    void player_finished(Player::Control::FinishedWith what);
     void plug_audio_source(Player::AudioSource &audio_source,
                            bool with_enforced_intentions,
                            const std::string *external_player_id = nullptr);

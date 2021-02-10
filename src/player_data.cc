@@ -300,21 +300,48 @@ erase_stream_from_container(
 std::unique_ptr<Player::QueuedStream>
 Player::QueuedStreams::remove_front(std::unordered_set<ID::OurStream> &ids)
 {
-    if(queue_.empty())
+    if(queue_.empty() && !stream_in_flight_.get().is_valid())
         return nullptr;
 
-    const auto stream_id = queue_.front();
-    if(ids.find(stream_id) == ids.end())
-        ErrorThrower<QueueError>()
-            << "Cannot remove front: stream " << stream_id.get()
-            << " not in set";
+    auto stream_id(ID::OurStream::make_invalid());
+    bool is_in_queue = true;
+
+    if(!queue_.empty() && ids.find(queue_.front()) != ids.end())
+        stream_id = queue_.front();
+    else if(stream_in_flight_.get().is_valid() && ids.find(stream_in_flight_) != ids.end())
+    {
+        stream_id = stream_in_flight_;
+        is_in_queue = false;
+    }
+    else
+    {
+        if(!queue_.empty() && stream_in_flight_.get().is_valid())
+            ErrorThrower<QueueError>()
+                << "Cannot remove front: neither head " << queue_.front().get()
+                << " nor active item " << stream_in_flight_.get()
+                << " found in drop set";
+        else if(!queue_.empty())
+            ErrorThrower<QueueError>()
+                << "Cannot remove front: head " << queue_.front().get()
+                << " not found in drop set (and there is no active item)";
+        else if(stream_in_flight_.get().is_valid())
+            ErrorThrower<QueueError>()
+                << "Cannot remove front: active item " << queue_.front().get()
+                << " not found in drop set (and the queue is empty)";
+        else
+            ErrorThrower<QueueError>()
+                << "Cannot remove front: the queue is completely empty";
+    }
 
     ids.erase(stream_id);
 
     auto result(erase_stream_from_container(streams_, stream_id,
                                             "remove front element",
                                             on_remove_cb_));
-    queue_.pop_front();
+    if(is_in_queue)
+        queue_.pop_front();
+    else
+        stream_in_flight_ = ID::OurStream::make_invalid();
 
     return result;
 }
@@ -325,18 +352,21 @@ Player::QueuedStreams::shift(ID::OurStream expected_next_id)
     const ID::OurStream next_id(
         queue_.empty() ? ID::OurStream::make_invalid() : queue_.front());
 
-    if(next_id != expected_next_id)
+    if(next_id != expected_next_id && stream_in_flight_ != expected_next_id)
         ErrorThrower<QueueError>()
             << "Cannot shift queue: expected next "
             << expected_next_id.get() << ", have ["
             << stream_in_flight_.get() << ", " << next_id.get() << "]";
 
-    return shift();
+    return shift_if_not_flying(expected_next_id);
 }
 
 std::unique_ptr<Player::QueuedStream>
-Player::QueuedStreams::shift()
+Player::QueuedStreams::shift_if_not_flying(const ID::OurStream &id)
 {
+    if(id.get().is_valid() && id == stream_in_flight_)
+        return nullptr;
+
     auto result(stream_in_flight_.get().is_valid()
                 ? erase_stream_from_container(streams_, stream_in_flight_,
                                               "shift queue", on_remove_cb_)
@@ -351,6 +381,20 @@ Player::QueuedStreams::shift()
     }
 
     return result;
+}
+
+bool Player::QueuedStreams::shift_if_not_flying()
+{
+    if(stream_in_flight_.get().is_valid())
+        return false;
+
+    if(queue_.empty())
+        return false;
+
+    stream_in_flight_ = queue_.front();
+    queue_.pop_front();
+
+    return true;
 }
 
 std::vector<ID::OurStream> Player::QueuedStreams::copy_all_stream_ids() const
@@ -428,7 +472,7 @@ size_t Player::QueuedStreams::clear_if(const std::function<bool(const QueuedStre
     decltype(queue_) queue;
 
     std::copy_if(
-        queue_.begin(), queue_.end(), std::back_inserter(queue_),
+        queue_.begin(), queue_.end(), std::back_inserter(queue),
         [this] (const auto &stream_id)
         {
             return streams_.find(stream_id) != streams_.end();
@@ -620,6 +664,11 @@ void Player::Data::queued_stream_sent_to_player(ID::OurStream stream_id)
             stream_id,
             [] (auto &qs) { qs.set_state(QueuedStream::State::QUEUED, "sent to player"); });
     queued_streams_.log("After sending to player");
+}
+
+void Player::Data::queued_stream_playing_next()
+{
+    queued_streams_.shift_if_not_flying();
 }
 
 std::vector<ID::OurStream> Player::Data::copy_all_queued_streams_for_recovery()

@@ -188,8 +188,6 @@ class QueuedStream
 
     /* for jumping back to this stream, for recovering the list crawler state,
      * for diagnostics */
-    const std::unique_ptr<Playlist::Crawler::CursorBase> originating_cursor_;
-
     enum class State
     {
         /*! This object has just been constructed, no actions going on */
@@ -240,6 +238,8 @@ class QueuedStream
 
     std::shared_ptr<AsyncResolveRedirect> async_resolve_redirect_call_;
 
+    const std::unique_ptr<Playlist::Crawler::CursorBase> originating_cursor_;
+
   public:
     QueuedStream(const QueuedStream &) = delete;
     QueuedStream(QueuedStream &&) = default;
@@ -253,12 +253,12 @@ class QueuedStream
                           std::unique_ptr<Playlist::Crawler::CursorBase> originating_cursor):
         stream_id_(stream_id),
         list_id_(list_id),
-        originating_cursor_(std::move(originating_cursor)),
         state_(State::FLOATING),
         stream_key_(stream_key),
         uris_(std::move(uris)),
         airable_links_(std::move(airable_links)),
-        next_uri_to_try_(0)
+        next_uri_to_try_(0),
+        originating_cursor_(std::move(originating_cursor))
     {}
 
     ~QueuedStream()
@@ -299,10 +299,7 @@ class QueuedStream
             break;
 
           case State::MAY_HAVE_DIRECT_URI:
-            log_assert(state_ == State::FLOATING ||
-                       state_ == State::RESOLVING_INDIRECT_URI ||
-                       state_ == State::MAY_HAVE_DIRECT_URI ||
-                       state_ == State::QUEUED);
+            log_assert(state_ != State::ABOUT_TO_DIE);
             break;
 
           case State::QUEUED:
@@ -453,11 +450,13 @@ class QueuedStreams
                          std::unique_ptr<Playlist::Crawler::CursorBase> originating_cursor);
 
     /*
-     * Remove next item from queue.
+     * Remove front item from queue if exists in a given set of IDs.
      *
      * \param ids
-     *     A set of stream IDs to be removed. The stream ID removed from the
-     *     queue is also removed from this set.
+     *     A set of stream IDs allowed/expected as front element of the queue.
+     *     If the ID of the queue front element is found in this set, then the
+     *     front element is removed from the queue and the ID is removed from
+     *     the \p ids set.
      *
      * \returns
      *     The removed stream, or \c nullptr if the queue is empty or if
@@ -489,7 +488,13 @@ class QueuedStreams
      * \throws
      *     #Player::QueueError Given stream ID invalid or not found.
      */
-    std::unique_ptr<QueuedStream> shift();
+    std::unique_ptr<QueuedStream> shift_if_not_flying(const ID::OurStream &id);
+
+    /*!
+     * Move stream from queue to currently playing slot if there is no
+     * currently playing entry.
+     */
+    bool shift_if_not_flying();
 
     std::vector<ID::OurStream> copy_all_stream_ids() const;
 
@@ -741,6 +746,8 @@ class Data
                                        std::unique_ptr<Playlist::Crawler::CursorBase> originating_cursor);
 
     void queued_stream_sent_to_player(ID::OurStream stream_id);
+
+    void queued_stream_playing_next();
 
     std::vector<ID::OurStream> copy_all_queued_streams_for_recovery();
 

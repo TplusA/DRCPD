@@ -67,7 +67,7 @@ void ViewPlay::View::plug_audio_source(Player::AudioSource &audio_source,
                                        const std::string *external_player_id)
 {
     player_control_.plug(audio_source, with_enforced_intentions,
-                         [this] { player_finished_playing(); },
+                         [this] (Player::Control::FinishedWith what) { player_finished(what); },
                          external_player_id);
 }
 
@@ -109,8 +109,26 @@ void ViewPlay::View::stop_playing(const Player::AudioSource &audio_source)
         player_control_.unplug(false);
 }
 
-void ViewPlay::View::player_finished_playing()
+void ViewPlay::View::player_finished(Player::Control::FinishedWith what)
 {
+    switch(what)
+    {
+      case Player::Control::FinishedWith::PLAYING:
+        break;
+
+      case Player::Control::FinishedWith::PREFETCHING:
+        switch(player_data_.get_player_state())
+        {
+          case Player::PlayerState::STOPPED:
+            break;
+
+          case Player::PlayerState::BUFFERING:
+          case Player::PlayerState::PLAYING:
+          case Player::PlayerState::PAUSED:
+            return;
+        }
+    }
+
     player_control_.unplug(false);
     player_data_.player_finished_and_idle();
 
@@ -364,7 +382,7 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
                 player_control_.start_prefetch_next_item(
                         "triggered by play notification",
                         Playlist::Crawler::Bookmark::PREFETCH_CURSOR,
-                        Playlist::Crawler::Direction::FORWARD);
+                        Playlist::Crawler::Direction::FORWARD, false);
             }
 
             if(!switched_stream)
@@ -403,14 +421,19 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
                          error_id.empty() ? "" : " with error",
                          is_visible_ ? "send screen update" : "but view is invisible");
 
-                player_finished_playing();
+                player_finished(Player::Control::FinishedWith::PLAYING);
 
                 break;
 
               case Player::Control::StopReaction::QUEUED:
-              case Player::Control::StopReaction::TAKE_NEXT:
                 msg_info("Play view: stream stopped%s, but player keeps going",
                          error_id.empty() ? "" : " with error");
+                break;
+
+              case Player::Control::StopReaction::TAKE_NEXT:
+                msg_info("Play view: stream stopped%s, need to find more items",
+                         error_id.empty() ? "" : " with error");
+                player_data_.queued_stream_playing_next();
                 break;
 
               case Player::Control::StopReaction::RETRY:

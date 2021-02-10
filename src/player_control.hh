@@ -52,7 +52,8 @@ class Control
         /*! Streamplayer failed, stream has been restarted */
         RETRY,
 
-        /*! Told Streamplayer to play the next queue from its queue */
+        /*! Told Streamplayer to play the next queue from its queue, and we
+         * need to find the next entry in our list */
         TAKE_NEXT,
     };
 
@@ -68,6 +69,12 @@ class Control
         APPEND,
         REPLACE_QUEUE,
         REPLACE_ALL,
+    };
+
+    enum class FinishedWith
+    {
+        PREFETCHING,
+        PLAYING,
     };
 
   private:
@@ -97,6 +104,12 @@ class Control
     Skipper skip_requests_;
 
     /*!
+     * The direction to move the cursor while finding the next playable item
+     * after running into a playback error.
+     */
+    Playlist::Crawler::Direction prefetch_direction_after_failure_;
+
+    /*!
      * Current operation for finding the next item, if any.
      *
      * The sole purpose of having this pointer around is to have something we
@@ -122,7 +135,7 @@ class Control
     const std::function<bool(uint32_t)> bitrate_limiter_;
 
     /* called when there is no next item to play */
-    std::function<void()> finished_playing_notification_;
+    std::function<void(FinishedWith)> finished_notification_;
 
     /*!
      * Manage retrying of playing streams.
@@ -186,6 +199,7 @@ class Control
         with_enforced_intentions_(false),
         player_data_(nullptr),
         permissions_(nullptr),
+        prefetch_direction_after_failure_(Playlist::Crawler::Direction::FORWARD),
         bitrate_limiter_(std::move(bitrate_limiter))
     {
         LoggedLock::configure(lock_, "Player::Control", MESSAGE_LEVEL_DEBUG);
@@ -238,7 +252,7 @@ class Control
     void plug(std::shared_ptr<List::ListViewportBase> skipper_viewport,
               const List::ListIface *list);
     void plug(AudioSource &audio_source, bool with_enforced_intentions,
-              const std::function<void()> &finished_playing_notification,
+              const std::function<void(FinishedWith)> &finished_notification,
               const std::string *external_player_id = nullptr);
     void plug(Data &player_data);
     void plug(const std::function<Playlist::Crawler::Handle()> &get_crawler_handle,
@@ -274,7 +288,8 @@ class Control
     void pause_notification(ID::Stream stream_id);
     void start_prefetch_next_item(const char *const reason,
                                   Playlist::Crawler::Bookmark from_where,
-                                  Playlist::Crawler::Direction direction);
+                                  Playlist::Crawler::Direction direction,
+                                  bool force_play_uri_when_available);
 
   private:
     /* skip request handling */
@@ -288,9 +303,11 @@ class Control
                                      Playlist::Crawler::Direction from_direction);
 
     /* prefetch handling (play when possible) */
-    bool found_prefetched_item(Playlist::Crawler::FindNextOpBase &op);
+    bool found_prefetched_item(Playlist::Crawler::FindNextOpBase &op,
+                               bool force_play_uri_when_available);
     bool found_prefetched_item_uris(Playlist::Crawler::GetURIsOpBase &op,
-                                    Playlist::Crawler::Direction from_direction);
+                                    Playlist::Crawler::Direction from_direction,
+                                    bool force_play_uri_when_available);
 
     void async_redirect_resolved_for_playing(
             size_t idx, QueuedStream::ResolvedRedirectResult result,
