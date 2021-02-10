@@ -352,7 +352,7 @@ Player::QueuedStreams::shift(ID::OurStream expected_next_id)
     const ID::OurStream next_id(
         queue_.empty() ? ID::OurStream::make_invalid() : queue_.front());
 
-    if(next_id != expected_next_id)
+    if(next_id != expected_next_id && stream_in_flight_ != expected_next_id)
         ErrorThrower<QueueError>()
             << "Cannot shift queue: expected next "
             << expected_next_id.get() << ", have ["
@@ -389,10 +389,7 @@ bool Player::QueuedStreams::shift_if_not_flying()
         return false;
 
     if(queue_.empty())
-    {
-        BUG("Cannot shift item from empty queue");
         return false;
-    }
 
     stream_in_flight_ = queue_.front();
     queue_.pop_front();

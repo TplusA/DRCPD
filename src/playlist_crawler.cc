@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019, 2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2019, 2020, 2021  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -242,7 +242,10 @@ void Playlist::Crawler::Iface::operation_complete_notification(std::shared_ptr<O
     BUG_IF(op == nullptr, "Operation completed: null");
 
     if(ops_.erase(op) > 0)
-        OperationBase::CrawlerFuns::notify_caller_about_completion(*op);
+    {
+        if(!OperationBase::CrawlerFuns::notify_caller_about_completion(*op))
+            msg_vinfo(MESSAGE_LEVEL_DIAG, "Failed to complete: %s", op->get_description().c_str());
+    }
     else
         BUG("Unknown operation completed: %s", op->get_description().c_str());
 }
@@ -252,7 +255,10 @@ void Playlist::Crawler::Iface::operation_yielded_notification(std::shared_ptr<Op
     BUG_IF(op == nullptr, "Operation yielded: null");
 
     if(ops_.find(op) != ops_.end())
-        OperationBase::CrawlerFuns::continue_after_yield(*op);
+    {
+        if(!OperationBase::CrawlerFuns::continue_after_yield(*op))
+            msg_vinfo(MESSAGE_LEVEL_DIAG, "Failed to continue: %s", op->get_description().c_str());
+    }
     else
         BUG("Unknown operation yielded: %s", op->get_description().c_str());
 }
