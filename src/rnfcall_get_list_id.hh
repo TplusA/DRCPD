@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019, 2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2019, 2020, 2021  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -127,7 +127,7 @@ class GetListIDCall: public GetListIDCallBase
         if(error.log_failure("Get list ID"))
         {
             msg_error(0, LOG_ERR,
-                      "Failed obtaining ID for item %u in list %u",
+                      "Failed obtaining requested ID for item %u in list %u",
                       item_index_, list_id_.get_raw_id());
             throw List::DBusListException(error);
         }
@@ -157,7 +157,7 @@ class GetListIDCall: public GetListIDCallBase
         if(error.log_failure("Get list ID by cookie"))
         {
             msg_error(0, LOG_ERR,
-                      "Failed obtaining ID for item %u in list %u by cookie %u",
+                      "Failed obtaining requested ID for item %u in list %u by cookie %u",
                       item_index_, list_id_.get_raw_id(), cookie);
             list_error_ = ListError::Code::INTERNAL;
             throw List::DBusListException(error);
@@ -225,7 +225,7 @@ class GetParameterizedListIDCall: public GetListIDCallBase
         if(error.log_failure("Get parameterized list ID"))
         {
             msg_error(0, LOG_ERR,
-                      "Failed obtaining ID for item %u in list %u with parameter",
+                      "Failed obtaining requested ID for parametrized item %u in list %u with parameter",
                       item_index_, list_id_.get_raw_id());
             throw List::DBusListException(error);
         }
@@ -255,7 +255,7 @@ class GetParameterizedListIDCall: public GetListIDCallBase
         if(error.log_failure("Get parameterized list ID by cookie"))
         {
             msg_error(0, LOG_ERR,
-                      "Failed obtaining ID for item %u in list %u "
+                      "Failed obtaining requested ID for parametrized item %u in list %u "
                       "with parameter by cookie %u",
                       item_index_, list_id_.get_raw_id(), cookie);
             list_error_ = ListError::Code::INTERNAL;
