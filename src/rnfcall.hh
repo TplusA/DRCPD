@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019, 2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2019, 2020, 2021  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -33,9 +33,9 @@
 namespace DBusRNF
 {
 
-struct BadStateError: public std::exception {};
-struct AbortedError: public std::exception {};
-struct NoResultError: public std::exception {};
+struct BadStateError: public std::runtime_error { BadStateError(): runtime_error("DBusRNF::BadStateError") {} };
+struct AbortedError:  public std::runtime_error { AbortedError():  runtime_error("DBusRNF::AbortedError") {} };
+struct NoResultError: public std::runtime_error { NoResultError(): runtime_error("DBusRNF::NoResultError") {} };
 
 class CallBase;
 
