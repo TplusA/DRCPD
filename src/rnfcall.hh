@@ -376,6 +376,7 @@ class Call: public CallBase, public std::enable_shared_from_this<Call<RT, BS>>
 {
   public:
     using ResultType = RT;
+    static constexpr auto BUSY_SOURCE_ID = BS;
 
   private:
     bool busy_source_set_;

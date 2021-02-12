@@ -2043,9 +2043,12 @@ void ViewFileBrowser::StandardError::service_authentication_failure(
 
 static bool sink_point_to_child_error(ListError::Code error,
                                       const std::string &child_name,
-                                      const ViewFileBrowser::JumpToContext &jtc,
-                                      const List::ContextMap &list_contexts)
+                                      ViewFileBrowser::JumpToContext &jtc,
+                                      const List::ContextMap &list_contexts,
+                                      Busy::Source busy_source)
 {
+    Busy::clear(busy_source);
+
     switch(error)
     {
       case ListError::Code::OK:
@@ -2123,6 +2126,9 @@ static bool sink_point_to_child_error(ListError::Code error,
         break;
     }
 
+    if(jtc.is_jumping_to_context())
+        jtc.cancel();
+
     return true;
 }
 
@@ -2145,7 +2151,8 @@ static void point_to_child_directory__got_list_id(
         auto result(call.get_result_unlocked());
 
         if(!sink_point_to_child_error(result.error_.get(), child_name,
-                                      calls.context_jump_, list_contexts))
+                                      calls.context_jump_, list_contexts,
+                                      call.BUSY_SOURCE_ID))
         {
             if(!result.list_id_.is_valid())
                 BUG("Got invalid list ID for child list, but no error code");
@@ -2176,7 +2183,8 @@ static void point_to_child_directory__got_list_id(
                   e.get_internal_detail_string_or_fallback("async call"),
                   e.what());
         sink_point_to_child_error(e.get(), child_name,
-                                  calls.context_jump_, list_contexts);
+                                  calls.context_jump_, list_contexts,
+                                  call.BUSY_SOURCE_ID);
     }
     catch(const DBusRNF::AbortedError &e)
     {
@@ -2186,7 +2194,8 @@ static void point_to_child_directory__got_list_id(
                   ListError::code_to_string(call.get_list_error().get()));
         const auto error = call.get_list_error();
         sink_point_to_child_error(error.failed() ? error.get() : ListError::INTERRUPTED,
-                                  child_name, calls.context_jump_, list_contexts);
+                                  child_name, calls.context_jump_, list_contexts,
+                                  call.BUSY_SOURCE_ID);
     }
     catch(const std::exception &e)
     {
@@ -2194,7 +2203,8 @@ static void point_to_child_directory__got_list_id(
                   "Failed obtaining ID for item %u in list %u: %s",
                   call.item_index_, call.list_id_.get_raw_id(), e.what());
         sink_point_to_child_error(ListError::INTERNAL, child_name,
-                                  calls.context_jump_, list_contexts);
+                                  calls.context_jump_, list_contexts,
+                                  call.BUSY_SOURCE_ID);
     }
     catch(...)
     {
@@ -2202,7 +2212,8 @@ static void point_to_child_directory__got_list_id(
                   "Failed obtaining ID for item %u in list %u",
                   call.item_index_, call.list_id_.get_raw_id());
         sink_point_to_child_error(ListError::INTERNAL, child_name,
-                                  calls.context_jump_, list_contexts);
+                                  calls.context_jump_, list_contexts,
+                                  call.BUSY_SOURCE_ID);
     }
 
     calls.delete_get_list_id();
