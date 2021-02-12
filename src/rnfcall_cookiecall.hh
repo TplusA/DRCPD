@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019, 2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2019, 2020, 2021  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -145,6 +145,8 @@ class CookieCall: public Call<RT, BS>
     {
         return Call<RT, BS>::fetch_blocking([this] (uint32_t c, auto &r) { do_fetch(c, r); });
     }
+
+    ListError get_list_error() const { return list_error_; }
 
   protected:
     virtual const void *get_proxy_ptr() const = 0;
