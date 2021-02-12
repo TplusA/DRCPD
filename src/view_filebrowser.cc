@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015--2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015--2021  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -2177,6 +2177,16 @@ static void point_to_child_directory__got_list_id(
                   e.what());
         sink_point_to_child_error(e.get(), child_name,
                                   calls.context_jump_, list_contexts);
+    }
+    catch(const DBusRNF::AbortedError &e)
+    {
+        msg_error(0, LOG_ERR,
+                  "Failed obtaining ID for item %u in list %u: aborted RNF call %s",
+                  call.item_index_, call.list_id_.get_raw_id(),
+                  ListError::code_to_string(call.get_list_error().get()));
+        const auto error = call.get_list_error();
+        sink_point_to_child_error(error.failed() ? error.get() : ListError::INTERRUPTED,
+                                  child_name, calls.context_jump_, list_contexts);
     }
     catch(const std::exception &e)
     {
