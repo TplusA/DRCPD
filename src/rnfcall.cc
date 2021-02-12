@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019, 2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2019, 2020, 2021  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -31,6 +31,11 @@
 bool DBusRNF::CallBase::abort_request()
 {
     return abort_request_internal(false);
+}
+
+void DBusRNF::CallBase::abort_request_on_destroy()
+{
+    abort_request_internal(true);
 }
 
 bool DBusRNF::CallBase::abort_request_internal(bool suppress_errors)

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019, 2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2019, 2020, 2021  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -350,7 +350,7 @@ class GetRangeWithMetaDataCall: public GetRangeCallBase
 
     virtual ~GetRangeWithMetaDataCall() final override
     {
-        abort_request();
+        abort_request_on_destroy();
     }
 
     std::shared_ptr<GetRangeCallBase> clone_modified(ID::List list_id) final override

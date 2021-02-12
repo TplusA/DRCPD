@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019, 2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2019, 2020, 2021  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -57,7 +57,7 @@ class GetLocationTraceCall:
 
     virtual ~GetLocationTraceCall() final override
     {
-        abort_request();
+        abort_request_on_destroy();
     }
 
   protected:

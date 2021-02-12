@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017, 2019, 2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2017, 2019, 2020, 2021  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -61,7 +61,7 @@ class Resumer
 
     ~Resumer()
     {
-        call_.abort_request();
+        call_.abort_request_on_destroy();
         Busy::clear(Busy::Source::RESUMING_PLAYBACK);
     }
 

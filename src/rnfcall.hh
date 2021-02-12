@@ -244,6 +244,8 @@ class CallBase
 
     bool abort_request();
 
+    void abort_request_on_destroy();
+
     void result_available_notification(uint32_t cookie)
     {
         notification(cookie, CallState::READY_TO_FETCH, "Ready");

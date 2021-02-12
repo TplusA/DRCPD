@@ -97,7 +97,7 @@ class GetListIDCall: public GetListIDCallBase
 
     virtual ~GetListIDCall() final override
     {
-        abort_request();
+        abort_request_on_destroy();
     }
 
     std::shared_ptr<GetListIDCallBase> clone_modified(ID::List list_id) final override
@@ -195,7 +195,7 @@ class GetParameterizedListIDCall: public GetListIDCallBase
 
     virtual ~GetParameterizedListIDCall() final override
     {
-        abort_request();
+        abort_request_on_destroy();
     }
 
     std::shared_ptr<GetListIDCallBase> clone_modified(ID::List list_id) final override
