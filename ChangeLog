@@ -1,3 +1,9 @@
+2021-01-22  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 5.9a released.
+
+	* Stability: Avoid spurious crash when handling stream error.
+
 2021-01-25  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 5.9 released.
