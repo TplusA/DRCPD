@@ -1,3 +1,18 @@
+2021-02-23  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 5.11 released.
+
+	* Stability: Abort messages sent by list brokers are recognized as
+	  such and handled as such now.
+
+	* Stability: Crash on music service login error fixed (context jump
+	  handling was bad, combined with race conditions in list brokers and
+	  the missed abort messages).
+
+	* User interface: If logging into a music service fails due to bad
+	  credentials, then emit a corresponding error message in the right
+	  place and time.
+
 2021-02-11  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 5.10 released.
