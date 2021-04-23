@@ -191,7 +191,8 @@ void Playlist::Crawler::Iface::deactivate()
     is_active_ = false;
 }
 
-bool Playlist::Crawler::Iface::run(std::shared_ptr<OperationBase> op)
+bool Playlist::Crawler::Iface::run(std::shared_ptr<OperationBase> op,
+                                   std::chrono::milliseconds &&delay)
 {
     LOGGED_LOCK_CONTEXT_HINT;
     std::lock_guard<LoggedLock::Mutex> lock(lock_);
@@ -201,40 +202,113 @@ bool Playlist::Crawler::Iface::run(std::shared_ptr<OperationBase> op)
 
     ops_.emplace(op);
 
-    if(OperationBase::CrawlerFuns::start(
-            *op,
-            // OperationDoneNotification
-            [this, op] (OperationBase::OpDone status)
+    OperationBase::OperationDoneNotification done_fn =
+        [this, op] (OperationBase::OpDone status)
+        {
+            /* no need to lock the crawler here because the event sink is
+             * thread-safe */
+
+            /* the events sent below will end up as calls of either
+             * #Playlist::Crawler::Iface::operation_complete_notification()
+             * (for #UI::EventID::VIEWMAN_CRAWLER_OP_COMPLETED) or
+             * #Playlist::Crawler::Iface::operation_yielded_notification()
+             * (for #UI::EventID::VIEWMAN_CRAWLER_OP_YIELDED) */
+            switch(status)
             {
-                /* no need to lock the crawler here because the event sink is
-                 * thread-safe */
+              case OperationBase::OpDone::FINISHED:
+                event_sink_.store_event(
+                    UI::EventID::VIEWMAN_CRAWLER_OP_COMPLETED,
+                    UI::Events::mk_params<UI::EventID::VIEWMAN_CRAWLER_OP_COMPLETED>(
+                        *this, std::move(op)));
+                break;
 
-                /* the events sent below will end up as calls of either
-                 * #Playlist::Crawler::Iface::operation_complete_notification()
-                 * (for #UI::EventID::VIEWMAN_CRAWLER_OP_COMPLETED) or
-                 * #Playlist::Crawler::Iface::operation_yielded_notification()
-                 * (for #UI::EventID::VIEWMAN_CRAWLER_OP_YIELDED) */
-                switch(status)
+              case OperationBase::OpDone::YIELDING:
+                event_sink_.store_event(
+                    UI::EventID::VIEWMAN_CRAWLER_OP_YIELDED,
+                    UI::Events::mk_params<UI::EventID::VIEWMAN_CRAWLER_OP_YIELDED>(
+                        *this, std::move(op)));
+                break;
+            }
+        };
+
+    if(delay != delay.zero())
+    {
+        std::lock_guard<LoggedLock::Mutex> dlock(delayed_ops_lock_);
+
+        if(delayed_op_)
+        {
+            delayed_op_->cancel();
+            canceled_delayed_ops_.emplace_front(std::move(delayed_op_));
+        }
+
+        delayed_op_ =
+            std::make_unique<DelayedOp>(
+                this, std::move(delay),
+                [this, op = std::move(op), done_fn = std::move(done_fn)] (bool success) mutable
                 {
-                  case OperationBase::OpDone::FINISHED:
-                    event_sink_.store_event(
-                        UI::EventID::VIEWMAN_CRAWLER_OP_COMPLETED,
-                        UI::Events::mk_params<UI::EventID::VIEWMAN_CRAWLER_OP_COMPLETED>(
-                            *this, std::move(op)));
-                    break;
+                    if(!success)
+                        op->cancel();
 
-                  case OperationBase::OpDone::YIELDING:
-                    event_sink_.store_event(
-                        UI::EventID::VIEWMAN_CRAWLER_OP_YIELDED,
-                        UI::Events::mk_params<UI::EventID::VIEWMAN_CRAWLER_OP_YIELDED>(
-                            *this, std::move(op)));
-                    break;
-                }
-            }))
+                    if(!OperationBase::CrawlerFuns::start(*op, std::move(done_fn)))
+                        ops_.erase(op);
+                });
+
+        return true;
+    }
+
+    if(OperationBase::CrawlerFuns::start(*op, std::move(done_fn)))
         return true;
 
     ops_.erase(op);
     return false;
+}
+
+Playlist::Crawler::DelayedOp::DelayedOp(Iface *src_iface,
+                                        std::chrono::milliseconds &&delay,
+                                        std::function<void(bool)> &&op_fn):
+    src_iface_(src_iface),
+    op_fn_(std::move(op_fn)),
+    active_(true),
+    glib_source_id_(g_timeout_add(delay.count(), Playlist::Crawler::Iface::delayed_op_may_run_now, this))
+{}
+
+void Playlist::Crawler::DelayedOp::cancel()
+{
+    if(!active_)
+        return;
+
+    active_ = false;
+    op_fn_(false);
+}
+
+void Playlist::Crawler::DelayedOp::run_delayed()
+{
+    glib_source_id_ = 0;
+
+    if(active_)
+    {
+        op_fn_(true);
+        active_ = false;
+    }
+}
+
+gboolean Playlist::Crawler::Iface::delayed_op_may_run_now(gpointer user_data)
+{
+    auto *op = static_cast<DelayedOp *>(user_data);
+    op->src_iface_->run_delayed(op);
+    return FALSE;
+}
+
+void Playlist::Crawler::Iface::run_delayed(DelayedOp *op)
+{
+    op->run_delayed();
+
+    std::lock_guard<LoggedLock::Mutex> lock(delayed_ops_lock_);
+
+    if(delayed_op_.get() == op)
+        delayed_op_ = nullptr;
+    else
+        canceled_delayed_ops_.remove_if([op] (const auto &p) { return p.get() == op; });
 }
 
 void Playlist::Crawler::Iface::operation_complete_notification(std::shared_ptr<OperationBase> op)

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, 2017, 2019, 2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2017, 2019--2021  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -29,7 +29,9 @@
 
 #include <functional>
 #include <unordered_set>
+#include <forward_list>
 #include <type_traits>
+#include <glib.h>
 
 namespace ViewManager { class Manager; }
 
@@ -71,6 +73,31 @@ class PublicIface
     PublicIface &operator=(const PublicIface &) = delete;
     PublicIface &operator=(PublicIface &&) = default;
     virtual ~PublicIface() = default;
+};
+
+class Iface;
+
+class DelayedOp
+{
+  public:
+    Iface *src_iface_;
+
+  private:
+    std::function<void(bool)> op_fn_;
+    bool active_;
+    int glib_source_id_;
+
+  public:
+    DelayedOp(const DelayedOp &) = delete;
+    DelayedOp(DelayedOp &&) = default;
+    DelayedOp &operator=(const DelayedOp &) = delete;
+    DelayedOp &operator=(DelayedOp &&) = default;
+
+    explicit DelayedOp(Iface *src_iface, std::chrono::milliseconds &&delay,
+                       std::function<void(bool)> &&op_fn);
+
+    void cancel();
+    void run_delayed();
 };
 
 /*!
@@ -170,7 +197,12 @@ class Iface
 
         bool run(std::shared_ptr<OperationBase> op)
         {
-            return crawler_.run(std::move(op));
+            return crawler_.run(std::move(op), std::chrono::milliseconds::zero());
+        }
+
+        bool run(std::shared_ptr<OperationBase> op, std::chrono::milliseconds &&delay)
+        {
+            return crawler_.run(std::move(op), std::move(delay));
         }
     };
 
@@ -189,12 +221,23 @@ class Iface
     std::unordered_set<std::shared_ptr<OperationBase>> ops_;
     UI::EventStoreIface &event_sink_;
 
+    LoggedLock::Mutex delayed_ops_lock_;
+    std::forward_list<std::unique_ptr<DelayedOp>> canceled_delayed_ops_;
+    std::unique_ptr<DelayedOp> delayed_op_;
+
+  public:
+    static gboolean delayed_op_may_run_now(gpointer user_data);
+
+  private:
+    void run_delayed(DelayedOp *op);
+
   protected:
     explicit Iface(UI::EventStoreIface &event_sink):
         is_active_(false),
         event_sink_(event_sink)
     {
         LoggedLock::configure(lock_, "Crawler::Iface", MESSAGE_LEVEL_DEBUG);
+        LoggedLock::configure(delayed_ops_lock_, "Crawler::Iface::DelayedOp", MESSAGE_LEVEL_DEBUG);
     }
 
   public:
@@ -304,7 +347,7 @@ class Iface
      *
      * It is an error to call this function while the crawler is not active.
      */
-    bool run(std::shared_ptr<OperationBase> op);
+    bool run(std::shared_ptr<OperationBase> op, std::chrono::milliseconds &&delay);
 
     /*!
      * Called from main loop when the passed operation has completed.
