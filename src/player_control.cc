@@ -2030,7 +2030,7 @@ void Player::Control::start_prefetch_next_item(
 
     prefetch_next_item_op_ = find_op;
 
-    if(find_op != nullptr && !crawler_handle_->run(std::move(find_op)))
+    if(find_op != nullptr && !crawler_handle_->run(std::move(find_op), std::chrono::seconds(3)))
         prefetch_next_item_op_ = nullptr;
 }
 
