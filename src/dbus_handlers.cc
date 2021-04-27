@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015--2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015--2021  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -573,6 +573,18 @@ void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
                 parse_stream_position(duration, duration_units));
         data->event_sink_.store_event(UI::EventID::VIEW_PLAYER_STREAM_POSITION,
                                       std::move(params));
+    }
+    else if(strcmp(signal_name, "Buffer") == 0)
+    {
+        check_parameter_assertions(parameters, 2);
+
+        guchar fill_level_percentage;
+        gboolean is_cumulating;
+
+        g_variant_get(parameters, "(yb)",
+                      &fill_level_percentage, &is_cumulating);
+        msg_info("Player buffer level is at %u%%, %s",
+                 fill_level_percentage, is_cumulating ? "cumulating" : "playing");
     }
     else if(strcmp(signal_name, "SpeedChanged") == 0)
     {
