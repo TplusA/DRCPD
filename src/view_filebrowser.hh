@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015--2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015--2021  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -255,7 +255,6 @@ class PendingCookies
 
   private:
     LoggedLock::RecMutex lock_;
-    LoggedLock::UniqueLock<LoggedLock::RecMutex> blocked_externally_;
     std::unordered_map<uint32_t, NotifyFnType> notification_functions_;
     std::unordered_map<uint32_t, FetchFnType> fetch_functions_;
 
@@ -265,23 +264,18 @@ class PendingCookies
     PendingCookies &operator=(const PendingCookies &) = delete;
     PendingCookies &operator=(PendingCookies &&) = delete;
 
-    explicit PendingCookies():
-        blocked_externally_(lock_, std::defer_lock)
+    explicit PendingCookies()
     {
         LoggedLock::configure(lock_, "ViewFileBrowser::PendingCookies",
                               MESSAGE_LEVEL_DEBUG);
-        LoggedLock::configure(blocked_externally_);
     }
 
-    void block_notifications()
+    auto block_notifications()
     {
         LOGGED_LOCK_CONTEXT_HINT;
-        blocked_externally_.lock();
-    }
-
-    void unblock_notifications()
-    {
-        blocked_externally_.unlock();
+        LoggedLock::UniqueLock<LoggedLock::RecMutex> lock(lock_);
+        LoggedLock::configure(lock, "ViewFileBrowser::PendingCookies (external)");
+        return lock;
     }
 
     /*!
@@ -670,7 +664,11 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
      *
      * Any pending notifications are processed when unblocked.
      */
-    void data_cookies_block_notifications(bool is_blocked);
+    LoggedLock::UniqueLock<LoggedLock::RecMutex>
+    data_cookies_block_notifications()
+    {
+        return pending_cookies_.block_notifications();
+    }
 
     /*!
      * Notification from list broker about available results for cookies (1).

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019, 2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2019, 2020, 2021  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -23,6 +23,7 @@
 #define COOKIE_MANAGER_HH
 
 #include "de_tahifi_lists_errors.hh"
+#include "logged_lock.hh"
 
 #include <functional>
 
@@ -45,8 +46,8 @@ class CookieManagerIface
     CookieManagerIface &operator=(CookieManagerIface &&) = default;
     virtual ~CookieManagerIface() = default;
 
-    virtual void block_async_result_notifications(const void *proxy,
-                                                  bool is_blocked) = 0;
+    virtual LoggedLock::UniqueLock<LoggedLock::RecMutex>
+    block_async_result_notifications(const void *proxy) = 0;
     virtual bool set_pending_cookie(
             const void *proxy, uint32_t cookie,
             NotifyByCookieFn &&notify, FetchByCookieFn &&fetch) = 0;

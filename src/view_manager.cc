@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015--2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015--2021  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -796,16 +796,17 @@ void ViewManager::Manager::busy_state_notification(bool is_busy)
                  debug_stream_);
 }
 
-void ViewManager::Manager::block_async_result_notifications(const void *proxy,
-                                                            bool is_blocked)
+LoggedLock::UniqueLock<LoggedLock::RecMutex>
+ViewManager::Manager::block_async_result_notifications(const void *proxy)
 {
     auto *const view =
         dynamic_cast<ViewFileBrowser::View *>(get_view_by_dbus_proxy(proxy));
 
     if(view != nullptr)
-        view->data_cookies_block_notifications(is_blocked);
-    else
-        BUG("No file browser view for given proxy, cannot block cookie notifications");
+        return view->data_cookies_block_notifications();
+
+    BUG("No file browser view for given proxy, cannot block cookie notifications");
+    throw std::runtime_error("No file browser found for given D-Bus proxy");
 }
 
 bool ViewManager::Manager::set_pending_cookie(

@@ -81,10 +81,7 @@ class CookieCall: public Call<RT, BS>
     {
         return Call<RT, BS>::request(
             // block_async_result_notifications
-            [this] (bool is_blocked)
-            {
-                cm_.block_async_result_notifications(get_proxy_ptr(), is_blocked);
-            },
+            [this] { return cm_.block_async_result_notifications(get_proxy_ptr()); },
 
             // do_request
             [this] (auto &r) { return do_request(r); },

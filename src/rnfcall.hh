@@ -409,9 +409,9 @@ class Call: public CallBase, public std::enable_shared_from_this<Call<RT, BS>>
      * Request some data from list broker via D-Bus.
      *
      * \param block_async_result_notifications
-     *     Function for blocking and unblocking processing of asynchronous
-     *     cookie result notifications. This is required to avoid race
-     *     conditions.
+     *     Function for blocking processing of asynchronous cookie result
+     *     notifications, returning a corresponding lock. This is required to
+     *     avoid race conditions.
      *
      * \param do_request
      *     The code for sending the request and processing a possible fast-path
@@ -460,7 +460,7 @@ class Call: public CallBase, public std::enable_shared_from_this<Call<RT, BS>>
      *     #DBusRNF::BadStateError The object is in wrong state.
      */
     CallState request(
-            const std::function<void(bool)> &block_async_result_notifications,
+            const std::function<LoggedLock::UniqueLock<LoggedLock::RecMutex>()> &block_async_result_notifications,
             const std::function<uint32_t(std::promise<ResultType> &)> &do_request,
             const std::function<void(uint32_t)> &manage_cookie,
             const std::function<void()> &fast_path)
@@ -491,7 +491,7 @@ class Call: public CallBase, public std::enable_shared_from_this<Call<RT, BS>>
          * On the slow CM1, this happens frequently when the system is loaded
          * as a result of intense user interaction.
          */
-        block_async_result_notifications(true);
+        auto result_notification_lock(block_async_result_notifications());
 
         try
         {
@@ -507,8 +507,7 @@ class Call: public CallBase, public std::enable_shared_from_this<Call<RT, BS>>
                 log_assert(get_cookie() == 0);
 
             set_state(cookie == 0 ? CallState::RESULT_FETCHED : CallState::WAIT_FOR_NOTIFICATION);
-
-            block_async_result_notifications(false);
+            result_notification_lock.unlock();
 
             if(cookie == 0)
                 fast_path();
@@ -527,7 +526,6 @@ class Call: public CallBase, public std::enable_shared_from_this<Call<RT, BS>>
             }
 
             set_state(CallState::FAILED);
-            block_async_result_notifications(false);
         }
 
         return get_state();

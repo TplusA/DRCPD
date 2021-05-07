@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015--2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015--2021  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -242,8 +242,9 @@ class Manager: public VMIface, public UI::EventStoreIface, public DBusRNF::Cooki
         return config_manager_.values();
     }
 
-    void block_async_result_notifications(const void *proxy, bool is_blocked)
-        final override;
+    LoggedLock::UniqueLock<LoggedLock::RecMutex>
+    block_async_result_notifications(const void *proxy) final override;
+
     bool set_pending_cookie(const void *proxy, uint32_t cookie,
                             NotifyByCookieFn &&notify, FetchByCookieFn &&fetch)
         final override;

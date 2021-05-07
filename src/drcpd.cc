@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015--2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015--2021  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -89,8 +89,11 @@ using I18nConfigMgr = Configuration::ConfigManager<Configuration::I18nValues>;
 ssize_t (*os_read)(int fd, void *dest, size_t count) = read;
 ssize_t (*os_write)(int fd, const void *buf, size_t count) = write;
 
-#if LOGGED_LOCKS_ENABLED && LOGGED_LOCKS_THREAD_CONTEXTS
+#if LOGGED_LOCKS_ENABLED
+bool LoggedLock::log_messages_enabled = true;
+#if LOGGED_LOCKS_THREAD_CONTEXTS
 thread_local LoggedLock::Context LoggedLock::context;
+#endif
 #endif
 
 static void show_version_info(void)

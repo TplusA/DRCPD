@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015--2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015--2021  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -42,6 +42,13 @@
  * View manager unit tests.
  */
 /*!@{*/
+
+#if LOGGED_LOCKS_ENABLED
+bool LoggedLock::log_messages_enabled;
+#if LOGGED_LOCKS_THREAD_CONTEXTS
+thread_local LoggedLock::Context LoggedLock::context;
+#endif
+#endif
 
 static void create_config_managers(const char *cfg_file_name,
                                    Configuration::ConfigManager<Configuration::DrcpdValues> *&drcpd)
@@ -96,6 +103,8 @@ static const char standard_mock_view_name[] = "Mock";
 
 void cut_setup(void)
 {
+    LoggedLock::disable_log_messages();
+
     views_output = new std::ostringstream();
     cppcut_assert_not_null(views_output);
 
@@ -238,6 +247,8 @@ static ViewMock::View *mock_view;
 
 void cut_setup(void)
 {
+    LoggedLock::disable_log_messages();
+
     views_output = new std::ostringstream();
     cppcut_assert_not_null(views_output);
 
@@ -499,6 +510,8 @@ static std::ostringstream *views_output;
 
 void cut_setup(void)
 {
+    LoggedLock::disable_log_messages();
+
     views_output = new std::ostringstream();
     cppcut_assert_not_null(views_output);
 
@@ -1055,6 +1068,8 @@ static const char standard_mock_view_name[] = "Mock";
 
 void cut_setup(void)
 {
+    LoggedLock::disable_log_messages();
+
     views_output = new std::ostringstream();
     cppcut_assert_not_null(views_output);
 
