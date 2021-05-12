@@ -167,6 +167,7 @@ map_asyncresult_to_resolve_redirect_result(const DBus::AsyncResult &async_result
       case DBus::AsyncResult::DONE:
         return Player::QueuedStream::ResolvedRedirectResult::FOUND;
 
+      case DBus::AsyncResult::CANCELING_DIRECTLY:
       case DBus::AsyncResult::CANCELED:
       case DBus::AsyncResult::RESTARTED:
         return Player::QueuedStream::ResolvedRedirectResult::CANCELED;

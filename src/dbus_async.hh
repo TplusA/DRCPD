@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, 2017, 2019, 2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2017, 2019--2021  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -41,6 +41,7 @@ enum class AsyncResult
     IN_PROGRESS,
     READY,
     DONE,
+    CANCELING_DIRECTLY,
     CANCELED,
     RESTARTED,
     FAILED,
@@ -113,6 +114,7 @@ class AsyncCall_: public std::enable_shared_from_this<AsyncCall_>
           case AsyncResult::IN_PROGRESS:
           case AsyncResult::READY:
           case AsyncResult::DONE:
+          case AsyncResult::CANCELING_DIRECTLY:
           case AsyncResult::CANCELED:
           case AsyncResult::RESTARTED:
           case AsyncResult::FAILED:
@@ -135,6 +137,7 @@ class AsyncCall_: public std::enable_shared_from_this<AsyncCall_>
           case AsyncResult::INITIALIZED:
           case AsyncResult::READY:
           case AsyncResult::DONE:
+          case AsyncResult::CANCELING_DIRECTLY:
           case AsyncResult::CANCELED:
           case AsyncResult::RESTARTED:
           case AsyncResult::FAILED:
@@ -150,6 +153,7 @@ class AsyncCall_: public std::enable_shared_from_this<AsyncCall_>
         {
           case AsyncResult::READY:
           case AsyncResult::DONE:
+          case AsyncResult::CANCELING_DIRECTLY:
           case AsyncResult::CANCELED:
           case AsyncResult::RESTARTED:
           case AsyncResult::FAILED:
@@ -173,6 +177,7 @@ class AsyncCall_: public std::enable_shared_from_this<AsyncCall_>
 
           case AsyncResult::INITIALIZED:
           case AsyncResult::IN_PROGRESS:
+          case AsyncResult::CANCELING_DIRECTLY:
           case AsyncResult::CANCELED:
           case AsyncResult::RESTARTED:
           case AsyncResult::FAILED:
@@ -344,6 +349,7 @@ class AsyncCall: public DBus::AsyncCall_
         switch(call_state_)
         {
           case AsyncResult::DONE:
+          case AsyncResult::CANCELING_DIRECTLY:
           case AsyncResult::CANCELED:
           case AsyncResult::RESTARTED:
             return call_state_;
@@ -379,6 +385,7 @@ class AsyncCall: public DBus::AsyncCall_
              * intermediate state---report ready state directly so that the
              * #DBus::AsyncCall::result_available_fn_ callback can be called
              * before this function returns */
+            call_state_ = AsyncResult::CANCELING_DIRECTLY;
             return ready(nullptr, nullptr, false);
         }
 

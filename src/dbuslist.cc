@@ -215,11 +215,14 @@ List::DBusList::enter_list_async(const DBusListViewport *associated_viewport,
                 std::lock_guard<LoggedLock::RecMutex> llk(lock_);
 
                 if(q != enter_list_data_.query_)
-                    msg_error(0, LOG_NOTICE,
+                {
+                    msg_vinfo(MESSAGE_LEVEL_NORMAL,
                               "Async enter-list done notification for "
                               "outdated query %p (expected %p)",
                               static_cast<const void *>(q.get()),
                               static_cast<const void *>(enter_list_data_.query_.get()));
+                    enter_list_async_handle_done(std::move(q));
+                }
                 else if(&c != enter_list_data_.query_->async_call_.get())
                 {
                     if(dynamic_cast<QueryContextEnterList::AsyncListNavCheckRange *>(&c) != nullptr)

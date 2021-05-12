@@ -292,7 +292,11 @@ void dbussignal_lists_navigation(GDBusProxy *proxy, const gchar *sender_name,
         const ID::List new_list_id(raw_new_list_id);
 
         if(!list_id.is_valid())
+        {
+            BUG("Got ListInvalidate signal for invalid list ID %u (new ID %u)",
+                raw_list_id, raw_new_list_id);
             return;
+        }
 
         auto params =
             UI::Events::mk_params<UI::EventID::VIEWMAN_INVALIDATE_LIST_ID>(

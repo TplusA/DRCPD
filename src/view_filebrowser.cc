@@ -1648,6 +1648,7 @@ bool ViewFileBrowser::View::list_invalidate(ID::List list_id, ID::List replaceme
     const bool have_lost_root_list =
         context_restriction_.list_invalidate(list_id, replacement_id);
 
+    /* possibly cancel and restart pending RNF calls */
     file_list_.list_invalidate(list_id, replacement_id);
 
     if(crawler_.list_invalidate(list_id, replacement_id) &&
