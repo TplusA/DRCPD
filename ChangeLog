@@ -1,3 +1,10 @@
+2021-05-12  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 5.15 released.
+
+	* Stability: Fix freeze during high frequency UPnP server root list
+	  updates (and generally, any high frequency list updates).
+
 2021-05-07  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 5.14 released.
