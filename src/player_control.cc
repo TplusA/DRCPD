@@ -1566,6 +1566,7 @@ Player::Control::stop_notification_ok(ID::Stream stream_id)
     /* still prefetching */
     msg_info("Stream stopped while next stream is still unavailable; "
              "audible gap is very likely");
+    send_play_command(audio_source_);
     return StopReaction::QUEUED;
 }
 
