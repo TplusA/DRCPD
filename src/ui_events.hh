@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016--2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016--2021  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -69,6 +69,7 @@ enum class ViewEventID
     STORE_STREAM_META_DATA,
     STORE_PRELOADED_META_DATA,
     NOTIFY_AIRABLE_SERVICE_LOGIN_STATUS_UPDATE,
+    NOTIFY_AIRABLE_SERVICE_OAUTH_REQUEST,
     NOTIFY_NOW_PLAYING,
     NOTIFY_STREAM_STOPPED,
     NOTIFY_STREAM_PAUSED,
@@ -210,6 +211,7 @@ enum class EventID
     VIEW_PLAYER_SPEED_CHANGED    = mk_event_raw_id(ViewEventID::NOTIFY_SPEED_CHANGED),
     VIEW_PLAYER_PLAYBACK_MODE_CHANGED = mk_event_raw_id(ViewEventID::NOTIFY_PLAYBACK_MODE_CHANGED),
     VIEW_AIRABLE_SERVICE_LOGIN_STATUS_UPDATE = mk_event_raw_id(ViewEventID::NOTIFY_AIRABLE_SERVICE_LOGIN_STATUS_UPDATE),
+    VIEW_AIRABLE_SERVICE_OAUTH_REQUEST = mk_event_raw_id(ViewEventID::NOTIFY_AIRABLE_SERVICE_OAUTH_REQUEST),
 };
 
 template <typename T>

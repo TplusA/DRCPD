@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016--2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016--2021  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -213,6 +213,14 @@ struct ParamTraits<EventID::VIEW_AIRABLE_SERVICE_LOGIN_STATUS_UPDATE>
 {
     using PType = SpecificParameters<std::tuple<std::string, enum ActorID,
                                                 bool, ListError, std::string>>;
+};
+
+template <>
+struct ParamTraits<EventID::VIEW_AIRABLE_SERVICE_OAUTH_REQUEST>
+{
+    using PType = SpecificParameters<std::tuple<std::string, std::string,
+                                                ID::List, unsigned int,
+                                                std::string, std::string>>;
 };
 
 

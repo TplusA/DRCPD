@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016--2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016--2021  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -153,6 +153,11 @@ class AirableView: public View
     InputResult process_event(UI::ViewEventID event_id,
                               std::unique_ptr<UI::Parameters> parameters) final override;
 
+  private:
+    InputResult process_login_status_update(std::unique_ptr<UI::Parameters> parameters);
+    InputResult process_oauth_request(std::unique_ptr<UI::Parameters> parameters);
+
+  public:
     bool list_invalidate(ID::List list_id, ID::List replacement_id) final override;
 
     InputResult logged_into_service_notification(const std::string &service_id,

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016--2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016--2021  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -283,6 +283,7 @@ static void patch_event_id_for_deezer(UI::ViewEventID &event_id)
       case UI::ViewEventID::STORE_STREAM_META_DATA:
       case UI::ViewEventID::STORE_PRELOADED_META_DATA:
       case UI::ViewEventID::NOTIFY_AIRABLE_SERVICE_LOGIN_STATUS_UPDATE:
+      case UI::ViewEventID::NOTIFY_AIRABLE_SERVICE_OAUTH_REQUEST:
       case UI::ViewEventID::NOTIFY_NOW_PLAYING:
       case UI::ViewEventID::NOTIFY_STREAM_STOPPED:
       case UI::ViewEventID::NOTIFY_STREAM_PAUSED:
@@ -314,9 +315,54 @@ ViewFileBrowser::AirableView::process_event(UI::ViewEventID event_id,
     if(is_deezer(list_contexts_, current_list_id_))
         patch_event_id_for_deezer(event_id);
 
-    if(event_id != UI::ViewEventID::NOTIFY_AIRABLE_SERVICE_LOGIN_STATUS_UPDATE)
+    switch(event_id)
+    {
+      case UI::ViewEventID::NOP:
+      case UI::ViewEventID::PLAYBACK_COMMAND_START:
+      case UI::ViewEventID::PLAYBACK_COMMAND_STOP:
+      case UI::ViewEventID::PLAYBACK_COMMAND_PAUSE:
+      case UI::ViewEventID::PLAYBACK_PREVIOUS:
+      case UI::ViewEventID::PLAYBACK_NEXT:
+      case UI::ViewEventID::PLAYBACK_FAST_WIND_SET_SPEED:
+      case UI::ViewEventID::PLAYBACK_SEEK_STREAM_POS:
+      case UI::ViewEventID::PLAYBACK_MODE_REPEAT_TOGGLE:
+      case UI::ViewEventID::PLAYBACK_MODE_SHUFFLE_TOGGLE:
+      case UI::ViewEventID::NAV_SELECT_ITEM:
+      case UI::ViewEventID::NAV_SCROLL_LINES:
+      case UI::ViewEventID::NAV_SCROLL_PAGES:
+      case UI::ViewEventID::NAV_GO_BACK_ONE_LEVEL:
+      case UI::ViewEventID::SEARCH_COMMENCE:
+      case UI::ViewEventID::SEARCH_STORE_PARAMETERS:
+      case UI::ViewEventID::STORE_STREAM_META_DATA:
+      case UI::ViewEventID::STORE_PRELOADED_META_DATA:
+      case UI::ViewEventID::NOTIFY_NOW_PLAYING:
+      case UI::ViewEventID::NOTIFY_STREAM_STOPPED:
+      case UI::ViewEventID::NOTIFY_STREAM_PAUSED:
+      case UI::ViewEventID::NOTIFY_STREAM_UNPAUSED:
+      case UI::ViewEventID::NOTIFY_STREAM_POSITION:
+      case UI::ViewEventID::NOTIFY_SPEED_CHANGED:
+      case UI::ViewEventID::NOTIFY_PLAYBACK_MODE_CHANGED:
+      case UI::ViewEventID::AUDIO_SOURCE_SELECTED:
+      case UI::ViewEventID::AUDIO_SOURCE_DESELECTED:
+      case UI::ViewEventID::AUDIO_PATH_CHANGED:
+      case UI::ViewEventID::STRBO_URL_RESOLVED:
+      case UI::ViewEventID::PLAYBACK_TRY_RESUME:
         return ViewFileBrowser::View::process_event(event_id, std::move(parameters));
 
+      case UI::ViewEventID::NOTIFY_AIRABLE_SERVICE_LOGIN_STATUS_UPDATE:
+        return process_login_status_update(std::move(parameters));
+
+      case UI::ViewEventID::NOTIFY_AIRABLE_SERVICE_OAUTH_REQUEST:
+        return process_oauth_request(std::move(parameters));
+    }
+
+    return InputResult::OK;
+}
+
+ViewIface::InputResult
+ViewFileBrowser::AirableView::process_login_status_update(
+                                    std::unique_ptr<UI::Parameters> parameters)
+{
     const auto params =
         UI::Events::downcast<UI::ViewEventID::NOTIFY_AIRABLE_SERVICE_LOGIN_STATUS_UPDATE>(parameters);
 
@@ -332,6 +378,39 @@ ViewFileBrowser::AirableView::process_event(UI::ViewEventID event_id,
     return is_login
         ? logged_into_service_notification(service_id, actor_id, error)
         : logged_out_from_service_notification(service_id, actor_id, error);
+}
+
+ViewIface::InputResult
+ViewFileBrowser::AirableView::process_oauth_request(
+                                    std::unique_ptr<UI::Parameters> parameters)
+{
+    const auto params =
+        UI::Events::downcast<UI::ViewEventID::NOTIFY_AIRABLE_SERVICE_OAUTH_REQUEST>(parameters);
+
+    if(params == nullptr)
+        return InputResult::OK;
+
+    const auto &plist = params->get_specific();
+    const auto &service_id(std::get<0>(plist));
+    const auto &context_hint(std::get<1>(plist));
+    const auto &list_id(std::get<2>(plist));
+    const auto &item_id(std::get<3>(plist));
+    const auto &login_url(std::get<4>(plist));
+    const auto &login_code(std::get<5>(plist));
+
+    List::context_id_t ctx_id;
+    const auto &ctx(list_contexts_.get_context_info_by_string_id(service_id, ctx_id));
+
+    msg_info("OAuth service ID %s (\"%s\", context ID %u), hint \"%s\", "
+             "list %u item %u",
+             service_id.c_str(), ctx.description_.c_str(), ctx_id,
+             context_hint.c_str(), list_id.get_raw_id(), item_id);
+    msg_info("OAuth login URL %s", login_url.c_str());
+    msg_info("OAuth login code %s", login_code.c_str());
+
+    MSG_NOT_IMPLEMENTED();
+
+    return InputResult::OK;
 }
 
 bool ViewFileBrowser::AirableView::list_invalidate(ID::List list_id, ID::List replacement_id)

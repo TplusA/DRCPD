@@ -663,7 +663,25 @@ void dbussignal_airable_sec(GDBusProxy *proxy, const gchar *sender_name,
     }
     else if(strcmp(signal_name, "ExternalOAuthLoginRequested") == 0)
     {
-        MSG_NOT_IMPLEMENTED();
+        check_parameter_assertions(parameters, 6);
+
+        const gchar *service_id;
+        const gchar *context_hint;
+        guint raw_list_id;
+        guint raw_item_id;
+        const gchar *login_url;
+        const gchar *login_code;
+
+        g_variant_get(parameters, "(&s&suu&s&s)",
+                      &service_id, &context_hint, &raw_list_id, &raw_item_id,
+                      &login_url, &login_code);
+
+        auto params =
+            UI::Events::mk_params<UI::EventID::VIEW_AIRABLE_SERVICE_OAUTH_REQUEST>(
+                service_id, context_hint, ID::List(raw_list_id), raw_item_id,
+                login_url, login_code);
+        data->event_sink_.store_event(UI::EventID::VIEW_AIRABLE_SERVICE_OAUTH_REQUEST,
+                                      std::move(params));
     }
     else
         unknown_signal(iface_name, signal_name, sender_name);
