@@ -31,6 +31,8 @@
 #include "de_tahifi_lists_context.h"
 #include "messages.h"
 
+const std::string ViewFileBrowser::OAuthRequest::empty_string;
+
 bool ViewFileBrowser::AirableView::try_jump_to_stored_position(StoredPosition &pos)
 {
     if(!pos.is_set())
@@ -392,7 +394,7 @@ ViewFileBrowser::AirableView::process_oauth_request(
     if(params == nullptr)
         return InputResult::OK;
 
-    const auto &plist = params->get_specific();
+    auto &plist = params->get_specific_non_const();
     const auto &service_id(std::get<0>(plist));
     const auto &context_hint(std::get<1>(plist));
     const auto &list_id(std::get<2>(plist));
@@ -410,9 +412,38 @@ ViewFileBrowser::AirableView::process_oauth_request(
     msg_info("OAuth login URL %s", login_url.c_str());
     msg_info("OAuth login code %s", login_code.c_str());
 
-    MSG_NOT_IMPLEMENTED();
+    if(context_hint.empty() || context_hint == "root")
+        oauth_request_.activate(ctx_id, list_id, item_id,
+                                std::move(std::get<4>(plist)),
+                                std::move(std::get<5>(plist)));
+    else
+    {
+        BUG("Received OAuth request with context hint: "
+            "we should probably handle this case differently");
+        oauth_request_.activate(ctx_id, std::move(std::get<4>(plist)),
+                                std::move(std::get<5>(plist)));
+    }
 
-    return InputResult::OK;
+    return InputResult::UPDATE_NEEDED;
+}
+
+bool ViewFileBrowser::AirableView::is_error_allowed(ScreenID::Error error) const
+{
+    switch(error)
+    {
+      case ScreenID::Error::ENTER_LIST_AUTHENTICATION:
+      case ScreenID::Error::ENTER_CONTEXT_AUTHENTICATION:
+        return !oauth_request_.seen_expected_authentication_error();
+
+      case ScreenID::Error::INVALID:
+      case ScreenID::Error::ENTER_LIST_PERMISSION_DENIED:
+      case ScreenID::Error::ENTER_LIST_MEDIA_IO:
+      case ScreenID::Error::ENTER_LIST_NET_IO:
+      case ScreenID::Error::ENTER_LIST_PROTOCOL:
+        break;
+    }
+
+    return true;
 }
 
 bool ViewFileBrowser::AirableView::list_invalidate(ID::List list_id, ID::List replacement_id)
@@ -823,6 +854,14 @@ bool ViewFileBrowser::AirableView::write_xml(std::ostream &os, uint32_t bits,
        << "<context>"
        << ctx.string_id_.c_str()
        << "</context>";
+
+    if(oauth_request_.is_active(ctx_id))
+    {
+        os << "<text id=\"line0\">Code: " << oauth_request_.get_code() <<  "</text>";
+        os << "<text id=\"line1\">" << oauth_request_.get_url() << "</text>";
+        oauth_request_.sent_oauth_message();
+        return true;
+    }
 
     os << "<text id=\"line0\">" << XmlEscape(ctx.description_) << "</text>"
        << "<text id=\"line1\">";
