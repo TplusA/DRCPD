@@ -303,24 +303,55 @@ static void patch_event_id_for_deezer(UI::ViewEventID &event_id)
 }
 
 static bool is_deezer(const List::ContextMap &list_contexts,
-                      ID::List current_list_id)
+                      const List::context_id_t &current_context_id)
 {
     List::context_id_t deezer_id;
     list_contexts.get_context_info_by_string_id("deezer", deezer_id);
 
     return (deezer_id != List::ContextMap::INVALID_ID &&
-            deezer_id == DBUS_LISTS_CONTEXT_GET(current_list_id.get_raw_id()));
+            deezer_id == current_context_id);
+}
+
+static inline List::context_id_t
+determine_ctx_id(bool have_audio_source,
+                 const List::context_id_t &restricted_ctx,
+                 const ID::List current_list_id)
+{
+    auto result(have_audio_source ? restricted_ctx : List::ContextMap::INVALID_ID);
+
+    if(result == List::ContextMap::INVALID_ID && current_list_id.is_valid())
+        result = DBUS_LISTS_CONTEXT_GET(current_list_id.get_raw_id());
+
+    return result;
 }
 
 ViewIface::InputResult
 ViewFileBrowser::AirableView::process_event(UI::ViewEventID event_id,
                                             std::unique_ptr<UI::Parameters> parameters)
 {
-    if(is_deezer(list_contexts_, current_list_id_))
+    const auto ctx_id(determine_ctx_id(have_audio_source(),
+                                       context_restriction_.get_context_id(),
+                                       current_list_id_));
+
+    if(is_deezer(list_contexts_, ctx_id))
         patch_event_id_for_deezer(event_id);
 
     switch(event_id)
     {
+      case UI::ViewEventID::NAV_SELECT_ITEM:
+      case UI::ViewEventID::NAV_GO_BACK_ONE_LEVEL:
+      case UI::ViewEventID::NAV_SCROLL_LINES:
+      case UI::ViewEventID::NAV_SCROLL_PAGES:
+        if(oauth_request_.is_active(ctx_id))
+        {
+            msg_info("Manually reloading page to check if OAuth has succeeded");
+            oauth_request_.done();
+            point_to_root_directory();
+            break;
+        }
+
+        /* fall-through */
+
       case UI::ViewEventID::NOP:
       case UI::ViewEventID::PLAYBACK_COMMAND_START:
       case UI::ViewEventID::PLAYBACK_COMMAND_STOP:
@@ -331,10 +362,6 @@ ViewFileBrowser::AirableView::process_event(UI::ViewEventID event_id,
       case UI::ViewEventID::PLAYBACK_SEEK_STREAM_POS:
       case UI::ViewEventID::PLAYBACK_MODE_REPEAT_TOGGLE:
       case UI::ViewEventID::PLAYBACK_MODE_SHUFFLE_TOGGLE:
-      case UI::ViewEventID::NAV_SELECT_ITEM:
-      case UI::ViewEventID::NAV_SCROLL_LINES:
-      case UI::ViewEventID::NAV_SCROLL_PAGES:
-      case UI::ViewEventID::NAV_GO_BACK_ONE_LEVEL:
       case UI::ViewEventID::SEARCH_COMMENCE:
       case UI::ViewEventID::SEARCH_STORE_PARAMETERS:
       case UI::ViewEventID::STORE_STREAM_META_DATA:
@@ -819,24 +846,14 @@ void ViewFileBrowser::AirableView::log_out_from_context(List::context_id_t conte
 uint32_t ViewFileBrowser::AirableView::about_to_write_xml(const DCP::Queue::Data &data) const
 {
     uint32_t bits = ViewFileBrowser::View::about_to_write_xml(data);
+    const auto ctx_id(determine_ctx_id(have_audio_source(),
+                                       context_restriction_.get_context_id(),
+                                       current_list_id_));
 
-    if(is_deezer(list_contexts_, current_list_id_))
+    if(is_deezer(list_contexts_, ctx_id))
         bits |= WRITE_FLAG__IS_LOCKED;
 
     return bits;
-}
-
-static inline List::context_id_t
-determine_ctx_id(bool have_audio_source,
-                 const List::context_id_t &restricted_ctx,
-                 const ID::List current_list_id)
-{
-    auto result(have_audio_source ? restricted_ctx : List::ContextMap::INVALID_ID);
-
-    if(result == List::ContextMap::INVALID_ID && current_list_id.is_valid())
-        result = DBUS_LISTS_CONTEXT_GET(current_list_id.get_raw_id());
-
-    return result;
 }
 
 bool ViewFileBrowser::AirableView::write_xml(std::ostream &os, uint32_t bits,
