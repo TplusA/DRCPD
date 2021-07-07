@@ -62,7 +62,8 @@ List::Item *construct_file_item(const char *name, ListItemKind kind,
 namespace StandardError
 {
 void service_authentication_failure(const List::ContextMap &list_contexts,
-                                    List::context_id_t ctx_id);
+                                    List::context_id_t ctx_id,
+                                    const std::function<bool(ScreenID::Error)> &is_error_allowed);
 }
 
 class JumpToContext
@@ -812,6 +813,8 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
     }
 
     virtual void log_out_from_context(List::context_id_t context) {}
+
+    virtual bool is_error_allowed(ScreenID::Error error) const { return true; }
 
     enum class ListAccessPermission
     {

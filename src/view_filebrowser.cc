@@ -2015,12 +2015,16 @@ void ViewFileBrowser::View::set_list_context_root(List::context_id_t ctx_id)
 }
 
 void ViewFileBrowser::StandardError::service_authentication_failure(
-        const List::ContextMap &list_contexts, List::context_id_t ctx_id)
+        const List::ContextMap &list_contexts, List::context_id_t ctx_id,
+        const std::function<bool(ScreenID::Error)> &is_error_allowed)
 {
     const auto &ctx(list_contexts[ctx_id]);
 
     if(ctx.is_valid())
     {
+        if(!is_error_allowed(ScreenID::Error::ENTER_CONTEXT_AUTHENTICATION))
+            return;
+
         char buffer[512];
 
         snprintf(buffer, sizeof(buffer),
@@ -2030,7 +2034,7 @@ void ViewFileBrowser::StandardError::service_authentication_failure(
                              ctx.string_id_);
 
     }
-    else
+    else if(is_error_allowed(ScreenID::Error::ENTER_LIST_AUTHENTICATION))
         Error::errors().sink(ScreenID::Error::ENTER_LIST_AUTHENTICATION,
                              _("Authentication error, please check your credentials."));
 }
@@ -2039,7 +2043,8 @@ static bool sink_point_to_child_error(ListError::Code error,
                                       const std::string &child_name,
                                       ViewFileBrowser::JumpToContext &jtc,
                                       const List::ContextMap &list_contexts,
-                                      Busy::Source busy_source)
+                                      Busy::Source busy_source,
+                                      const std::function<bool(ScreenID::Error)> &is_error_allowed)
 {
     Busy::clear(busy_source);
 
@@ -2065,12 +2070,12 @@ static bool sink_point_to_child_error(ListError::Code error,
 
       case ListError::Code::AUTHENTICATION:
         if(jtc.is_jumping_to_context())
-            ViewFileBrowser::StandardError::service_authentication_failure(list_contexts,
-                                                                           jtc.get_destination());
+            ViewFileBrowser::StandardError::service_authentication_failure(
+                list_contexts, jtc.get_destination(), is_error_allowed);
         else if(child_name.empty())
-            ViewFileBrowser::StandardError::service_authentication_failure(list_contexts,
-                                                                           List::ContextMap::INVALID_ID);
-        else
+            ViewFileBrowser::StandardError::service_authentication_failure(
+                list_contexts, List::ContextMap::INVALID_ID, is_error_allowed);
+        else if(is_error_allowed(ScreenID::Error::ENTER_LIST_AUTHENTICATION))
         {
             char buffer[1024];
             snprintf(buffer, sizeof(buffer),
@@ -2133,7 +2138,8 @@ static void point_to_child_directory__got_list_id(
         DBusRNF::GetListIDCallBase &call, ViewFileBrowser::View::AsyncCalls &calls,
         List::DBusList &file_list,
         const List::DBusListViewport *associated_viewport,
-        const std::string &child_name, const List::ContextMap &list_contexts)
+        const std::string &child_name, const List::ContextMap &list_contexts,
+        const std::function<bool(ScreenID::Error)> &is_error_allowed)
 {
     auto lock(calls.acquire_lock());
 
@@ -2146,7 +2152,7 @@ static void point_to_child_directory__got_list_id(
 
         if(!sink_point_to_child_error(result.error_.get(), child_name,
                                       calls.context_jump_, list_contexts,
-                                      call.BUSY_SOURCE_ID))
+                                      call.BUSY_SOURCE_ID, is_error_allowed))
         {
             if(!result.list_id_.is_valid())
                 BUG("Got invalid list ID for child list, but no error code");
@@ -2178,7 +2184,7 @@ static void point_to_child_directory__got_list_id(
                   e.what());
         sink_point_to_child_error(e.get(), child_name,
                                   calls.context_jump_, list_contexts,
-                                  call.BUSY_SOURCE_ID);
+                                  call.BUSY_SOURCE_ID, is_error_allowed);
     }
     catch(const DBusRNF::AbortedError &e)
     {
@@ -2189,7 +2195,7 @@ static void point_to_child_directory__got_list_id(
         const auto error = call.get_list_error();
         sink_point_to_child_error(error.failed() ? error.get() : ListError::INTERRUPTED,
                                   child_name, calls.context_jump_, list_contexts,
-                                  call.BUSY_SOURCE_ID);
+                                  call.BUSY_SOURCE_ID, is_error_allowed);
     }
     catch(const std::exception &e)
     {
@@ -2198,7 +2204,7 @@ static void point_to_child_directory__got_list_id(
                   call.item_index_, call.list_id_.get_raw_id(), e.what());
         sink_point_to_child_error(ListError::INTERNAL, child_name,
                                   calls.context_jump_, list_contexts,
-                                  call.BUSY_SOURCE_ID);
+                                  call.BUSY_SOURCE_ID, is_error_allowed);
     }
     catch(...)
     {
@@ -2207,7 +2213,7 @@ static void point_to_child_directory__got_list_id(
                   call.item_index_, call.list_id_.get_raw_id());
         sink_point_to_child_error(ListError::INTERNAL, child_name,
                                   calls.context_jump_, list_contexts,
-                                  call.BUSY_SOURCE_ID);
+                                  call.BUSY_SOURCE_ID, is_error_allowed);
     }
 
     calls.delete_get_list_id();
@@ -2261,7 +2267,11 @@ bool ViewFileBrowser::View::point_to_child_directory(const SearchParameters *sea
                 point_to_child_directory__got_list_id(
                     call, async_calls_, file_list_, this->get_viewport().get(),
                     get_child_name(file_list_, this->get_viewport(), call.item_index_),
-                    list_contexts_);
+                    list_contexts_,
+                    [this] (ScreenID::Error error)
+                    {
+                        return this->is_error_allowed(error);
+                    });
             });
 
     auto call(search_parameters == nullptr

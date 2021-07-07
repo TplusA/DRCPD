@@ -130,7 +130,9 @@ ViewFileBrowser::AirableView::logged_into_service_notification(const std::string
               case ListAccessPermission::ALLOWED:
               case ListAccessPermission::DENIED__BLOCKED:
               case ListAccessPermission::DENIED__NO_LIST_ID:
-                StandardError::service_authentication_failure(list_contexts_, ctx_id);
+                StandardError::service_authentication_failure(
+                    list_contexts_, ctx_id,
+                    [this] (auto auth_error) { return is_error_allowed(auth_error); });
                 break;
 
               case ListAccessPermission::DENIED__LOADING:
