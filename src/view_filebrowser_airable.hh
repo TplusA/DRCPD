@@ -44,7 +44,10 @@ class OAuthRequest
     bool sent_ui_message_;
     bool seen_auth_error_;
 
+    Timeout::Timer reload_timer_;
+
     static const std::string empty_string;
+    static constexpr unsigned int RETRY_SECONDS = 20;
 
   public:
     OAuthRequest(const OAuthRequest &) = delete;
@@ -61,20 +64,26 @@ class OAuthRequest
     {}
 
     void activate(const List::context_id_t &context_id,
-                  std::string &&url, std::string &&code)
+                  std::string &&url, std::string &&code,
+                  Timeout::Timer::TimeoutCallback &&do_reload)
     {
         activate_init(context_id, std::move(url), std::move(code));
         have_list_position_ = false;
+        reload_timer_.start(std::chrono::seconds(RETRY_SECONDS),
+                            std::move(do_reload));
     }
 
     void activate(const List::context_id_t &context_id,
                   ID::List list_id, unsigned int item_id,
-                  std::string &&url, std::string &&code)
+                  std::string &&url, std::string &&code,
+                  Timeout::Timer::TimeoutCallback &&do_reload)
     {
         activate_init(context_id, std::move(url), std::move(code));
         have_list_position_ = true;
         list_id_ = list_id;
         item_id_ = item_id;
+        reload_timer_.start(std::chrono::seconds(RETRY_SECONDS),
+                            std::move(do_reload));
     }
 
     void done()
@@ -85,6 +94,7 @@ class OAuthRequest
             return;
         }
 
+        reload_timer_.stop();
         context_id_ = List::ContextMap::INVALID_ID;
         url_.clear();
         code_.clear();

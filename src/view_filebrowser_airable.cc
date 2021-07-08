@@ -32,6 +32,7 @@
 #include "messages.h"
 
 const std::string ViewFileBrowser::OAuthRequest::empty_string;
+const unsigned int ViewFileBrowser::OAuthRequest::RETRY_SECONDS;
 
 bool ViewFileBrowser::AirableView::try_jump_to_stored_position(StoredPosition &pos)
 {
@@ -442,13 +443,27 @@ ViewFileBrowser::AirableView::process_oauth_request(
     if(context_hint.empty() || context_hint == "root")
         oauth_request_.activate(ctx_id, list_id, item_id,
                                 std::move(std::get<4>(plist)),
-                                std::move(std::get<5>(plist)));
+                                std::move(std::get<5>(plist)),
+                                [this]
+                                {
+                                    msg_info("Reload for OAuth");
+                                    oauth_request_.done();
+                                    point_to_root_directory();
+                                    return std::chrono::milliseconds::zero();
+                                });
     else
     {
         BUG("Received OAuth request with context hint: "
             "we should probably handle this case differently");
         oauth_request_.activate(ctx_id, std::move(std::get<4>(plist)),
-                                std::move(std::get<5>(plist)));
+                                std::move(std::get<5>(plist)),
+                                [this]
+                                {
+                                    msg_info("Reload for OAuth (in bogus context)");
+                                    oauth_request_.done();
+                                    point_to_root_directory();
+                                    return std::chrono::milliseconds::zero();
+                                });
     }
 
     return InputResult::UPDATE_NEEDED;
