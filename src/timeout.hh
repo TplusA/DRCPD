@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, 2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2019, 2021  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -56,11 +56,11 @@ class Timer
         timeout_event_source_id_(0)
     {}
 
-    bool start(std::chrono::milliseconds timeout, TimeoutCallback callback);
+    bool start(std::chrono::milliseconds &&timeout, TimeoutCallback &&callback);
     void stop();
 
   private:
-    bool keep_or_restart(std::chrono::milliseconds timeout);
+    bool keep_or_restart(std::chrono::milliseconds &&timeout);
     static int expired(void *timer_object);
 };
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, 2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2019, 2021  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -29,8 +29,8 @@
 #include "messages.h"
 #include "timeout.hh"
 
-bool Timeout::Timer::start(std::chrono::milliseconds timeout,
-                           TimeoutCallback callback)
+bool Timeout::Timer::start(std::chrono::milliseconds &&timeout,
+                           TimeoutCallback &&callback)
 {
     log_assert(callback != nullptr);
     log_assert(timeout_event_source_id_ == 0);
@@ -50,7 +50,7 @@ bool Timeout::Timer::start(std::chrono::milliseconds timeout,
     }
 
     timeout_ = timeout;
-    callback_ = callback;
+    callback_ = std::move(callback);
 
     g_source_set_callback(src, Timeout::Timer::expired, this, nullptr);
     timeout_event_source_id_ = g_source_attach(src, nullptr);
@@ -67,7 +67,7 @@ void Timeout::Timer::stop()
     }
 }
 
-bool Timeout::Timer::keep_or_restart(std::chrono::milliseconds timeout)
+bool Timeout::Timer::keep_or_restart(std::chrono::milliseconds &&timeout)
 {
     if(timeout == timeout_ || timeout == timeout.zero())
         return true;
@@ -75,7 +75,7 @@ bool Timeout::Timer::keep_or_restart(std::chrono::milliseconds timeout)
     timeout_event_source_id_ = 0;
 
     if(timeout != timeout.min())
-        start(timeout, callback_);
+        start(std::move(timeout), std::move(callback_));
 
     return false;
 }
