@@ -1648,6 +1648,8 @@ static bool send_selected_file_uri_to_streamplayer(
             urlfifo_proxy, stream_id.get().get_raw_id(),
             queued_url.c_str(), GVariantWrapper::get(stream_key),
             0, "ms", 0, "ms", keep_first_n,
+            g_variant_new_array(reinterpret_cast<const GVariantType *>("(ss)"),
+                                nullptr, 0),
             &fifo_overflow, &is_playing, nullptr, error.await());
 
         if(error.log_failure("Push stream"))
