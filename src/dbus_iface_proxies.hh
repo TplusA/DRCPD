@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2016, 2017, 2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015--2017, 2019, 2021  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -39,6 +39,7 @@ tdbussplayPlayback *get_streamplayer_playback_iface();
 tdbussplayPlayback *get_roonplayer_playback_iface();
 tdbusdcpdPlayback *get_dcpd_playback_iface();
 tdbusAirable *get_airable_sec_iface();
+tdbusdcpdPlayback *get_rest_dcpd_playback_iface();
 tdbusaupathManager *audiopath_get_manager_iface();
 
 }
