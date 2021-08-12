@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2015--2020  T+A elektroakustik GmbH & Co. KG
+# Copyright (C) 2015--2021  T+A elektroakustik GmbH & Co. KG
 #
 # This file is part of DRCPD.
 #
@@ -122,6 +122,7 @@ libviews_la_SOURCES = \
     view_search.hh view_search.cc \
     view_external_source_base.hh view_external_source_base.cc \
     view_src_app.hh view_src_app.cc \
+    view_src_rest.hh view_src_rest.cc \
     view_src_roon.hh view_src_roon.cc \
     view_manager.hh view_manager.cc \
     player_permissions.hh player_permissions_airable.hh \

@@ -38,6 +38,7 @@
 #include "view_filebrowser.hh"
 #include "view_filebrowser_airable.hh"
 #include "view_src_app.hh"
+#include "view_src_rest.hh"
 #include "view_src_roon.hh"
 #include "view_manager.hh"
 #include "view_play.hh"
@@ -527,6 +528,7 @@ static void connect_everything(ViewManager::Manager &views,
                     Playlist::Crawler::FindNextOpBase::RecursiveMode::DEPTH_FIRST),
                 "strbo.upnpcm", views, views, views);
     static ViewSourceApp::View app("TA Control", views);
+    static ViewSourceREST::View rest("T+A MusicNavigator", views);
     static ViewSourceRoon::View roon("Roon Ready", views);
     static ViewPlay::View play(N_("Stream information"),
                                views.NUMBER_OF_LINES_ON_DISPLAY,
@@ -541,6 +543,7 @@ static void connect_everything(ViewManager::Manager &views,
     views.add_view(tunein);
     views.add_view(upnp);
     views.add_view(app);
+    views.add_view(rest);
     views.add_view(roon);
     views.add_view(play);
     views.add_view(search);
@@ -558,6 +561,9 @@ static void connect_everything(ViewManager::Manager &views,
         return;
 
     if(!app.init())
+        return;
+
+    if(!rest.init())
         return;
 
     if(!roon.init())

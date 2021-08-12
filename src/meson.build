@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2019, 2020  T+A elektroakustik GmbH & Co. KG
+# Copyright (C) 2019, 2020, 2021  T+A elektroakustik GmbH & Co. KG
 #
 # This file is part of DRCPD.
 #
@@ -82,7 +82,7 @@ views_lib = static_library('views',
     ['view_error_sink.cc', 'view_filebrowser.cc',
     'view_filebrowser_airable.cc', 'view_audiosource.cc', 'view_play.cc',
     'view_search.cc', 'view_external_source_base.cc', 'view_src_app.cc',
-    'view_src_roon.cc', 'view_manager.cc',
+    'view_src_rest.cc', 'view_src_roon.cc', 'view_manager.cc',
     'rnfcall.cc', 'rnfcall_death_row.cc',
     'playlist_crawler.cc', 'directory_crawler.cc',
     'directory_crawler_find_next_op.cc', 'directory_crawler_get_uris_op.cc',
