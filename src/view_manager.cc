@@ -264,15 +264,23 @@ void ViewManager::Manager::handle_input_result(ViewIface::InputResult result,
         break;
 
       case ViewIface::InputResult::UPDATE_NEEDED:
+        if(&view == active_view_)
+            dynamic_cast<ViewSerializeBase &>(view).update(
+                dcp_transaction_queue_, DCP::Queue::Mode::SYNC_IF_POSSIBLE,
+                debug_stream_);
+
+        break;
+
+      case ViewIface::InputResult::FULL_SERIALIZE_NEEDED:
         if(&view != active_view_)
             break;
 
         /* fall-through */
 
       case ViewIface::InputResult::FORCE_SERIALIZE:
-        dynamic_cast<ViewSerializeBase &>(view).update(dcp_transaction_queue_,
-                                                       DCP::Queue::Mode::SYNC_IF_POSSIBLE,
-                                                       debug_stream_);
+        dynamic_cast<ViewSerializeBase &>(view).serialize(
+            dcp_transaction_queue_, DCP::Queue::Mode::SYNC_IF_POSSIBLE,
+            debug_stream_);
         break;
 
       case ViewIface::InputResult::SHOULD_HIDE:

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015--2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015--2021  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -149,6 +149,15 @@ class ViewIface
          * The update is not sent in case the view is not the active view.
          */
         UPDATE_NEEDED,
+
+        /*!
+         * Something has changed and an complete XML document should be sent to
+         * the client.
+         *
+         * The display content is not sent in case the view is not the active
+         * view.
+         */
+        FULL_SERIALIZE_NEEDED,
 
         /*!
          * Something has changed and an XML document must be sent to the
