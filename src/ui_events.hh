@@ -78,6 +78,7 @@ enum class ViewEventID
     NOTIFY_PLAYBACK_MODE_CHANGED,
     AUDIO_SOURCE_SELECTED,
     AUDIO_SOURCE_DESELECTED,
+    AUDIO_PATH_HALF_CHANGED,
     AUDIO_PATH_CHANGED,
     STRBO_URL_RESOLVED,
     SET_DISPLAY_CONTENT,
@@ -172,6 +173,7 @@ enum class EventID
     PLAYBACK_MODE_SHUFFLE_TOGGLE = mk_event_raw_id(ViewEventID::PLAYBACK_MODE_SHUFFLE_TOGGLE),
     AUDIO_SOURCE_SELECTED        = mk_event_raw_id(ViewEventID::AUDIO_SOURCE_SELECTED),
     AUDIO_SOURCE_DESELECTED      = mk_event_raw_id(ViewEventID::AUDIO_SOURCE_DESELECTED),
+    AUDIO_PATH_HALF_CHANGED      = mk_event_raw_id(ViewEventID::AUDIO_PATH_HALF_CHANGED),
     AUDIO_PATH_CHANGED           = mk_event_raw_id(ViewEventID::AUDIO_PATH_CHANGED),
 
     /* ===================================================================

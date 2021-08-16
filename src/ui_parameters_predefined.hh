@@ -66,9 +66,15 @@ struct ParamTraits<EventID::AUDIO_SOURCE_DESELECTED>
 };
 
 template <>
+struct ParamTraits<EventID::AUDIO_PATH_HALF_CHANGED>
+{
+    using PType = SpecificParameters<std::tuple<std::string, std::string>>;
+};
+
+template <>
 struct ParamTraits<EventID::AUDIO_PATH_CHANGED>
 {
-    using PType = SpecificParameters<std::tuple<std::string, std::string, bool>>;
+    using PType = SpecificParameters<std::tuple<std::string, std::string, GVariantWrapper>>;
 };
 
 template <>
@@ -254,6 +260,14 @@ static std::unique_ptr<typename Traits::PType, D>
 downcast(std::unique_ptr<TParams, D> &params)
 {
     return ::UI::Parameters::downcast<typename Traits::PType, D>(params);
+}
+
+template <ViewEventID E, typename TParams, typename Traits = ::UI::Events::ParamTraits<mk_event_id(E)>>
+static const typename Traits::PType *
+downcast_plain(std::unique_ptr<TParams> &params)
+{
+    return dynamic_cast<const typename Traits::PType *>(params.get());
+
 }
 
 template <VManEventID E, typename D, typename TParams, typename Traits = ::UI::Events::ParamTraits<mk_event_id(E)>>

@@ -1313,6 +1313,7 @@ ViewFileBrowser::View::process_event(UI::ViewEventID event_id,
       case UI::ViewEventID::NOTIFY_PLAYBACK_MODE_CHANGED:
       case UI::ViewEventID::AUDIO_SOURCE_SELECTED:
       case UI::ViewEventID::AUDIO_SOURCE_DESELECTED:
+      case UI::ViewEventID::AUDIO_PATH_HALF_CHANGED:
       case UI::ViewEventID::AUDIO_PATH_CHANGED:
       case UI::ViewEventID::SET_DISPLAY_CONTENT:
         BUG("Unexpected view event 0x%08x for file browser view",

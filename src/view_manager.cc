@@ -407,6 +407,7 @@ static void log_event_dispatch(const UI::ViewEventID event_id,
         "NOTIFY_PLAYBACK_MODE_CHANGED",
         "AUDIO_SOURCE_SELECTED",
         "AUDIO_SOURCE_DESELECTED",
+        "AUDIO_PATH_HALF_CHANGED",
         "AUDIO_PATH_CHANGED",
         "STRBO_URL_RESOLVED",
         "SET_DISPLAY_CONTENT",
@@ -462,6 +463,7 @@ void ViewManager::Manager::dispatch_event(UI::ViewEventID event_id,
         InputBouncer::Item(UI::ViewEventID::NOTIFY_PLAYBACK_MODE_CHANGED, ViewNames::PLAYER),
         InputBouncer::Item(UI::ViewEventID::AUDIO_SOURCE_SELECTED, ViewNames::PLAYER),
         InputBouncer::Item(UI::ViewEventID::AUDIO_SOURCE_DESELECTED, ViewNames::PLAYER),
+        InputBouncer::Item(UI::ViewEventID::AUDIO_PATH_HALF_CHANGED, ViewNames::PLAYER),
         InputBouncer::Item(UI::ViewEventID::AUDIO_PATH_CHANGED, ViewNames::PLAYER),
         InputBouncer::Item(UI::ViewEventID::SEARCH_STORE_PARAMETERS, ViewNames::SEARCH_OPTIONS),
         InputBouncer::Item(UI::ViewEventID::NOTIFY_AIRABLE_SERVICE_LOGIN_STATUS_UPDATE, ViewNames::BROWSER_INETRADIO),
@@ -479,8 +481,8 @@ void ViewManager::Manager::dispatch_event(UI::ViewEventID event_id,
     {
         const char *target_view_name = nullptr;
 
-        const auto params =
-            UI::Events::downcast<UI::ViewEventID::SET_DISPLAY_CONTENT>(parameters);
+        const auto *params =
+            UI::Events::downcast_plain<UI::ViewEventID::SET_DISPLAY_CONTENT>(parameters);
         if(params != nullptr)
         {
             const auto &plist = params->get_specific();

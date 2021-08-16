@@ -293,6 +293,7 @@ static void patch_event_id_for_deezer(UI::ViewEventID &event_id)
       case UI::ViewEventID::NOTIFY_PLAYBACK_MODE_CHANGED:
       case UI::ViewEventID::AUDIO_SOURCE_SELECTED:
       case UI::ViewEventID::AUDIO_SOURCE_DESELECTED:
+      case UI::ViewEventID::AUDIO_PATH_HALF_CHANGED:
       case UI::ViewEventID::AUDIO_PATH_CHANGED:
         break;
     }

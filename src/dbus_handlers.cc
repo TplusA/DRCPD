@@ -691,22 +691,39 @@ void dbussignal_audiopath_manager(GDBusProxy *proxy, const gchar *sender_name,
                   "Audio player %s (%s) registered (ignored)",
                   player_id, player_name);
     }
-    else if(strcmp(signal_name, "PathActivated") == 0 ||
-            strcmp(signal_name, "PathDeferred") == 0)
+    else if(strcmp(signal_name, "PathActivated") == 0)
     {
         const gchar *source_id;
         const gchar *player_id;
-        const bool is_on_hold = strcmp(signal_name, "PathDeferred") == 0;
+        GVariant *request_data;
+
+        g_variant_get(parameters, "(&s&s@a{sv})",
+                      &source_id, &player_id, &request_data);
+
+        msg_vinfo(MESSAGE_LEVEL_DIAG,
+                  "Audio path activated: %s -> %s", source_id, player_id);
+
+        auto params =
+            UI::Events::mk_params<UI::EventID::AUDIO_PATH_CHANGED>(
+                source_id, player_id, GVariantWrapper(request_data));
+        data->event_sink_.store_event(UI::EventID::AUDIO_PATH_CHANGED,
+                                      std::move(params));
+    }
+    else if(strcmp(signal_name, "PathDeferred") == 0)
+    {
+        const gchar *source_id;
+        const gchar *player_id;
 
         g_variant_get(parameters, "(&s&s)", &source_id, &player_id);
 
         msg_vinfo(MESSAGE_LEVEL_DIAG,
-                  "Audio path activated%s: %s -> %s",
-                  is_on_hold ? " (on hold)" : "", source_id, player_id);
+                  "Audio path activated (on hold): %s -> %s",
+                  source_id, player_id);
 
         auto params =
-            UI::Events::mk_params<UI::EventID::AUDIO_PATH_CHANGED>(source_id, player_id, is_on_hold);
-        data->event_sink_.store_event(UI::EventID::AUDIO_PATH_CHANGED,
+            UI::Events::mk_params<UI::EventID::AUDIO_PATH_HALF_CHANGED>(
+                                                    source_id, player_id);
+        data->event_sink_.store_event(UI::EventID::AUDIO_PATH_HALF_CHANGED,
                                       std::move(params));
     }
     else if(strcmp(signal_name, "PathAvailable") == 0)

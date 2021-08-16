@@ -95,6 +95,7 @@ ViewSourceREST::View::process_event(UI::ViewEventID event_id,
       case UI::ViewEventID::NOTIFY_PLAYBACK_MODE_CHANGED:
       case UI::ViewEventID::AUDIO_SOURCE_SELECTED:
       case UI::ViewEventID::AUDIO_SOURCE_DESELECTED:
+      case UI::ViewEventID::AUDIO_PATH_HALF_CHANGED:
       case UI::ViewEventID::AUDIO_PATH_CHANGED:
       case UI::ViewEventID::STRBO_URL_RESOLVED:
       case UI::ViewEventID::PLAYBACK_TRY_RESUME:
