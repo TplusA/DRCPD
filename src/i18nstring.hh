@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017, 2018, 2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2017, 2018, 2019, 2021  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -61,6 +61,16 @@ class String
             return is_subject_to_translation_ ? _(string_.c_str()) : string_.c_str();
         else
             return "";
+    }
+
+    bool is_equal_untranslated(const char *other) const
+    {
+        return other == string_;
+    }
+
+    bool is_equal_untranslated(const std::string &other) const
+    {
+        return other == string_;
     }
 
     bool empty() const { return string_.empty(); }
