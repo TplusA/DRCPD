@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016--2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016--2021  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -105,6 +105,13 @@ template <>
 struct ParamTraits<EventID::VIEW_TOGGLE>
 {
     using PType = SpecificParameters<std::tuple<std::string, std::string>>;
+};
+
+template <>
+struct ParamTraits<EventID::VIEW_SET_DISPLAY_CONTENT>
+{
+    using PType = SpecificParameters<std::tuple<std::string, std::string,
+                                                GVariantWrapper>>;
 };
 
 template <>

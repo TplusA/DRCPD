@@ -717,6 +717,34 @@ void dbussignal_audiopath_manager(GDBusProxy *proxy, const gchar *sender_name,
         unknown_signal(iface_name, signal_name, sender_name);
 }
 
+void dbussignal_rest_display_updates(GDBusProxy *proxy, const gchar *sender_name,
+                                     const gchar *signal_name,
+                                     GVariant *parameters,
+                                     gpointer user_data)
+{
+    static const char iface_name[] = "de.tahifi.JSONEmitter";
+
+    log_signal(iface_name, signal_name, sender_name);
+
+    auto *data = static_cast<DBus::SignalData *>(user_data);
+    log_assert(data != nullptr);
+
+    if(strcmp(signal_name, "Object") == 0)
+    {
+        const gchar *json_object;
+        GVariant *extra;
+        g_variant_get(parameters, "(&s@as)", &json_object, &extra);
+
+        auto params =
+            UI::Events::mk_params<UI::EventID::VIEW_SET_DISPLAY_CONTENT>(
+                ViewNames::REST_API, json_object, GVariantWrapper(extra));
+        data->event_sink_.store_event(UI::EventID::VIEW_SET_DISPLAY_CONTENT,
+                                      std::move(params));
+    }
+    else
+        unknown_signal(iface_name, signal_name, sender_name);
+}
+
 static void enter_audiopath_source_handler(GDBusMethodInvocation *invocation)
 {
     static const char iface_name[] = "de.tahifi.AudioPath.Source";

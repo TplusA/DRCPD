@@ -409,6 +409,7 @@ static void log_event_dispatch(const UI::ViewEventID event_id,
         "AUDIO_SOURCE_DESELECTED",
         "AUDIO_PATH_CHANGED",
         "STRBO_URL_RESOLVED",
+        "SET_DISPLAY_CONTENT",
         "PLAYBACK_TRY_RESUME",
     };
 
@@ -468,13 +469,38 @@ void ViewManager::Manager::dispatch_event(UI::ViewEventID event_id,
 
     static constexpr const ViewManager::InputBouncer global_bounce_table(global_bounce_table_data);
 
-    if(!do_input_bounce(global_bounce_table, event_id, parameters))
+    if(do_input_bounce(global_bounce_table, event_id, parameters))
+        return;
+
+    ViewIface *target_view;
+    if(event_id != UI::ViewEventID::SET_DISPLAY_CONTENT)
+        target_view = active_view_;
+    else
     {
-        log_event_dispatch(event_id, active_view_->name_, false);
-        handle_input_result(active_view_->process_event(event_id,
-                                                        std::move(parameters)),
-                            *active_view_);
+        const char *target_view_name = nullptr;
+
+        const auto params =
+            UI::Events::downcast<UI::ViewEventID::SET_DISPLAY_CONTENT>(parameters);
+        if(params != nullptr)
+        {
+            const auto &plist = params->get_specific();
+            target_view_name = std::get<0>(plist).c_str();
+        }
+
+        target_view = get_view_by_name(target_view_name);
+
+        if(target_view == nullptr)
+        {
+            BUG("Cannot send display update to unknown view \"%s\"",
+                target_view_name);
+            return;
+        }
     }
+
+    log_event_dispatch(event_id, target_view->name_, false);
+    handle_input_result(target_view->process_event(event_id,
+                                                   std::move(parameters)),
+                        *target_view);
 }
 
 void ViewManager::Manager::dispatch_event(UI::BroadcastEventID event_id,

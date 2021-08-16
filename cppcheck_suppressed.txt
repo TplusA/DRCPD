@@ -1,1 +1,3 @@
+*:drcpd/src/json.hh
+*:src/json.hh
 *:/usr/*

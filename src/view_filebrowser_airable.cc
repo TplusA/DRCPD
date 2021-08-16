@@ -267,6 +267,7 @@ static void patch_event_id_for_deezer(UI::ViewEventID &event_id)
       case UI::ViewEventID::SEARCH_STORE_PARAMETERS:
       case UI::ViewEventID::PLAYBACK_TRY_RESUME:
       case UI::ViewEventID::STRBO_URL_RESOLVED:
+      case UI::ViewEventID::SET_DISPLAY_CONTENT:
         event_id = UI::ViewEventID::NOP;
         break;
 

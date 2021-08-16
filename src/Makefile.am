@@ -122,7 +122,7 @@ libviews_la_SOURCES = \
     view_search.hh view_search.cc \
     view_external_source_base.hh view_external_source_base.cc \
     view_src_app.hh view_src_app.cc \
-    view_src_rest.hh view_src_rest.cc \
+    view_src_rest.hh view_src_rest.cc json.hh \
     view_src_roon.hh view_src_roon.cc \
     view_manager.hh view_manager.cc \
     player_permissions.hh player_permissions_airable.hh \
@@ -185,6 +185,7 @@ nodist_libdrcpd_dbus_client_la_SOURCES = \
     de_tahifi_airable.c de_tahifi_airable.h \
     de_tahifi_audiopath.c de_tahifi_audiopath.h \
     de_tahifi_configuration.c de_tahifi_configuration.h \
+    de_tahifi_jsonio.c de_tahifi_jsonio.h \
     de_tahifi_debug.c de_tahifi_debug.h
 libdrcpd_dbus_client_la_CFLAGS = $(CRELAXEDWARNINGS)
 libdrcpd_dbus_client_la_CXXFLAGS = $(CXXRELAXEDWARNINGS)
@@ -209,6 +210,9 @@ BUILT_SOURCES = \
     de_tahifi_audiopath-doc.h \
     de_tahifi_audiopath-doc.md \
     de_tahifi_audiopath.stamp \
+    de_tahifi_jsonio-doc.h \
+    de_tahifi_jsonio-doc.md \
+    de_tahifi_jsonio.stamp \
     de_tahifi_debug-doc.h \
     de_tahifi_debug-doc.md \
     de_tahifi_debug.stamp
@@ -267,6 +271,15 @@ de_tahifi_configuration.h: de_tahifi_configuration.stamp
 de_tahifi_configuration.stamp: $(DBUS_IFACES)/de_tahifi_configuration.xml
 	$(GDBUS_CODEGEN) --generate-c-code=de_tahifi_configuration --c-namespace tdbus --interface-prefix de.tahifi. $<
 	$(DBUS_IFACES)/extract_documentation.py -i $< -o de_tahifi_configuration-doc.md -H de_tahifi_configuration-doc.h -c tdbus -s de.tahifi. -n "Configuration"
+	touch $@
+
+de_tahifi_jsonio-doc.h: de_tahifi_jsonio.stamp
+de_tahifi_jsonio-doc.md: de_tahifi_jsonio.stamp
+de_tahifi_jsonio.c: de_tahifi_jsonio.stamp
+de_tahifi_jsonio.h: de_tahifi_jsonio.stamp
+de_tahifi_jsonio.stamp: $(DBUS_IFACES)/de_tahifi_jsonio.xml
+	$(GDBUS_CODEGEN) --generate-c-code=de_tahifi_jsonio --c-namespace tdbus --interface-prefix de.tahifi. $<
+	$(DBUS_IFACES)/extract_documentation.py -i $< -o de_tahifi_jsonio-doc.md -H de_tahifi_jsonio-doc.h -c tdbus -s de.tahifi. -n "JSON Object Exchange"
 	touch $@
 
 de_tahifi_debug-doc.h: de_tahifi_debug.stamp

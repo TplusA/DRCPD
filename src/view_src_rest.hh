@@ -30,6 +30,12 @@ namespace ViewSourceREST
 
 class View: public ViewExternalSource::Base
 {
+  private:
+    static constexpr const uint32_t UPDATE_FLAGS_LINE0 = 1U << 0;
+    static constexpr const uint32_t UPDATE_FLAGS_LINE1 = 1U << 1;
+
+    std::array<std::string, 2> lines_;
+
   public:
     View(const View &) = delete;
     View &operator=(const View &) = delete;
@@ -40,7 +46,38 @@ class View: public ViewExternalSource::Base
                               ViewIface::Flags::IS_PASSIVE))
     {}
 
+    InputResult process_event(UI::ViewEventID event_id,
+                              std::unique_ptr<UI::Parameters> parameters) final override;
+
     const Player::LocalPermissionsIface &get_local_permissions() const final override;
+
+    /*!
+     * Set the title and up to two lines on the screen.
+     *
+     * This functionality should *not* be used to show playback information (we
+     * have the play screen for this purpose). The REST API client could show a
+     * friendly name, phone name, current browse context, or whatever
+     * information that has something to do with the REST API client itself.
+     *
+     * The request is a JSON object containing a display operation
+     * ("display_set" or "display_update") which tells us what to do. The title
+     * is expected in field "title", and the two lines are expected in fields
+     * "first_line" and "second_line".
+     *
+     * If both lines are cleared, then a fallback string will be show instead.
+     * Therefore, it is not possible to show a blank screen (unless using
+     * characters that have no on-screen representation). The same is true for
+     * the title string.
+     */
+    ViewIface::InputResult
+    set_display_update_request(const std::string &request);
+
+    bool set_line(size_t idx, std::string &&str);
+    bool set_line(size_t idx, const std::string &str);
+
+  protected:
+    bool write_xml(std::ostream &os, uint32_t bits,
+                   const DCP::Queue::Data &data) final override;
 };
 
 }

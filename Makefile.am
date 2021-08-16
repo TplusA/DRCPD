@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2015--2019  T+A elektroakustik GmbH & Co. KG
+# Copyright (C) 2015--2019, 2021  T+A elektroakustik GmbH & Co. KG
 #
 # This file is part of DRCPD.
 #
@@ -40,7 +40,8 @@ EXTRA_DIST += \
     dbus_interfaces/de_tahifi_lists.xml \
     dbus_interfaces/de_tahifi_streamplayer.xml \
     dbus_interfaces/de_tahifi_airable.xml \
-    dbus_interfaces/de_tahifi_audiopath.xml
+    dbus_interfaces/de_tahifi_audiopath.xml \
+    dbus_interfaces/de_tahifi_jsonio.xml
 
 BUILT_SOURCES = versioninfo.h
 

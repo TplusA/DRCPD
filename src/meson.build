@@ -38,6 +38,7 @@ dbus_iface_data = [
     ['de_tahifi_airable',       'de.tahifi.',              'tdbus',        'Airable'],
     ['de_tahifi_configuration', 'de.tahifi.',              'tdbus',        'Configuration Management'],
     ['de_tahifi_audiopath',     'de.tahifi.AudioPath.',    'tdbus_aupath', 'Audio Paths'],
+    ['de_tahifi_jsonio',        'de.tahifi.',              'tdbus',        'JSON Object Exchange'],
     ['de_tahifi_debug',         'de.tahifi.Debug.',        'tdbus_debug',  'Debug Levels'],
 ]
 

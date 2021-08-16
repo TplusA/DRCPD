@@ -58,6 +58,7 @@ struct DBusData
     tdbusAirable *airable_sec_proxy;
 
     tdbusdcpdPlayback *rest_dcpd_playback_proxy;
+    tdbusJSONEmitter *rest_display_updates_proxy;
 
     tdbusaupathSource *audiopath_source_iface;
     tdbusaupathManager *audiopath_manager_proxy;
@@ -225,14 +226,22 @@ static void connect_signals_dcpd(GDBusConnection *connection,
 
 static void connect_signals_rest_api(GDBusConnection *connection,
                                      DBusData &data, GDBusProxyFlags flags,
-                                     const char *bus_name, const char *object_path)
+                                     const char *bus_name,
+                                     const char *object_path_dcpd,
+                                     const char *object_path_display)
 {
     GErrorWrapper error;
 
     data.rest_dcpd_playback_proxy =
         tdbus_dcpd_playback_proxy_new_sync(connection, flags,
-                                           bus_name, object_path,
+                                           bus_name, object_path_dcpd,
                                            nullptr, error.await());
+    error.log_failure("Create REST playback proxy");
+
+    data.rest_display_updates_proxy =
+        tdbus_jsonemitter_proxy_new_sync(connection, flags,
+                                         bus_name, object_path_display,
+                                         nullptr, error.await());
     error.log_failure("Create REST playback proxy");
 }
 
@@ -325,7 +334,9 @@ static void name_acquired(GDBusConnection *connection,
     connect_signals_dcpd(connection, data, G_DBUS_PROXY_FLAGS_NONE,
                          "de.tahifi.Dcpd", "/de/tahifi/Dcpd");
     connect_signals_rest_api(connection, data, G_DBUS_PROXY_FLAGS_NONE,
-                             "de.tahifi.REST", "/de/tahifi/REST_DCPD");
+                             "de.tahifi.REST",
+                             "/de/tahifi/REST_DCPD",
+                             "/de/tahifi/REST_DISPLAY");
     connect_signals_list_broker(connection,
                                 data.filebroker_lists_navigation_proxy,
                                 G_DBUS_PROXY_FLAGS_NONE,
@@ -413,6 +424,11 @@ tdbusdcpdPlayback *DBus::get_rest_dcpd_playback_iface()
     return dbus_data.rest_dcpd_playback_proxy;
 }
 
+tdbusJSONEmitter *DBus::get_rest_display_updates_iface()
+{
+    return dbus_data.rest_display_updates_proxy;
+}
+
 tdbusaupathManager *DBus::audiopath_get_manager_iface()
 {
     return dbus_data.audiopath_manager_proxy;
@@ -477,6 +493,7 @@ int DBus::setup(bool connect_to_session_bus,
     log_assert(dbus_data.roonplayer_playback_proxy != nullptr);
     log_assert(dbus_data.airable_sec_proxy != nullptr);
     log_assert(dbus_data.rest_dcpd_playback_proxy != nullptr);
+    log_assert(dbus_data.rest_display_updates_proxy != nullptr);
     log_assert(dbus_data.audiopath_source_iface != nullptr);
     log_assert(dbus_data.audiopath_manager_proxy != nullptr);
     log_assert(dbus_data.configuration_read_iface != nullptr);
@@ -531,6 +548,10 @@ int DBus::setup(bool connect_to_session_bus,
                      G_CALLBACK(dbussignal_dcpd_playback),
                      dbus_signal_data_for_dbus_handlers);
 
+    g_signal_connect(dbus_data.rest_display_updates_proxy, "g-signal",
+                     G_CALLBACK(dbussignal_rest_display_updates),
+                     dbus_signal_data_for_dbus_handlers);
+
     g_signal_connect(dbus_data.audiopath_manager_proxy, "g-signal",
                      G_CALLBACK(dbussignal_audiopath_manager),
                      dbus_signal_data_for_dbus_handlers);
@@ -575,6 +596,7 @@ void DBus::shutdown()
     g_object_unref(dbus_data.roonplayer_playback_proxy);
     g_object_unref(dbus_data.airable_sec_proxy);
     g_object_unref(dbus_data.rest_dcpd_playback_proxy);
+    g_object_unref(dbus_data.rest_display_updates_proxy);
     g_object_unref(dbus_data.audiopath_source_iface);
     g_object_unref(dbus_data.audiopath_manager_proxy);
     g_object_unref(dbus_data.configuration_read_iface);
