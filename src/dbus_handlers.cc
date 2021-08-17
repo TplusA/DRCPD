@@ -691,7 +691,8 @@ void dbussignal_audiopath_manager(GDBusProxy *proxy, const gchar *sender_name,
                   "Audio player %s (%s) registered (ignored)",
                   player_id, player_name);
     }
-    else if(strcmp(signal_name, "PathActivated") == 0)
+    else if(strcmp(signal_name, "PathActivated") == 0 ||
+            strcmp(signal_name, "PathReactivated") == 0)
     {
         const gchar *source_id;
         const gchar *player_id;

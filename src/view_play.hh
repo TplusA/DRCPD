@@ -126,7 +126,7 @@ class View: public ViewIface, public ViewSerializeBase
                    const DCP::Queue::Data &data) override;
     void handle_audio_path_changed(const std::string &ausrc_id,
                                    const std::string &player_id,
-                                   std::function<void(const char *)> before_view_activation);
+                                   std::function<InputResult(const char *)> before_view_activation);
     void player_finished(Player::Control::FinishedWith what);
     void plug_audio_source(Player::AudioSource &audio_source,
                            bool with_enforced_intentions,

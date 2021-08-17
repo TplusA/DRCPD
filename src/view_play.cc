@@ -238,12 +238,13 @@ lookup_view_by_audio_source(ViewPlay::View::AudioSourceAndViewByID &audio_source
     return result;
 }
 
-static void set_rest_view_display_update(ViewManager::VMIface &view_man,
-                                         GVariantWrapper &&request_data)
+static ViewIface::InputResult
+set_rest_view_display_update(ViewManager::VMIface &view_man,
+                             GVariantWrapper &&request_data)
 {
     if(GVariantWrapper::get(request_data) == nullptr ||
        g_variant_n_children(GVariantWrapper::get(request_data)) == 0)
-        return;
+        return ViewIface::InputResult::OK;
 
     const gchar *key;
     GVariant *value;
@@ -258,22 +259,22 @@ static void set_rest_view_display_update(ViewManager::VMIface &view_man,
     }
 
     if(request_object.empty())
-        return;
+        return ViewIface::InputResult::OK;
 
     auto *view = dynamic_cast<ViewSourceREST::View *>(
                             view_man.get_view_by_name(ViewNames::REST_API));
     if(view == nullptr)
     {
         BUG("Failed to lookup REST API view");
-        return;
+        return ViewIface::InputResult::OK;
     }
 
-    view->set_display_update_request(request_object);
+    return view->set_display_update_request(request_object);
 }
 
 void ViewPlay::View::handle_audio_path_changed(
         const std::string &ausrc_id, const std::string &player_id,
-        std::function<void(const char *)> before_view_activation)
+        std::function<InputResult(const char *)> before_view_activation)
 {
     Player::AudioSource *audio_source = nullptr;
     const ViewExternalSource::Base *view = nullptr;
@@ -287,7 +288,34 @@ void ViewPlay::View::handle_audio_path_changed(
         : false;
 
     if(player_control_.is_active_controller_for_audio_source(ausrc_id))
+    {
+        if(view == nullptr)
+            return;
+
+        switch(before_view_activation(view->name_))
+        {
+          case InputResult::OK:
+            break;
+
+          case InputResult::UPDATE_NEEDED:
+            view_manager_->update_view_if_active(view, DCP::Queue::Mode::FORCE_ASYNC);
+            break;
+
+          case InputResult::FULL_SERIALIZE_NEEDED:
+            view_manager_->serialize_view_if_active(view, DCP::Queue::Mode::FORCE_ASYNC);
+            break;
+
+          case InputResult::FORCE_SERIALIZE:
+            view_manager_->serialize_view_forced(view, DCP::Queue::Mode::FORCE_ASYNC);
+            break;
+
+          case InputResult::SHOULD_HIDE:
+            view_manager_->hide_view_if_active(view);
+            break;
+        }
+
         return;
+    }
 
     /* this must be an audio source not owned by us (or empty string),
      * otherwise we would already be controlling it */
@@ -830,9 +858,10 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
                 {
                     /* for glitch-free audio source activation, we need to set
                      * the REST API view data before the view gets activated */
-                    if(strcmp(view_name, ViewNames::REST_API) == 0)
-                        set_rest_view_display_update(*view_manager_,
-                                                     std::move(request_data));
+                    return strcmp(view_name, ViewNames::REST_API) == 0
+                        ? set_rest_view_display_update(*view_manager_,
+                                                       std::move(request_data))
+                        : InputResult::OK;
                 });
         }
 
