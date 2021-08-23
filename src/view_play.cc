@@ -25,6 +25,8 @@
 
 #include "view_play.hh"
 #include "view_external_source_base.hh"
+#include "view_src_rest.hh"
+#include "view_names.hh"
 #include "view_manager.hh"
 #include "audiosource.hh"
 #include "ui_parameters_predefined.hh"
@@ -56,7 +58,7 @@ void ViewPlay::View::configure_skipper(
 }
 
 void ViewPlay::View::register_audio_source(Player::AudioSource &audio_source,
-                                           const ViewIface &associated_view)
+                                           ViewIface &associated_view)
 {
     audio_sources_with_view_.emplace(std::move(std::string(audio_source.id_)),
                                      std::move(std::make_pair(&audio_source, &associated_view)));
@@ -171,14 +173,14 @@ static void send_current_stream_info_to_dcpd(const Player::Data &player_data)
         msg_error(0, LOG_NOTICE, "Failed sending stream information to dcpd");
 }
 
-static void lookup_source_and_view(ViewPlay::View::AudioSourceAndViewByID &audio_sources,
-                                   const std::string &audio_source_id,
-                                   Player::AudioSource *&audio_source,
-                                   const ViewIface *&view)
+static void lookup_source_and_nonconst_view(
+        ViewPlay::View::AudioSourceAndViewByID &audio_sources,
+        const std::string &audio_source_id,
+        Player::AudioSource *&audio_source, ViewIface *&view)
 {
     try
     {
-        const auto ausrc_and_view(audio_sources.at(audio_source_id));
+        auto ausrc_and_view(audio_sources.at(audio_source_id));
 
         audio_source = ausrc_and_view.first;
         view = ausrc_and_view.second;
@@ -190,6 +192,15 @@ static void lookup_source_and_view(ViewPlay::View::AudioSourceAndViewByID &audio
     {
         BUG("Audio source %s not known", audio_source_id.c_str());
     }
+}
+
+static void lookup_source_and_view(ViewPlay::View::AudioSourceAndViewByID &audio_sources,
+                                   const std::string &audio_source_id,
+                                   Player::AudioSource *&audio_source,
+                                   const ViewIface *&view)
+{
+    lookup_source_and_nonconst_view(audio_sources, audio_source_id, audio_source,
+                                    const_cast<ViewIface *&>(view));
 }
 
 static void lookup_view_for_external_source(ViewPlay::View::AudioSourceAndViewByID &audio_sources,
@@ -225,6 +236,132 @@ lookup_view_by_audio_source(ViewPlay::View::AudioSourceAndViewByID &audio_source
     lookup_source_and_view(audio_sources, src->id_, dummy, result);
 
     return result;
+}
+
+static ViewIface::InputResult
+set_rest_view_display_update(ViewManager::VMIface &view_man,
+                             GVariantWrapper &&request_data)
+{
+    if(GVariantWrapper::get(request_data) == nullptr ||
+       g_variant_n_children(GVariantWrapper::get(request_data)) == 0)
+        return ViewIface::InputResult::OK;
+
+    const gchar *key;
+    GVariant *value;
+    GVariantIter iter;
+    g_variant_iter_init(&iter, GVariantWrapper::get(request_data));
+    std::string request_object;
+
+    while(g_variant_iter_loop(&iter, "{sv}", &key, &value))
+    {
+        if(strcmp(key, "display_set") == 0)
+            request_object = g_variant_get_string(value, nullptr);
+    }
+
+    if(request_object.empty())
+        return ViewIface::InputResult::OK;
+
+    auto *view = dynamic_cast<ViewSourceREST::View *>(
+                            view_man.get_view_by_name(ViewNames::REST_API));
+    if(view == nullptr)
+    {
+        BUG("Failed to lookup REST API view");
+        return ViewIface::InputResult::OK;
+    }
+
+    return view->set_display_update_request(request_object);
+}
+
+void ViewPlay::View::handle_audio_path_changed(
+        const std::string &ausrc_id, const std::string &player_id,
+        std::function<InputResult(const char *)> before_view_activation)
+{
+    Player::AudioSource *audio_source = nullptr;
+    const ViewExternalSource::Base *view = nullptr;
+
+    if(!ausrc_id.empty())
+        lookup_view_for_external_source(audio_sources_with_view_,
+                                        ausrc_id, audio_source, view);
+
+    is_navigation_locked_ = view != nullptr
+        ? view->flags_.is_any_set(ViewIface::Flags::IS_PASSIVE)
+        : false;
+
+    if(player_control_.is_active_controller_for_audio_source(ausrc_id))
+    {
+        if(view == nullptr)
+            return;
+
+        switch(before_view_activation(view->name_))
+        {
+          case InputResult::OK:
+            break;
+
+          case InputResult::UPDATE_NEEDED:
+            view_manager_->update_view_if_active(view, DCP::Queue::Mode::FORCE_ASYNC);
+            break;
+
+          case InputResult::FULL_SERIALIZE_NEEDED:
+            view_manager_->serialize_view_if_active(view, DCP::Queue::Mode::FORCE_ASYNC);
+            break;
+
+          case InputResult::FORCE_SERIALIZE:
+            view_manager_->serialize_view_forced(view, DCP::Queue::Mode::FORCE_ASYNC);
+            break;
+
+          case InputResult::SHOULD_HIDE:
+            view_manager_->hide_view_if_active(view);
+            break;
+        }
+
+        return;
+    }
+
+    /* this must be an audio source not owned by us (or empty string),
+     * otherwise we would already be controlling it */
+    const bool audio_source_is_deselected =
+        audio_source == nullptr || ausrc_id.empty();
+
+    const auto *const view_for_deselected_audio_source =
+        lookup_view_by_audio_source(audio_sources_with_view_,
+                                    player_control_.get_plugged_audio_source());
+
+    player_control_.source_deselected_notification(nullptr);
+    player_control_.unplug(true);
+
+    if(!audio_source_is_deselected)
+    {
+        /* plug in audio source, pass player ID so that the D-Bus
+         * proxies for that player can be set up */
+        msg_info("Plug external audio source %s into player",
+                 audio_source->id_.c_str());
+
+        log_assert(view != nullptr);
+
+        audio_source->select_now();
+        plug_audio_source(*audio_source,
+                          !view->flags_.is_any_set(ViewIface::Flags::NO_ENFORCED_USER_INTENTIONS),
+                          &player_id);
+        player_control_.plug(player_data_);
+        player_control_.plug(view->get_local_permissions());
+
+        if(before_view_activation != nullptr)
+            before_view_activation(view->name_);
+
+        view_manager_->sync_activate_view_by_name(view->name_, true);
+    }
+    else
+    {
+        /* plain deselect and unplug: either we don't know the selected
+         * source or the audio path has been shutdown completely */
+        if(view_for_deselected_audio_source != nullptr &&
+           view_for_deselected_audio_source->flags_.is_any_set(ViewIface::Flags::DROP_IN_FOR_INACTIVE_VIEW))
+            view_manager_->sync_activate_view_by_name(
+                        view_for_deselected_audio_source->name_, false);
+        else
+            view_manager_->sync_activate_view_by_name(ViewNames::INACTIVE,
+                                                      false);
+    }
 }
 
 ViewIface::InputResult
@@ -686,79 +823,46 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
 
         break;
 
-      case UI::ViewEventID::AUDIO_PATH_CHANGED:
+      case UI::ViewEventID::AUDIO_PATH_HALF_CHANGED:
         {
-            /* some (any!) audio path has been activated */
-            const auto params =
-                UI::Events::downcast<UI::ViewEventID::AUDIO_PATH_CHANGED>(parameters);
+            /* some (any!) audio path has been half activated */
+            Busy::set(Busy::DirectSource::WAITING_FOR_APPLIANCE_AUDIO);
 
+            const auto params =
+                UI::Events::downcast<UI::ViewEventID::AUDIO_PATH_HALF_CHANGED>(parameters);
             if(params == nullptr)
                 break;
 
             const auto &plist = params->get_specific();
-            const std::string &ausrc_id(std::get<0>(plist));
-            const std::string &player_id(std::get<1>(plist));
-            const bool is_on_hold(std::get<2>(plist));
-            Player::AudioSource *audio_source = nullptr;
-            const ViewExternalSource::Base *view = nullptr;
+            handle_audio_path_changed(std::get<0>(plist), std::get<1>(plist),
+                                      nullptr);
+        }
 
-            if(is_on_hold)
-                Busy::set(Busy::DirectSource::WAITING_FOR_APPLIANCE_AUDIO);
-            else
-                Busy::clear(Busy::DirectSource::WAITING_FOR_APPLIANCE_AUDIO);
+        break;
 
-            if(!ausrc_id.empty())
-                lookup_view_for_external_source(audio_sources_with_view_,
-                                                ausrc_id, audio_source, view);
+      case UI::ViewEventID::AUDIO_PATH_CHANGED:
+        {
+            /* some (any!) audio path has been fully activated */
+            Busy::clear(Busy::DirectSource::WAITING_FOR_APPLIANCE_AUDIO);
 
-            is_navigation_locked_ = view != nullptr
-                ? view->flags_.is_any_set(ViewIface::Flags::IS_PASSIVE)
-                : false;
-
-            if(player_control_.is_active_controller_for_audio_source(ausrc_id))
+            auto params =
+                UI::Events::downcast<UI::ViewEventID::AUDIO_PATH_CHANGED>(parameters);
+            if(params == nullptr)
                 break;
 
-            /* this must be an audio source not owned by us (or empty string),
-             * otherwise we would already be controlling it */
-            const bool audio_source_is_deselected =
-                audio_source == nullptr || ausrc_id.empty();
-
-            const auto *const view_for_deselected_audio_source =
-                lookup_view_by_audio_source(audio_sources_with_view_,
-                                            player_control_.get_plugged_audio_source());
-
-            player_control_.source_deselected_notification(nullptr);
-            player_control_.unplug(true);
-
-            if(!audio_source_is_deselected)
-            {
-                /* plug in audio source, pass player ID so that the D-Bus
-                 * proxies for that player can be set up */
-                msg_info("Plug external audio source %s into player",
-                         audio_source->id_.c_str());
-
-                log_assert(view != nullptr);
-
-                audio_source->select_now();
-                plug_audio_source(*audio_source,
-                                  !view->flags_.is_any_set(ViewIface::Flags::NO_ENFORCED_USER_INTENTIONS),
-                                  &player_id);
-                player_control_.plug(player_data_);
-                player_control_.plug(view->get_local_permissions());
-                view_manager_->sync_activate_view_by_name(view->name_, true);
-            }
-            else
-            {
-                /* plain deselect and unplug: either we don't know the selected
-                 * source or the audio path has been shutdown completely */
-                if(view_for_deselected_audio_source != nullptr &&
-                   view_for_deselected_audio_source->flags_.is_any_set(ViewIface::Flags::DROP_IN_FOR_INACTIVE_VIEW))
-                    view_manager_->sync_activate_view_by_name(view_for_deselected_audio_source->name_,
-                                                              false);
-                else
-                    view_manager_->sync_activate_view_by_name(ViewNames::INACTIVE,
-                                                              false);
-            }
+            auto &plist = params->get_specific_non_const();
+            const auto &ausrc_id(std::get<0>(plist));
+            handle_audio_path_changed(ausrc_id, std::get<1>(plist),
+                [this, request_data = std::move(std::get<2>(plist))]
+                (const char *view_name) mutable
+                {
+                    /* for glitch-free audio source activation, we need to set
+                     * the REST API view data before the view gets activated */
+                    return strcmp(view_name, ViewNames::REST_API) == 0
+                        ? set_rest_view_display_update(*view_manager_,
+                                                       std::move(request_data))
+                        : InputResult::OK;
+                });
         }
 
         break;
@@ -776,6 +880,7 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
       case UI::ViewEventID::NOTIFY_AIRABLE_SERVICE_LOGIN_STATUS_UPDATE:
       case UI::ViewEventID::PLAYBACK_TRY_RESUME:
       case UI::ViewEventID::STRBO_URL_RESOLVED:
+      case UI::ViewEventID::SET_DISPLAY_CONTENT:
         BUG("Unexpected view event 0x%08x for play view",
             static_cast<unsigned int>(event_id));
 

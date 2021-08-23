@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2019, 2020  T+A elektroakustik GmbH & Co. KG
+# Copyright (C) 2019, 2020, 2021  T+A elektroakustik GmbH & Co. KG
 #
 # This file is part of DRCPD.
 #
@@ -38,6 +38,7 @@ dbus_iface_data = [
     ['de_tahifi_airable',       'de.tahifi.',              'tdbus',        'Airable'],
     ['de_tahifi_configuration', 'de.tahifi.',              'tdbus',        'Configuration Management'],
     ['de_tahifi_audiopath',     'de.tahifi.AudioPath.',    'tdbus_aupath', 'Audio Paths'],
+    ['de_tahifi_jsonio',        'de.tahifi.',              'tdbus',        'JSON Object Exchange'],
     ['de_tahifi_debug',         'de.tahifi.Debug.',        'tdbus_debug',  'Debug Levels'],
 ]
 
@@ -82,7 +83,7 @@ views_lib = static_library('views',
     ['view_error_sink.cc', 'view_filebrowser.cc',
     'view_filebrowser_airable.cc', 'view_audiosource.cc', 'view_play.cc',
     'view_search.cc', 'view_external_source_base.cc', 'view_src_app.cc',
-    'view_src_roon.cc', 'view_manager.cc',
+    'view_src_rest.cc', 'view_src_roon.cc', 'view_manager.cc',
     'rnfcall.cc', 'rnfcall_death_row.cc',
     'playlist_crawler.cc', 'directory_crawler.cc',
     'directory_crawler_find_next_op.cc', 'directory_crawler_get_uris_op.cc',

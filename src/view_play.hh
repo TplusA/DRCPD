@@ -51,7 +51,7 @@ class View: public ViewIface, public ViewSerializeBase
   public:
     using AudioSourceAndViewByID =
         std::unordered_map<std::string,
-                           std::pair<Player::AudioSource *, const ViewIface *>>;
+                           std::pair<Player::AudioSource *, ViewIface *>>;
 
   private:
     static constexpr const uint32_t UPDATE_FLAGS_STREAM_POSITION = 1U << 0;
@@ -107,7 +107,7 @@ class View: public ViewIface, public ViewSerializeBase
                    std::ostream *debug_os) override;
 
     void register_audio_source(Player::AudioSource &audio_source,
-                               const ViewIface &associated_view);
+                               ViewIface &associated_view);
 
     void prepare_for_playing(
             Player::AudioSource &audio_source,
@@ -124,6 +124,9 @@ class View: public ViewIface, public ViewSerializeBase
      */
     bool write_xml(std::ostream &os, uint32_t bits,
                    const DCP::Queue::Data &data) override;
+    void handle_audio_path_changed(const std::string &ausrc_id,
+                                   const std::string &player_id,
+                                   std::function<InputResult(const char *)> before_view_activation);
     void player_finished(Player::Control::FinishedWith what);
     void plug_audio_source(Player::AudioSource &audio_source,
                            bool with_enforced_intentions,

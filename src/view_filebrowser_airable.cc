@@ -267,6 +267,7 @@ static void patch_event_id_for_deezer(UI::ViewEventID &event_id)
       case UI::ViewEventID::SEARCH_STORE_PARAMETERS:
       case UI::ViewEventID::PLAYBACK_TRY_RESUME:
       case UI::ViewEventID::STRBO_URL_RESOLVED:
+      case UI::ViewEventID::SET_DISPLAY_CONTENT:
         event_id = UI::ViewEventID::NOP;
         break;
 
@@ -292,6 +293,7 @@ static void patch_event_id_for_deezer(UI::ViewEventID &event_id)
       case UI::ViewEventID::NOTIFY_PLAYBACK_MODE_CHANGED:
       case UI::ViewEventID::AUDIO_SOURCE_SELECTED:
       case UI::ViewEventID::AUDIO_SOURCE_DESELECTED:
+      case UI::ViewEventID::AUDIO_PATH_HALF_CHANGED:
       case UI::ViewEventID::AUDIO_PATH_CHANGED:
         break;
     }

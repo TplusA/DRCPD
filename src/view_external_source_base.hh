@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017, 2018, 2019, 2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2017--2021  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -70,7 +70,7 @@ class Base: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
     virtual const Player::LocalPermissionsIface &get_local_permissions() const = 0;
 
     InputResult process_event(UI::ViewEventID event_id,
-                              std::unique_ptr<UI::Parameters> parameters) final override
+                              std::unique_ptr<UI::Parameters> parameters) override
     {
         return InputResult::OK;
     }
@@ -80,7 +80,7 @@ class Base: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
 
   protected:
     bool write_xml(std::ostream &os, uint32_t bits,
-                   const DCP::Queue::Data &data) final override;
+                   const DCP::Queue::Data &data) override;
 };
 
 }

@@ -793,8 +793,11 @@ EXCLUDE                = \
     @abs_builddir@/src/de_tahifi_configuration.c \
     @abs_builddir@/src/de_tahifi_dcpd.c \
     @abs_builddir@/src/de_tahifi_debug.c \
+    @abs_builddir@/src/de_tahifi_jsonio.c \
     @abs_builddir@/src/de_tahifi_lists.c \
-    @abs_builddir@/src/de_tahifi_streamplayer.c
+    @abs_builddir@/src/de_tahifi_streamplayer.c \
+    @abs_srcdir@/src/json.hh \
+    @abs_srcdir@/dbus_interfaces/*.xml
 
 # The EXCLUDE_SYMLINKS tag can be used to select whether or not files or
 # directories that are symbolic links (a Unix file system feature) are excluded
@@ -1956,7 +1959,7 @@ SEARCH_INCLUDES        = YES
 # preprocessor.
 # This tag requires that the tag SEARCH_INCLUDES is set to YES.
 
-INCLUDE_PATH           = @abs_srcdir@ @abs_builddir@
+INCLUDE_PATH           = @abs_srcdir@ @abs_builddir@ @abs_builddir@/src
 
 # You can use the INCLUDE_FILE_PATTERNS tag to specify one or more wildcard
 # patterns (like *.h and *.hpp) to filter out the header-files in the

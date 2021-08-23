@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016--2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016--2021  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -78,8 +78,10 @@ enum class ViewEventID
     NOTIFY_PLAYBACK_MODE_CHANGED,
     AUDIO_SOURCE_SELECTED,
     AUDIO_SOURCE_DESELECTED,
+    AUDIO_PATH_HALF_CHANGED,
     AUDIO_PATH_CHANGED,
     STRBO_URL_RESOLVED,
+    SET_DISPLAY_CONTENT,
     PLAYBACK_TRY_RESUME,
 
     LAST_VIEW_EVENT_ID = PLAYBACK_TRY_RESUME,
@@ -171,6 +173,7 @@ enum class EventID
     PLAYBACK_MODE_SHUFFLE_TOGGLE = mk_event_raw_id(ViewEventID::PLAYBACK_MODE_SHUFFLE_TOGGLE),
     AUDIO_SOURCE_SELECTED        = mk_event_raw_id(ViewEventID::AUDIO_SOURCE_SELECTED),
     AUDIO_SOURCE_DESELECTED      = mk_event_raw_id(ViewEventID::AUDIO_SOURCE_DESELECTED),
+    AUDIO_PATH_HALF_CHANGED      = mk_event_raw_id(ViewEventID::AUDIO_PATH_HALF_CHANGED),
     AUDIO_PATH_CHANGED           = mk_event_raw_id(ViewEventID::AUDIO_PATH_CHANGED),
 
     /* ===================================================================
@@ -190,6 +193,7 @@ enum class EventID
     VIEW_SEARCH_STORE_PARAMETERS = mk_event_raw_id(ViewEventID::SEARCH_STORE_PARAMETERS),
     VIEW_PLAYER_STORE_PRELOADED_META_DATA = mk_event_raw_id(ViewEventID::STORE_PRELOADED_META_DATA),
     VIEW_STRBO_URL_RESOLVED      = mk_event_raw_id(ViewEventID::STRBO_URL_RESOLVED),
+    VIEW_SET_DISPLAY_CONTENT     = mk_event_raw_id(ViewEventID::SET_DISPLAY_CONTENT),
 
     /* =====================
      * Passive notifications
