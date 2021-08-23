@@ -1,3 +1,22 @@
+2021-08-26  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 5.17 released.
+
+	* Airable: Support OAuth2 authentication as soon will be required by
+	  TIDAL.
+
+	* Audio sources: Support the new strbo.rest audio source which allows
+	  REST API clients to access the stream player and the appliance
+	  display directly.
+
+	* User interface: Allow processes in the system to send errors that
+	  cannot be caught in other ways. A new D-Bus interface has been added
+	  for this, which drcpd monitors. Currently, only the Airable list
+	  broker sends errors to support the user with detecting problems in
+	  his network, and troubleshooting them.
+
+	* Misc: Better log messages for certain runtime failures.
+
 2021-06-28  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 5.16 released.
