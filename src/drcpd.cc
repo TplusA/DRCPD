@@ -224,7 +224,7 @@ static void timeout_config(bool start_timeout_timer,
 {
     if(start_timeout_timer)
         dispatch_data.timeout.start(
-            std::chrono::seconds(4),
+            std::chrono::seconds(15),
             [vm = dispatch_data.vm] { return transaction_timeout_exceeded(vm); });
     else
         dispatch_data.timeout.stop();
