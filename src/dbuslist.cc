@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015--2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015--2021  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -338,6 +338,7 @@ bool List::QueryContextEnterList::run_async(DBus::AsyncResultAvailableFunction &
         std::move(result_available),
         [] (AsyncListNavCheckRange::PromiseReturnType &values) {},
         [] () { return true; },
+        "check range for enter-list",
         "AsyncListNavCheckRange", MESSAGE_LEVEL_DEBUG);
 
     if(async_call_ == nullptr)

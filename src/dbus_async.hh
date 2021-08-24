@@ -69,13 +69,16 @@ class AsyncCall_: public std::enable_shared_from_this<AsyncCall_>
     bool is_canceling_;
 
   protected:
+    const char *const description_;
+
     AsyncResult call_state_;
     GCancellable *cancellable_;
     bool is_canceled_for_restart_;
 
-    explicit AsyncCall_(const char *lock_name,
+    explicit AsyncCall_(const char *description, const char *lock_name,
                         MessageVerboseLevel lock_log_level):
         is_canceling_(false),
+        description_(description),
         call_state_(AsyncResult::INITIALIZED),
         cancellable_(g_cancellable_new()),
         is_canceled_for_restart_(false)
@@ -297,6 +300,9 @@ class AsyncCall: public DBus::AsyncCall_
      *     result of the asynchronous call should still be waited for, \c false
      *     if the operation shall be canceled.
      *
+     * \param description
+     *     Short description for use in error messages.
+     *
      * \param lock_name, lock_log_level
      *     Configuration for internal logged lock. Only used in case logging of
      *     locks is activated at compile time.
@@ -306,9 +312,9 @@ class AsyncCall: public DBus::AsyncCall_
                        AsyncResultAvailableFunction &&result_available,
                        DestroyResultFunction &&destroy_result,
                        std::function<bool(void)> &&may_continue,
-                       const char *lock_name,
+                       const char *description, const char *lock_name,
                        MessageVerboseLevel lock_log_level):
-        AsyncCall_(lock_name, lock_log_level),
+        AsyncCall_(description, lock_name, lock_log_level),
         proxy_(proxy),
         to_proxy_fn_(to_proxy),
         put_result_fn_(put_result),
@@ -483,7 +489,9 @@ class AsyncCall: public DBus::AsyncCall_
                 }
             }
 
-            error_.log_failure("Async D-Bus call ready");
+            if(error_.log_failure("Async D-Bus call ready"))
+                msg_error(0, LOG_EMERG,
+                          "Failed async D-Bus call: %s", description_);
         }
 
         if(!have_reported_result_)

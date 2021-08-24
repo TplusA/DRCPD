@@ -1985,6 +1985,7 @@ bool ViewFileBrowser::View::do_point_to_context_root_directory(List::context_id_
         },
         [] (ViewFileBrowser::View::AsyncCalls::GetContextRoot::PromiseReturnType &values) {},
         [] () { return true; },
+        "get context root directory",
         "AsyncCalls::GetContextRoot", MESSAGE_LEVEL_DEBUG);
 
     async_calls_.context_jump_.cancel();
@@ -2446,6 +2447,7 @@ bool ViewFileBrowser::View::point_to_parent_link()
         },
         [] (ViewFileBrowser::View::AsyncCalls::GetParentId::PromiseReturnType &values) {},
         [] () { return true; },
+        "get parent list ID for navigation",
         "AsyncCalls::GetParentId", MESSAGE_LEVEL_DEBUG);
 
     if(async_calls_.get_parent_id_ == nullptr)

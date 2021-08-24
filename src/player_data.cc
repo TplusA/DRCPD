@@ -86,6 +86,7 @@ mk_async_resolve_redirect(tdbusAirable *proxy,
                 g_free(std::get<1>(values));
         },
         [] () { return true; },
+        "resolve indirect URL (redirect)",
         "AsyncResolveRedirect", MESSAGE_LEVEL_DEBUG);
 }
 
