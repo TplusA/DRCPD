@@ -473,6 +473,9 @@ bool ViewFileBrowser::AirableView::is_error_allowed(ScreenID::Error error) const
 {
     switch(error)
     {
+      case ScreenID::Error::OAUTH_REQUEST:
+        return false;
+
       case ScreenID::Error::ENTER_LIST_AUTHENTICATION:
       case ScreenID::Error::ENTER_CONTEXT_AUTHENTICATION:
         return !oauth_request_.seen_expected_authentication_error();
@@ -868,6 +871,9 @@ uint32_t ViewFileBrowser::AirableView::about_to_write_xml(const DCP::Queue::Data
     if(is_deezer(list_contexts_, ctx_id))
         bits |= WRITE_FLAG__IS_LOCKED;
 
+    if(oauth_request_.is_active(ctx_id))
+        bits |= WRITE_FLAG__AS_MSG_ERROR;
+
     return bits;
 }
 
@@ -882,20 +888,21 @@ bool ViewFileBrowser::AirableView::write_xml(std::ostream &os, uint32_t bits,
                                        current_list_id_));
     const auto &ctx(list_contexts_[ctx_id]);
 
-    os << "<text id=\"cbid\">" << int(drcp_browse_id_) << "</text>"
-       << "<context>"
+    os << "<context>"
        << ctx.string_id_.c_str()
        << "</context>";
 
     if(oauth_request_.is_active(ctx_id))
     {
-        os << "<text id=\"line0\">Code: " << oauth_request_.get_code() <<  "</text>";
+        os << "<text id=\"scrid\">" << ScreenID::id_t(ScreenID::Error::OAUTH_REQUEST) << "</text>";
+        os << "<text id=\"line0\">" << oauth_request_.get_code() <<  "</text>";
         os << "<text id=\"line1\">" << oauth_request_.get_url() << "</text>";
         oauth_request_.sent_oauth_message();
         return true;
     }
 
-    os << "<text id=\"line0\">" << XmlEscape(ctx.description_) << "</text>"
+    os << "<text id=\"cbid\">" << int(drcp_browse_id_) << "</text>"
+       << "<text id=\"line0\">" << XmlEscape(ctx.description_) << "</text>"
        << "<text id=\"line1\">";
 
     if((bits & WRITE_FLAG__IS_LOADING) != 0)

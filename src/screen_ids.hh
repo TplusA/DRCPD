@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017, 2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2017, 2019, 2021  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -35,6 +35,10 @@ enum class Error
 {
     INVALID = INVALID_ID,
 
+    /* not quite errors */
+    OAUTH_REQUEST = FIRST_REGULAR_ID,
+
+    /* true errors */
     ENTER_LIST_PERMISSION_DENIED = FIRST_ERROR_ID,
     ENTER_LIST_MEDIA_IO,
     ENTER_LIST_NET_IO,
