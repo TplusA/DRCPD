@@ -29,6 +29,7 @@ using id_t = uint16_t;
 
 static constexpr id_t INVALID_ID             = 0;
 static constexpr id_t IS_REAL_ERROR_MASK     = 1U << (sizeof(uint16_t) * 8 - 1);
+static constexpr id_t IS_SYSTEM_MESSAGE_MASK = 1U << (sizeof(uint16_t) * 8 - 2);
 
 enum class Error
 {
@@ -40,6 +41,8 @@ enum class Error
     ENTER_LIST_PROTOCOL,
     ENTER_LIST_AUTHENTICATION,
     ENTER_CONTEXT_AUTHENTICATION,
+
+    SYSTEM_ERROR_NETWORK = IS_REAL_ERROR_MASK | IS_SYSTEM_MESSAGE_MASK,
 };
 
 static inline bool is_real_error(Error code)

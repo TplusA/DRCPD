@@ -155,6 +155,7 @@ libdcp_transaction_la_CXXFLAGS = $(AM_CXXFLAGS)
 libdbus_handlers_la_SOURCES = \
     dbus_handlers.h dbus_handlers.hh dbus_handlers.cc guard.hh \
     messages_dbus.h messages_dbus.c \
+    system_errors.hh system_errors.cc \
     actor_id.h
 libdbus_handlers_la_CFLAGS = $(AM_CFLAGS)
 libdbus_handlers_la_CXXFLAGS = $(AM_CXXFLAGS)
@@ -186,6 +187,7 @@ nodist_libdrcpd_dbus_client_la_SOURCES = \
     de_tahifi_audiopath.c de_tahifi_audiopath.h \
     de_tahifi_configuration.c de_tahifi_configuration.h \
     de_tahifi_jsonio.c de_tahifi_jsonio.h \
+    de_tahifi_errors.c de_tahifi_errors.h \
     de_tahifi_debug.c de_tahifi_debug.h
 libdrcpd_dbus_client_la_CFLAGS = $(CRELAXEDWARNINGS)
 libdrcpd_dbus_client_la_CXXFLAGS = $(CXXRELAXEDWARNINGS)
@@ -213,6 +215,9 @@ BUILT_SOURCES = \
     de_tahifi_jsonio-doc.h \
     de_tahifi_jsonio-doc.md \
     de_tahifi_jsonio.stamp \
+    de_tahifi_errors-doc.h \
+    de_tahifi_errors-doc.md \
+    de_tahifi_errors.stamp \
     de_tahifi_debug-doc.h \
     de_tahifi_debug-doc.md \
     de_tahifi_debug.stamp
@@ -280,6 +285,15 @@ de_tahifi_jsonio.h: de_tahifi_jsonio.stamp
 de_tahifi_jsonio.stamp: $(DBUS_IFACES)/de_tahifi_jsonio.xml
 	$(GDBUS_CODEGEN) --generate-c-code=de_tahifi_jsonio --c-namespace tdbus --interface-prefix de.tahifi. $<
 	$(DBUS_IFACES)/extract_documentation.py -i $< -o de_tahifi_jsonio-doc.md -H de_tahifi_jsonio-doc.h -c tdbus -s de.tahifi. -n "JSON Object Exchange"
+	touch $@
+
+de_tahifi_errors-doc.h: de_tahifi_errors.stamp
+de_tahifi_errors-doc.md: de_tahifi_errors.stamp
+de_tahifi_errors.c: de_tahifi_errors.stamp
+de_tahifi_errors.h: de_tahifi_errors.stamp
+de_tahifi_errors.stamp: $(DBUS_IFACES)/de_tahifi_errors.xml
+	$(GDBUS_CODEGEN) --generate-c-code=de_tahifi_errors --c-namespace tdbus --interface-prefix de.tahifi. $<
+	$(DBUS_IFACES)/extract_documentation.py -i $< -o de_tahifi_errors-doc.md -H de_tahifi_errors-doc.h -c tdbus -s de.tahifi. -n "Error Messages"
 	touch $@
 
 de_tahifi_debug-doc.h: de_tahifi_debug.stamp

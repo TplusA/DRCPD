@@ -29,6 +29,7 @@
 #include "dbus_iface.hh"
 #include "dbus_iface_proxies.hh"
 #include "dbus_handlers.h"
+#include "de_tahifi_errors.h"
 #include "gerrorwrapper.hh"
 #include "messages.h"
 #include "messages_dbus.h"
@@ -56,6 +57,7 @@ struct DBusData
     tdbussplayPlayback *roonplayer_playback_proxy;
 
     tdbusAirable *airable_sec_proxy;
+    tdbusErrors *airable_errors_proxy;
 
     tdbusdcpdPlayback *rest_dcpd_playback_proxy;
     tdbusJSONEmitter *rest_display_updates_proxy;
@@ -323,6 +325,20 @@ static void connect_signals_audiopath(GDBusConnection *connection,
     error.log_failure("Create audio path manager proxy");
 }
 
+static void connect_signals_errors(GDBusConnection *connection,
+                                   tdbusErrors *&proxy,
+                                   GDBusProxyFlags flags,
+                                   const char *bus_name,
+                                   const char *object_path)
+{
+    GErrorWrapper error;
+
+    proxy = tdbus_errors_proxy_new_sync(connection, flags,
+                                        bus_name, object_path,
+                                        nullptr, error.await());
+    error.log_failure("Create Errors proxy");
+}
+
 static void name_acquired(GDBusConnection *connection,
                           const gchar *name, gpointer user_data)
 {
@@ -356,6 +372,9 @@ static void name_acquired(GDBusConnection *connection,
     connect_signals_airable(connection, data.airable_sec_proxy,
                             G_DBUS_PROXY_FLAGS_NONE,
                             "de.tahifi.TuneInBroker", "/de/tahifi/TuneInBroker");
+    connect_signals_errors(connection, data.airable_errors_proxy,
+                           G_DBUS_PROXY_FLAGS_NONE,
+                           "de.tahifi.TuneInBroker", "/de/tahifi/TuneInBroker");
     connect_signals_audiopath(connection, data.audiopath_manager_proxy,
                               G_DBUS_PROXY_FLAGS_NONE,
                               "de.tahifi.TAPSwitch", "/de/tahifi/TAPSwitch");
@@ -492,6 +511,7 @@ int DBus::setup(bool connect_to_session_bus,
     log_assert(dbus_data.splay_playback_proxy != nullptr);
     log_assert(dbus_data.roonplayer_playback_proxy != nullptr);
     log_assert(dbus_data.airable_sec_proxy != nullptr);
+    log_assert(dbus_data.airable_errors_proxy != nullptr);
     log_assert(dbus_data.rest_dcpd_playback_proxy != nullptr);
     log_assert(dbus_data.rest_display_updates_proxy != nullptr);
     log_assert(dbus_data.audiopath_source_iface != nullptr);
@@ -542,6 +562,10 @@ int DBus::setup(bool connect_to_session_bus,
 
     g_signal_connect(dbus_data.airable_sec_proxy, "g-signal",
                      G_CALLBACK(dbussignal_airable_sec),
+                     dbus_signal_data_for_dbus_handlers);
+
+    g_signal_connect(dbus_data.airable_errors_proxy, "g-signal",
+                     G_CALLBACK(dbussignal_error_messages),
                      dbus_signal_data_for_dbus_handlers);
 
     g_signal_connect(dbus_data.rest_dcpd_playback_proxy, "g-signal",
@@ -595,6 +619,7 @@ void DBus::shutdown()
     g_object_unref(dbus_data.splay_playback_proxy);
     g_object_unref(dbus_data.roonplayer_playback_proxy);
     g_object_unref(dbus_data.airable_sec_proxy);
+    g_object_unref(dbus_data.airable_errors_proxy);
     g_object_unref(dbus_data.rest_dcpd_playback_proxy);
     g_object_unref(dbus_data.rest_display_updates_proxy);
     g_object_unref(dbus_data.audiopath_source_iface);

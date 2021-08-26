@@ -796,6 +796,7 @@ EXCLUDE                = \
     @abs_builddir@/src/de_tahifi_jsonio.c \
     @abs_builddir@/src/de_tahifi_lists.c \
     @abs_builddir@/src/de_tahifi_streamplayer.c \
+    @abs_builddir@/src/de_tahifi_errors.c \
     @abs_srcdir@/src/json.hh \
     @abs_srcdir@/dbus_interfaces/*.xml
 

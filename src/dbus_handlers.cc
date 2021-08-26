@@ -30,6 +30,7 @@
 #include "configuration.hh"
 #include "configuration_drcpd.hh"
 #include "messages.h"
+#include "system_errors.hh"
 
 #include <unordered_map>
 
@@ -761,6 +762,40 @@ void dbussignal_rest_display_updates(GDBusProxy *proxy, const gchar *sender_name
     }
     else
         unknown_signal(iface_name, signal_name, sender_name);
+}
+
+void dbussignal_error_messages(GDBusProxy *proxy, const gchar *sender_name,
+                               const gchar *signal_name, GVariant *parameters,
+                               gpointer user_data)
+{
+    static const char iface_name[] = "de.tahifi.Errors";
+
+    log_signal(iface_name, signal_name, sender_name);
+
+    SystemErrors::MessageType message_type;
+
+    if(strcmp(signal_name, "Error") == 0)
+        message_type = SystemErrors::MessageType::ERROR;
+    else if(strcmp(signal_name, "Warning") == 0)
+        message_type = SystemErrors::MessageType::WARNING;
+    else if(strcmp(signal_name, "Info") == 0)
+        message_type = SystemErrors::MessageType::INFO;
+    else
+    {
+        unknown_signal(iface_name, signal_name, sender_name);
+        return;
+    }
+
+    const gchar *code;
+    const gchar *context;
+    const gchar *message;
+    GVariant *message_data;
+
+    g_variant_get(parameters, "(&s&s&s@a{sv})",
+                  &code, &context, &message, &message_data);
+
+    SystemErrors::handle_error(message_type, code, context, message,
+                               GVariantWrapper(message_data));
 }
 
 static void enter_audiopath_source_handler(GDBusMethodInvocation *invocation)

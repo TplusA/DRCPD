@@ -39,6 +39,7 @@ dbus_iface_data = [
     ['de_tahifi_configuration', 'de.tahifi.',              'tdbus',        'Configuration Management'],
     ['de_tahifi_audiopath',     'de.tahifi.AudioPath.',    'tdbus_aupath', 'Audio Paths'],
     ['de_tahifi_jsonio',        'de.tahifi.',              'tdbus',        'JSON Object Exchange'],
+    ['de_tahifi_errors',        'de.tahifi.',              'tdbus',        'Error Messages'],
     ['de_tahifi_debug',         'de.tahifi.Debug.',        'tdbus_debug',  'Debug Levels'],
 ]
 
@@ -87,7 +88,8 @@ views_lib = static_library('views',
     'rnfcall.cc', 'rnfcall_death_row.cc',
     'playlist_crawler.cc', 'directory_crawler.cc',
     'directory_crawler_find_next_op.cc', 'directory_crawler_get_uris_op.cc',
-    'cacheenforcer.cc', 'gvariantwrapper.cc', 'airable_links.cc'],
+    'cacheenforcer.cc', 'gvariantwrapper.cc', 'airable_links.cc',
+    'system_errors.cc'],
     include_directories: dbus_iface_defs_includes,
     dependencies: [glib_deps, config_h]
 )
