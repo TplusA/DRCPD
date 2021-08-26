@@ -62,7 +62,8 @@ List::Item *construct_file_item(const char *name, ListItemKind kind,
 namespace StandardError
 {
 void service_authentication_failure(const List::ContextMap &list_contexts,
-                                    List::context_id_t ctx_id);
+                                    List::context_id_t ctx_id,
+                                    const std::function<bool(ScreenID::Error)> &is_error_allowed);
 }
 
 class JumpToContext
@@ -431,6 +432,7 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
     static constexpr const uint32_t WRITE_FLAG__IS_LOADING     = 1U << 0;
     static constexpr const uint32_t WRITE_FLAG__IS_UNAVAILABLE = 1U << 1;
     static constexpr const uint32_t WRITE_FLAG__IS_EMPTY_ROOT  = 1U << 2;
+    static constexpr const uint32_t WRITE_FLAG__AS_MSG_ERROR   = 1U << 3;
     static constexpr const uint32_t WRITE_FLAG__IS_LOCKED      = 1U << 31;
 
     static constexpr const uint32_t WRITE_FLAG_GROUP__AS_MSG_NO_GET_ITEM_HINT_NEEDED =
@@ -813,6 +815,8 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
 
     virtual void log_out_from_context(List::context_id_t context) {}
 
+    virtual bool is_error_allowed(ScreenID::Error error) const { return true; }
+
     enum class ListAccessPermission
     {
         ALLOWED,
@@ -835,10 +839,13 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
     std::pair<const ViewID, const ScreenID::id_t>
     get_dynamic_ids(uint32_t bits) const final override
     {
-        if((bits & WRITE_FLAG_GROUP__AS_MSG_ANY) == 0)
-            return ViewSerializeBase::get_dynamic_ids(bits);
+        if((bits & WRITE_FLAG__AS_MSG_ERROR) != 0)
+            return std::make_pair(ViewID::ERROR, ScreenID::INVALID_ID);
 
-        return std::make_pair(ViewID::MESSAGE, ScreenID::INVALID_ID);
+        if((bits & WRITE_FLAG_GROUP__AS_MSG_ANY) != 0)
+            return std::make_pair(ViewID::MESSAGE, ScreenID::INVALID_ID);
+
+        return ViewSerializeBase::get_dynamic_ids(bits);
     }
 
     /*!

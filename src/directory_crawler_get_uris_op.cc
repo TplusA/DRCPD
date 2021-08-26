@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019, 2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2019, 2020, 2021  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -135,15 +135,15 @@ void Playlist::Crawler::DirectoryCrawler::GetURIsOp::handle_result(
     {
         guint rank;
         guint bitrate;
-        const gchar *link;
+        const gchar *lnk;
 
-        while(g_variant_iter_next(&iter, "(uu&s)", &rank, &bitrate, &link))
+        while(g_variant_iter_next(&iter, "(uu&s)", &rank, &bitrate, &lnk))
         {
-            if(is_uri_acceptable(link))
+            if(is_uri_acceptable(lnk))
             {
                 msg_vinfo(MESSAGE_LEVEL_DIAG,
-                          "Link: \"%s\", rank %u, bit rate %u", link, rank, bitrate);
-                result_.sorted_links_.add(Airable::RankedLink(rank, bitrate, link));
+                          "Link: \"%s\", rank %u, bit rate %u", lnk, rank, bitrate);
+                result_.sorted_links_.add(Airable::RankedLink(rank, bitrate, lnk));
             }
         }
     }

@@ -28,6 +28,7 @@ namespace ScreenID
 using id_t = uint16_t;
 
 static constexpr id_t INVALID_ID             = 0;
+static constexpr id_t FIRST_REGULAR_ID       = 1;
 static constexpr id_t IS_REAL_ERROR_MASK     = 1U << (sizeof(uint16_t) * 8 - 1);
 static constexpr id_t IS_SYSTEM_MESSAGE_MASK = 1U << (sizeof(uint16_t) * 8 - 2);
 
@@ -35,6 +36,10 @@ enum class Error
 {
     INVALID = INVALID_ID,
 
+    /* not quite errors */
+    OAUTH_REQUEST = FIRST_REGULAR_ID,
+
+    /* true errors */
     ENTER_LIST_PERMISSION_DENIED = IS_REAL_ERROR_MASK,
     ENTER_LIST_MEDIA_IO,
     ENTER_LIST_NET_IO,

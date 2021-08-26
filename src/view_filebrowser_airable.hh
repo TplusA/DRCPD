@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016--2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016--2021  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -31,8 +31,127 @@
 namespace ViewFileBrowser
 {
 
+class OAuthRequest
+{
+  private:
+    List::context_id_t context_id_;
+    bool have_list_position_;
+    ID::List list_id_;
+    unsigned int item_id_;
+    std::string url_;
+    std::string code_;
+
+    bool sent_ui_message_;
+    bool seen_auth_error_;
+
+    Timeout::Timer reload_timer_;
+
+    static const std::string empty_string;
+    static constexpr unsigned int RETRY_SECONDS = 20;
+
+  public:
+    OAuthRequest(const OAuthRequest &) = delete;
+    OAuthRequest(OAuthRequest &&) = default;
+    OAuthRequest &operator=(const OAuthRequest &) = delete;
+    OAuthRequest &operator=(OAuthRequest &&) = default;
+
+    explicit OAuthRequest():
+        context_id_(List::ContextMap::INVALID_ID),
+        have_list_position_(false),
+        item_id_(0),
+        sent_ui_message_(false),
+        seen_auth_error_(false)
+    {}
+
+    void activate(const List::context_id_t &context_id,
+                  std::string &&url, std::string &&code,
+                  Timeout::Timer::TimeoutCallback &&do_reload)
+    {
+        activate_init(context_id, std::move(url), std::move(code));
+        have_list_position_ = false;
+        reload_timer_.start(std::chrono::seconds(RETRY_SECONDS),
+                            std::move(do_reload));
+    }
+
+    void activate(const List::context_id_t &context_id,
+                  ID::List list_id, unsigned int item_id,
+                  std::string &&url, std::string &&code,
+                  Timeout::Timer::TimeoutCallback &&do_reload)
+    {
+        activate_init(context_id, std::move(url), std::move(code));
+        have_list_position_ = true;
+        list_id_ = list_id;
+        item_id_ = item_id;
+        reload_timer_.start(std::chrono::seconds(RETRY_SECONDS),
+                            std::move(do_reload));
+    }
+
+    void done()
+    {
+        if(!is_active())
+        {
+            BUG("OAuth request done, but wasn't active");
+            return;
+        }
+
+        reload_timer_.stop();
+        context_id_ = List::ContextMap::INVALID_ID;
+        url_.clear();
+        code_.clear();
+    }
+
+  private:
+    void activate_init(const List::context_id_t &context_id,
+                       std::string &&url, std::string &&code)
+    {
+        BUG_IF(context_id_ != List::ContextMap::INVALID_ID,
+               "Context ID for OAuth request already set (%u)", context_id_);
+        context_id_ = context_id;
+        url_ = std::move(url);
+        code_ = std::move(code);
+        sent_ui_message_ = false;
+        seen_auth_error_ = false;
+    }
+
+  public:
+    bool is_active() const
+    {
+        return context_id_ != List::ContextMap::INVALID_ID;
+    }
+
+    bool is_active(const List::context_id_t &context_id) const
+    {
+        return context_id_ == context_id;
+    }
+
+    const std::string &get_url() const { return is_active() ? url_ : empty_string; }
+    const std::string &get_code() const { return is_active() ? code_ : empty_string; }
+
+    void sent_oauth_message()
+    {
+        BUG_IF(!sent_ui_message_ && seen_auth_error_,
+               "OAuth-related list error seen before UI message was sent");
+        sent_ui_message_ = true;
+    }
+
+    bool seen_expected_authentication_error()
+    {
+        if(!is_active())
+            return false;
+
+        BUG_IF(!seen_auth_error_ && !sent_ui_message_,
+               "OAuth-related UI message not sent before the expected "
+               "list error was received");
+        seen_auth_error_ = true;
+        return true;
+    }
+};
+
 class AirableView: public View
 {
+  private:
+    mutable OAuthRequest oauth_request_;
+
   public:
     struct AsyncCallsDecorations
     {
@@ -153,6 +272,11 @@ class AirableView: public View
     InputResult process_event(UI::ViewEventID event_id,
                               std::unique_ptr<UI::Parameters> parameters) final override;
 
+  private:
+    InputResult process_login_status_update(std::unique_ptr<UI::Parameters> parameters);
+    InputResult process_oauth_request(std::unique_ptr<UI::Parameters> parameters);
+
+  public:
     bool list_invalidate(ID::List list_id, ID::List replacement_id) final override;
 
     InputResult logged_into_service_notification(const std::string &service_id,
@@ -173,6 +297,7 @@ class AirableView: public View
     bool point_to_child_directory(const SearchParameters *search_parameters = nullptr) final override;
     GoToSearchForm point_to_search_form(List::context_id_t ctx_id) final override;
     void log_out_from_context(List::context_id_t context) final override;
+    bool is_error_allowed(ScreenID::Error error) const final override;
 
     uint32_t about_to_write_xml(const DCP::Queue::Data &data) const final override;
     bool write_xml(std::ostream &os, uint32_t bits,

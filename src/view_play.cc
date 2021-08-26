@@ -881,6 +881,7 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
       case UI::ViewEventID::SEARCH_COMMENCE:
       case UI::ViewEventID::SEARCH_STORE_PARAMETERS:
       case UI::ViewEventID::NOTIFY_AIRABLE_SERVICE_LOGIN_STATUS_UPDATE:
+      case UI::ViewEventID::NOTIFY_AIRABLE_SERVICE_OAUTH_REQUEST:
       case UI::ViewEventID::PLAYBACK_TRY_RESUME:
       case UI::ViewEventID::STRBO_URL_RESOLVED:
       case UI::ViewEventID::SET_DISPLAY_CONTENT:

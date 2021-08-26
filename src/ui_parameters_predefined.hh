@@ -228,6 +228,14 @@ struct ParamTraits<EventID::VIEW_AIRABLE_SERVICE_LOGIN_STATUS_UPDATE>
                                                 bool, ListError, std::string>>;
 };
 
+template <>
+struct ParamTraits<EventID::VIEW_AIRABLE_SERVICE_OAUTH_REQUEST>
+{
+    using PType = SpecificParameters<std::tuple<std::string, std::string,
+                                                ID::List, unsigned int,
+                                                std::string, std::string>>;
+};
+
 
 template <EventID E, typename Traits = ::UI::Events::ParamTraits<E>, typename... Args>
 static std::unique_ptr<typename Traits::PType>

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016--2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016--2021  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -30,6 +30,9 @@
 #include "ui_parameters_predefined.hh"
 #include "de_tahifi_lists_context.h"
 #include "messages.h"
+
+const std::string ViewFileBrowser::OAuthRequest::empty_string;
+const unsigned int ViewFileBrowser::OAuthRequest::RETRY_SECONDS;
 
 bool ViewFileBrowser::AirableView::try_jump_to_stored_position(StoredPosition &pos)
 {
@@ -130,7 +133,9 @@ ViewFileBrowser::AirableView::logged_into_service_notification(const std::string
               case ListAccessPermission::ALLOWED:
               case ListAccessPermission::DENIED__BLOCKED:
               case ListAccessPermission::DENIED__NO_LIST_ID:
-                StandardError::service_authentication_failure(list_contexts_, ctx_id);
+                StandardError::service_authentication_failure(
+                    list_contexts_, ctx_id,
+                    [this] (auto auth_error) { return is_error_allowed(auth_error); });
                 break;
 
               case ListAccessPermission::DENIED__LOADING:
@@ -284,6 +289,7 @@ static void patch_event_id_for_deezer(UI::ViewEventID &event_id)
       case UI::ViewEventID::STORE_STREAM_META_DATA:
       case UI::ViewEventID::STORE_PRELOADED_META_DATA:
       case UI::ViewEventID::NOTIFY_AIRABLE_SERVICE_LOGIN_STATUS_UPDATE:
+      case UI::ViewEventID::NOTIFY_AIRABLE_SERVICE_OAUTH_REQUEST:
       case UI::ViewEventID::NOTIFY_NOW_PLAYING:
       case UI::ViewEventID::NOTIFY_STREAM_STOPPED:
       case UI::ViewEventID::NOTIFY_STREAM_PAUSED:
@@ -300,25 +306,99 @@ static void patch_event_id_for_deezer(UI::ViewEventID &event_id)
 }
 
 static bool is_deezer(const List::ContextMap &list_contexts,
-                      ID::List current_list_id)
+                      const List::context_id_t &current_context_id)
 {
     List::context_id_t deezer_id;
     list_contexts.get_context_info_by_string_id("deezer", deezer_id);
 
     return (deezer_id != List::ContextMap::INVALID_ID &&
-            deezer_id == DBUS_LISTS_CONTEXT_GET(current_list_id.get_raw_id()));
+            deezer_id == current_context_id);
+}
+
+static inline List::context_id_t
+determine_ctx_id(bool have_audio_source,
+                 const List::context_id_t &restricted_ctx,
+                 const ID::List current_list_id)
+{
+    auto result(have_audio_source ? restricted_ctx : List::ContextMap::INVALID_ID);
+
+    if(result == List::ContextMap::INVALID_ID && current_list_id.is_valid())
+        result = DBUS_LISTS_CONTEXT_GET(current_list_id.get_raw_id());
+
+    return result;
 }
 
 ViewIface::InputResult
 ViewFileBrowser::AirableView::process_event(UI::ViewEventID event_id,
                                             std::unique_ptr<UI::Parameters> parameters)
 {
-    if(is_deezer(list_contexts_, current_list_id_))
+    const auto ctx_id(determine_ctx_id(have_audio_source(),
+                                       context_restriction_.get_context_id(),
+                                       current_list_id_));
+
+    if(is_deezer(list_contexts_, ctx_id))
         patch_event_id_for_deezer(event_id);
 
-    if(event_id != UI::ViewEventID::NOTIFY_AIRABLE_SERVICE_LOGIN_STATUS_UPDATE)
+    switch(event_id)
+    {
+      case UI::ViewEventID::NAV_SELECT_ITEM:
+      case UI::ViewEventID::NAV_GO_BACK_ONE_LEVEL:
+      case UI::ViewEventID::NAV_SCROLL_LINES:
+      case UI::ViewEventID::NAV_SCROLL_PAGES:
+        if(oauth_request_.is_active(ctx_id))
+        {
+            msg_info("Manually reloading page to check if OAuth has succeeded");
+            oauth_request_.done();
+            point_to_root_directory();
+            break;
+        }
+
+        /* fall-through */
+
+      case UI::ViewEventID::NOP:
+      case UI::ViewEventID::PLAYBACK_COMMAND_START:
+      case UI::ViewEventID::PLAYBACK_COMMAND_STOP:
+      case UI::ViewEventID::PLAYBACK_COMMAND_PAUSE:
+      case UI::ViewEventID::PLAYBACK_PREVIOUS:
+      case UI::ViewEventID::PLAYBACK_NEXT:
+      case UI::ViewEventID::PLAYBACK_FAST_WIND_SET_SPEED:
+      case UI::ViewEventID::PLAYBACK_SEEK_STREAM_POS:
+      case UI::ViewEventID::PLAYBACK_MODE_REPEAT_TOGGLE:
+      case UI::ViewEventID::PLAYBACK_MODE_SHUFFLE_TOGGLE:
+      case UI::ViewEventID::SEARCH_COMMENCE:
+      case UI::ViewEventID::SEARCH_STORE_PARAMETERS:
+      case UI::ViewEventID::STORE_STREAM_META_DATA:
+      case UI::ViewEventID::STORE_PRELOADED_META_DATA:
+      case UI::ViewEventID::NOTIFY_NOW_PLAYING:
+      case UI::ViewEventID::NOTIFY_STREAM_STOPPED:
+      case UI::ViewEventID::NOTIFY_STREAM_PAUSED:
+      case UI::ViewEventID::NOTIFY_STREAM_UNPAUSED:
+      case UI::ViewEventID::NOTIFY_STREAM_POSITION:
+      case UI::ViewEventID::NOTIFY_SPEED_CHANGED:
+      case UI::ViewEventID::NOTIFY_PLAYBACK_MODE_CHANGED:
+      case UI::ViewEventID::AUDIO_SOURCE_SELECTED:
+      case UI::ViewEventID::AUDIO_SOURCE_DESELECTED:
+      case UI::ViewEventID::AUDIO_PATH_HALF_CHANGED:
+      case UI::ViewEventID::AUDIO_PATH_CHANGED:
+      case UI::ViewEventID::STRBO_URL_RESOLVED:
+      case UI::ViewEventID::SET_DISPLAY_CONTENT:
+      case UI::ViewEventID::PLAYBACK_TRY_RESUME:
         return ViewFileBrowser::View::process_event(event_id, std::move(parameters));
 
+      case UI::ViewEventID::NOTIFY_AIRABLE_SERVICE_LOGIN_STATUS_UPDATE:
+        return process_login_status_update(std::move(parameters));
+
+      case UI::ViewEventID::NOTIFY_AIRABLE_SERVICE_OAUTH_REQUEST:
+        return process_oauth_request(std::move(parameters));
+    }
+
+    return InputResult::OK;
+}
+
+ViewIface::InputResult
+ViewFileBrowser::AirableView::process_login_status_update(
+                                    std::unique_ptr<UI::Parameters> parameters)
+{
     const auto params =
         UI::Events::downcast<UI::ViewEventID::NOTIFY_AIRABLE_SERVICE_LOGIN_STATUS_UPDATE>(parameters);
 
@@ -334,6 +414,86 @@ ViewFileBrowser::AirableView::process_event(UI::ViewEventID event_id,
     return is_login
         ? logged_into_service_notification(service_id, actor_id, error)
         : logged_out_from_service_notification(service_id, actor_id, error);
+}
+
+ViewIface::InputResult
+ViewFileBrowser::AirableView::process_oauth_request(
+                                    std::unique_ptr<UI::Parameters> parameters)
+{
+    const auto params =
+        UI::Events::downcast<UI::ViewEventID::NOTIFY_AIRABLE_SERVICE_OAUTH_REQUEST>(parameters);
+
+    if(params == nullptr)
+        return InputResult::OK;
+
+    auto &plist = params->get_specific_non_const();
+    const auto &service_id(std::get<0>(plist));
+    const auto &context_hint(std::get<1>(plist));
+    const auto &list_id(std::get<2>(plist));
+    const auto &item_id(std::get<3>(plist));
+    const auto &login_url(std::get<4>(plist));
+    const auto &login_code(std::get<5>(plist));
+
+    List::context_id_t ctx_id;
+    const auto &ctx(list_contexts_.get_context_info_by_string_id(service_id, ctx_id));
+
+    msg_info("OAuth service ID %s (\"%s\", context ID %u), hint \"%s\", "
+             "list %u item %u",
+             service_id.c_str(), ctx.description_.c_str(), ctx_id,
+             context_hint.c_str(), list_id.get_raw_id(), item_id);
+    msg_info("OAuth login URL %s", login_url.c_str());
+    msg_info("OAuth login code %s", login_code.c_str());
+
+    if(context_hint.empty() || context_hint == "root")
+        oauth_request_.activate(ctx_id, list_id, item_id,
+                                std::move(std::get<4>(plist)),
+                                std::move(std::get<5>(plist)),
+                                [this]
+                                {
+                                    msg_info("Reload for OAuth");
+                                    oauth_request_.done();
+                                    point_to_root_directory();
+                                    return std::chrono::milliseconds::zero();
+                                });
+    else
+    {
+        BUG("Received OAuth request with context hint: "
+            "we should probably handle this case differently");
+        oauth_request_.activate(ctx_id, std::move(std::get<4>(plist)),
+                                std::move(std::get<5>(plist)),
+                                [this]
+                                {
+                                    msg_info("Reload for OAuth (in bogus context)");
+                                    oauth_request_.done();
+                                    point_to_root_directory();
+                                    return std::chrono::milliseconds::zero();
+                                });
+    }
+
+    return InputResult::UPDATE_NEEDED;
+}
+
+bool ViewFileBrowser::AirableView::is_error_allowed(ScreenID::Error error) const
+{
+    switch(error)
+    {
+      case ScreenID::Error::OAUTH_REQUEST:
+      case ScreenID::Error::SYSTEM_ERROR_NETWORK:
+        return false;
+
+      case ScreenID::Error::ENTER_LIST_AUTHENTICATION:
+      case ScreenID::Error::ENTER_CONTEXT_AUTHENTICATION:
+        return !oauth_request_.seen_expected_authentication_error();
+
+      case ScreenID::Error::INVALID:
+      case ScreenID::Error::ENTER_LIST_PERMISSION_DENIED:
+      case ScreenID::Error::ENTER_LIST_MEDIA_IO:
+      case ScreenID::Error::ENTER_LIST_NET_IO:
+      case ScreenID::Error::ENTER_LIST_PROTOCOL:
+        break;
+    }
+
+    return true;
 }
 
 bool ViewFileBrowser::AirableView::list_invalidate(ID::List list_id, ID::List replacement_id)
@@ -709,24 +869,17 @@ void ViewFileBrowser::AirableView::log_out_from_context(List::context_id_t conte
 uint32_t ViewFileBrowser::AirableView::about_to_write_xml(const DCP::Queue::Data &data) const
 {
     uint32_t bits = ViewFileBrowser::View::about_to_write_xml(data);
+    const auto ctx_id(determine_ctx_id(have_audio_source(),
+                                       context_restriction_.get_context_id(),
+                                       current_list_id_));
 
-    if(is_deezer(list_contexts_, current_list_id_))
+    if(is_deezer(list_contexts_, ctx_id))
         bits |= WRITE_FLAG__IS_LOCKED;
 
+    if(oauth_request_.is_active(ctx_id))
+        bits |= WRITE_FLAG__AS_MSG_ERROR;
+
     return bits;
-}
-
-static inline List::context_id_t
-determine_ctx_id(bool have_audio_source,
-                 const List::context_id_t &restricted_ctx,
-                 const ID::List current_list_id)
-{
-    auto result(have_audio_source ? restricted_ctx : List::ContextMap::INVALID_ID);
-
-    if(result == List::ContextMap::INVALID_ID && current_list_id.is_valid())
-        result = DBUS_LISTS_CONTEXT_GET(current_list_id.get_raw_id());
-
-    return result;
 }
 
 bool ViewFileBrowser::AirableView::write_xml(std::ostream &os, uint32_t bits,
@@ -740,12 +893,21 @@ bool ViewFileBrowser::AirableView::write_xml(std::ostream &os, uint32_t bits,
                                        current_list_id_));
     const auto &ctx(list_contexts_[ctx_id]);
 
-    os << "<text id=\"cbid\">" << int(drcp_browse_id_) << "</text>"
-       << "<context>"
+    os << "<context>"
        << ctx.string_id_.c_str()
        << "</context>";
 
-    os << "<text id=\"line0\">" << XmlEscape(ctx.description_) << "</text>"
+    if(oauth_request_.is_active(ctx_id))
+    {
+        os << "<text id=\"scrid\">" << ScreenID::id_t(ScreenID::Error::OAUTH_REQUEST) << "</text>";
+        os << "<text id=\"line0\">" << oauth_request_.get_code() <<  "</text>";
+        os << "<text id=\"line1\">" << oauth_request_.get_url() << "</text>";
+        oauth_request_.sent_oauth_message();
+        return true;
+    }
+
+    os << "<text id=\"cbid\">" << int(drcp_browse_id_) << "</text>"
+       << "<text id=\"line0\">" << XmlEscape(ctx.description_) << "</text>"
        << "<text id=\"line1\">";
 
     if((bits & WRITE_FLAG__IS_LOADING) != 0)
