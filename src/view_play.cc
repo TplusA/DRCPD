@@ -31,6 +31,7 @@
 #include "audiosource.hh"
 #include "ui_parameters_predefined.hh"
 #include "dbus_iface_proxies.hh"
+#include "system_errors.hh"
 #include "gerrorwrapper.hh"
 #include "xmlescape.hh"
 #include "messages.h"
@@ -276,6 +277,8 @@ void ViewPlay::View::handle_audio_path_changed(
         const std::string &ausrc_id, const std::string &player_id,
         std::function<InputResult(const char *)> before_view_activation)
 {
+    SystemErrors::set_active_audio_source(ausrc_id);
+
     Player::AudioSource *audio_source = nullptr;
     const ViewExternalSource::Base *view = nullptr;
 

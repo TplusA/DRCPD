@@ -196,6 +196,17 @@ static const char *message_type_to_string(SystemErrors::MessageType message_type
     return "message of unknown type";
 }
 
+static std::string allowed_context;
+
+void SystemErrors::set_active_audio_source(const std::string &ausrc_id)
+{
+    size_t dummy;
+    if(has_prefix("airable", ausrc_id, dummy))
+        allowed_context = "airable";
+    else
+        allowed_context.clear();
+}
+
 void SystemErrors::handle_error(MessageType message_type,
                                 const char *code, const char *context,
                                 const char *message_for_log, GVariantWrapper &&data)
@@ -207,6 +218,9 @@ void SystemErrors::handle_error(MessageType message_type,
     msg_info("System %s %s in context \"%s\": %s",
              message_type_to_string(message_type), code, context,
              message_for_log);
+
+    if(allowed_context != context)
+        return;
 
     const auto error_code = map_code_to_error_code(code);
     bool use_message_for_log_as_fallback;

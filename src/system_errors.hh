@@ -39,6 +39,7 @@ enum class MessageType
 void handle_error(MessageType message_type,
                   const char *code, const char *context,
                   const char *message_for_log, GVariantWrapper &&data);
+void set_active_audio_source(const std::string &ausrc_id);
 
 }
 
