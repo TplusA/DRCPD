@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017, 2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2017, 2019, 2021  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -24,6 +24,7 @@
 
 #include <string>
 
+#include "screen_ids.hh"
 #include "messages.h"
 
 namespace Error
@@ -43,21 +44,21 @@ class Error
     explicit Error(ScreenID::Error code):
         code_(code)
     {
-        log_assert(ScreenID::id_t(code) >= ScreenID::FIRST_ERROR_ID);
+        log_assert(ScreenID::is_real_error(code));
     }
 
     explicit Error(ScreenID::Error code, std::string &&message):
         code_(code),
         message_(std::move(message))
     {
-        log_assert(ScreenID::id_t(code) >= ScreenID::FIRST_ERROR_ID);
+        log_assert(ScreenID::is_real_error(code));
     }
 
     explicit Error(ScreenID::Error code, const char *message):
         code_(code),
         message_(message)
     {
-        log_assert(ScreenID::id_t(code) >= ScreenID::FIRST_ERROR_ID);
+        log_assert(ScreenID::is_real_error(code));
     }
 
     explicit Error(ScreenID::Error code, std::string &&message,
@@ -66,7 +67,7 @@ class Error
         context_id_(context_id),
         message_(std::move(message))
     {
-        log_assert(ScreenID::id_t(code) >= ScreenID::FIRST_ERROR_ID);
+        log_assert(ScreenID::is_real_error(code));
     }
 
     explicit Error(ScreenID::Error code, const char *message,
@@ -75,7 +76,7 @@ class Error
         context_id_(context_id),
         message_(message)
     {
-        log_assert(ScreenID::id_t(code) >= ScreenID::FIRST_ERROR_ID);
+        log_assert(ScreenID::is_real_error(code));
     }
 
     explicit Error(ScreenID::Error code, bool dummy,
@@ -83,7 +84,7 @@ class Error
         code_(code),
         context_id_(context_id)
     {
-        log_assert(ScreenID::id_t(code) >= ScreenID::FIRST_ERROR_ID);
+        log_assert(ScreenID::is_real_error(code));
     }
 };
 

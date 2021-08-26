@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017, 2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2017, 2019, 2021  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -27,21 +27,25 @@ namespace ScreenID
 
 using id_t = uint16_t;
 
-static constexpr id_t INVALID_ID       = 0;
-static constexpr id_t FIRST_REGULAR_ID = 1;
-static constexpr id_t FIRST_ERROR_ID   = 1U << (sizeof(uint16_t) * 8 - 1);
+static constexpr id_t INVALID_ID             = 0;
+static constexpr id_t IS_REAL_ERROR_MASK     = 1U << (sizeof(uint16_t) * 8 - 1);
 
 enum class Error
 {
     INVALID = INVALID_ID,
 
-    ENTER_LIST_PERMISSION_DENIED = FIRST_ERROR_ID,
+    ENTER_LIST_PERMISSION_DENIED = IS_REAL_ERROR_MASK,
     ENTER_LIST_MEDIA_IO,
     ENTER_LIST_NET_IO,
     ENTER_LIST_PROTOCOL,
     ENTER_LIST_AUTHENTICATION,
     ENTER_CONTEXT_AUTHENTICATION,
 };
+
+static inline bool is_real_error(Error code)
+{
+    return (id_t(code) & IS_REAL_ERROR_MASK) != 0;
+}
 
 }
 
