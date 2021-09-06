@@ -100,6 +100,12 @@ class OAuthRequest
         code_.clear();
     }
 
+    void cancel()
+    {
+        if(is_active())
+            done();
+    }
+
   private:
     void activate_init(const List::context_id_t &context_id,
                        std::string &&url, std::string &&code)
@@ -268,6 +274,8 @@ class AirableView: public View
     {}
 
     ~AirableView() {}
+
+    void defocus() final override;
 
     InputResult process_event(UI::ViewEventID event_id,
                               std::unique_ptr<UI::Parameters> parameters) final override;

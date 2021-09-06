@@ -328,6 +328,11 @@ determine_ctx_id(bool have_audio_source,
     return result;
 }
 
+void ViewFileBrowser::AirableView::defocus()
+{
+    oauth_request_.cancel();
+}
+
 ViewIface::InputResult
 ViewFileBrowser::AirableView::process_event(UI::ViewEventID event_id,
                                             std::unique_ptr<UI::Parameters> parameters)

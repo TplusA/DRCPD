@@ -599,7 +599,7 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
     bool late_init() final override;
 
     void focus() final override;
-    void defocus() final override;
+    void defocus() override;
 
     /*!
      * Query properties of associated list broker.
