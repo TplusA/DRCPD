@@ -1,3 +1,14 @@
+2021-09-08  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 5.18 released.
+
+	* Airable: Deactivate repeated OAuth notification screen when leaving
+	  the TIDAL audio source.
+
+	* User interface: Fix flickering index indication in lists.
+
+	* Internationalization: Fix build with Meson.
+
 2021-08-26  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 5.17 released.
