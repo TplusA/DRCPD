@@ -49,9 +49,6 @@ markdown = find_program('markdown')
 extract_docs = find_program('dbus_interfaces/extract_documentation.py')
 doxygen = find_program('doxygen', required: false)
 
-doxyfile = configure_file(input: 'Doxyfile.in', output: 'Doxyfile',
-                          configuration: config_data)
-
 version_info = custom_target(
     'version information file',
     input: configure_file(input: 'versioninfo.cache.in',
@@ -69,6 +66,9 @@ subdir('po')
 subdir('src')
 subdir('tests_new')
 subdir('tests')
+
+doxyfile = configure_file(input: 'Doxyfile.in', output: 'Doxyfile',
+                          configuration: config_data)
 
 custom_target('doxygen', output: 'doxygen.stamp',
               input: doxyfile, depends: dbus_docs, command: doxygen)

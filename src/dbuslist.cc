@@ -752,9 +752,11 @@ List::DBusList::get_item_async_set_hint(std::shared_ptr<DBusListViewport> vp,
                   case DBusRNF::GetRangeCallBase::LoadingState::LOADING:
                     return OpResult::STARTED;
 
+                  case DBusRNF::GetRangeCallBase::LoadingState::DONE:
+                    return OpResult::SUCCEEDED;
+
                   case DBusRNF::GetRangeCallBase::LoadingState::INACTIVE:
                   case DBusRNF::GetRangeCallBase::LoadingState::OUT_OF_RANGE:
-                  case DBusRNF::GetRangeCallBase::LoadingState::DONE:
                   case DBusRNF::GetRangeCallBase::LoadingState::FAILED_OR_ABORTED:
                     break;
                 }

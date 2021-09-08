@@ -3,6 +3,9 @@
 #define PACKAGE_STRING		"@PACKAGE_NAME@ @PACKAGE_VERSION@"
 #define PACKAGE_VERSION		"@PACKAGE_VERSION@"
 
+#define ENABLE_NLS		@ENABLE_NLS@
+#define LOCALEDIR		"@LOCALEDIR@"
+
 /* Enable extensions on AIX 3, Interix.  */
 #ifndef _ALL_SOURCE
 # define _ALL_SOURCE 1
