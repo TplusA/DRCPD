@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2019  T+A elektroakustik GmbH & Co. KG
+# Copyright (C) 2019, 2021  T+A elektroakustik GmbH & Co. KG
 #
 # This file is part of DRCPD.
 #
@@ -21,3 +21,6 @@
 
 i18n = import('i18n')
 i18n.gettext(PACKAGE)
+
+config_data.set('ENABLE_NLS', 1)
+config_data.set('LOCALEDIR', get_option('prefix') / get_option('localedir'))
