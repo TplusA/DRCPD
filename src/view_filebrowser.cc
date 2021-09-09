@@ -132,7 +132,7 @@ bool ViewFileBrowser::View::handle_enter_list_event_finish(
       case List::QueryContextEnterList::CallerID::CRAWLER_FIRST_ENTRY:
       case List::QueryContextEnterList::CallerID::CRAWLER_DESCEND:
       case List::QueryContextEnterList::CallerID::CRAWLER_ASCEND:
-        BUG("Wrong caller ID in %s()", __PRETTY_FUNCTION__);
+        BUG("%s: Wrong caller ID in %s()", name_, __PRETTY_FUNCTION__);
         return false;
     }
 
@@ -170,8 +170,8 @@ void ViewFileBrowser::View::handle_enter_list_event_update_after_finish(
                   case JumpToContext::State::NOT_JUMPING:
                   case JumpToContext::State::GET_CONTEXT_PARENT_ID:
                   case JumpToContext::State::GET_CONTEXT_LIST_ID:
-                    BUG("Wrong jtc state %d (see #699)",
-                        static_cast<int>(async_calls_.context_jump_.get_state()));
+                    BUG("%s: Wrong jtc state %d (see #699)",
+                        name_, static_cast<int>(async_calls_.context_jump_.get_state()));
                     break;
 
                   case JumpToContext::State::ENTER_CONTEXT_PARENT:
@@ -233,7 +233,7 @@ void ViewFileBrowser::View::handle_enter_list_event_update_after_finish(
           case List::QueryContextEnterList::CallerID::CRAWLER_FIRST_ENTRY:
           case List::QueryContextEnterList::CallerID::CRAWLER_DESCEND:
           case List::QueryContextEnterList::CallerID::CRAWLER_ASCEND:
-            BUG("Wrong caller ID in %s()", __PRETTY_FUNCTION__);
+            BUG("%s: Wrong caller ID in %s()", name_, __PRETTY_FUNCTION__);
             break;
         }
     }
@@ -447,7 +447,7 @@ bool ViewFileBrowser::View::sync_with_list_broker(bool is_first_call)
 
     if(error.log_failure("Keep alive on sync"))
     {
-        msg_error(0, LOG_ERR, "Failed querying gc expiry time (%s)", name_);
+        msg_error(0, LOG_ERR, "%s: Failed querying gc expiry time", name_);
         expiry_ms = 0;
     }
     else
@@ -461,7 +461,7 @@ bool ViewFileBrowser::View::sync_with_list_broker(bool is_first_call)
 
     if(error.log_failure("Get list contexts"))
     {
-        msg_error(0, LOG_ERR, "Failed querying list contexts (%s)", name_);
+        msg_error(0, LOG_ERR, "%s: Failed querying list contexts", name_);
         list_contexts_.clear();
     }
     else
@@ -480,7 +480,8 @@ bool ViewFileBrowser::View::sync_with_list_broker(bool is_first_call)
 }
 
 static void handle_resume_request(std::unique_ptr<Player::Resumer> &resumer,
-                                  const Player::AudioSource &asrc)
+                                  const Player::AudioSource &asrc,
+                                  const char *view_name)
 {
     switch(asrc.get_state())
     {
@@ -493,7 +494,7 @@ static void handle_resume_request(std::unique_ptr<Player::Resumer> &resumer,
 
       case Player::AudioSourceState::SELECTED:
         if(resumer == nullptr)
-            BUG("Have no resumer object");
+            BUG("%s: Have no resumer object", view_name);
         else
             resumer->audio_source_available_notification();
 
@@ -511,7 +512,7 @@ void ViewFileBrowser::View::focus()
         (void)point_to_root_directory();
 
     if(resumer_ != nullptr)
-        handle_resume_request(resumer_, get_audio_source());
+        handle_resume_request(resumer_, get_audio_source(), name_);
 }
 
 static inline void stop_waiting_for_search_parameters(ViewIface &view)
@@ -628,19 +629,22 @@ bool ViewFileBrowser::View::point_to_item(const ViewIface &view,
     }
     catch(const Search::UnsortedException &e)
     {
-        msg_error(0, LOG_ERR, "Binary search failed, list not sorted");
+        msg_error(0, LOG_ERR,
+                  "%s: Binary search failed, list not sorted", name_);
         return false;
     }
     catch(const List::DBusListException &e)
     {
         msg_error(0, LOG_ERR,
-                  "Binary search failed, got hard %s error: %s",
+                  "%s: Binary search failed, got hard %s error: %s",
+                  name_,
                   e.get_internal_detail_string_or_fallback("list retrieval"),
                   e.what());
         return false;
     }
 
-    msg_vinfo(MESSAGE_LEVEL_DEBUG, "Result of binary search: %zd", found);
+    msg_vinfo(MESSAGE_LEVEL_DEBUG,
+              "%s: Result of binary search: %zd", name_, found);
 
     if(found < 0)
         return false;
@@ -656,7 +660,8 @@ bool ViewFileBrowser::View::apply_search_parameters()
 
     if(ctx.check_flags(List::ContextInfo::SEARCH_NOT_POSSIBLE))
     {
-        BUG("Passed search parameters in context %s", ctx.string_id_.c_str());
+        BUG("%s: Passed search parameters in context %s",
+            name_, ctx.string_id_.c_str());
         return false;
     }
 
@@ -717,7 +722,7 @@ std::chrono::milliseconds ViewFileBrowser::View::keep_lists_alive_timer_callback
 
     if(error.log_failure("Periodic keep alive"))
     {
-        msg_error(0, LOG_ERR, "Failed sending keep alive");
+        msg_error(0, LOG_ERR, "%s: Failed sending keep alive", name_);
         expiry_ms = 0;
     }
     else
@@ -775,12 +780,13 @@ bool ViewFileBrowser::View::waiting_for_search_parameters(WaitForParametersHelpe
     if(!ctx.is_valid())
         return true;
 
-    msg_info("Trigger new search in context \"%s\"", ctx.string_id_.c_str());
+    msg_info("%s: Trigger new search in context \"%s\"",
+             name_, ctx.string_id_.c_str());
 
     if(ctx.check_flags(List::ContextInfo::SEARCH_NOT_POSSIBLE))
     {
-        msg_info("Searching is not possible in context \"%s\"",
-                 ctx.string_id_.c_str());
+        msg_info("%s: Searching is not possible in context \"%s\"",
+                 name_, ctx.string_id_.c_str());
         return true;
     }
 
@@ -824,8 +830,8 @@ bool ViewFileBrowser::View::point_to_search_form_and_wait(WaitForParametersHelpe
 
     const auto &ctx(list_contexts_[ctx_id]);
     msg_vinfo(MESSAGE_LEVEL_IMPORTANT,
-              "No search form found for context \"%s\", cannot search",
-              ctx.string_id_.c_str());
+              "%s: No search form found for context \"%s\", cannot search",
+              name_, ctx.string_id_.c_str());
     result = InputResult::OK;
 
     return false;
@@ -928,12 +934,12 @@ std::string ViewFileBrowser::View::generate_resume_url(const Player::AudioSource
 
     if(list_error.failed())
         msg_error(0, LOG_ERR,
-                  "Failed getting location %s for audio source %s (%s)",
-                  what, asrc.id_.c_str(), list_error.to_string());
+                  "%s: Failed getting location %s for audio source %s (%s)",
+                  name_, what, asrc.id_.c_str(), list_error.to_string());
     else if(result.empty())
         msg_error(0, LOG_ERR,
-                  "Location %s for audio source %s is empty",
-                  what, asrc.id_.c_str());
+                  "%s: Location %s for audio source %s is empty",
+                  name_, what, asrc.id_.c_str());
 
     return result;
 }
@@ -994,7 +1000,7 @@ ViewFileBrowser::View::try_resume_from_file_begin(const Player::AudioSource &asr
     if(resumer == nullptr)
         msg_out_of_memory("resumer state machine");
 
-    handle_resume_request(resumer, asrc);
+    handle_resume_request(resumer, asrc, name_);
     return resumer;
 }
 
@@ -1098,7 +1104,8 @@ ViewFileBrowser::View::process_event(UI::ViewEventID event_id,
 
         const FileItem *item;
 
-        msg_info("Enter item at line %d", browse_navigation_.get_cursor());
+        msg_info("%s: Enter item at line %d",
+                 name_, browse_navigation_.get_cursor());
 
         try
         {
@@ -1187,7 +1194,7 @@ ViewFileBrowser::View::process_event(UI::ViewEventID event_id,
 
             if(!permissions.can_play())
             {
-                msg_error(EPERM, LOG_INFO, "Ignoring play command");
+                msg_error(EPERM, LOG_INFO, "%s: Ignoring play command", name_);
                 return InputResult::OK;
             }
 
@@ -1210,7 +1217,7 @@ ViewFileBrowser::View::process_event(UI::ViewEventID event_id,
 
             if(!permissions.can_resume() || !permissions.can_play())
             {
-                msg_error(EPERM, LOG_INFO, "Ignoring resume command");
+                msg_error(EPERM, LOG_INFO, "%s: Ignoring resume command", name_);
                 return InputResult::OK;
             }
 
@@ -1233,8 +1240,8 @@ ViewFileBrowser::View::process_event(UI::ViewEventID event_id,
                 if(loc.error_.failed())
                 {
                     msg_error(0, LOG_NOTICE,
-                              "Failed resolving URL \"%s\" for resuming playback (%s)",
-                              res->get_url().c_str(), loc.error_.to_string());
+                              "%s: Failed resolving URL \"%s\" for resuming playback (%s)",
+                              name_, res->get_url().c_str(), loc.error_.to_string());
                     break;
                 }
 
@@ -1250,8 +1257,8 @@ ViewFileBrowser::View::process_event(UI::ViewEventID event_id,
             catch(...)
             {
                 msg_error(0, LOG_NOTICE,
-                          "Got exception while resolving URL \"%s\"",
-                          res->get_url().c_str());
+                          "%s: Got exception while resolving URL \"%s\"",
+                          name_, res->get_url().c_str());
             }
         }
 
@@ -1317,8 +1324,8 @@ ViewFileBrowser::View::process_event(UI::ViewEventID event_id,
       case UI::ViewEventID::AUDIO_PATH_HALF_CHANGED:
       case UI::ViewEventID::AUDIO_PATH_CHANGED:
       case UI::ViewEventID::SET_DISPLAY_CONTENT:
-        BUG("Unexpected view event 0x%08x for file browser view",
-            static_cast<unsigned int>(event_id));
+        BUG("%s: Unexpected view event 0x%08x for file browser view",
+            name_, static_cast<unsigned int>(event_id));
 
         break;
     }
@@ -1372,7 +1379,7 @@ bool ViewFileBrowser::View::write_xml(std::ostream &os, uint32_t bits,
         else if((bits & WRITE_FLAG__IS_LOCKED) != 0)
             os << XmlEscape(_("Locked"));
         else
-            BUG("Generic: what are we supposed to display here?!");
+            BUG("%s: Generic: what are we supposed to display here?!", name_);
 
         os << "</text>";
 
@@ -1389,9 +1396,10 @@ bool ViewFileBrowser::View::write_xml(std::ostream &os, uint32_t bits,
                         static_cast<const DBusRNF::GetRangeCallBase &>(call),
                         state, false);
                 },
-                [] (List::AsyncListIface::OpResult result)
+                [this] (List::AsyncListIface::OpResult result)
                 {
-                    msg_info("Hinted (write_xml()), result %d ignored", int(result));
+                    msg_info("%s: Hinted (write_xml()), result %d ignored",
+                             name_, int(result));
                 }))
     {
       case List::AsyncListIface::OpResult::STARTED:
@@ -1569,9 +1577,10 @@ void ViewFileBrowser::View::serialize(DCP::Queue &queue, DCP::Queue::Mode mode,
                         static_cast<const DBusRNF::GetRangeCallBase &>(call),
                         state, true);
                 },
-                [] (List::AsyncListIface::OpResult result)
+                [this] (List::AsyncListIface::OpResult result)
                 {
-                    msg_info("Hinted (serialize()), result %d ignored", int(result));
+                    msg_info("%s: Hinted (serialize()), result %d ignored",
+                             name_, int(result));
                 }))
     {
       case List::AsyncListIface::OpResult::STARTED:
@@ -1612,7 +1621,8 @@ void ViewFileBrowser::View::serialize(DCP::Queue &queue, DCP::Queue::Mode mode,
         catch(const List::DBusListException &e)
         {
             msg_error(0, LOG_NOTICE,
-                      "Got list exception while dumping to log: %s", e.what());
+                      "%s: Got list exception while dumping to log: %s",
+                      name_, e.what());
             item = nullptr;
         }
 
@@ -1664,8 +1674,8 @@ bool ViewFileBrowser::View::list_invalidate(ID::List list_id, ID::List replaceme
     if(have_lost_root_list)
     {
         msg_vinfo(MESSAGE_LEVEL_IMPORTANT,
-                  "Root list %u got removed, blocking further access",
-                  list_id.get_raw_id());
+                  "%s: Root list %u got removed, blocking further access",
+                  name_, list_id.get_raw_id());
 
         current_list_id_ = ID::List();
 
@@ -1682,8 +1692,9 @@ bool ViewFileBrowser::View::list_invalidate(ID::List list_id, ID::List replaceme
 
     if(replacement_id.is_valid())
     {
-        msg_vinfo(MESSAGE_LEVEL_IMPORTANT, "Reloading list %u (was %u)",
-                  replacement_id.get_raw_id(), current_list_id_.get_raw_id());
+        msg_vinfo(MESSAGE_LEVEL_IMPORTANT, "%s: Reloading list %u (was %u)",
+                  name_, replacement_id.get_raw_id(),
+                  current_list_id_.get_raw_id());
 
         current_list_id_ = replacement_id;
         reload_list();
@@ -1691,8 +1702,8 @@ bool ViewFileBrowser::View::list_invalidate(ID::List list_id, ID::List replaceme
     else
     {
         msg_vinfo(MESSAGE_LEVEL_IMPORTANT,
-                  "Current list %u got removed, going back to root list",
-                  current_list_id_.get_raw_id());
+                  "%s: Current list %u got removed, going back to root list",
+                  name_, current_list_id_.get_raw_id());
         point_to_root_directory();
     }
 
@@ -1707,7 +1718,7 @@ bool ViewFileBrowser::View::data_cookie_set_pending(
     if(pending_cookies_.add(cookie, std::move(notify), std::move(fetch)))
         return true;
 
-    BUG("Duplicate cookie %u", cookie);
+    BUG("%s: Duplicate cookie %u", name_, cookie);
     return false;
 }
 
@@ -1752,7 +1763,7 @@ bool ViewFileBrowser::View::data_cookies_available(std::vector<uint32_t> &&cooki
         }
         catch(const std::exception &e)
         {
-            BUG("Exception while finishing cookie %u: %s", c, e.what());
+            BUG("%s: Exception while finishing cookie %u: %s", name_, c, e.what());
         }
     }
 
@@ -1772,8 +1783,8 @@ bool ViewFileBrowser::View::data_cookies_error(std::vector<std::pair<uint32_t, L
         }
         catch(const std::exception &e)
         {
-            BUG("Exception while finishing faulty cookie %u, error %u: %s",
-                std::get<0>(ce), std::get<1>(ce).get_raw_code(), e.what());
+            BUG("%s: Exception while finishing faulty cookie %u, error %u: %s",
+                name_, std::get<0>(ce), std::get<1>(ce).get_raw_code(), e.what());
         }
     }
 
@@ -1786,7 +1797,8 @@ bool ViewFileBrowser::View::data_cookies_error(std::vector<std::pair<uint32_t, L
 static void point_to_root_directory__got_list_id(
         DBusRNF::GetListIDCall &call, ViewFileBrowser::View::AsyncCalls &calls,
         List::DBusList &file_list,
-        const List::DBusListViewport *associated_viewport)
+        const List::DBusListViewport *associated_viewport,
+        const char *view_name)
 {
     auto lock(calls.acquire_lock());
 
@@ -1799,10 +1811,11 @@ static void point_to_root_directory__got_list_id(
 
         if(result.error_ != ListError::Code::OK)
             msg_error(0, LOG_NOTICE,
-                      "Got error for root list ID, error code %s",
-                      result.error_.to_string());
+                      "%s: Got error for root list ID, error code %s",
+                      view_name, result.error_.to_string());
         else if(!result.list_id_.is_valid())
-            BUG("Got invalid list ID for root list, but no error code");
+            BUG("%s: Got invalid list ID for root list, but no error code",
+                view_name);
         else
             file_list.enter_list_async(associated_viewport, result.list_id_, 0,
                                        List::QueryContextEnterList::CallerID::ENTER_ROOT,
@@ -1813,17 +1826,20 @@ static void point_to_root_directory__got_list_id(
     catch(const List::DBusListException &e)
     {
         msg_error(0, LOG_ERR,
-                  "Failed obtaining ID for root list: %s error: %s",
+                  "%s: Failed obtaining ID for root list: %s error: %s",
+                  view_name,
                   e.get_internal_detail_string_or_fallback("async call"),
                   e.what());
     }
     catch(const std::exception &e)
     {
-        msg_error(0, LOG_ERR, "Failed obtaining ID for root list: %s", e.what());
+        msg_error(0, LOG_ERR, "%s: Failed obtaining ID for root list: %s",
+                  view_name, e.what());
     }
     catch(...)
     {
-        msg_error(0, LOG_ERR, "Failed obtaining ID for root list");
+        msg_error(0, LOG_ERR, "%s: Failed obtaining ID for root list",
+                  view_name);
     }
 }
 
@@ -1835,7 +1851,8 @@ bool ViewFileBrowser::View::do_point_to_real_root_directory()
             {
                 point_to_root_directory__got_list_id(call, async_calls_,
                                                      file_list_,
-                                                     this->get_viewport().get());
+                                                     this->get_viewport().get(),
+                                                     this->name_);
             });
 
     auto call(async_calls_.set_call(std::make_shared<DBusRNF::GetListIDCall>(
@@ -1860,7 +1877,7 @@ bool ViewFileBrowser::View::do_point_to_real_root_directory()
       case DBusRNF::CallState::INITIALIZED:
       case DBusRNF::CallState::READY_TO_FETCH:
       case DBusRNF::CallState::ABOUT_TO_DESTROY:
-        BUG("GetListIDCall for root ended up in unexpected state");
+        BUG("%s: GetListIDCall for root ended up in unexpected state", name_);
         async_calls_.delete_get_list_id();
         break;
 
@@ -1880,7 +1897,7 @@ static void point_to_list_context_root__got_parent_link(
         DBus::AsyncCall_ &async_call, ViewFileBrowser::View::AsyncCalls &calls,
         List::DBusList &file_list,
         const List::DBusListViewport *associated_viewport,
-        const List::context_id_t &ctx_id)
+        const List::context_id_t &ctx_id, const char *view_name)
 {
     auto lock(calls.acquire_lock());
 
@@ -1897,8 +1914,8 @@ static void point_to_list_context_root__got_parent_link(
     {
         async_result = DBus::AsyncResult::FAILED;
         msg_error(0, LOG_ERR,
-                  "Failed obtaining parent for root list of context %u: %s",
-                  ctx_id, e.what());
+                  "%s: Failed obtaining parent for root list of context %u: %s",
+                  view_name, ctx_id, e.what());
     }
 
     if(!calls.get_context_root_->success() ||
@@ -1927,7 +1944,8 @@ static void point_to_list_context_root__got_parent_link(
     }
     else
     {
-        msg_info("Cannot enter root directory for context %u", ctx_id);
+        msg_info("%s: Cannot enter root directory for context %u",
+                 view_name, ctx_id);
         calls.get_context_root_.reset();
         calls.context_jump_.cancel();
     }
@@ -1982,7 +2000,8 @@ bool ViewFileBrowser::View::do_point_to_context_root_directory(List::context_id_
             point_to_list_context_root__got_parent_link(async_call, async_calls_,
                                                         file_list_,
                                                         this->get_viewport().get(),
-                                                        ctx_id);
+                                                        ctx_id,
+                                                        this->name_);
         },
         [] (ViewFileBrowser::View::AsyncCalls::GetContextRoot::PromiseReturnType &values) {},
         [] () { return true; },
@@ -2014,7 +2033,7 @@ void ViewFileBrowser::View::set_list_context_root(List::context_id_t ctx_id)
     else if(list_contexts_.exists(ctx_id))
         context_restriction_.set_context_id(ctx_id);
     else
-        BUG("Invalid context ID %u passed as filter", ctx_id);
+        BUG("%s: Invalid context ID %u passed as filter", name_, ctx_id);
 }
 
 void ViewFileBrowser::StandardError::service_authentication_failure(
@@ -2046,7 +2065,7 @@ static bool sink_point_to_child_error(ListError::Code error,
                                       const std::string &child_name,
                                       ViewFileBrowser::JumpToContext &jtc,
                                       const List::ContextMap &list_contexts,
-                                      Busy::Source busy_source,
+                                      Busy::Source busy_source, const char *view_name,
                                       const std::function<bool(ScreenID::Error)> &is_error_allowed)
 {
     Busy::clear(busy_source);
@@ -2123,8 +2142,8 @@ static bool sink_point_to_child_error(ListError::Code error,
       case ListError::Code::INVALID_STRBO_URL:
       case ListError::Code::NOT_FOUND:
         msg_error(0, LOG_NOTICE,
-                  "Got error for child list ID, error code %s",
-                  ListError::code_to_string(error));
+                  "%s: Got error for child list ID, error code %s",
+                  view_name, ListError::code_to_string(error));
         break;
     }
 
@@ -2142,6 +2161,7 @@ static void point_to_child_directory__got_list_id(
         List::DBusList &file_list,
         const List::DBusListViewport *associated_viewport,
         const std::string &child_name, const List::ContextMap &list_contexts,
+        const char *view_name,
         const std::function<bool(ScreenID::Error)> &is_error_allowed)
 {
     auto lock(calls.acquire_lock());
@@ -2155,10 +2175,12 @@ static void point_to_child_directory__got_list_id(
 
         if(!sink_point_to_child_error(result.error_.get(), child_name,
                                       calls.context_jump_, list_contexts,
-                                      call.BUSY_SOURCE_ID, is_error_allowed))
+                                      call.BUSY_SOURCE_ID, view_name,
+                                      is_error_allowed))
         {
             if(!result.list_id_.is_valid())
-                BUG("Got invalid list ID for child list, but no error code");
+                BUG("%s: Got invalid list ID for child list, but no error code",
+                    view_name);
             else
             {
                 List::QueryContextEnterList::CallerID caller_id;
@@ -2181,42 +2203,47 @@ static void point_to_child_directory__got_list_id(
     catch(const List::DBusListException &e)
     {
         msg_error(0, LOG_ERR,
-                  "Failed obtaining ID for item %u in list %u: error %s: %s",
-                  call.item_index_, call.list_id_.get_raw_id(),
+                  "%s: Failed obtaining ID for item %u in list %u: error %s: %s",
+                  view_name, call.item_index_, call.list_id_.get_raw_id(),
                   e.get_internal_detail_string_or_fallback("async call"),
                   e.what());
         sink_point_to_child_error(e.get(), child_name,
                                   calls.context_jump_, list_contexts,
-                                  call.BUSY_SOURCE_ID, is_error_allowed);
+                                  call.BUSY_SOURCE_ID, view_name,
+                                  is_error_allowed);
     }
     catch(const DBusRNF::AbortedError &e)
     {
         msg_error(0, LOG_ERR,
-                  "Failed obtaining ID for item %u in list %u: aborted RNF call %s",
-                  call.item_index_, call.list_id_.get_raw_id(),
+                  "%s: Failed obtaining ID for item %u in list %u: aborted RNF call %s",
+                  view_name, call.item_index_, call.list_id_.get_raw_id(),
                   ListError::code_to_string(call.get_list_error().get()));
         const auto error = call.get_list_error();
         sink_point_to_child_error(error.failed() ? error.get() : ListError::INTERRUPTED,
                                   child_name, calls.context_jump_, list_contexts,
-                                  call.BUSY_SOURCE_ID, is_error_allowed);
+                                  call.BUSY_SOURCE_ID, view_name,
+                                  is_error_allowed);
     }
     catch(const std::exception &e)
     {
         msg_error(0, LOG_ERR,
-                  "Failed obtaining ID for item %u in list %u: %s",
+                  "%s: Failed obtaining ID for item %u in list %u: %s",
+                  view_name,
                   call.item_index_, call.list_id_.get_raw_id(), e.what());
         sink_point_to_child_error(ListError::INTERNAL, child_name,
                                   calls.context_jump_, list_contexts,
-                                  call.BUSY_SOURCE_ID, is_error_allowed);
+                                  call.BUSY_SOURCE_ID, view_name,
+                                  is_error_allowed);
     }
     catch(...)
     {
         msg_error(0, LOG_ERR,
-                  "Failed obtaining ID for item %u in list %u",
-                  call.item_index_, call.list_id_.get_raw_id());
+                  "%s: Failed obtaining ID for item %u in list %u",
+                  view_name, call.item_index_, call.list_id_.get_raw_id());
         sink_point_to_child_error(ListError::INTERNAL, child_name,
                                   calls.context_jump_, list_contexts,
-                                  call.BUSY_SOURCE_ID, is_error_allowed);
+                                  call.BUSY_SOURCE_ID, view_name,
+                                  is_error_allowed);
     }
 
     calls.delete_get_list_id();
@@ -2270,7 +2297,7 @@ bool ViewFileBrowser::View::point_to_child_directory(const SearchParameters *sea
                 point_to_child_directory__got_list_id(
                     call, async_calls_, file_list_, this->get_viewport().get(),
                     get_child_name(file_list_, this->get_viewport(), call.item_index_),
-                    list_contexts_,
+                    list_contexts_, this->name_,
                     [this] (ScreenID::Error error)
                     {
                         return this->is_error_allowed(error);
@@ -2338,8 +2365,8 @@ bool ViewFileBrowser::View::point_to_any_location(
 
       case List::AsyncListIface::OpResult::FAILED:
       case List::AsyncListIface::OpResult::CANCELED:
-        msg_error(0, LOG_ERR, "Failed jumping to previous location %u:%u",
-                  list_id.get_raw_id(), line_number);
+        msg_error(0, LOG_ERR, "%s: Failed jumping to previous location %u:%u",
+                  name_, list_id.get_raw_id(), line_number);
         break;
 
       case List::AsyncListIface::OpResult::BUSY:
@@ -2356,7 +2383,8 @@ bool ViewFileBrowser::View::point_to_any_location(
 static void point_to_parent_link__got_parent_link(
         DBus::AsyncCall_ &async_call, ViewFileBrowser::View::AsyncCalls &calls,
         List::DBusList &file_list,
-        const List::DBusListViewport *associated_viewport, ID::List child_list_id)
+        const List::DBusListViewport *associated_viewport, ID::List child_list_id,
+        const char *view_name)
 {
     auto lock(calls.acquire_lock());
 
@@ -2372,8 +2400,8 @@ static void point_to_parent_link__got_parent_link(
     catch(const List::DBusListException &e)
     {
         async_result = DBus::AsyncResult::FAILED;
-        msg_error(0, LOG_ERR, "Failed obtaining parent for list %u: %s",
-                  child_list_id.get_raw_id(), e.what());
+        msg_error(0, LOG_ERR, "%s: Failed obtaining parent for list %u: %s",
+                  view_name, child_list_id.get_raw_id(), e.what());
     }
 
     if(!calls.get_parent_id_->success() ||
@@ -2398,10 +2426,11 @@ static void point_to_parent_link__got_parent_link(
     else
     {
         if(line == 1)
-            msg_info("Cannot enter parent directory, already at root");
+            msg_info("%s: Cannot enter parent directory, already at root",
+                     view_name);
         else
-            BUG("Got invalid list ID for parent of list %u",
-                child_list_id.get_raw_id());
+            BUG("%s: Got invalid list ID for parent of list %u",
+                view_name, child_list_id.get_raw_id());
 
         calls.get_parent_id_.reset();
     }
@@ -2414,8 +2443,8 @@ bool ViewFileBrowser::View::point_to_parent_link()
     if(context_restriction_.is_boundary(current_list_id_))
     {
         msg_vinfo(MESSAGE_LEVEL_DIAG,
-                  "Cannot point to parent of list %u: restricted to context",
-                  current_list_id_.get_raw_id());
+                  "%s: Cannot point to parent of list %u: restricted to context",
+                  name_, current_list_id_.get_raw_id());
         return false;
     }
 
@@ -2454,7 +2483,8 @@ bool ViewFileBrowser::View::point_to_parent_link()
         {
             point_to_parent_link__got_parent_link(async_call, async_calls_,
                                                   file_list_, this->get_viewport().get(),
-                                                  current_list_id_);
+                                                  current_list_id_,
+                                                  this->name_);
         },
         [] (ViewFileBrowser::View::AsyncCalls::GetParentId::PromiseReturnType &values) {},
         [] () { return true; },
