@@ -197,13 +197,57 @@ void Player::Control::plug(const LocalPermissionsIface &permissions)
     retry_data_.reset();
 }
 
-void Player::Control::forget_queued_and_playing(bool also_forget_playing)
+static bool invalidate_prefetched_uris(Player::AudioSource *asrc,
+                                       Player::Data &player_data)
+{
+    if(asrc == nullptr)
+        return false;
+
+    auto *const urlfifo_proxy = asrc->get_urlfifo_proxy();
+    if(urlfifo_proxy == nullptr)
+        return false;
+
+    guint raw_playing_id;
+    GVariant *raw_queued_ids = nullptr;
+    GVariant *raw_removed_ids = nullptr;
+    GErrorWrapper error;
+
+    if(!tdbus_splay_urlfifo_call_clear_sync(urlfifo_proxy, 0, &raw_playing_id,
+                                            &raw_queued_ids, &raw_removed_ids,
+                                            nullptr, error.await()))
+    {
+        error.log_failure("Failed clearing URL FIFO for prefetch invalidation");
+        return false;
+    }
+
+    GVariantWrapper queued_ids(raw_queued_ids, GVariantWrapper::Transfer::JUST_MOVE);
+    GVariantWrapper removed_ids(raw_removed_ids, GVariantWrapper::Transfer::JUST_MOVE);
+
+    GVariantIter it;
+    if(g_variant_iter_init(&it, GVariantWrapper::get(removed_ids)) == 0)
+        return true;
+
+    uint16_t id;
+    std::vector<ID::Stream> removed;
+
+    while(g_variant_iter_next(&it, "q", &id))
+        removed.push_back(ID::Stream::make_from_raw_id(id));
+
+    player_data.player_dropped_from_queue(removed);
+    return true;
+}
+
+void Player::Control::forget_queued_and_playing()
 {
     if(player_data_ != nullptr)
-        player_data_->remove_all_queued_streams(also_forget_playing);
+    {
+        invalidate_prefetched_uris(audio_source_, *player_data_);
+        BUG_IF(player_data_->queued_streams_get().is_player_queue_filled(),
+               "Queues out of sync");
+        player_data_->remove_all_queued_streams(true);
+    }
 
-    if(also_forget_playing)
-        retry_data_.reset();
+    retry_data_.reset();
 }
 
 static void cancel_prefetch_ops(
@@ -238,7 +282,7 @@ void Player::Control::unplug(bool is_complete_unplug)
         finished_notification_ = nullptr;
     }
 
-    forget_queued_and_playing(true);
+    forget_queued_and_playing();
 
     if(player_data_ != nullptr)
     {
@@ -1367,46 +1411,6 @@ void Player::Control::seek_stream_request(int64_t value, const std::string &unit
     if(proxy != nullptr)
         tdbus_splay_playback_call_seek(proxy, value, units.c_str(),
                                        nullptr, nullptr, nullptr);
-}
-
-static bool invalidate_prefetched_uris(Player::AudioSource *asrc,
-                                       Player::Data &player_data)
-{
-    if(asrc == nullptr)
-        return false;
-
-    auto *const urlfifo_proxy = asrc->get_urlfifo_proxy();
-    if(urlfifo_proxy == nullptr)
-        return false;
-
-    guint raw_playing_id;
-    GVariant *raw_queued_ids = nullptr;
-    GVariant *raw_removed_ids = nullptr;
-    GErrorWrapper error;
-
-    if(!tdbus_splay_urlfifo_call_clear_sync(urlfifo_proxy, 0, &raw_playing_id,
-                                            &raw_queued_ids, &raw_removed_ids,
-                                            nullptr, error.await()))
-    {
-        error.log_failure("Failed clearing URL FIFO for prefetch invalidation");
-        return false;
-    }
-
-    GVariantWrapper queued_ids(raw_queued_ids, GVariantWrapper::Transfer::JUST_MOVE);
-    GVariantWrapper removed_ids(raw_removed_ids, GVariantWrapper::Transfer::JUST_MOVE);
-
-    GVariantIter it;
-    if(g_variant_iter_init(&it, GVariantWrapper::get(removed_ids)) == 0)
-        return true;
-
-    uint16_t id;
-    std::vector<ID::Stream> removed;
-
-    while(g_variant_iter_next(&it, "q", &id))
-        removed.push_back(ID::Stream::make_from_raw_id(id));
-
-    player_data.player_dropped_from_queue(removed);
-    return true;
 }
 
 void Player::Control::play_notification(ID::Stream stream_id,
