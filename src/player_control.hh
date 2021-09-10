@@ -286,10 +286,18 @@ class Control
                                               const std::string &error_id,
                                               bool is_urlfifo_empty);
     void pause_notification(ID::Stream stream_id);
+
+    enum class Execution
+    {
+        NOW,
+        DELAYED,
+    };
+
     void start_prefetch_next_item(const char *const reason,
                                   Playlist::Crawler::Bookmark from_where,
                                   Playlist::Crawler::Direction direction,
-                                  bool force_play_uri_when_available);
+                                  bool force_play_uri_when_available,
+                                  Execution delayed_execution);
 
   private:
     /* skip request handling */

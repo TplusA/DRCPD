@@ -522,7 +522,8 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
                 player_control_.start_prefetch_next_item(
                         "triggered by play notification",
                         Playlist::Crawler::Bookmark::PREFETCH_CURSOR,
-                        Playlist::Crawler::Direction::FORWARD, false);
+                        Playlist::Crawler::Direction::FORWARD, false,
+                        Player::Control::Execution::DELAYED);
             }
 
             if(!switched_stream)

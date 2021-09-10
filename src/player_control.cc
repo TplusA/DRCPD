@@ -695,7 +695,8 @@ bool Player::Control::found_item_uris_for_playing(
           case QueuedStream::OpResult::SUCCEEDED:
             start_prefetch_next_item("found URIs for first stream",
                                      Playlist::Crawler::Bookmark::ABOUT_TO_PLAY,
-                                     Playlist::Crawler::Direction::FORWARD, false);
+                                     Playlist::Crawler::Direction::FORWARD, false,
+                                     Execution::NOW);
             break;
 
           case QueuedStream::OpResult::STARTED:
@@ -1909,7 +1910,8 @@ Player::Control::stop_notification_with_error(ID::Stream stream_id,
          * stream to play */
         start_prefetch_next_item("skip to next because we need to go on",
                                  Playlist::Crawler::Bookmark::PREFETCH_CURSOR,
-                                 prefetch_direction_after_failure_, true);
+                                 prefetch_direction_after_failure_, true,
+                                 Execution::NOW);
 
         return StopReaction::TAKE_NEXT;
     }
@@ -1963,7 +1965,8 @@ void Player::Control::pause_notification(ID::Stream stream_id)
 
 void Player::Control::start_prefetch_next_item(
         const char *const reason, Playlist::Crawler::Bookmark from_where,
-        Playlist::Crawler::Direction direction, bool force_play_uri_when_available)
+        Playlist::Crawler::Direction direction,
+        bool force_play_uri_when_available, Execution delayed_execution)
 {
     if(!is_active_controller())
         return;
@@ -2037,8 +2040,23 @@ void Player::Control::start_prefetch_next_item(
 
     prefetch_next_item_op_ = find_op;
 
-    if(find_op != nullptr && !crawler_handle_->run(std::move(find_op), std::chrono::seconds(3)))
-        prefetch_next_item_op_ = nullptr;
+    if(find_op == nullptr)
+        return;
+
+    switch(delayed_execution)
+    {
+      case Execution::NOW:
+        if(crawler_handle_->run(std::move(find_op)))
+            return;
+        break;
+
+      case Execution::DELAYED:
+        if(crawler_handle_->run(std::move(find_op), std::chrono::seconds(3)))
+            return;
+        break;
+    }
+
+    prefetch_next_item_op_ = nullptr;
 }
 
 bool Player::Control::found_prefetched_item(Playlist::Crawler::FindNextOpBase &op,
@@ -2081,7 +2099,8 @@ bool Player::Control::found_prefetched_item(Playlist::Crawler::FindNextOpBase &o
             prefetch_direction_after_failure_ = Playlist::Crawler::Direction::FORWARD;
             start_prefetch_next_item("lookahead forward after hitting start of list backwards",
                                      Playlist::Crawler::Bookmark::PREFETCH_CURSOR,
-                                     prefetch_direction_after_failure_, false);
+                                     prefetch_direction_after_failure_, false,
+                                     Execution::DELAYED);
             return true;
 
           case Playlist::Crawler::Direction::NONE:
@@ -2166,7 +2185,8 @@ bool Player::Control::found_prefetched_item_uris(
                                  ? "skip to next because of failure"
                                  : "skip to next because of empty stream URIs",
                                  Playlist::Crawler::Bookmark::PREFETCH_CURSOR,
-                                 from_direction, force_play_uri_when_available);
+                                 from_direction, force_play_uri_when_available,
+                                 Execution::DELAYED);
         return false;
     }
 
@@ -2201,7 +2221,10 @@ bool Player::Control::found_prefetched_item_uris(
           case QueuedStream::OpResult::SUCCEEDED:
             start_prefetch_next_item("lookahead after successfully prefetched URIs",
                                      Playlist::Crawler::Bookmark::PREFETCH_CURSOR,
-                                     prefetch_direction_after_failure_, false);
+                                     prefetch_direction_after_failure_, false,
+                                     intention == UserIntention::LISTENING
+                                     ? Execution::DELAYED
+                                     : Execution::NOW);
             break;
 
           case QueuedStream::OpResult::STARTED:
@@ -2270,7 +2293,8 @@ void Player::Control::async_redirect_resolved_for_playing(
           case QueuedStream::OpResult::SUCCEEDED:
             start_prefetch_next_item("resolved redirect for first stream",
                                      Playlist::Crawler::Bookmark::ABOUT_TO_PLAY,
-                                     Playlist::Crawler::Direction::FORWARD, false);
+                                     Playlist::Crawler::Direction::FORWARD, false,
+                                     Execution::NOW);
             break;
 
           case QueuedStream::OpResult::STARTED:
