@@ -2170,7 +2170,9 @@ bool Player::Control::found_prefetched_item_uris(
         return false;
     }
 
-    switch(player_data_->get_intention())
+    const auto intention = player_data_->get_intention();
+
+    switch(intention)
     {
       case UserIntention::NOTHING:
       case UserIntention::STOPPING:
@@ -2192,9 +2194,9 @@ bool Player::Control::found_prefetched_item_uris(
         switch(queue_item_from_op(op, from_direction,
                                   &Player::Control::async_redirect_resolved_prefetched,
                                   InsertMode::APPEND,
-                                  force_play_uri_when_available
+                                  force_play_uri_when_available || intention == UserIntention::LISTENING
                                   ? PlayNewMode::SEND_PLAY_COMMAND_IF_IDLE
-                                  : PlayNewMode::KEEP))
+                                  : PlayNewMode::SEND_PAUSE_COMMAND_IF_IDLE))
         {
           case QueuedStream::OpResult::SUCCEEDED:
             start_prefetch_next_item("lookahead after successfully prefetched URIs",
