@@ -2217,7 +2217,7 @@ bool Player::Control::found_prefetched_item_uris(
       case UserIntention::PAUSING:
       case UserIntention::LISTENING:
         switch(queue_item_from_op(op, from_direction,
-                                  &Player::Control::async_redirect_resolved_prefetched,
+                                  &Control::async_redirect_resolved_prefetched,
                                   InsertMode::APPEND,
                                   force_play_uri_when_available || intention == UserIntention::LISTENING
                                   ? PlayNewMode::SEND_PLAY_COMMAND_IF_IDLE
