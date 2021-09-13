@@ -299,6 +299,9 @@ class Control
                                   bool force_play_uri_when_available,
                                   Execution delayed_execution);
 
+    // cppcheck-suppress functionStatic
+    void bring_forward_delayed_prefetch();
+
   private:
     /* skip request handling */
     bool skip_request_prepare(UserIntention previous_intention,

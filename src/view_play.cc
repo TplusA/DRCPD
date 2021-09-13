@@ -569,6 +569,7 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
               case Player::Control::StopReaction::QUEUED:
                 msg_info("Play view: stream stopped%s, but player keeps going",
                          error_id.empty() ? "" : " with error");
+                player_control_.bring_forward_delayed_prefetch();
                 break;
 
               case Player::Control::StopReaction::TAKE_NEXT:

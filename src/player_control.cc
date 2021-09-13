@@ -2059,6 +2059,11 @@ void Player::Control::start_prefetch_next_item(
     prefetch_next_item_op_ = nullptr;
 }
 
+void Player::Control::bring_forward_delayed_prefetch()
+{
+    TODO(1504, "%s", "Speed up possibly deferred prefetch op");
+}
+
 bool Player::Control::found_prefetched_item(Playlist::Crawler::FindNextOpBase &op,
                                             bool force_play_uri_when_available)
 {
