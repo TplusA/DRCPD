@@ -346,7 +346,7 @@ class Control
     ReplayResult replay(ID::OurStream stream_id, bool is_retry,
                         PlayNewMode play_new_mode);
 
-    void forget_queued_and_playing(bool also_forget_playing);
+    void forget_queued_and_playing();
 };
 
 }
