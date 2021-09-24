@@ -43,7 +43,7 @@ class View: public ViewExternalSource::Base
     explicit View(const char *on_screen_name, ViewManager::VMIface &view_manager):
         Base(ViewNames::REST_API, on_screen_name, "strbo.rest", view_manager,
              ViewIface::Flags(ViewIface::Flags::CAN_RETURN_TO_THIS |
-                              ViewIface::Flags::IS_PASSIVE))
+                              ViewIface::Flags::NAVIGATION_BLOCKED))
     {}
 
     InputResult process_event(UI::ViewEventID event_id,

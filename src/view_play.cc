@@ -287,7 +287,7 @@ void ViewPlay::View::handle_audio_path_changed(
                                         ausrc_id, audio_source, view);
 
     is_navigation_locked_ = view != nullptr
-        ? view->flags_.is_any_set(ViewIface::Flags::IS_PASSIVE)
+        ? view->flags_.is_any_set(ViewIface::Flags::NAVIGATION_BLOCKED)
         : false;
 
     if(player_control_.is_active_controller_for_audio_source(ausrc_id))
