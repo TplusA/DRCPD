@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017, 2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2017, 2019, 2021  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -57,6 +57,7 @@ class AudioSource
 
     struct _tdbussplayURLFIFO *urlfifo_proxy_;
     struct _tdbussplayPlayback *playback_proxy_;
+    bool reject_proxies_;
 
   public:
     AudioSource(const AudioSource &) = delete;
@@ -68,14 +69,20 @@ class AudioSource
         state_(AudioSourceState::DESELECTED),
         state_changed_callback_(state_changed_fn),
         urlfifo_proxy_(nullptr),
-        playback_proxy_(nullptr)
+        playback_proxy_(nullptr),
+        reject_proxies_(false)
     {}
 
     AudioSourceState get_state() const { return state_; }
 
+    void block_player_commands() { reject_proxies_ = true; }
+
     void set_proxies(struct _tdbussplayURLFIFO *urlfifo_proxy,
                      struct _tdbussplayPlayback *playback_proxy)
     {
+        if(reject_proxies_)
+            return;
+
         switch(state_)
         {
           case AudioSourceState::DESELECTED:
