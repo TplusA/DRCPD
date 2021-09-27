@@ -61,6 +61,9 @@ void ViewPlay::View::configure_skipper(
 void ViewPlay::View::register_audio_source(Player::AudioSource &audio_source,
                                            ViewIface &associated_view)
 {
+    if(associated_view.flags_.is_any_set(ViewIface::Flags::PLAYER_COMMANDS_BLOCKED))
+        audio_source.block_player_commands();
+
     audio_sources_with_view_.emplace(std::move(std::string(audio_source.id_)),
                                      std::move(std::make_pair(&audio_source, &associated_view)));
 }
@@ -287,7 +290,7 @@ void ViewPlay::View::handle_audio_path_changed(
                                         ausrc_id, audio_source, view);
 
     is_navigation_locked_ = view != nullptr
-        ? view->flags_.is_any_set(ViewIface::Flags::IS_PASSIVE)
+        ? view->flags_.is_any_set(ViewIface::Flags::NAVIGATION_BLOCKED)
         : false;
 
     if(player_control_.is_active_controller_for_audio_source(ausrc_id))

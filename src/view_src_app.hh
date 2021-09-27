@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017, 2018, 2019, 2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2017--2021  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -37,7 +37,7 @@ class View: public ViewExternalSource::Base
     explicit View(const char *on_screen_name, ViewManager::VMIface &view_manager):
         Base(ViewNames::APP, on_screen_name, "strbo.plainurl", view_manager,
              ViewIface::Flags(ViewIface::Flags::CAN_RETURN_TO_THIS |
-                              ViewIface::Flags::IS_PASSIVE))
+                              ViewIface::Flags::NAVIGATION_BLOCKED))
     {}
 
     const Player::LocalPermissionsIface &get_local_permissions() const final override;
