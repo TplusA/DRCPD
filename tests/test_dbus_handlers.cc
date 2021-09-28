@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2016, 2019, 2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016, 2019--2021  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -99,8 +99,8 @@ void cut_teardown(void)
 
 static DBus::SignalData mk_dbus_signal_data()
 {
-    return DBus::SignalData(*mock_view_manager, *drcpd_config_manager,
-                            *i18n_config_manager);
+    return DBus::SignalData(*mock_view_manager, *mock_view_manager,
+                            *drcpd_config_manager, *i18n_config_manager);
 }
 
 /*!\test

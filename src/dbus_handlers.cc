@@ -26,6 +26,7 @@
 #include "dbus_handlers.h"
 #include "dbus_handlers.hh"
 #include "view_play.hh"
+#include "view_manager.hh"
 #include "ui_parameters_predefined.hh"
 #include "configuration.hh"
 #include "configuration_drcpd.hh"
@@ -294,8 +295,11 @@ void dbussignal_lists_navigation(GDBusProxy *proxy, const gchar *sender_name,
 
         if(!list_id.is_valid())
         {
-            BUG("Got ListInvalidate signal for invalid list ID %u (new ID %u)",
-                raw_list_id, raw_new_list_id);
+            const auto *const view_name = data->view_manager_ != nullptr
+                ? data->view_manager_->get_view_name_by_dbus_proxy(proxy)
+                : "*unknown*";
+            BUG("Got ListInvalidate signal for invalid list ID %u (new ID %u) "
+                "in view %s", raw_list_id, raw_new_list_id, view_name);
             return;
         }
 

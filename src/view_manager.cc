@@ -688,7 +688,7 @@ static ViewIface *lookup_view_by_name(ViewManager::Manager::ViewsContainer &cont
     return (it != container.end()) ? it->second : nullptr;
 }
 
-static ViewIface *lookup_view_by_dbus_proxy(ViewManager::Manager::ViewsContainer &container,
+static ViewIface *lookup_view_by_dbus_proxy(const ViewManager::Manager::ViewsContainer &container,
                                             const void *dbus_proxy)
 {
     if(dbus_proxy == nullptr)
@@ -732,7 +732,14 @@ ViewIface *ViewManager::Manager::get_view_by_name(const char *view_name)
     return lookup_view_by_name(all_views_, view_name);
 }
 
-ViewIface *ViewManager::Manager::get_view_by_dbus_proxy(const void *dbus_proxy)
+const char *ViewManager::Manager::get_view_name_by_dbus_proxy(const void *dbus_proxy) const
+{
+    const auto *view = get_view_by_dbus_proxy(dbus_proxy);
+    const auto *name = view != nullptr ? view->name_ : nullptr;
+    return name != nullptr ? name : "*unknown*";
+}
+
+ViewIface *ViewManager::Manager::get_view_by_dbus_proxy(const void *dbus_proxy) const
 {
     return lookup_view_by_dbus_proxy(all_views_, dbus_proxy);
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2019, 2021  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -25,6 +25,7 @@
 #include "configuration.hh"
 #include "configuration_drcpd.hh"
 #include "configuration_i18n.hh"
+#include "view_manager.hh"
 
 class ViewIface;
 
@@ -53,13 +54,16 @@ class SignalData
     SignalData(SignalData &&) = default;
 
     UI::EventStoreIface &event_sink_;
+    const ViewManager::Manager *const view_manager_;
     Configuration::ConfigManager<Configuration::DrcpdValues> &drcpd_config_mgr_;
     Configuration::ConfigManager<Configuration::I18nValues> &i18n_config_mgr_;
 
     explicit SignalData(UI::EventStoreIface &event_sink,
+                        const ViewManager::VMIface &view_manager,
                         Configuration::ConfigManager<Configuration::DrcpdValues> &drcpd_config_mgr,
                         Configuration::ConfigManager<Configuration::I18nValues> &i18n_config_mgr):
         event_sink_(event_sink),
+        view_manager_(dynamic_cast<const ViewManager::Manager *>(&view_manager)),
         drcpd_config_mgr_(drcpd_config_mgr),
         i18n_config_mgr_(i18n_config_mgr)
     {}

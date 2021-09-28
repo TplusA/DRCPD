@@ -250,13 +250,15 @@ class Manager: public VMIface, public UI::EventStoreIface, public DBusRNF::Cooki
         final override;
     bool abort_cookie(const void *proxy, uint32_t cookie) final override;
 
+    const char *get_view_name_by_dbus_proxy(const void *dbus_proxy) const;
+
   private:
     void notify_main_thread_if_necessary(UI::EventID event_id,
                                          const UI::Parameters *const parameters);
     void configuration_changed_notification(const char *origin,
                                             const std::array<bool, Configuration::DrcpdValues::NUMBER_OF_KEYS> &changed);
 
-    ViewIface *get_view_by_dbus_proxy(const void *dbus_proxy);
+    ViewIface *get_view_by_dbus_proxy(const void *dbus_proxy) const;
     void activate_view(ViewIface *view, bool enforce_reactivation);
     void handle_input_result(ViewIface::InputResult result, ViewIface &view);
 

@@ -652,7 +652,7 @@ int main(int argc, char *argv[])
                                              dcp_transaction_queue,
                                              drcpd_config_manager);
 
-    static DBus::SignalData dbus_signal_data(view_manager,
+    static DBus::SignalData dbus_signal_data(view_manager, view_manager,
                                              drcpd_config_manager,
                                              i18n_config_manager);
     if(parameters.run_in_foreground)
