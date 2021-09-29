@@ -1376,8 +1376,11 @@ void Player::Control::fast_wind_set_speed_request(double speed_factor)
         return;
     }
 
-    tdbus_splay_playback_call_set_speed(DBus::get_streamplayer_playback_iface(),
-                                        speed_factor, nullptr, nullptr, nullptr);
+    auto *proxy = audio_source_->get_playback_proxy();
+
+    if(proxy != nullptr)
+        tdbus_splay_playback_call_set_speed(proxy, speed_factor,
+                                            nullptr, nullptr, nullptr);
 }
 
 void Player::Control::seek_stream_request(int64_t value, const std::string &units)
