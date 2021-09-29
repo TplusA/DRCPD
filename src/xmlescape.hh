@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2019, 2021  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -46,7 +46,7 @@ class XmlEscape
 /*!
  * Escape XML character data on the fly.
  */
-static std::ostream &operator<<(std::ostream &os, const XmlEscape &data)
+static inline std::ostream &operator<<(std::ostream &os, const XmlEscape &data)
 {
     size_t i = 0;
 
