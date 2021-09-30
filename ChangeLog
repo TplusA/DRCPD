@@ -1,3 +1,18 @@
+2021-10-01  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 5.20 released.
+
+	* User interface: Button presses on appliance and remote control are
+	  not sent directly to the active player while there is a REST API
+	  client in control. This allows the REST API client to control
+	  whether or not the command should be turned into action.
+
+	* DCP: Preset meta data set via registers 78 and 238 to dcpd are not
+	  sent via StreamInfo signal anymore. These data are sent by dcpd
+	  along with the stream URL to the player queue. We have code already
+	  which recognizes them, so all code related to StreamInfo signal
+	  handling was removed.
+
 2021-09-14  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 5.19 released.
