@@ -845,16 +845,6 @@ class Data
                         QueuedStream::ResolvedRedirectCallback &&callback);
 
     /*!
-     * App has just sent information about a stream to be played soon.
-     *
-     * This function only adds the stream ID to the queue of app streams and
-     * associates meta data with that stream ID. The URL is set by different
-     * means, which is, however, not relevant here because we are just an
-     * observer, not a controller in this context.
-     */
-    void announce_app_stream(const AppStreamID &stream_id, MetaData::Set &&meta_data);
-
-    /*!
      * Associate full set of meta data with stream ID.
      */
     void put_meta_data(const ID::Stream &stream_id, MetaData::Set &&meta_data);

@@ -164,12 +164,6 @@ struct ParamTraits<EventID::VIEW_PLAYER_NOW_PLAYING>
 };
 
 template <>
-struct ParamTraits<EventID::VIEW_PLAYER_STORE_PRELOADED_META_DATA>
-{
-    using PType = SpecificParameters<std::tuple<ID::Stream, MetaData::Set>>;
-};
-
-template <>
 struct ParamTraits<EventID::VIEW_PLAYER_STORE_STREAM_META_DATA>
 {
     using PType = SpecificParameters<std::tuple<ID::Stream, MetaData::Set>>;

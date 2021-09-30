@@ -725,25 +725,6 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
 
         break;
 
-      case UI::ViewEventID::STORE_PRELOADED_META_DATA:
-        {
-            const auto params =
-                UI::Events::downcast<UI::ViewEventID::STORE_PRELOADED_META_DATA>(parameters);
-
-            if(params == nullptr)
-                break;
-
-            auto &plist = params->get_specific_non_const();
-            const auto stream_id(Player::AppStreamID::make_from_generic_id(std::get<0>(plist)));
-
-            player_data_.announce_app_stream(stream_id, std::move(std::get<1>(plist)));
-
-            if(player_data_.get_now_playing().is_stream(stream_id.get()))
-                send_current_stream_info_to_dcpd(player_data_);
-        }
-
-        break;
-
       case UI::ViewEventID::AUDIO_SOURCE_SELECTED:
         {
             /* one of our own audio sources has been selected */

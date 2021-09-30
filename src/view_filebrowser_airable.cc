@@ -287,7 +287,6 @@ static void patch_event_id_for_deezer(UI::ViewEventID &event_id)
       case UI::ViewEventID::PLAYBACK_MODE_SHUFFLE_TOGGLE:
       case UI::ViewEventID::NAV_GO_BACK_ONE_LEVEL:
       case UI::ViewEventID::STORE_STREAM_META_DATA:
-      case UI::ViewEventID::STORE_PRELOADED_META_DATA:
       case UI::ViewEventID::NOTIFY_AIRABLE_SERVICE_LOGIN_STATUS_UPDATE:
       case UI::ViewEventID::NOTIFY_AIRABLE_SERVICE_OAUTH_REQUEST:
       case UI::ViewEventID::NOTIFY_NOW_PLAYING:
@@ -373,7 +372,6 @@ ViewFileBrowser::AirableView::process_event(UI::ViewEventID event_id,
       case UI::ViewEventID::SEARCH_COMMENCE:
       case UI::ViewEventID::SEARCH_STORE_PARAMETERS:
       case UI::ViewEventID::STORE_STREAM_META_DATA:
-      case UI::ViewEventID::STORE_PRELOADED_META_DATA:
       case UI::ViewEventID::NOTIFY_NOW_PLAYING:
       case UI::ViewEventID::NOTIFY_STREAM_STOPPED:
       case UI::ViewEventID::NOTIFY_STREAM_PAUSED:

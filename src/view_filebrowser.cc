@@ -1309,7 +1309,6 @@ ViewFileBrowser::View::process_event(UI::ViewEventID event_id,
       case UI::ViewEventID::PLAYBACK_MODE_REPEAT_TOGGLE:
       case UI::ViewEventID::PLAYBACK_MODE_SHUFFLE_TOGGLE:
       case UI::ViewEventID::STORE_STREAM_META_DATA:
-      case UI::ViewEventID::STORE_PRELOADED_META_DATA:
       case UI::ViewEventID::NOTIFY_AIRABLE_SERVICE_LOGIN_STATUS_UPDATE:
       case UI::ViewEventID::NOTIFY_AIRABLE_SERVICE_OAUTH_REQUEST:
       case UI::ViewEventID::NOTIFY_NOW_PLAYING:

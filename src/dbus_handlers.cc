@@ -111,34 +111,6 @@ void dbussignal_dcpd_playback(GDBusProxy *proxy, const gchar *sender_name,
         data->event_sink_.store_event(UI::EventID::PLAYBACK_MODE_REPEAT_TOGGLE);
     else if(strcmp(signal_name, "ShuffleModeToggle") == 0)
         data->event_sink_.store_event(UI::EventID::PLAYBACK_MODE_SHUFFLE_TOGGLE);
-    else if(strcmp(signal_name, "StreamInfo") == 0)
-    {
-        check_parameter_assertions(parameters, 6);
-
-        guint16 raw_stream_id;
-        const char *artist = NULL;
-        const char *album = NULL;
-        const char *title = NULL;
-        const char *alttrack = NULL;
-        const char *url = NULL;
-
-        g_variant_get(parameters, "(q&s&s&s&s&s)",
-                      &raw_stream_id, &artist, &album, &title, &alttrack, &url);
-
-        auto params =
-            UI::Events::mk_params<UI::EventID::VIEW_PLAYER_STORE_PRELOADED_META_DATA>(
-                ID::Stream::make_from_raw_id(raw_stream_id), MetaData::Set());
-
-        auto &md(std::get<1>(params->get_specific_non_const()));
-        md.add(MetaData::Set::ARTIST, artist);
-        md.add(MetaData::Set::ALBUM, album);
-        md.add(MetaData::Set::TITLE, title);
-        md.add(MetaData::Set::INTERNAL_DRCPD_TITLE, alttrack);
-        md.add(MetaData::Set::INTERNAL_DRCPD_URL, url);
-
-        data->event_sink_.store_event(UI::EventID::VIEW_PLAYER_STORE_PRELOADED_META_DATA,
-                                      std::move(params));
-    }
     else
         unknown_signal(iface_name, signal_name, sender_name);
 }

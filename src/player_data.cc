@@ -926,22 +926,6 @@ bool Player::Data::set_player_state(ID::Stream new_current_stream, PlayerState s
     return set_player_state(state);
 }
 
-void Player::Data::announce_app_stream(const AppStreamID &stream_id,
-                                       MetaData::Set &&meta_data)
-{
-    if(!stream_id.get().is_valid())
-        return;
-
-    put_meta_data(stream_id.get(), std::move(meta_data));
-
-    if(now_playing_.is_stream(stream_id.get()))
-    {
-        /* already playing it, stream player notification came in faster than
-         * information from dcpd */
-        return;
-    }
-}
-
 void Player::Data::put_meta_data(const ID::Stream &stream_id,
                                  MetaData::Set &&meta_data)
 {
