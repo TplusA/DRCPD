@@ -57,6 +57,7 @@ class AudioSource
 
     struct _tdbussplayURLFIFO *urlfifo_proxy_;
     struct _tdbussplayPlayback *playback_proxy_;
+    struct _tdbussplayPlayback *playback_proxy_for_forced_commands_;
     bool reject_proxies_;
 
   public:
@@ -70,6 +71,7 @@ class AudioSource
         state_changed_callback_(state_changed_fn),
         urlfifo_proxy_(nullptr),
         playback_proxy_(nullptr),
+        playback_proxy_for_forced_commands_(nullptr),
         reject_proxies_(false)
     {}
 
@@ -80,6 +82,8 @@ class AudioSource
     void set_proxies(struct _tdbussplayURLFIFO *urlfifo_proxy,
                      struct _tdbussplayPlayback *playback_proxy)
     {
+        playback_proxy_for_forced_commands_ = playback_proxy;
+
         if(reject_proxies_)
             return;
 
@@ -99,13 +103,15 @@ class AudioSource
     }
 
     struct _tdbussplayURLFIFO *get_urlfifo_proxy() const { return urlfifo_proxy_; }
-    struct _tdbussplayPlayback *get_playback_proxy() const { return playback_proxy_; }
+    struct _tdbussplayPlayback *get_playback_proxy(bool force = false) const
+    { return force ? playback_proxy_for_forced_commands_ : playback_proxy_; }
 
     void deselected_notification()
     {
         set_state(AudioSourceState::DESELECTED);
         urlfifo_proxy_ = nullptr;
         playback_proxy_ = nullptr;
+        playback_proxy_for_forced_commands_ = nullptr;
     }
 
     void request()

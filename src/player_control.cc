@@ -307,14 +307,14 @@ void Player::Control::unplug(bool is_complete_unplug)
 }
 
 static bool send_simple_playback_command(
-        const Player::AudioSource *asrc,
+        const Player::AudioSource *asrc, bool force,
         const std::function<gboolean(tdbussplayPlayback *, GCancellable *, GError **)> &sync_call,
         const char *error_short, const char *error_long)
 {
     if(asrc == nullptr)
         return true;
 
-    auto *proxy = asrc->get_playback_proxy();
+    auto *proxy = asrc->get_playback_proxy(force);
 
     if(proxy == nullptr)
         return true;
@@ -334,18 +334,19 @@ static bool send_simple_playback_command(
 static inline bool send_play_command(const Player::AudioSource *asrc)
 {
     return
-        send_simple_playback_command(asrc, tdbus_splay_playback_call_start_sync,
+        send_simple_playback_command(asrc, false,
+                                     tdbus_splay_playback_call_start_sync,
                                      "Start playback",
                                      "Failed sending start playback message");
 }
 
 static inline bool send_stop_command(const Player::AudioSource *asrc,
-                                     const char *reason)
+                                     bool force, const char *reason)
 {
     log_assert(asrc != nullptr);
 
     return send_simple_playback_command(
-            asrc,
+            asrc, force,
             [reason]
             (tdbussplayPlayback *proxy, GCancellable *cancelable, GError **error) -> gboolean
             {
@@ -358,7 +359,8 @@ static inline bool send_stop_command(const Player::AudioSource *asrc,
 static inline bool send_pause_command(const Player::AudioSource *asrc)
 {
     return
-        send_simple_playback_command(asrc, tdbus_splay_playback_call_pause_sync,
+        send_simple_playback_command(asrc, false,
+                                     tdbus_splay_playback_call_pause_sync,
                                      "Pause playback",
                                      "Failed sending pause playback message");
 }
@@ -366,7 +368,8 @@ static inline bool send_pause_command(const Player::AudioSource *asrc)
 static inline bool send_simple_skip_forward_command(const Player::AudioSource *asrc)
 {
     return
-        send_simple_playback_command(asrc, tdbus_splay_playback_call_skip_to_next_sync,
+        send_simple_playback_command(asrc, false,
+                                     tdbus_splay_playback_call_skip_to_next_sync,
                                      "Skip to next stream",
                                      "Failed sending skip forward message");
 }
@@ -374,7 +377,8 @@ static inline bool send_simple_skip_forward_command(const Player::AudioSource *a
 static inline bool send_simple_skip_backward_command(const Player::AudioSource *asrc)
 {
     return
-        send_simple_playback_command(asrc, tdbus_splay_playback_call_skip_to_previous_sync,
+        send_simple_playback_command(asrc, false,
+                                     tdbus_splay_playback_call_skip_to_previous_sync,
                                      "Skip to previous stream",
                                      "Failed sending skip backward message");
 }
@@ -391,7 +395,7 @@ static void do_deselect_audio_source(
     }
 
     if(send_stop)
-        send_stop_command(&audio_source, reason);
+        send_stop_command(&audio_source, true, reason);
 
     audio_source.deselected_notification();
 }
@@ -755,7 +759,7 @@ void Player::Control::stop_request(const char *reason)
             player_data_->set_intention(UserIntention::STOPPING);
 
         if(astate == AudioSourceState::SELECTED)
-            send_stop_command(audio_source_, reason);
+            send_stop_command(audio_source_, false, reason);
 
         break;
     }
@@ -819,15 +823,18 @@ static void enforce_intention(Player::UserIntention intention,
             break;
 
           case Player::PlayerState::BUFFERING:
-            send_stop_command(audio_source_, "enforced by user intention while buffering");
+            send_stop_command(audio_source_, false,
+                              "enforced by user intention while buffering");
             break;
 
           case Player::PlayerState::PLAYING:
-            send_stop_command(audio_source_, "enforced by user intention while playing");
+            send_stop_command(audio_source_, false,
+                              "enforced by user intention while playing");
             break;
 
           case Player::PlayerState::PAUSED:
-            send_stop_command(audio_source_, "enforced by user intention while pausing");
+            send_stop_command(audio_source_, false,
+                              "enforced by user intention while pausing");
             break;
         }
 
