@@ -202,12 +202,14 @@ void ViewFileBrowser::View::handle_enter_list_event_update_after_finish(
           case List::QueryContextEnterList::CallerID::ENTER_ROOT:
           case List::QueryContextEnterList::CallerID::ENTER_CHILD:
           case List::QueryContextEnterList::CallerID::ENTER_PARENT:
-          case List::QueryContextEnterList::CallerID::RELOAD_LIST:
           case List::QueryContextEnterList::CallerID::CRAWLER_RESET_POSITION:
           case List::QueryContextEnterList::CallerID::CRAWLER_FIRST_ENTRY:
           case List::QueryContextEnterList::CallerID::CRAWLER_DESCEND:
           case List::QueryContextEnterList::CallerID::CRAWLER_ASCEND:
             log_assert(!async_calls_.context_jump_.is_jumping_to_context());
+            break;
+
+          case List::QueryContextEnterList::CallerID::RELOAD_LIST:
             break;
         }
     }

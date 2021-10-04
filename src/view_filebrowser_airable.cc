@@ -512,7 +512,8 @@ bool ViewFileBrowser::AirableView::list_invalidate(ID::List list_id, ID::List re
 
 void ViewFileBrowser::AirableView::finish_async_point_to_child_directory()
 {
-    log_assert(current_list_id_.is_valid());
+    if(!current_list_id_.is_valid())
+        return;
 
     const unsigned int selected_line_from_root =
         async_calls_deco_.point_to_child_directory_.selected_line_from_root_;
