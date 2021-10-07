@@ -173,6 +173,34 @@ class JumpToContext
     }
 };
 
+/*!
+ * Mark the upper-most boundary within a navigation tree.
+ *
+ * Browsing of the current context can be restricted to a subtree by defining a
+ * boundary, or "hidden root". This is useful for hiding all entry points of
+ * some context.
+ *
+ * Call #ViewFileBrowser::ContextRestriction::set_context_id() to set up the
+ * context restriction for a given context ID (a #List::context_id_t). After
+ * this, call #ViewFileBrowser::ContextRestriction::set_boundary() to set the
+ * ID of the list to be used as the boundary. Its parent list will not be
+ * accessible anymore, but the list itself and those below remain unlocked.
+ *
+ * Note that between these two calls, the #ContextRestriction object will block
+ * access to any list. The blocked state is entered when the context ID is set,
+ * and it is released when the boundary list ID is set. This is because the ID
+ * of the boundary list is usually not known between these calls as the
+ * boundary list needs to be found and entered first (see also
+ * #ViewFileBrowser::JumpToContext).
+ *
+ * The restriction is not automatic. List navigation code needs to call
+ * #ViewFileBrowser::ContextRestriction::is_boundary() for each list before it
+ * trys to enter its parent. If that function returns \c true for a given list
+ * ID, then the list's parent must not be entered.
+ *
+ * Call #ViewFileBrowser::ContextRestriction::release() to remove any
+ * restrictions.
+ */
 class ContextRestriction
 {
   private:
@@ -435,9 +463,12 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
     static constexpr const uint32_t WRITE_FLAG__AS_MSG_ERROR   = 1U << 3;
     static constexpr const uint32_t WRITE_FLAG__IS_LOCKED      = 1U << 31;
 
+    /* serialize as message for these bits, no further list access required */
     static constexpr const uint32_t WRITE_FLAG_GROUP__AS_MSG_NO_GET_ITEM_HINT_NEEDED =
         WRITE_FLAG__IS_LOADING | WRITE_FLAG__IS_UNAVAILABLE |
         WRITE_FLAG__IS_LOCKED;
+
+    /* serialize as plain message for these bits unless there is an error */
     static constexpr const uint32_t WRITE_FLAG_GROUP__AS_MSG_ANY =
         WRITE_FLAG_GROUP__AS_MSG_NO_GET_ITEM_HINT_NEEDED | WRITE_FLAG__IS_EMPTY_ROOT;
 
