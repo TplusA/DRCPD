@@ -1585,6 +1585,25 @@ Player::Control::stop_notification_ok(ID::Stream stream_id)
     return StopReaction::QUEUED;
 }
 
+static GVariant *to_gvariant(const MetaData::Set &md)
+{
+    GVariantBuilder builder;
+    g_variant_builder_init(&builder, G_VARIANT_TYPE("a(ss)"));
+
+    static const auto insert(
+        [&builder, &md] (const char *key, auto id)
+        {
+            if(!md.values_[id].empty())
+                g_variant_builder_add(&builder, "(ss)", key, md.values_[id].c_str());
+        }
+    );
+
+    insert("artist", MetaData::Set::ID::ARTIST);
+    insert("album", MetaData::Set::ID::ALBUM);
+    insert("title", MetaData::Set::ID::TITLE);
+    return g_variant_builder_end(&builder);
+}
+
 /*!
  * Try to fill up the streamplayer FIFO.
  *
@@ -1663,8 +1682,7 @@ static bool send_selected_file_uri_to_streamplayer(
             urlfifo_proxy, stream_id.get().get_raw_id(),
             queued_url.c_str(), GVariantWrapper::get(stream_key),
             0, "ms", 0, "ms", keep_first_n,
-            g_variant_new_array(reinterpret_cast<const GVariantType *>("(ss)"),
-                                nullptr, 0),
+            to_gvariant(player.get_meta_data(stream_id.get())),
             &fifo_overflow, &is_playing, nullptr, error.await());
 
         if(error.log_failure("Push stream"))
