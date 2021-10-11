@@ -83,24 +83,25 @@ void ViewFileBrowser::AirableView::audio_source_state_changed(
         {
             const auto idx(get_audio_source_index(audio_source));
 
-            if(select_audio_source(idx))
+            if(!select_audio_source(idx))
+                BUG("Selected audio source index %zu (%s) again",
+                    idx, audio_source.id_.c_str());
+
+            if(idx > 0)
+                set_list_context_root(audio_source_index_to_list_context(idx));
+            else
+                set_list_context_root(List::ContextMap::INVALID_ID);
+
+            auto &stash(audio_source_navigation_stash_[idx]);
+
+            if(try_jump_to_stored_position(stash))
             {
-                if(idx > 0)
-                    set_list_context_root(audio_source_index_to_list_context(idx));
-                else
-                    set_list_context_root(List::ContextMap::INVALID_ID);
-
-                auto &stash(audio_source_navigation_stash_[idx]);
-
-                if(try_jump_to_stored_position(stash))
-                {
-                    /* already there */
-                    stash.suppress_keep_alive();
-                    set_dynamic_title(stash.get_list_title());
-                }
-                else
-                    point_to_root_directory();
+                /* already there */
+                stash.suppress_keep_alive();
+                set_dynamic_title(stash.get_list_title());
             }
+            else
+                point_to_root_directory();
         }
 
         break;
