@@ -567,6 +567,9 @@ uint32_t ViewFileBrowser::View::about_to_write_xml(const DCP::Queue::Data &data)
         break;
 
       case ListAccessPermission::DENIED__BLOCKED:
+        flags |= WRITE_FLAG__IS_WAITING;
+        break;
+
       case ListAccessPermission::DENIED__NO_LIST_ID:
         flags |= WRITE_FLAG__IS_UNAVAILABLE;
         break;
@@ -1382,6 +1385,8 @@ bool ViewFileBrowser::View::write_xml(std::ostream &os, uint32_t bits,
             os << XmlEscape(_("Loading")) << "...";
         else if((bits & WRITE_FLAG__IS_UNAVAILABLE) != 0)
             os << XmlEscape(_("Unavailable"));
+        else if((bits & WRITE_FLAG__IS_WAITING) != 0)
+            os << XmlEscape(_("Waiting"));
         else if((bits & WRITE_FLAG__IS_LOCKED) != 0)
             os << XmlEscape(_("Locked"));
         else

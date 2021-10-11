@@ -918,6 +918,8 @@ bool ViewFileBrowser::AirableView::write_xml(std::ostream &os, uint32_t bits,
         os << XmlEscape(_("Accessing")) << "...";
     else if((bits & WRITE_FLAG__IS_UNAVAILABLE) != 0)
         os << XmlEscape(_("Unavailable"));
+    else if((bits & WRITE_FLAG__IS_WAITING) != 0)
+        os << XmlEscape(_("Waiting"));
     else if((bits & WRITE_FLAG__IS_LOCKED) != 0)
         os << XmlEscape(_("Please use our app."));
     else

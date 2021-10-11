@@ -461,12 +461,13 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
     static constexpr const uint32_t WRITE_FLAG__IS_UNAVAILABLE = 1U << 1;
     static constexpr const uint32_t WRITE_FLAG__IS_EMPTY_ROOT  = 1U << 2;
     static constexpr const uint32_t WRITE_FLAG__AS_MSG_ERROR   = 1U << 3;
+    static constexpr const uint32_t WRITE_FLAG__IS_WAITING     = 1U << 4;
     static constexpr const uint32_t WRITE_FLAG__IS_LOCKED      = 1U << 31;
 
     /* serialize as message for these bits, no further list access required */
     static constexpr const uint32_t WRITE_FLAG_GROUP__AS_MSG_NO_GET_ITEM_HINT_NEEDED =
         WRITE_FLAG__IS_LOADING | WRITE_FLAG__IS_UNAVAILABLE |
-        WRITE_FLAG__IS_LOCKED;
+        WRITE_FLAG__IS_WAITING | WRITE_FLAG__IS_LOCKED;
 
     /* serialize as plain message for these bits unless there is an error */
     static constexpr const uint32_t WRITE_FLAG_GROUP__AS_MSG_ANY =
