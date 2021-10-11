@@ -330,6 +330,7 @@ determine_ctx_id(bool have_audio_source,
 void ViewFileBrowser::AirableView::defocus()
 {
     oauth_request_.cancel();
+    View::defocus();
 }
 
 ViewIface::InputResult
