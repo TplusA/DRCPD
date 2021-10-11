@@ -548,6 +548,11 @@ static bool request_search_parameters_from_user(ViewManager::VMIface &vm,
     return true;
 }
 
+bool ViewFileBrowser::View::is_serialization_allowed() const
+{
+    return view_manager_->is_active_view(this);
+}
+
 uint32_t ViewFileBrowser::View::about_to_write_xml(const DCP::Queue::Data &data) const
 {
     uint32_t flags = 0;

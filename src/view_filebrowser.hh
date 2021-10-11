@@ -865,6 +865,8 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
 
     ID::List get_root_list_id() const { return root_list_id_; }
 
+  protected:
+    bool is_serialization_allowed() const override;
     uint32_t about_to_write_xml(const DCP::Queue::Data &data) const override;
 
     std::pair<const ViewID, const ScreenID::id_t>
@@ -885,7 +887,6 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
     bool write_xml(std::ostream &os, uint32_t bits,
                    const DCP::Queue::Data &data) override;
 
-  private:
     const std::string &get_status_string_for_empty_root();
 
     const Player::LocalPermissionsIface &get_local_permissions() const;

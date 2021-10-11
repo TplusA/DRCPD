@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017, 2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2017, 2019, 2021  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -51,6 +51,11 @@ bool ViewExternalSource::Base::register_audio_sources()
     pview->register_audio_source(get_audio_source_by_index(0), *this);
 
     return true;
+}
+
+bool ViewExternalSource::Base::is_serialization_allowed() const
+{
+    return view_manager_->is_active_view(this);
 }
 
 bool ViewExternalSource::Base::write_xml(std::ostream &os, uint32_t bits,

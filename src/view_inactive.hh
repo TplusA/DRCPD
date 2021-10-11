@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017, 2018, 2019, 2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2017--2021  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -80,6 +80,9 @@ class View: public ViewIface, public ViewSerializeBase
 
     void serialize(DCP::Queue &queue, DCP::Queue::Mode mode, std::ostream *debug_os) override {}
     void update(DCP::Queue &queue, DCP::Queue::Mode mode, std::ostream *debug_os) override {}
+
+  private:
+    bool is_serialization_allowed() const final override { return false; }
 };
 
 }

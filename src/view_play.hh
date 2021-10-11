@@ -122,6 +122,7 @@ class View: public ViewIface, public ViewSerializeBase
     /*!
      * Generate XML document from current state.
      */
+    bool is_serialization_allowed() const final override { return true; }
     bool write_xml(std::ostream &os, uint32_t bits,
                    const DCP::Queue::Data &data) override;
     void handle_audio_path_changed(const std::string &ausrc_id,

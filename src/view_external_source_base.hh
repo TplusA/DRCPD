@@ -79,6 +79,7 @@ class Base: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
                            UI::Parameters *parameters) final override {}
 
   protected:
+    bool is_serialization_allowed() const override;
     bool write_xml(std::ostream &os, uint32_t bits,
                    const DCP::Queue::Data &data) override;
 };
