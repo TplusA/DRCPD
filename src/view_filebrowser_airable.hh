@@ -86,24 +86,24 @@ class OAuthRequest
                             std::move(do_reload));
     }
 
-    void done()
+    bool done()
     {
         if(!is_active())
         {
             BUG("OAuth request done, but wasn't active");
-            return;
+            return false;
         }
 
         reload_timer_.stop();
         context_id_ = List::ContextMap::INVALID_ID;
         url_.clear();
         code_.clear();
+        return true;
     }
 
-    void cancel()
+    bool cancel()
     {
-        if(is_active())
-            done();
+        return is_active() ? done() : false;
     }
 
   private:
