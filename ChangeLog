@@ -2,7 +2,7 @@
 
 	* Version 5.22 released.
 
-	* player: Push meta data to streamplayer so that preset meta data
+	* Player: Push meta data to streamplayer so that preset meta data
 	  pulled from Airable is reported to REST API client.
 
 2021-10-04  Robert Tiemann  <r.tiemann@ta-hifi.de>
