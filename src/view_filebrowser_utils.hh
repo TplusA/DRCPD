@@ -197,12 +197,17 @@ class Utils
         if(list_id != 0)
         {
             if(list_title != nullptr)
+            {
                 parent_list_title = list_title;
+                g_free(list_title);
+            }
             else
                 parent_list_title.clear();
 
             return ID::List(list_id);
         }
+
+        g_free(list_title);
 
         if(item_id == 1)
         {
