@@ -1,3 +1,18 @@
+2021-10-15  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 5.23 released.
+
+	* Airable: Keep OAuth going between audio source switches.
+
+	* Stability: Fix severe bug in meta data handling (bad memory
+	  accesses). This bug was introduced in v5.22, rendering that version
+	  useless for all practical purpuses.
+
+	* Stability: Fix infinite loop during traversal of directory
+	  structures of certain shapes.
+
+	* Stability: Fix memory leak.
+
 2021-10-11  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 5.22 released.
