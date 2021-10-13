@@ -506,6 +506,8 @@ void Playlist::Crawler::DirectoryCrawler::FindNextOp::enter_list_event(
     {
       case List::AsyncListIface::OpResult::SUCCEEDED:
         {
+            unsigned int dir_depth = UINT_MAX;
+
             switch(cid)
             {
               case List::QueryContextEnterList::CallerID::ENTER_ROOT:
@@ -514,13 +516,23 @@ void Playlist::Crawler::DirectoryCrawler::FindNextOp::enter_list_event(
               case List::QueryContextEnterList::CallerID::ENTER_CONTEXT_ROOT:
               case List::QueryContextEnterList::CallerID::ENTER_ANYWHERE:
               case List::QueryContextEnterList::CallerID::RELOAD_LIST:
+                dir_depth = directory_depth_;
+                file_item_ = nullptr;
+                break;
+
               case List::QueryContextEnterList::CallerID::CRAWLER_DESCEND:
+                dir_depth = directory_depth_ + 1;
+                file_item_ = nullptr;
+                break;
+
               case List::QueryContextEnterList::CallerID::CRAWLER_ASCEND:
+                dir_depth = directory_depth_ - 1;
                 file_item_ = nullptr;
                 break;
 
               case List::QueryContextEnterList::CallerID::CRAWLER_RESET_POSITION:
               case List::QueryContextEnterList::CallerID::CRAWLER_FIRST_ENTRY:
+                dir_depth = directory_depth_;
                 break;
             }
 
@@ -533,7 +545,7 @@ void Playlist::Crawler::DirectoryCrawler::FindNextOp::enter_list_event(
                 : Direction::FORWARD,
                 line);
             msg_info("Entered list %u at depth %u with %u entries, line %u",
-                     dbus_list_.get_list_id().get_raw_id(), directory_depth_,
+                     dbus_list_.get_list_id().get_raw_id(), dir_depth,
                      position_->nav_.get_total_number_of_visible_items(), line);
         }
 
