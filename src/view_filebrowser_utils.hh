@@ -25,6 +25,7 @@
 #include "listnav.hh"
 #include "search_parameters.hh"
 #include "rnfcall_get_list_id.hh"
+#include "guard.hh"
 
 namespace
 {
@@ -169,6 +170,7 @@ class Utils
                                        std::string &parent_list_title)
     {
         Busy::set(Busy::Source::GETTING_PARENT_LINK);
+        Guard busy_guard([] {Busy::clear(Busy::Source::GETTING_PARENT_LINK);});
 
         guint list_id;
         gchar *list_title = nullptr;
@@ -183,16 +185,11 @@ class Utils
 
         if(error.log_failure("Get parent link"))
         {
-            Busy::clear(Busy::Source::GETTING_PARENT_LINK);
-
             msg_vinfo(MESSAGE_LEVEL_IMPORTANT,
                       "Failed obtaining parent for list %u",
                       current_list_id.get_raw_id());
-
             throw List::DBusListException(error);
         }
-
-        Busy::clear(Busy::Source::GETTING_PARENT_LINK);
 
         if(list_id != 0)
         {
