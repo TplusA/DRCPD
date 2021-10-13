@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016--2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016--2021  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -28,6 +28,17 @@
 
 #include "busy.hh"
 #include "logged_lock.hh"
+
+static uint32_t make_mask(Busy::Source src)
+{
+    return (1U << static_cast<unsigned int>(src));
+}
+
+static uint32_t make_mask(Busy::DirectSource src)
+{
+    return (1U << (static_cast<unsigned int>(src) +
+                   static_cast<unsigned int>(Busy::Source::LAST_SOURCE) + 1));
+}
 
 /*!
  * A class wrapping our busy state flags.
@@ -197,13 +208,68 @@ class GlobalBusyState
 
     bool is_busy__uncached() const { return busy_flags_ != 0; }
 
-    void dump(const char *context) const
+    void dump(const char *context, bool compact) const
     {
         msg_info("Busy: %08x [%s]", busy_flags_, context);
-        std::ostringstream os;
-        for(const auto &c : busy_counts_)
-            os << " " << c;
-        msg_info("Busy counters:%s", os.str().c_str());
+
+        if(compact)
+        {
+            std::ostringstream os;
+            for(const auto &c : busy_counts_)
+                os << " " << c;
+            msg_info("Busy counters:%s", os.str().c_str());
+            return;
+        }
+
+        /*!
+         * Length must match number of values in #Busy::Source.
+         */
+        static const
+        std::array<const char *, size_t(Busy::Source::LAST_SOURCE) + 1>
+        source_names
+        {
+            "WAITING_FOR_PLAYER",
+            "FILLING_PLAYER_QUEUE",
+            "BUFFERING_STREAM",
+            "GETTING_LIST_ID",
+            "GETTING_PARENT_LINK",
+            "GETTING_LIST_CONTEXT_ROOT_LINK",
+            "GETTING_ITEM_URI",
+            "GETTING_ITEM_STREAM_LINKS",
+            "GETTING_LIST_RANGE",
+            "CHECKING_LIST_RANGE",
+            "RESUMING_PLAYBACK",
+            "GETTING_LOCATION_TRACE",
+            "REALIZING_LOCATION_TRACE",
+            "RESOLVING_AIRABLE_REDIRECT",
+        };
+
+        bool bug = false;
+        bool shown_heading = false;
+
+        for(auto src = Busy::Source::FIRST_SOURCE;
+            src <= Busy::Source::LAST_SOURCE;
+            src = Busy::Source(int(src) + 1))
+        {
+            const auto count = busy_counts_[size_t(src)];
+            if(count > 0)
+            {
+                if((busy_flags_ & make_mask(src)) == 0)
+                    bug = true;
+
+                if(!shown_heading)
+                {
+                    msg_info("Busy counters:");
+                    shown_heading = true;
+                }
+
+                msg_info("- %30s: %u", source_names[size_t(src)], count);
+            }
+            else if((busy_flags_ & make_mask(src)) != 0)
+                bug = true;
+        }
+
+        BUG_IF(bug, "Mismatch between busy flags and busy counters");
     }
 };
 
@@ -211,17 +277,6 @@ class GlobalBusyState
  * Busy state is global, so here is our singleton.
  */
 static GlobalBusyState global_busy_state;
-
-static uint32_t make_mask(Busy::Source src)
-{
-    return (1U << static_cast<unsigned int>(src));
-}
-
-static uint32_t make_mask(Busy::DirectSource src)
-{
-    return (1U << (static_cast<unsigned int>(src) +
-                   static_cast<unsigned int>(Busy::Source::LAST_SOURCE) + 1));
-}
 
 void Busy::init(const std::function<void(bool)> &state_changed_callback)
 {
