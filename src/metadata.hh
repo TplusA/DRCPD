@@ -71,13 +71,6 @@ class Set
         METADATA_ID_LAST = INTERNAL_DRCPD_URL,
     };
 
-    /* XXX: Remove this */
-    enum class CopyMode
-    {
-        ALL,
-        NON_EMPTY,
-    };
-
     std::array<std::string, METADATA_ID_LAST + 1> values_;
 
     Set(const Set &) = delete;
@@ -91,7 +84,6 @@ class Set
     void add(const char *key, const char *value);
     void add(const ID key_id, const char *value);
     void add(const ID key_id, std::string &&value);
-    void copy_from(const Set &src, CopyMode mode);
 
     bool operator==(const Set &other) const;
 

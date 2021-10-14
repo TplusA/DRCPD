@@ -146,32 +146,6 @@ void MetaData::Set::add(const MetaData::Set::ID key_id, std::string &&value)
     this->values_[key_id] = std::move(value);
 }
 
-void MetaData::Set::copy_from(const Set &src, CopyMode mode)
-{
-    switch(mode)
-    {
-      case CopyMode::ALL:
-        std::copy(src.values_.begin(), src.values_.end(),
-                  this->values_.begin());
-        break;
-
-      case CopyMode::NON_EMPTY:
-        {
-            auto dest(this->values_.begin());
-
-            for(auto &it : src.values_)
-            {
-                if(!it.empty())
-                    *dest = it;
-
-                ++dest;
-            }
-        }
-
-        break;
-    }
-}
-
 bool MetaData::Set::operator==(const Set &other) const
 {
     for(size_t i = 0; i < values_.size(); ++i)
