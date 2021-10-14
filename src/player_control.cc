@@ -1626,6 +1626,9 @@ static GVariant *to_gvariant(const MetaData::Set &md)
  * \param stream_key
  *     Stream key as passed in from the stream source.
  *
+ * \param meta_data
+ *     The meta data associated with the stream.
+ *
  * \param insert_mode
  *     How to manipulate the stream player URL FIFO.
  *
