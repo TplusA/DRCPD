@@ -233,6 +233,7 @@ void Player::QueuedStream::process_resolved_redirect(
 
 ID::OurStream
 Player::QueuedStreams::append(const GVariantWrapper &stream_key,
+                              std::unique_ptr<MetaData::Set> meta_data,
                               std::vector<std::string> &&uris,
                               Airable::SortedLinks &&airable_links,
                               ID::List list_id,
@@ -257,7 +258,7 @@ Player::QueuedStreams::append(const GVariantWrapper &stream_key,
         streams_.emplace(
             stream_id,
             std::make_unique<QueuedStream>(
-                stream_id, stream_key, std::move(uris),
+                stream_id, stream_key, std::move(meta_data), std::move(uris),
                 std::move(airable_links), list_id,
                 std::move(originating_cursor)));
 
@@ -592,7 +593,8 @@ void Player::QueuedStreams::log(const char *prefix, MessageVerboseLevel level) c
     BUG_IF(!consistent, "%s: inconsistent QueuedStreams state", prefix);
 }
 
-void Player::NowPlayingInfo::now_playing(ID::Stream stream_id)
+void Player::NowPlayingInfo::now_playing(ID::Stream stream_id,
+                                         std::string &&stream_url)
 {
     log_assert(stream_id.is_valid());
     log_assert(stream_id != stream_id_);
@@ -601,6 +603,7 @@ void Player::NowPlayingInfo::now_playing(ID::Stream stream_id)
         on_remove_cb_(stream_id_);
 
     stream_id_ = stream_id;
+    stream_url_ = std::move(stream_url);
 }
 
 void Player::NowPlayingInfo::nothing()
@@ -609,8 +612,46 @@ void Player::NowPlayingInfo::nothing()
         on_remove_cb_(stream_id_);
 
     stream_id_ = ID::Stream::make_invalid();
+    stream_url_.clear();
     stream_position_ = std::chrono::milliseconds(-1);
     stream_duration_ = std::chrono::milliseconds(-1);
+    meta_data_.reset();
+}
+
+bool Player::NowPlayingInfo::put_meta_data(ID::Stream stream_id,
+                                           std::unique_ptr<MetaData::Set> meta_data)
+{
+    if(stream_id == stream_id_)
+    {
+        BUG_IF(!meta_data->values_[MetaData::Set::INTERNAL_DRCPD_URL].empty(),
+               "Meta data already contains internal URL key");
+        meta_data->add(MetaData::Set::INTERNAL_DRCPD_URL,
+                       std::string(stream_url_));
+        meta_data_ = std::move(meta_data);
+        return true;
+    }
+
+    BUG("Got meta data for stream ID %u, now playing %u",
+        stream_id.get_raw_id(), stream_id_.get_raw_id());
+    return false;
+}
+
+static const MetaData::Set &meta_data_or_empty_ref(const MetaData::Set *md)
+{
+    static const MetaData::Set empty_set;
+    return md != nullptr ? *md : empty_set;
+}
+
+const MetaData::Set &Player::NowPlayingInfo::get_meta_data(ID::Stream stream_id) const
+{
+    if(stream_id.is_valid() && stream_id != stream_id_)
+    {
+        BUG("Want meta data for stream ID %u, now playing %u",
+            stream_id.get_raw_id(), stream_id_.get_raw_id());
+        return meta_data_or_empty_ref(nullptr);
+    }
+
+    return meta_data_or_empty_ref(meta_data_.get());
 }
 
 static void ref_list_id(std::map<ID::List, size_t> &list_refcounts,
@@ -639,7 +680,7 @@ static void unref_list_id(std::map<ID::List, size_t> &list_refcounts,
 }
 
 ID::OurStream Player::Data::queued_stream_append(
-        const GVariantWrapper &stream_key,
+        const GVariantWrapper &stream_key, std::unique_ptr<MetaData::Set> meta_data,
         std::vector<std::string> &&uris, Airable::SortedLinks &&airable_links,
         ID::List list_id,
         std::unique_ptr<Playlist::Crawler::CursorBase> originating_cursor)
@@ -648,7 +689,8 @@ ID::OurStream Player::Data::queued_stream_append(
     log_assert(list_id.is_valid());
 
     const auto id =
-        queued_streams_.append(stream_key, std::move(uris), std::move(airable_links),
+        queued_streams_.append(stream_key, std::move(meta_data), std::move(uris),
+                               std::move(airable_links),
                                list_id, std::move(originating_cursor));
 
     if(id.get().is_valid())
@@ -684,10 +726,8 @@ std::vector<ID::OurStream> Player::Data::copy_all_queued_streams_for_recovery()
 }
 
 void Player::Data::remove_data_for_stream(const QueuedStream &qs,
-                                          MetaData::Collection &meta_data_db,
                                           std::map<ID::List, size_t> &referenced_lists)
 {
-    meta_data_db.forget_stream(qs.stream_id_.get());
     unref_list_id(referenced_lists, qs.list_id_);
 }
 
@@ -798,20 +838,19 @@ bool Player::Data::player_dropped_from_queue(const std::vector<ID::Stream> &drop
             return false;
         }
 
-        remove_data_for_stream(*qs, meta_data_db_, referenced_lists_);
+        remove_data_for_stream(*qs, referenced_lists_);
     }
 
     queued_streams_.log("After drop");
 
     for(const auto &id : drop_set_other)
-        meta_data_db_.forget_stream(id);
+        msg_info("Dropped foreign stream %u", id.get_raw_id());
 
     return true;
 }
 
 void Player::Data::player_finished_and_idle()
 {
-    meta_data_db_.clear();
     queued_streams_.clear();
     referenced_lists_.clear();
     now_playing_.nothing();
@@ -871,15 +910,19 @@ Player::Data::get_next_stream_uri(const ID::OurStream &stream_id,
             });
 }
 
-static bool too_many_meta_data_entries(const MetaData::Collection &meta_data)
+const MetaData::Set &
+Player::Data::get_queued_meta_data(const ID::OurStream &stream_id) const
 {
-    if(meta_data.is_full())
-    {
-        BUG("Too many streams, cannot store more meta data");
-        return true;
-    }
-    else
-        return false;
+    return
+        queued_streams_.with_stream<const MetaData::Set &>(
+            stream_id,
+            [stream_id] (const QueuedStream *qs) -> const MetaData::Set &
+            {
+                return qs != nullptr
+                    ? qs->get_meta_data()
+                    : meta_data_or_empty_ref(nullptr);
+            }
+        );
 }
 
 bool Player::Data::set_player_state(PlayerState state)
@@ -924,60 +967,6 @@ bool Player::Data::set_player_state(ID::Stream new_current_stream, PlayerState s
     }
 
     return set_player_state(state);
-}
-
-void Player::Data::put_meta_data(const ID::Stream &stream_id,
-                                 MetaData::Set &&meta_data)
-{
-    if(!too_many_meta_data_entries(meta_data_db_))
-        meta_data_db_.emplace(stream_id, std::move(meta_data));
-}
-
-bool Player::Data::merge_meta_data(const ID::Stream &stream_id,
-                                   MetaData::Set &&meta_data,
-                                   MetaData::Set **md_ptr)
-{
-    MetaData::Set *md = meta_data_db_.get_meta_data_for_update(stream_id);
-
-    if(md != nullptr)
-        md->copy_from(meta_data, MetaData::Set::CopyMode::NON_EMPTY);
-    else
-    {
-        put_meta_data(stream_id, std::move(meta_data));
-        md = meta_data_db_.get_meta_data_for_update(stream_id);
-    }
-
-    if(md_ptr != nullptr)
-        *md_ptr = md;
-
-    return md != nullptr;
-}
-
-bool Player::Data::merge_meta_data(const ID::Stream &stream_id,
-                                   MetaData::Set &&meta_data,
-                                   std::string &&fallback_url)
-{
-    MetaData::Set *md;
-
-    if(!merge_meta_data(stream_id, std::move(meta_data), &md))
-        return false;
-
-    md->add(MetaData::Set::INTERNAL_DRCPD_URL, std::move(fallback_url));
-
-    return true;
-}
-
-const MetaData::Set &Player::Data::get_meta_data(const ID::Stream &stream_id)
-{
-    auto *md = const_cast<Player::Data *>(this)->meta_data_db_.get_meta_data_for_update(stream_id);
-
-    if(md != nullptr)
-        return *md;
-    else
-    {
-        static const MetaData::Set empty_set;
-        return empty_set;
-    }
 }
 
 bool Player::Data::update_track_times(const ID::Stream &stream_id,

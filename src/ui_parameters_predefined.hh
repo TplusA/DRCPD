@@ -160,13 +160,13 @@ struct ParamTraits<EventID::VIEW_PLAYER_NOW_PLAYING>
 {
     using PType = SpecificParameters<std::tuple<ID::Stream, GVariantWrapper,
                                                 bool, std::vector<ID::Stream>,
-                                                MetaData::Set, std::string>>;
+                                                std::unique_ptr<MetaData::Set>, std::string>>;
 };
 
 template <>
 struct ParamTraits<EventID::VIEW_PLAYER_STORE_STREAM_META_DATA>
 {
-    using PType = SpecificParameters<std::tuple<ID::Stream, MetaData::Set>>;
+    using PType = SpecificParameters<std::tuple<ID::Stream, std::unique_ptr<MetaData::Set>>>;
 };
 
 template <>

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, 2017, 2019, 2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2017, 2019--2021  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -92,14 +92,17 @@ class FindNextOpBase: public OperationBase
     struct Result
     {
         PositionalState pos_state_;
-        MetaData::Set meta_data_;
+        std::unique_ptr<MetaData::Set> meta_data_;
 
-        Result(): pos_state_(PositionalState::UNKNOWN) {}
+        Result():
+            pos_state_(PositionalState::UNKNOWN),
+            meta_data_(std::make_unique<MetaData::Set>())
+        {}
 
         void clear()
         {
             pos_state_ = PositionalState::UNKNOWN;
-            meta_data_.clear(false);
+            meta_data_ = std::make_unique<MetaData::Set>();
         }
     };
 

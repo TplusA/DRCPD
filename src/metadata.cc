@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015--2017, 2019, 2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015--2017, 2019--2021  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -70,6 +70,11 @@ void MetaData::Set::clear(bool keep_internals)
 
     for(size_t i = 0; i <= last; ++i)
         this->values_[i].clear();
+}
+
+const char *MetaData::get_tag_name(MetaData::Set::ID id)
+{
+    return key_to_id[id].key;
 }
 
 void MetaData::Set::add(const char *key, const char *value)

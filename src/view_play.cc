@@ -155,8 +155,9 @@ void ViewPlay::View::append_referenced_lists(const Player::AudioSource &audio_so
 
 static void send_current_stream_info_to_dcpd(const Player::Data &player_data)
 {
-    const auto &md(player_data.get_current_meta_data());
-    const auto stream_id(player_data.get_now_playing().get_stream_id());
+    const auto &now_playing(player_data.get_now_playing());
+    const auto &md(now_playing.get_meta_data());
+    const auto stream_id(now_playing.get_stream_id());
 
     if(Player::AppStreamID::compatible_with(stream_id))
     {
@@ -496,14 +497,14 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
             const bool queue_is_full(std::get<2>(plist));
             const auto &dropped_ids(std::get<3>(plist));
             const bool switched_stream(!player_data_.get_now_playing().is_stream(stream_id));
-            auto &meta_data(std::get<4>(plist));
+            auto meta_data(std::move(std::get<4>(plist)));
             std::string &url_string(std::get<5>(plist));
 
             player_data_.player_dropped_from_queue(dropped_ids);
-            player_data_.player_now_playing_stream(stream_id, switched_stream);
+            player_data_.player_now_playing_stream(
+                        stream_id, std::move(url_string), switched_stream);
+            player_data_.get_now_playing().put_meta_data(stream_id, std::move(meta_data));
 
-            player_data_.merge_meta_data(stream_id, std::move(meta_data),
-                                         std::move(url_string));
             player_control_.play_notification(stream_id, switched_stream);
 
             msg_info("Play view: stream %s, %s",
@@ -617,7 +618,7 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
             if(stream_id == nullptr)
                 break;
 
-            player_data_.player_now_playing_stream(stream_id->get_specific(), false);
+            player_data_.player_has_resumed();
             player_control_.play_notification(stream_id->get_specific(), false);
 
             add_update_flags(UPDATE_FLAGS_PLAYBACK_STATE);
@@ -712,14 +713,16 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
                 break;
             }
 
-            if(player_data_.merge_meta_data(stream_id, std::move(std::get<1>(plist))) &&
-               player_data_.get_now_playing().is_stream(stream_id))
+            auto &now_playing(player_data_.get_now_playing());
+
+            if(now_playing.put_meta_data(stream_id, std::move(std::get<1>(plist))) &&
+               now_playing.is_stream(stream_id))
             {
                 add_update_flags(UPDATE_FLAGS_META_DATA);
                 view_manager_->update_view_if_active(this, DCP::Queue::Mode::FORCE_ASYNC);
             }
 
-            if(player_data_.get_now_playing().is_stream(stream_id))
+            if(now_playing.is_stream(stream_id))
                 send_current_stream_info_to_dcpd(player_data_);
         }
 
@@ -955,7 +958,7 @@ bool ViewPlay::View::write_xml(std::ostream &os, uint32_t bits,
                                const DCP::Queue::Data &data)
 {
     const auto lock(player_data_.lock());
-    const auto &md(player_data_.get_current_meta_data());
+    const auto &md(player_data_.get_now_playing().get_meta_data());
     const Player::VisibleStreamState stream_state(player_data_.get_current_visible_stream_state());
     const bool is_buffering = (stream_state == Player::VisibleStreamState::BUFFERING);
 
@@ -1100,7 +1103,7 @@ void ViewPlay::View::serialize(DCP::Queue &queue, DCP::Queue::Mode mode,
     static_assert(sizeof(stream_state_string) / sizeof(stream_state_string[0]) == static_cast<size_t>(Player::VisibleStreamState::LAST) + 1, "Array has wrong size");
 
     const auto lock(player_data_.lock());
-    const auto &md(player_data_.get_current_meta_data());
+    const auto &md(player_data_.get_now_playing().get_meta_data());
     const Player::VisibleStreamState stream_state(player_data_.get_current_visible_stream_state());
 
     *debug_os << "URL: \""

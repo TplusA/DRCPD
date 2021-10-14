@@ -292,7 +292,7 @@ Playlist::Crawler::DirectoryCrawler::FindNextOp::finish_with_current_item_or_con
     {
         /* we have a non-directory item right here */
         result_.pos_state_ = PositionalState::SOMEWHERE_IN_LIST;
-        fill_in_meta_data(result_.meta_data_, file_item_);
+        fill_in_meta_data(*result_.meta_data_, file_item_);
         return succeed_here();
     }
 
@@ -381,7 +381,7 @@ Playlist::Crawler::DirectoryCrawler::FindNextOp::continue_search()
     {
         /* because we are restricted to process a single item */
         result_.pos_state_ = PositionalState::SOMEWHERE_IN_LIST;
-        fill_in_meta_data(result_.meta_data_, file_item_);
+        fill_in_meta_data(*result_.meta_data_, file_item_);
         return succeed_here();
     }
 
@@ -391,7 +391,7 @@ Playlist::Crawler::DirectoryCrawler::FindNextOp::continue_search()
         result_.pos_state_ = is_forward_direction(direction_)
             ? PositionalState::REACHED_END_OF_LIST
             : PositionalState::REACHED_START_OF_LIST;
-        fill_in_meta_data(result_.meta_data_, file_item_);
+        fill_in_meta_data(*result_.meta_data_, file_item_);
         return succeed_here();
     }
 
@@ -606,7 +606,7 @@ void Playlist::Crawler::DirectoryCrawler::FindNextOp::enter_list_event(
             result_.pos_state_ = is_forward_direction(direction_)
                 ? PositionalState::REACHED_END_OF_LIST
                 : PositionalState::REACHED_START_OF_LIST;
-            fill_in_meta_data(result_.meta_data_, file_item_);
+            fill_in_meta_data(*result_.meta_data_, file_item_);
             operation_finished(true);
             break;
         }

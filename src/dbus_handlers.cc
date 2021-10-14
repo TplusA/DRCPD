@@ -331,17 +331,21 @@ void dbussignal_splay_urlfifo(GDBusProxy *proxy, const gchar *sender_name,
     unknown_signal(iface_name, signal_name, sender_name);
 }
 
-static bool parse_meta_data(MetaData::Set &md, GVariantIter *meta_data_iter)
+static std::unique_ptr<MetaData::Set> parse_meta_data(GVariantIter *meta_data_iter)
 {
     log_assert(meta_data_iter != nullptr);
+
+    auto md(std::make_unique<MetaData::Set>());
+    if(md == nullptr)
+        return nullptr;
 
     const gchar *key;
     const gchar *value;
 
     while(g_variant_iter_next(meta_data_iter, "(&s&s)", &key, &value))
-        md.add(key, value);
+        md->add(key, value);
 
-    return true;
+    return md;
 }
 
 static std::chrono::milliseconds parse_stream_position(gint64 time_value,
@@ -431,17 +435,17 @@ void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
                       &raw_stream_id, &stream_key_variant, &url_string,
                       &queue_is_full, &dropped_ids_iter, &meta_data_iter);
 
-        auto params =
-            UI::Events::mk_params<UI::EventID::VIEW_PLAYER_NOW_PLAYING>(
-                ID::Stream::make_from_raw_id(raw_stream_id),
-                std::move(GVariantWrapper(stream_key_variant)),
-                queue_is_full, std::vector<ID::Stream>(), MetaData::Set(), url_string);
-
-        move_dropped_stream_ids(std::get<3>(params->get_specific_non_const()),
-                                dropped_ids_iter);
-
-        if(parse_meta_data(std::get<4>(params->get_specific_non_const()), meta_data_iter))
+        auto md(parse_meta_data(meta_data_iter));
+        if(md != nullptr)
         {
+            auto params =
+                UI::Events::mk_params<UI::EventID::VIEW_PLAYER_NOW_PLAYING>(
+                    ID::Stream::make_from_raw_id(raw_stream_id),
+                    std::move(GVariantWrapper(stream_key_variant)),
+                    queue_is_full, std::vector<ID::Stream>(),
+                    std::move(md), url_string);
+            move_dropped_stream_ids(std::get<3>(params->get_specific_non_const()),
+                                    dropped_ids_iter);
             data->event_sink_.store_event(UI::EventID::VIEW_PLAYER_NOW_PLAYING,
                                           std::move(params));
             data->event_sink_.store_event(UI::EventID::VIEWMAN_STREAM_NOW_PLAYING);
@@ -458,14 +462,16 @@ void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
 
         g_variant_get(parameters, "(qa(ss))", &raw_stream_id, &meta_data_iter);
 
-        auto params =
-            UI::Events::mk_params<UI::EventID::VIEW_PLAYER_STORE_STREAM_META_DATA>(
-                ID::Stream::make_from_raw_id(raw_stream_id),
-                MetaData::Set());
-
-        if(parse_meta_data(std::get<1>(params->get_specific_non_const()), meta_data_iter))
+        auto md(parse_meta_data(meta_data_iter));
+        if(md != nullptr)
+        {
+            auto params =
+                UI::Events::mk_params<UI::EventID::VIEW_PLAYER_STORE_STREAM_META_DATA>(
+                    ID::Stream::make_from_raw_id(raw_stream_id),
+                    std::move(md));
             data->event_sink_.store_event(UI::EventID::VIEW_PLAYER_STORE_STREAM_META_DATA,
                                           std::move(params));
+        }
 
         g_variant_iter_free(meta_data_iter);
     }

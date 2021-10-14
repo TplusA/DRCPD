@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, 2017, 2019, 2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2017, 2019--2021  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -305,9 +305,9 @@ class DirectoryCrawler: public Iface, public PublicIface
             GVariantWrapper stream_key_;
             std::vector<std::string> simple_uris_;
             Airable::SortedLinks sorted_links_;
-            MetaData::Set meta_data_;
+            std::unique_ptr<MetaData::Set> meta_data_;
 
-            explicit Result(MetaData::Set &&md): meta_data_(std::move(md)) {}
+            explicit Result(std::unique_ptr<MetaData::Set> md): meta_data_(std::move(md)) {}
         };
 
         Result result_;
@@ -322,7 +322,7 @@ class DirectoryCrawler: public Iface, public PublicIface
                            DBusRNF::CookieManagerIface &cm,
                            tdbuslistsNavigation *proxy, bool has_ranked_streams,
                            std::unique_ptr<Playlist::Crawler::CursorBase> position,
-                           MetaData::Set &&meta_data,
+                           std::unique_ptr<MetaData::Set> meta_data,
                            CompletionCallback &&completion_callback,
                            CompletionCallbackFilter filter):
             GetURIsOpBase(std::move(debug_description),
@@ -439,7 +439,7 @@ class DirectoryCrawler: public Iface, public PublicIface
     std::shared_ptr<GetURIsOpBase>
     mk_op_get_uris(std::string &&debug_description,
                    std::unique_ptr<Playlist::Crawler::CursorBase> position,
-                   MetaData::Set &&meta_data,
+                   std::unique_ptr<MetaData::Set> meta_data,
                    GetURIsOpBase::CompletionCallback &&completion_notification,
                    OperationBase::CompletionCallbackFilter filter) const
     {
