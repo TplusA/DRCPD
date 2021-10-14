@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, 2017, 2019, 2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2017, 2019--2021  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -71,72 +71,26 @@ class Set
         METADATA_ID_LAST = INTERNAL_DRCPD_URL,
     };
 
-    /* XXX: Remove this */
-    enum class CopyMode
-    {
-        ALL,
-        NON_EMPTY,
-    };
-
     std::array<std::string, METADATA_ID_LAST + 1> values_;
 
     Set(const Set &) = delete;
-    Set(Set &&) = default;
+    Set(Set &&) = delete;
     Set &operator=(const Set &) = delete;
-    Set &operator=(Set &&) = default;
+    Set &operator=(Set &&) = delete;
 
-    explicit Set() {}
+    explicit Set() = default;
 
     void clear(bool keep_internals);
     void add(const char *key, const char *value);
     void add(const ID key_id, const char *value);
     void add(const ID key_id, std::string &&value);
-    void copy_from(const Set &src, CopyMode mode);
 
     bool operator==(const Set &other) const;
 
     void dump(const char *what) const;
 };
 
-class Collection
-{
-  private:
-    static constexpr const size_t MAX_ENTRIES = 30;
-    std::map<ID::Stream, Set> meta_data_sets_;
-
-  public:
-    Collection(const Collection &) = delete;
-    Collection &operator=(const Collection &) = delete;
-
-    explicit Collection() {}
-
-    bool is_full() const
-    {
-        return meta_data_sets_.size() >= MAX_ENTRIES;
-    }
-
-    void emplace(ID::Stream stream_id, Set &&src)
-    {
-        meta_data_sets_.emplace(stream_id, std::move(src));
-    }
-
-    bool forget_stream(ID::Stream stream_id)
-    {
-        const auto result(meta_data_sets_.erase(stream_id));
-        return result > 0;
-    }
-
-    Set *get_meta_data_for_update(ID::Stream stream_id)
-    {
-        auto result(meta_data_sets_.find(stream_id));
-        return (result != meta_data_sets_.end() ? &result->second : nullptr);
-    }
-
-    void clear()
-    {
-        meta_data_sets_.clear();
-    }
-};
+const char *get_tag_name(Set::ID id);
 
 }
 

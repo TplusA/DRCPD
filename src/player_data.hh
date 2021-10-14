@@ -116,6 +116,16 @@ class NowPlayingInfo
 
     const std::function<void(ID::Stream)> on_remove_cb_;
 
+    /*!
+     * Meta data as received from connected stream player.
+     */
+    std::unique_ptr<MetaData::Set> meta_data_;
+
+    /*!
+     * Just for dcpd...
+     */
+    std::string stream_url_;
+
   public:
     NowPlayingInfo(const NowPlayingInfo &) = delete;
     NowPlayingInfo(NowPlayingInfo &&) = default;
@@ -132,7 +142,7 @@ class NowPlayingInfo
     /*!
      * There is a stream playing now, as per report from some player.
      */
-    void now_playing(ID::Stream stream_id);
+    void now_playing(ID::Stream stream_id, std::string &&stream_url);
 
     /*!
      * There is no stream playing now.
@@ -140,6 +150,9 @@ class NowPlayingInfo
     void nothing();
 
     ID::Stream get_stream_id() const { return stream_id_; }
+
+    bool put_meta_data(ID::Stream stream_id, std::unique_ptr<MetaData::Set> meta_data);
+    const MetaData::Set &get_meta_data(ID::Stream stream_id = ID::Stream::make_invalid()) const;
 
     bool is_stream(const ID::Stream &id) const
     {
@@ -231,6 +244,7 @@ class QueuedStream
     State state_;
 
     GVariantWrapper stream_key_;
+    std::unique_ptr<MetaData::Set> meta_data_;
     std::vector<std::string> uris_;
     Airable::SortedLinks airable_links_;
 
@@ -247,6 +261,7 @@ class QueuedStream
 
     explicit QueuedStream(const ID::OurStream &stream_id,
                           const GVariantWrapper &stream_key,
+                          std::unique_ptr<MetaData::Set> meta_data,
                           std::vector<std::string> &&uris,
                           Airable::SortedLinks &&airable_links,
                           ID::List list_id,
@@ -255,11 +270,14 @@ class QueuedStream
         list_id_(list_id),
         state_(State::FLOATING),
         stream_key_(stream_key),
+        meta_data_(std::move(meta_data)),
         uris_(std::move(uris)),
         airable_links_(std::move(airable_links)),
         next_uri_to_try_(0),
         originating_cursor_(std::move(originating_cursor))
-    {}
+    {
+        log_assert(meta_data_ != nullptr);
+    }
 
     ~QueuedStream()
     {
@@ -268,6 +286,7 @@ class QueuedStream
 
     const GVariantWrapper &get_stream_key() const { return stream_key_; }
     const Playlist::Crawler::CursorBase &get_originating_cursor() const { return *originating_cursor_; }
+    const MetaData::Set &get_meta_data() const { return *meta_data_; }
 
     void iter_reset()
     {
@@ -445,6 +464,7 @@ class QueuedStreams
     }
 
     ID::OurStream append(const GVariantWrapper &stream_key,
+                         std::unique_ptr<MetaData::Set> meta_data,
                          std::vector<std::string> &&uris,
                          Airable::SortedLinks &&airable_links, ID::List list_id,
                          std::unique_ptr<Playlist::Crawler::CursorBase> originating_cursor);
@@ -522,6 +542,13 @@ class QueuedStreams
     template <typename T>
     auto with_stream(const ID::OurStream &stream_id,
                      const std::function<T(QueuedStream *qs)> &apply)
+    {
+        return apply(get_stream_by_id(stream_id));
+    }
+
+    template <typename T>
+    auto &with_stream(const ID::OurStream &stream_id,
+                      const std::function<T &(const QueuedStream *qs)> &apply) const
     {
         return apply(get_stream_by_id(stream_id));
     }
@@ -618,14 +645,6 @@ class Data
     bool is_attached_;
 
     /*!
-     * Meta data about streams, organized by stream ID.
-     *
-     * These information are stored for streams of all kind, not only for those
-     * managed by us.
-     */
-    MetaData::Collection meta_data_db_;
-
-    /*!
      * Streams we have sent to streamplayer, but are not playing yet.
      *
      * We need to know the exact IDs and their order to recover from playback
@@ -665,11 +684,11 @@ class Data
         is_attached_(false),
         queued_streams_(
             [this] (const auto &qs)
-            { remove_data_for_stream(qs, meta_data_db_, referenced_lists_); }
+            { remove_data_for_stream(qs, referenced_lists_); }
         ),
         intention_(UserIntention::NOTHING),
         player_state_(PlayerState::STOPPED),
-        now_playing_([this] (auto id) { meta_data_db_.forget_stream(id); }),
+        now_playing_([] (auto id) { msg_info("Finished playing stream %u", id.get_raw_id()); }),
         playback_speed_(1.0),
         airable_proxy_(DBus::get_airable_sec_iface())
     {
@@ -740,6 +759,7 @@ class Data
     const QueuedStreams &queued_streams_get() const { return queued_streams_; }
 
     ID::OurStream queued_stream_append(const GVariantWrapper &stream_key,
+                                       std::unique_ptr<MetaData::Set> meta_data,
                                        std::vector<std::string> &&uris,
                                        Airable::SortedLinks &&airable_links,
                                        ID::List list_id,
@@ -788,10 +808,11 @@ class Data
     /*!
      * Player has told us that it now playing a particular stream.
      *
-     * This function does nothing if the stream has not been switched, i.e., if
-     * \p switched_stream is false.
+     * This function only sets the player state to playing if the stream has
+     * not been switched, i.e., if \p switched_stream is false.
      */
-    bool player_now_playing_stream(ID::Stream stream_id, bool switched_stream)
+    bool player_now_playing_stream(ID::Stream stream_id, std::string &&stream_url,
+                                   bool switched_stream)
     {
         if(!switched_stream)
             return set_player_state(Player::PlayerState::PLAYING);
@@ -799,14 +820,22 @@ class Data
         if(ID::OurStream::compatible_with(stream_id))
             stream_has_changed(stream_id);
 
-        now_playing_.now_playing(stream_id);
+        now_playing_.now_playing(stream_id, std::move(stream_url));
         return set_player_state(stream_id, Player::PlayerState::PLAYING);
+    }
+
+    /*!
+     * Player has resumed playback.
+     */
+    void player_has_resumed()
+    {
+        set_player_state(Player::PlayerState::PLAYING);
     }
 
     /*!
      * Player has paused playback.
      *
-     * A call of #Player::Data::player_now_playing_stream() communicates end of
+     * A call of #Player::Data::player_has_resumed() communicates end of
      * paused state.
      */
     void player_has_paused()
@@ -844,21 +873,8 @@ class Data
                         const std::string *&uri,
                         QueuedStream::ResolvedRedirectCallback &&callback);
 
-    /*!
-     * Associate full set of meta data with stream ID.
-     */
-    void put_meta_data(const ID::Stream &stream_id, MetaData::Set &&meta_data);
-
-    bool merge_meta_data(const ID::Stream &stream_id, MetaData::Set &&meta_data,
-                         MetaData::Set **md_ptr = nullptr);
-    bool merge_meta_data(const ID::Stream &stream_id, MetaData::Set &&meta_data,
-                         std::string &&fallback_url);
-    const MetaData::Set &get_meta_data(const ID::Stream &stream_id);
-
-    const MetaData::Set &get_current_meta_data() const
-    {
-        return const_cast<Data *>(this)->get_meta_data(now_playing_.get_stream_id());
-    }
+    const MetaData::Set &
+    get_queued_meta_data(const ID::OurStream &stream_id) const;
 
     bool update_track_times(const ID::Stream &stream_id,
                             const std::chrono::milliseconds &position,
@@ -872,7 +888,6 @@ class Data
 
   private:
     static void remove_data_for_stream(const QueuedStream &qs,
-                                       MetaData::Collection &meta_data_db,
                                        std::map<ID::List, size_t> &referenced_lists);
 };
 

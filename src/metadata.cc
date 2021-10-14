@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015--2017, 2019, 2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015--2017, 2019--2021  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -72,6 +72,11 @@ void MetaData::Set::clear(bool keep_internals)
         this->values_[i].clear();
 }
 
+const char *MetaData::get_tag_name(MetaData::Set::ID id)
+{
+    return key_to_id[id].key;
+}
+
 void MetaData::Set::add(const char *key, const char *value)
 {
     const auto &found(std::find_if(key_to_id.begin(), key_to_id.end(),
@@ -139,32 +144,6 @@ void MetaData::Set::add(const MetaData::Set::ID key_id, std::string &&value)
     }
 
     this->values_[key_id] = std::move(value);
-}
-
-void MetaData::Set::copy_from(const Set &src, CopyMode mode)
-{
-    switch(mode)
-    {
-      case CopyMode::ALL:
-        std::copy(src.values_.begin(), src.values_.end(),
-                  this->values_.begin());
-        break;
-
-      case CopyMode::NON_EMPTY:
-        {
-            auto dest(this->values_.begin());
-
-            for(auto &it : src.values_)
-            {
-                if(!it.empty())
-                    *dest = it;
-
-                ++dest;
-            }
-        }
-
-        break;
-    }
 }
 
 bool MetaData::Set::operator==(const Set &other) const

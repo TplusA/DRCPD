@@ -1491,7 +1491,7 @@ void Player::Control::play_notification(ID::Stream stream_id,
     }
     else if(audio_source_ != nullptr)
     {
-        const auto &md(player_data_->get_meta_data(stream_id));
+        const auto &md(player_data_->get_now_playing().get_meta_data(stream_id));
         audio_source_->resume_data_update(
             PlainURLResumeData(md.values_[MetaData::Set::ID::INTERNAL_DRCPD_URL]));
     }
@@ -1585,22 +1585,26 @@ Player::Control::stop_notification_ok(ID::Stream stream_id)
     return StopReaction::QUEUED;
 }
 
+static void insert(GVariantBuilder &builder, const MetaData::Set &md,
+                   MetaData::Set::ID id)
+{
+    if(md.values_[id].empty())
+        return;
+
+    const char *tag = MetaData::get_tag_name(id);
+
+    if(tag != nullptr)
+        g_variant_builder_add(&builder, "(ss)", tag, md.values_[id].c_str());
+}
+
 static GVariant *to_gvariant(const MetaData::Set &md)
 {
     GVariantBuilder builder;
     g_variant_builder_init(&builder, G_VARIANT_TYPE("a(ss)"));
-
-    static const auto insert(
-        [&builder, &md] (const char *key, auto id)
-        {
-            if(!md.values_[id].empty())
-                g_variant_builder_add(&builder, "(ss)", key, md.values_[id].c_str());
-        }
-    );
-
-    insert("artist", MetaData::Set::ID::ARTIST);
-    insert("album", MetaData::Set::ID::ALBUM);
-    insert("title", MetaData::Set::ID::TITLE);
+    insert(builder, md, MetaData::Set::ID::ARTIST);
+    insert(builder, md, MetaData::Set::ID::ALBUM);
+    insert(builder, md, MetaData::Set::ID::TITLE);
+    insert(builder, md, MetaData::Set::ID::INTERNAL_DRCPD_TITLE);
     return g_variant_builder_end(&builder);
 }
 
@@ -1644,6 +1648,7 @@ static GVariant *to_gvariant(const MetaData::Set &md)
 static bool send_selected_file_uri_to_streamplayer(
         Player::Data &player, ID::OurStream stream_id,
         const GVariantWrapper &stream_key,
+        const MetaData::Set &meta_data,
         Player::Control::InsertMode insert_mode,
         Player::Control::PlayNewMode play_new_mode,
         const std::string &queued_url, const Player::AudioSource &asrc)
@@ -1681,8 +1686,7 @@ static bool send_selected_file_uri_to_streamplayer(
         tdbus_splay_urlfifo_call_push_sync(
             urlfifo_proxy, stream_id.get().get_raw_id(),
             queued_url.c_str(), GVariantWrapper::get(stream_key),
-            0, "ms", 0, "ms", keep_first_n,
-            to_gvariant(player.get_meta_data(stream_id.get())),
+            0, "ms", 0, "ms", keep_first_n, to_gvariant(meta_data),
             &fifo_overflow, &is_playing, nullptr, error.await());
 
         if(error.log_failure("Push stream"))
@@ -1745,10 +1749,19 @@ queue_stream_or_forget(Player::Data &player, ID::OurStream stream_id,
     if(uri == nullptr)
         return result;
 
-    if(asrc == nullptr ||
-       !send_selected_file_uri_to_streamplayer(player, stream_id, *stream_key,
-                                               insert_mode, play_new_mode,
-                                               *uri, *asrc))
+    bool failed = asrc == nullptr;
+
+    if(!failed)
+    {
+        const auto &meta_data(player.get_queued_meta_data(stream_id));
+        failed =
+            !send_selected_file_uri_to_streamplayer(player, stream_id,
+                                                    *stream_key, meta_data,
+                                                    insert_mode, play_new_mode,
+                                                    *uri, *asrc);
+    }
+
+    if(failed)
     {
         player.queued_stream_remove(stream_id);
         return Player::QueuedStream::OpResult::FAILED;
@@ -2447,15 +2460,13 @@ Player::Control::queue_item_from_op(Playlist::Crawler::GetURIsOpBase &op,
     const ID::OurStream stream_id(
         player_data_->queued_stream_append(
             std::move(dir_op.result_.stream_key_),
+            std::move(dir_op.result_.meta_data_),
             std::move(dir_op.result_.simple_uris_),
             std::move(dir_op.result_.sorted_links_),
             list_id, std::move(pos)));
 
     if(!stream_id.get().is_valid())
         return QueuedStream::OpResult::FAILED;
-
-    player_data_->put_meta_data(stream_id.get(),
-                                std::move(dir_op.result_.meta_data_));
 
     return queue_item_from_op_tail(
             stream_id, insert_mode, play_new_mode,
