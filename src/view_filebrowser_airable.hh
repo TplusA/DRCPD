@@ -67,6 +67,9 @@ class OAuthRequest
                   std::string &&url, std::string &&code,
                   Timeout::Timer::TimeoutCallback &&do_reload)
     {
+        if(is_active())
+            return;
+
         activate_init(context_id, std::move(url), std::move(code));
         have_list_position_ = false;
         reload_timer_.start(std::chrono::seconds(RETRY_SECONDS),
@@ -78,6 +81,9 @@ class OAuthRequest
                   std::string &&url, std::string &&code,
                   Timeout::Timer::TimeoutCallback &&do_reload)
     {
+        if(is_active())
+            return;
+
         activate_init(context_id, std::move(url), std::move(code));
         have_list_position_ = true;
         list_id_ = list_id;
