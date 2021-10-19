@@ -33,7 +33,12 @@ bool Timeout::Timer::start(std::chrono::milliseconds &&timeout,
                            TimeoutCallback &&callback)
 {
     log_assert(callback != nullptr);
-    log_assert(timeout_event_source_id_ == 0);
+
+    if(timeout_event_source_id_ > 0)
+    {
+        BUG("Timer already started");
+        return false;
+    }
 
     static constexpr const std::chrono::milliseconds minimum_timeout =
         std::chrono::milliseconds(50);
