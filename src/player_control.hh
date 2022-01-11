@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016--2021  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016--2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -260,7 +260,8 @@ class Control
     void plug(const LocalPermissionsIface &permissions);
     void unplug(bool is_complete_unplug);
 
-    bool source_selected_notification(const std::string &audio_source_id, bool is_on_hold);
+    bool source_selected_notification(const std::string &audio_source_id,
+                                      bool is_on_hold, std::string &&reason);
     bool source_deselected_notification(const std::string *audio_source_id);
 
     void repeat_mode_toggle_request() const;
@@ -269,9 +270,10 @@ class Control
     /* functions below are called as a result of user actions that are supposed
      * to take direct, immediate influence on playback, so they impose requests
      * to the system */
-    void play_request(std::shared_ptr<Playlist::Crawler::FindNextOpBase> find_op);
-    void stop_request(const char *reason);
-    void pause_request();
+    void play_request(std::shared_ptr<Playlist::Crawler::FindNextOpBase> find_op,
+                      std::string &&reason);
+    void stop_request(std::string &&reason);
+    void pause_request(std::string &&reason);
     void skip_forward_request();
     void skip_backward_request();
     void rewind_request();
@@ -280,7 +282,8 @@ class Control
 
     /* functions below are called as a result of status updates from the
      * system, so they may be direct reactions to preceding user actions */
-    void play_notification(ID::Stream stream_id, bool is_new_stream);
+    void play_notification(ID::Stream stream_id, bool is_new_stream,
+                           std::string &&reason);
     StopReaction stop_notification_ok(ID::Stream stream_id);
     StopReaction stop_notification_with_error(ID::Stream stream_id,
                                               const std::string &error_id,

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2019, 2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -35,6 +35,14 @@ enum class ListbrokerID
     FILESYSTEM,
     TUNEIN,
     UPNP,
+};
+
+enum class PlaybackSignalSenderID
+{
+    DCPD,
+    REST_API,
+
+    SENDER_ID_LAST = REST_API,
 };
 
 int setup(bool connect_to_session_bus, void *dbus_signal_data_for_dbus_handlers);

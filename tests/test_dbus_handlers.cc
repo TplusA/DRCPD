@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2016, 2019--2021  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016, 2019--2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -112,8 +112,8 @@ void test_dcpd_playback_start(void)
     mock_messages->expect_msg_vinfo_formatted(MESSAGE_LEVEL_TRACE,
                                               "Signal de.tahifi.Dcpd.Playback.Start from :1.123");
     mock_view_manager->expect_store_event(UI::EventID::PLAYBACK_COMMAND_START);
-    dbussignal_dcpd_playback(dummy_gdbus_proxy, dummy_sender_name,
-                             "Start", nullptr, &dbus_signal_data);
+    dbussignal_dcpd_playback_from_dcpd(dummy_gdbus_proxy, dummy_sender_name,
+                                       "Start", nullptr, &dbus_signal_data);
 }
 
 /*!\test
@@ -125,8 +125,8 @@ void test_dcpd_playback_stop(void)
     mock_messages->expect_msg_vinfo_formatted(MESSAGE_LEVEL_TRACE,
                                               "Signal de.tahifi.Dcpd.Playback.Stop from :1.123");
     mock_view_manager->expect_store_event(UI::EventID::PLAYBACK_COMMAND_STOP);
-    dbussignal_dcpd_playback(dummy_gdbus_proxy, dummy_sender_name,
-                             "Stop", nullptr, &dbus_signal_data);
+    dbussignal_dcpd_playback_from_dcpd(dummy_gdbus_proxy, dummy_sender_name,
+                                       "Stop", nullptr, &dbus_signal_data);
 }
 
 /*!\test
@@ -138,8 +138,8 @@ void test_dcpd_playback_pause(void)
     mock_messages->expect_msg_vinfo_formatted(MESSAGE_LEVEL_TRACE,
                                               "Signal de.tahifi.Dcpd.Playback.Pause from :1.123");
     mock_view_manager->expect_store_event(UI::EventID::PLAYBACK_COMMAND_PAUSE);
-    dbussignal_dcpd_playback(dummy_gdbus_proxy, dummy_sender_name,
-                             "Pause", nullptr, &dbus_signal_data);
+    dbussignal_dcpd_playback_from_dcpd(dummy_gdbus_proxy, dummy_sender_name,
+                                       "Pause", nullptr, &dbus_signal_data);
 }
 
 /*!\test
@@ -151,8 +151,8 @@ void test_dcpd_playback_next(void)
     mock_messages->expect_msg_vinfo_formatted(MESSAGE_LEVEL_TRACE,
                                               "Signal de.tahifi.Dcpd.Playback.Next from :1.123");
     mock_view_manager->expect_store_event(UI::EventID::PLAYBACK_NEXT);
-    dbussignal_dcpd_playback(dummy_gdbus_proxy, dummy_sender_name,
-                             "Next", nullptr, &dbus_signal_data);
+    dbussignal_dcpd_playback_from_dcpd(dummy_gdbus_proxy, dummy_sender_name,
+                                       "Next", nullptr, &dbus_signal_data);
 }
 
 /*!\test
@@ -164,8 +164,8 @@ void test_dcpd_playback_previous(void)
     mock_messages->expect_msg_vinfo_formatted(MESSAGE_LEVEL_TRACE,
                                               "Signal de.tahifi.Dcpd.Playback.Previous from :1.123");
     mock_view_manager->expect_store_event(UI::EventID::PLAYBACK_PREVIOUS);
-    dbussignal_dcpd_playback(dummy_gdbus_proxy, dummy_sender_name,
-                             "Previous", nullptr, &dbus_signal_data);
+    dbussignal_dcpd_playback_from_dcpd(dummy_gdbus_proxy, dummy_sender_name,
+                                       "Previous", nullptr, &dbus_signal_data);
 }
 
 /*!\test
@@ -186,8 +186,8 @@ void test_dcpd_playback_fast_wind_set_factor(void)
     g_variant_builder_add(&builder, "d", double(6.2));
     GVariant *factor = g_variant_builder_end(&builder);
 
-    dbussignal_dcpd_playback(dummy_gdbus_proxy, dummy_sender_name,
-                             "SetSpeed", factor, &dbus_signal_data);
+    dbussignal_dcpd_playback_from_dcpd(dummy_gdbus_proxy, dummy_sender_name,
+                                       "SetSpeed", factor, &dbus_signal_data);
 
     g_variant_unref(factor);
 }
@@ -211,8 +211,8 @@ void test_dcpd_playback_seek_position(void)
     g_variant_builder_add(&builder, "s", "ms");
     GVariant *pos = g_variant_builder_end(&builder);
 
-    dbussignal_dcpd_playback(dummy_gdbus_proxy, dummy_sender_name,
-                             "Seek", pos, &dbus_signal_data);
+    dbussignal_dcpd_playback_from_dcpd(dummy_gdbus_proxy, dummy_sender_name,
+                                       "Seek", pos, &dbus_signal_data);
 
     g_variant_unref(pos);
 }
@@ -227,8 +227,8 @@ void test_dcpd_playback_repeat_mode_toggle(void)
                                               "Signal de.tahifi.Dcpd.Playback.RepeatModeToggle from :1.123");
     mock_view_manager->expect_store_event(UI::EventID::PLAYBACK_MODE_REPEAT_TOGGLE);
 
-    dbussignal_dcpd_playback(dummy_gdbus_proxy, dummy_sender_name,
-                             "RepeatModeToggle", nullptr, &dbus_signal_data);
+    dbussignal_dcpd_playback_from_dcpd(dummy_gdbus_proxy, dummy_sender_name,
+                                       "RepeatModeToggle", nullptr, &dbus_signal_data);
 }
 
 /*!\test
@@ -241,8 +241,8 @@ void test_dcpd_playback_shuffle_mode_toggle(void)
                                               "Signal de.tahifi.Dcpd.Playback.ShuffleModeToggle from :1.123");
     mock_view_manager->expect_store_event(UI::EventID::PLAYBACK_MODE_SHUFFLE_TOGGLE);
 
-    dbussignal_dcpd_playback(dummy_gdbus_proxy, dummy_sender_name,
-                             "ShuffleModeToggle", nullptr, &dbus_signal_data);
+    dbussignal_dcpd_playback_from_dcpd(dummy_gdbus_proxy, dummy_sender_name,
+                                       "ShuffleModeToggle", nullptr, &dbus_signal_data);
 }
 
 /*!\test
@@ -255,8 +255,8 @@ void test_dcpd_playback_unknown_signal_name(void)
                                               "Signal de.tahifi.Dcpd.Playback.UnsupportedSignalName from :1.123");
     mock_messages->expect_msg_error_formatted(ENOSYS, LOG_NOTICE,
                                               "Got unknown signal de.tahifi.Dcpd.Playback.UnsupportedSignalName from :1.123 (Function not implemented)");
-    dbussignal_dcpd_playback(dummy_gdbus_proxy, dummy_sender_name,
-                             "UnsupportedSignalName", nullptr, &dbus_signal_data);
+    dbussignal_dcpd_playback_from_dcpd(dummy_gdbus_proxy, dummy_sender_name,
+                                       "UnsupportedSignalName", nullptr, &dbus_signal_data);
 }
 
 /*!\test

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015--2021  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015--2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -113,7 +113,7 @@ class View: public ViewIface, public ViewSerializeBase
             Player::AudioSource &audio_source,
             const std::function<Playlist::Crawler::Handle()> &get_crawler_handle,
             std::shared_ptr<Playlist::Crawler::FindNextOpBase> find_op,
-            const Player::LocalPermissionsIface &permissions);
+            const Player::LocalPermissionsIface &permissions, std::string &&reason);
     void stop_playing(const Player::AudioSource &audio_source);
     void append_referenced_lists(const Player::AudioSource &audio_source,
                                  std::vector<ID::List> &list_ids) const;

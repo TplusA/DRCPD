@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015--2021  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015--2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -59,9 +59,10 @@ static void check_parameter_assertions(GVariant *parameters,
     log_assert(g_variant_n_children(parameters) == expected_number_of_parameters);
 }
 
-void dbussignal_dcpd_playback(GDBusProxy *proxy, const gchar *sender_name,
-                              const gchar *signal_name, GVariant *parameters,
-                              gpointer user_data)
+static void dbussignal_dcpd_playback(GDBusProxy *proxy, const gchar *sender_name,
+                                     const gchar *signal_name, GVariant *parameters,
+                                     DBus::PlaybackSignalSenderID sender_id,
+                                     gpointer user_data)
 {
     static const char iface_name[] = "de.tahifi.Dcpd.Playback";
 
@@ -71,11 +72,26 @@ void dbussignal_dcpd_playback(GDBusProxy *proxy, const gchar *sender_name,
     log_assert(data != nullptr);
 
     if(strcmp(signal_name, "Start") == 0)
-        data->event_sink_.store_event(UI::EventID::PLAYBACK_COMMAND_START);
+    {
+        auto params =
+            UI::Events::mk_params<UI::EventID::PLAYBACK_COMMAND_START>(sender_id);
+        data->event_sink_.store_event(UI::EventID::PLAYBACK_COMMAND_START,
+                                      std::move(params));
+    }
     else if(strcmp(signal_name, "Stop") == 0)
-        data->event_sink_.store_event(UI::EventID::PLAYBACK_COMMAND_STOP);
+    {
+        auto params =
+            UI::Events::mk_params<UI::EventID::PLAYBACK_COMMAND_STOP>(sender_id);
+        data->event_sink_.store_event(UI::EventID::PLAYBACK_COMMAND_STOP,
+                                      std::move(params));
+    }
     else if(strcmp(signal_name, "Pause") == 0)
-        data->event_sink_.store_event(UI::EventID::PLAYBACK_COMMAND_PAUSE);
+    {
+        auto params =
+            UI::Events::mk_params<UI::EventID::PLAYBACK_COMMAND_PAUSE>(sender_id);
+        data->event_sink_.store_event(UI::EventID::PLAYBACK_COMMAND_PAUSE,
+                                      std::move(params));
+    }
     else if(strcmp(signal_name, "Resume") == 0)
         data->event_sink_.store_event(UI::EventID::PLAYBACK_TRY_RESUME);
     else if(strcmp(signal_name, "Next") == 0)
@@ -113,6 +129,22 @@ void dbussignal_dcpd_playback(GDBusProxy *proxy, const gchar *sender_name,
         data->event_sink_.store_event(UI::EventID::PLAYBACK_MODE_SHUFFLE_TOGGLE);
     else
         unknown_signal(iface_name, signal_name, sender_name);
+}
+
+void dbussignal_dcpd_playback_from_dcpd(GDBusProxy *proxy, const gchar *sender_name,
+                                        const gchar *signal_name, GVariant *parameters,
+                                        gpointer user_data)
+{
+    dbussignal_dcpd_playback(proxy, sender_name, signal_name, parameters,
+                             DBus::PlaybackSignalSenderID::DCPD, user_data);
+}
+
+void dbussignal_dcpd_playback_from_rest(GDBusProxy *proxy, const gchar *sender_name,
+                                        const gchar *signal_name, GVariant *parameters,
+                                        gpointer user_data)
+{
+    dbussignal_dcpd_playback(proxy, sender_name, signal_name, parameters,
+                             DBus::PlaybackSignalSenderID::REST_API, user_data);
 }
 
 void dbussignal_dcpd_views(GDBusProxy *proxy, const gchar *sender_name,

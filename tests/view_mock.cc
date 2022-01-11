@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015--2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015--2020, 2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -332,6 +332,11 @@ void ViewMock::View::process_broadcast(UI::BroadcastEventID event_id, UI::Parame
         cppcut_assert_not_null(parameters);
     else
         cppcut_assert_null(parameters);
+}
+
+bool ViewMock::View::is_serialization_allowed() const
+{
+    return true;
 }
 
 bool ViewMock::View::write_xml_begin(std::ostream &os, uint32_t bits,

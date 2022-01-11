@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015--2019, 2021  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015--2019, 2021, 2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -521,7 +521,7 @@ int DBus::setup(bool connect_to_session_bus,
     log_assert(dbus_data.debug_logging_iface != nullptr);
 
     g_signal_connect(dbus_data.dcpd_playback_proxy, "g-signal",
-                     G_CALLBACK(dbussignal_dcpd_playback),
+                     G_CALLBACK(dbussignal_dcpd_playback_from_dcpd),
                      dbus_signal_data_for_dbus_handlers);
 
     g_signal_connect(dbus_data.dcpd_views_proxy, "g-signal",
@@ -569,7 +569,7 @@ int DBus::setup(bool connect_to_session_bus,
                      dbus_signal_data_for_dbus_handlers);
 
     g_signal_connect(dbus_data.rest_dcpd_playback_proxy, "g-signal",
-                     G_CALLBACK(dbussignal_dcpd_playback),
+                     G_CALLBACK(dbussignal_dcpd_playback_from_rest),
                      dbus_signal_data_for_dbus_handlers);
 
     g_signal_connect(dbus_data.rest_display_updates_proxy, "g-signal",

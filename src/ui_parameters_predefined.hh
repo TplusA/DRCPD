@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016--2021  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016--2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -37,6 +37,7 @@
 #include "gvariantwrapper.hh"
 #include "i18nstring.hh"
 #include "de_tahifi_lists_errors.hh"
+#include "dbus_iface.hh"
 #include "guard.hh"
 
 namespace UI
@@ -75,6 +76,24 @@ template <>
 struct ParamTraits<EventID::AUDIO_PATH_CHANGED>
 {
     using PType = SpecificParameters<std::tuple<std::string, std::string, GVariantWrapper>>;
+};
+
+template <>
+struct ParamTraits<EventID::PLAYBACK_COMMAND_START>
+{
+    using PType = SpecificParameters<DBus::PlaybackSignalSenderID>;
+};
+
+template <>
+struct ParamTraits<EventID::PLAYBACK_COMMAND_STOP>
+{
+    using PType = SpecificParameters<DBus::PlaybackSignalSenderID>;
+};
+
+template <>
+struct ParamTraits<EventID::PLAYBACK_COMMAND_PAUSE>
+{
+    using PType = SpecificParameters<DBus::PlaybackSignalSenderID>;
 };
 
 template <>

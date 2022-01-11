@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016--2021  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016--2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -331,38 +331,48 @@ static bool send_simple_playback_command(
         return true;
 }
 
-static inline bool send_play_command(const Player::AudioSource *asrc)
+static inline bool send_play_command(const Player::AudioSource *asrc,
+                                     std::string &&reason)
 {
-    return
-        send_simple_playback_command(asrc, false,
-                                     tdbus_splay_playback_call_start_sync,
-                                     "Start playback",
-                                     "Failed sending start playback message");
+    return send_simple_playback_command(
+            asrc, false,
+            [reason = std::move(reason)]
+            (tdbussplayPlayback *proxy, GCancellable *cancelable, GError **error) -> gboolean
+            {
+                return tdbus_splay_playback_call_start_sync(proxy, reason.c_str(),
+                                                            cancelable, error);
+            },
+            "Start playback", "Failed sending start playback message");
 }
 
 static inline bool send_stop_command(const Player::AudioSource *asrc,
-                                     bool force, const char *reason)
+                                     bool force, std::string &&reason)
 {
     log_assert(asrc != nullptr);
 
     return send_simple_playback_command(
             asrc, force,
-            [reason]
+            [reason = std::move(reason)]
             (tdbussplayPlayback *proxy, GCancellable *cancelable, GError **error) -> gboolean
             {
-                return tdbus_splay_playback_call_stop_sync(proxy, reason,
+                return tdbus_splay_playback_call_stop_sync(proxy, reason.c_str(),
                                                            cancelable, error);
             },
             "Stop playback", "Failed sending stop playback message");
 }
 
-static inline bool send_pause_command(const Player::AudioSource *asrc)
+static inline bool send_pause_command(const Player::AudioSource *asrc,
+                                      std::string &&reason)
 {
-    return
-        send_simple_playback_command(asrc, false,
-                                     tdbus_splay_playback_call_pause_sync,
-                                     "Pause playback",
-                                     "Failed sending pause playback message");
+    return send_simple_playback_command(
+            asrc, false,
+            [reason = std::move(reason)]
+            (tdbussplayPlayback *proxy, GCancellable *cancelable, GError **error) -> gboolean
+            {
+                return tdbus_splay_playback_call_pause_sync(proxy, reason.c_str(),
+                                                            cancelable, error);
+            },
+            "Pause playback", "Failed sending pause playback message");
 }
 
 static inline bool send_simple_skip_forward_command(const Player::AudioSource *asrc)
@@ -386,7 +396,7 @@ static inline bool send_simple_skip_backward_command(const Player::AudioSource *
 static void do_deselect_audio_source(
         Player::AudioSource &audio_source, bool send_stop,
         std::shared_ptr<Playlist::Crawler::FindNextOpBase> &saved_find_next_op,
-        const char *reason)
+        std::string &&reason)
 {
     if(saved_find_next_op != nullptr)
     {
@@ -395,7 +405,7 @@ static void do_deselect_audio_source(
     }
 
     if(send_stop)
-        send_stop_command(&audio_source, true, reason);
+        send_stop_command(&audio_source, true, std::move(reason));
 
     audio_source.deselected_notification();
 }
@@ -476,7 +486,8 @@ static void not_attached_bug(const char *what, bool and_crawler = false)
         what, and_crawler ? " and/or crawler" : "");
 }
 
-void Player::Control::play_request(std::shared_ptr<Playlist::Crawler::FindNextOpBase> find_op)
+void Player::Control::play_request(std::shared_ptr<Playlist::Crawler::FindNextOpBase> find_op,
+                                   std::string &&reason)
 {
     if(permissions_ != nullptr && !permissions_->can_play())
     {
@@ -538,7 +549,9 @@ void Player::Control::play_request(std::shared_ptr<Playlist::Crawler::FindNextOp
 
       case PlayerState::STOPPED:
       case PlayerState::PAUSED:
-        send_play_command(audio_source_);
+        reason += ", player state ";
+        reason += player_data_->get_player_state() == PlayerState::STOPPED ? "stopped" : "paused";
+        send_play_command(audio_source_, std::move(reason));
         break;
     }
 }
@@ -676,6 +689,8 @@ bool Player::Control::found_item_uris_for_playing(
         return false;
     }
 
+    std::string reason;
+
     switch(player_data_->get_intention())
     {
       case UserIntention::NOTHING:
@@ -715,6 +730,7 @@ bool Player::Control::found_item_uris_for_playing(
         msg_vinfo(MESSAGE_LEVEL_DIAG,
                   "Found URIs while skipping and playing, "
                   "treating like non-skipping");
+        reason = "found next URI in list while skipping";
 
         /* fall-through */
 
@@ -726,7 +742,9 @@ bool Player::Control::found_item_uris_for_playing(
 
         {
           case QueuedStream::OpResult::SUCCEEDED:
-            send_play_command(audio_source_);
+            if(reason.empty())
+                reason = "found next URI in list while listening";
+            send_play_command(audio_source_, std::move(reason));
             break;
 
           case QueuedStream::OpResult::STARTED:
@@ -741,7 +759,7 @@ bool Player::Control::found_item_uris_for_playing(
     return false;
 }
 
-void Player::Control::stop_request(const char *reason)
+void Player::Control::stop_request(std::string &&reason)
 {
     if(!is_any_audio_source_plugged())
         return;
@@ -759,13 +777,13 @@ void Player::Control::stop_request(const char *reason)
             player_data_->set_intention(UserIntention::STOPPING);
 
         if(astate == AudioSourceState::SELECTED)
-            send_stop_command(audio_source_, false, reason);
+            send_stop_command(audio_source_, false, std::move(reason));
 
         break;
     }
 }
 
-void Player::Control::pause_request()
+void Player::Control::pause_request(std::string &&reason)
 {
     if(permissions_ != nullptr && !permissions_->can_pause())
     {
@@ -789,7 +807,7 @@ void Player::Control::pause_request()
             player_data_->set_intention(UserIntention::PAUSING);
 
         if(astate == AudioSourceState::SELECTED)
-            send_pause_command(audio_source_);
+            send_pause_command(audio_source_, std::move(reason));
 
         break;
     }
@@ -798,7 +816,7 @@ void Player::Control::pause_request()
 static void enforce_intention(Player::UserIntention intention,
                               Player::PlayerState known_player_state,
                               const Player::AudioSource *audio_source_,
-                              bool really_enforce)
+                              bool really_enforce, std::string &&reason)
 {
     if(audio_source_ == nullptr ||
        audio_source_->get_state() != Player::AudioSourceState::SELECTED)
@@ -817,24 +835,25 @@ static void enforce_intention(Player::UserIntention intention,
         break;
 
       case Player::UserIntention::STOPPING:
+        reason += ", enforced stop by user intention while ";
         switch(known_player_state)
         {
           case Player::PlayerState::STOPPED:
             break;
 
           case Player::PlayerState::BUFFERING:
-            send_stop_command(audio_source_, false,
-                              "enforced by user intention while buffering");
+            reason += "buffering";
+            send_stop_command(audio_source_, false, std::move(reason));
             break;
 
           case Player::PlayerState::PLAYING:
-            send_stop_command(audio_source_, false,
-                              "enforced by user intention while playing");
+            reason += "playing";
+            send_stop_command(audio_source_, false, std::move(reason));
             break;
 
           case Player::PlayerState::PAUSED:
-            send_stop_command(audio_source_, false,
-                              "enforced by user intention while pausing");
+            reason += "pausing";
+            send_stop_command(audio_source_, false, std::move(reason));
             break;
         }
 
@@ -842,27 +861,42 @@ static void enforce_intention(Player::UserIntention intention,
 
       case Player::UserIntention::PAUSING:
       case Player::UserIntention::SKIPPING_PAUSED:
+        reason += ", enforced pause by user intention while ";
+        reason += intention == Player::UserIntention::PAUSING ? "pausing" : "skipping paused";
         switch(known_player_state)
         {
           case Player::PlayerState::STOPPED:
+            reason += ", player state stopped";
+            break;
+
           case Player::PlayerState::BUFFERING:
+            reason += ", player state buffering";
+            break;
+
           case Player::PlayerState::PLAYING:
-            send_pause_command(audio_source_);
+            reason += ", player state playing";
             break;
 
           case Player::PlayerState::PAUSED:
             break;
         }
 
+        if(known_player_state != Player::PlayerState::PAUSED)
+            send_pause_command(audio_source_, std::move(reason));
+
         break;
 
       case Player::UserIntention::LISTENING:
       case Player::UserIntention::SKIPPING_LIVE:
+        reason += ", enforced play by user intention while ";
+        reason += intention == Player::UserIntention::LISTENING ? "listening" : "skipping live";
         switch(known_player_state)
         {
           case Player::PlayerState::STOPPED:
           case Player::PlayerState::PAUSED:
-            send_play_command(audio_source_);
+            reason += ", player state ";
+            reason += known_player_state == Player::PlayerState::STOPPED ? "stopped" : "paused";
+            send_play_command(audio_source_, std::move(reason));
             break;
 
           case Player::PlayerState::BUFFERING:
@@ -875,7 +909,7 @@ static void enforce_intention(Player::UserIntention intention,
 }
 
 bool Player::Control::source_selected_notification(const std::string &audio_source_id,
-                                                   bool is_on_hold)
+                                                   bool is_on_hold, std::string &&reason)
 {
     auto locks(lock());
 
@@ -902,15 +936,18 @@ bool Player::Control::source_selected_notification(const std::string &audio_sour
                 break;
 
               case UserIntention::LISTENING:
-                play_request(std::move(audio_source_selected_find_op_));
+                reason += ", user intended to listen";
+                play_request(std::move(audio_source_selected_find_op_), std::move(reason));
                 break;
 
               case UserIntention::STOPPING:
-                stop_request("audio source was selected, user intended to stop");
+                reason += ", user intended to stop";
+                stop_request(std::move(reason));
                 break;
 
               case UserIntention::PAUSING:
-                pause_request();
+                reason += ", user intended to pause";
+                pause_request(std::move(reason));
                 break;
             }
         }
@@ -1425,7 +1462,7 @@ void Player::Control::seek_stream_request(int64_t value, const std::string &unit
 }
 
 void Player::Control::play_notification(ID::Stream stream_id,
-                                        bool is_new_stream)
+                                        bool is_new_stream, std::string &&reason)
 {
     retry_data_.playing(stream_id);
 
@@ -1497,7 +1534,7 @@ void Player::Control::play_notification(ID::Stream stream_id,
     }
 
     enforce_intention(player_data_->get_intention(), PlayerState::PLAYING,
-                      audio_source_, with_enforced_intentions_);
+                      audio_source_, with_enforced_intentions_, std::move(reason));
 }
 
 static inline void clear_resume_data(Player::AudioSource *audio_source)
@@ -1581,7 +1618,7 @@ Player::Control::stop_notification_ok(ID::Stream stream_id)
     /* still prefetching */
     msg_info("Stream stopped while next stream is still unavailable; "
              "audible gap is very likely");
-    send_play_command(audio_source_);
+    send_play_command(audio_source_, "player stopped, still searching for next stream");
     return StopReaction::QUEUED;
 }
 
@@ -1654,7 +1691,8 @@ static bool send_selected_file_uri_to_streamplayer(
         const MetaData::Set &meta_data,
         Player::Control::InsertMode insert_mode,
         Player::Control::PlayNewMode play_new_mode,
-        const std::string &queued_url, const Player::AudioSource &asrc)
+        const std::string &queued_url, const Player::AudioSource &asrc,
+        std::string &&reason)
 {
     if(queued_url.empty())
         return false;
@@ -1716,7 +1754,7 @@ static bool send_selected_file_uri_to_streamplayer(
         break;
 
       case Player::Control::PlayNewMode::SEND_PLAY_COMMAND_IF_IDLE:
-        if(!send_play_command(&asrc))
+        if(!send_play_command(&asrc, std::move(reason)))
         {
             msg_error(0, LOG_NOTICE, "Failed sending start playback message");
             return false;
@@ -1725,7 +1763,7 @@ static bool send_selected_file_uri_to_streamplayer(
         break;
 
       case Player::Control::PlayNewMode::SEND_PAUSE_COMMAND_IF_IDLE:
-        if(!send_pause_command(&asrc))
+        if(!send_pause_command(&asrc, std::move(reason)))
         {
             msg_error(0, LOG_NOTICE, "Failed sending pause playback message");
             return false;
@@ -1742,7 +1780,7 @@ queue_stream_or_forget(Player::Data &player, ID::OurStream stream_id,
                        Player::Control::InsertMode insert_mode,
                        Player::Control::PlayNewMode play_new_mode,
                        Player::QueuedStream::ResolvedRedirectCallback &&callback,
-                       const Player::AudioSource *asrc)
+                       const Player::AudioSource *asrc, std::string &&reason)
 {
     const GVariantWrapper *stream_key;
     const std::string *uri = nullptr;
@@ -1757,11 +1795,12 @@ queue_stream_or_forget(Player::Data &player, ID::OurStream stream_id,
     if(!failed)
     {
         const auto &meta_data(player.get_queued_meta_data(stream_id));
+        reason += ", ID " + std::to_string(stream_id.get().get_raw_id());
         failed =
             !send_selected_file_uri_to_streamplayer(player, stream_id,
                                                     *stream_key, meta_data,
                                                     insert_mode, play_new_mode,
-                                                    *uri, *asrc);
+                                                    *uri, *asrc, std::move(reason));
     }
 
     if(failed)
@@ -1975,7 +2014,8 @@ Player::Control::stop_notification_with_error(ID::Stream stream_id,
 
           case PlayNewMode::SEND_PLAY_COMMAND_IF_IDLE:
             /* play next in queue */
-            if(send_play_command(audio_source_))
+            if(send_play_command(audio_source_,
+                                 "player stopped with error, play next in queue"))
             {
                 bookmark_about_to_play_next(*player_data_, crawler_handle_);
                 return StopReaction::TAKE_NEXT;
@@ -1985,7 +2025,8 @@ Player::Control::stop_notification_with_error(ID::Stream stream_id,
 
           case PlayNewMode::SEND_PAUSE_COMMAND_IF_IDLE:
             /* pause next in queue */
-            if(send_pause_command(audio_source_))
+            if(send_pause_command(audio_source_,
+                                  "player stopped with error, pause next in queue"))
             {
                 bookmark_about_to_play_next(*player_data_, crawler_handle_);
                 return StopReaction::TAKE_NEXT;
@@ -2004,7 +2045,9 @@ void Player::Control::pause_notification(ID::Stream stream_id)
 
     if(is_active_controller())
         enforce_intention(player_data_->get_intention(), PlayerState::PAUSED,
-                          audio_source_, with_enforced_intentions_);
+                          audio_source_, with_enforced_intentions_,
+                          std::string("player notified pause mode for ") +
+                          std::to_string(stream_id.get_raw_id()));
 }
 
 void Player::Control::start_prefetch_next_item(
@@ -2361,7 +2404,12 @@ void Player::Control::async_redirect_resolved_for_playing(
                 [this] (size_t i, auto r) { unexpected_resolve_error(i, r); }))
         {
           case QueuedStream::OpResult::SUCCEEDED:
-            send_play_command(audio_source_);
+            send_play_command(audio_source_,
+                              std::string("resolved stream URL for ") +
+                              std::to_string(for_stream.get().get_raw_id()) + " while " +
+                              (player_data_->get_intention() == UserIntention::LISTENING
+                               ? "listening"
+                               : "skipping live"));
             break;
 
           case QueuedStream::OpResult::STARTED:
@@ -2488,7 +2536,7 @@ Player::Control::queue_item_from_op_tail(ID::OurStream stream_id,
 {
     const auto result(queue_stream_or_forget(*player_data_, stream_id, insert_mode,
                                              play_new_mode, std::move(callback),
-                                             audio_source_));
+                                             audio_source_, "resolved stream URL"));
 
     switch(result)
     {
@@ -2527,7 +2575,7 @@ Player::Control::replay(ID::OurStream stream_id, bool is_retry,
                 *player_data_, stream_id,
                 InsertMode::REPLACE_ALL, play_new_mode,
                 [this] (size_t i, auto r) { unexpected_resolve_error(i, r); },
-                audio_source_))
+                audio_source_, "replay stream"))
     {
       case QueuedStream::OpResult::STARTED:
         BUG("Unexpected async redirect resolution while replaying");
@@ -2552,7 +2600,7 @@ Player::Control::replay(ID::OurStream stream_id, bool is_retry,
         switch(queue_stream_or_forget(
                     *player_data_, id, InsertMode::APPEND, PlayNewMode::KEEP,
                     [this] (size_t i, auto r) { unexpected_resolve_error(i, r); },
-                    audio_source_))
+                    audio_source_, "replay queued stream"))
         {
           case QueuedStream::OpResult::STARTED:
             BUG("Unexpected queuing result while replaying");

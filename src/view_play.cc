@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015--2021  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015--2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -81,7 +81,7 @@ void ViewPlay::View::prepare_for_playing(
         Player::AudioSource &audio_source,
         const std::function<Playlist::Crawler::Handle()> &get_crawler_handle,
         std::shared_ptr<Playlist::Crawler::FindNextOpBase> find_op,
-        const Player::LocalPermissionsIface &permissions)
+        const Player::LocalPermissionsIface &permissions, std::string &&reason)
 {
     const auto lock_ctrl(player_control_.lock());
     const auto lock_data(player_data_.lock());
@@ -97,14 +97,14 @@ void ViewPlay::View::prepare_for_playing(
     {
         /* we do not own the player yet, so stop the player just in case it is
          * playing, then plug to it */
-        player_control_.stop_request("take control over player");
+        player_control_.stop_request(reason + ", take control over player");
         player_control_.unplug(true);
         plug_audio_source(audio_source, true);
         player_control_.plug(player_data_);
     }
 
     player_control_.plug(get_crawler_handle, permissions);
-    player_control_.play_request(std::move(find_op));
+    player_control_.play_request(std::move(find_op), std::move(reason));
 }
 
 void ViewPlay::View::stop_playing(const Player::AudioSource &audio_source)
@@ -371,12 +371,49 @@ void ViewPlay::View::handle_audio_path_changed(
     }
 }
 
+static void append_sender_to_reason(std::string &reason, DBus::PlaybackSignalSenderID sender_id)
+{
+    switch(sender_id)
+    {
+      case DBus::PlaybackSignalSenderID::DCPD:
+        reason += " from dcpd";
+        break;
+
+      case DBus::PlaybackSignalSenderID::REST_API:
+        reason += " from REST API";
+        break;
+    }
+}
+
+static void append_state_to_reason(std::string &reason, Player::PlayerState player_state)
+{
+    switch(player_state)
+    {
+      case Player::PlayerState::STOPPED:
+        reason += " while stopped";
+        break;
+
+      case Player::PlayerState::BUFFERING:
+        reason += " while buffering";
+        break;
+
+      case Player::PlayerState::PLAYING:
+        reason += " while playing";
+        break;
+
+      case Player::PlayerState::PAUSED:
+        reason += " while paused";
+        break;
+    }
+}
+
 ViewIface::InputResult
 ViewPlay::View::process_event(UI::ViewEventID event_id,
                               std::unique_ptr<UI::Parameters> parameters)
 {
     const auto lock_ctrl(player_control_.lock());
     const auto lock_data(player_data_.lock());
+    std::string reason;
 
     switch(event_id)
     {
@@ -384,27 +421,75 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
         break;
 
       case UI::ViewEventID::PLAYBACK_COMMAND_START:
-        switch(player_data_.get_player_state())
         {
-          case Player::PlayerState::BUFFERING:
-          case Player::PlayerState::PLAYING:
-            player_control_.pause_request();
-            break;
+            reason = "start command";
 
-          case Player::PlayerState::STOPPED:
-          case Player::PlayerState::PAUSED:
-            player_control_.play_request(nullptr);
-            break;
+            switch(player_data_.get_player_state())
+            {
+              case Player::PlayerState::BUFFERING:
+              case Player::PlayerState::PLAYING:
+                {
+                    const auto sender =
+                        UI::Events::downcast<UI::ViewEventID::PLAYBACK_COMMAND_START>(parameters);
+
+                    if(sender == nullptr)
+                        break;
+
+                    append_sender_to_reason(reason, sender->get_specific());
+                    append_state_to_reason(reason, player_data_.get_player_state());
+                    player_control_.pause_request(std::move(reason));
+                }
+                break;
+
+              case Player::PlayerState::STOPPED:
+              case Player::PlayerState::PAUSED:
+                {
+                    const auto sender =
+                        UI::Events::downcast<UI::ViewEventID::PLAYBACK_COMMAND_START>(parameters);
+
+                    if(sender == nullptr)
+                        break;
+
+                    append_sender_to_reason(reason, sender->get_specific());
+                    append_state_to_reason(reason, player_data_.get_player_state());
+                    player_control_.play_request(nullptr, std::move(reason));
+                }
+                break;
+            }
         }
 
         break;
 
       case UI::ViewEventID::PLAYBACK_COMMAND_STOP:
-        player_control_.stop_request("stop command issued by user");
+        {
+            const auto sender =
+                UI::Events::downcast<UI::ViewEventID::PLAYBACK_COMMAND_STOP>(parameters);
+
+            if(sender == nullptr)
+                break;
+
+            reason = "stop command";
+            append_sender_to_reason(reason, sender->get_specific());
+            append_state_to_reason(reason, player_data_.get_player_state());
+            player_control_.stop_request(std::move(reason));
+        }
+
         break;
 
       case UI::ViewEventID::PLAYBACK_COMMAND_PAUSE:
-        player_control_.pause_request();
+        {
+            const auto sender =
+                UI::Events::downcast<UI::ViewEventID::PLAYBACK_COMMAND_PAUSE>(parameters);
+
+            if(sender == nullptr)
+                break;
+
+            reason = "pause command";
+            append_sender_to_reason(reason, sender->get_specific());
+            append_state_to_reason(reason, player_data_.get_player_state());
+            player_control_.pause_request(std::move(reason));
+        }
+
         break;
 
       case UI::ViewEventID::PLAYBACK_PREVIOUS:
@@ -505,7 +590,10 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
                         stream_id, std::move(url_string), switched_stream);
             player_data_.get_now_playing().put_meta_data(stream_id, std::move(meta_data));
 
-            player_control_.play_notification(stream_id, switched_stream);
+            player_control_.play_notification(stream_id, switched_stream,
+                                              std::string("player notified now playing ") +
+                                              std::to_string(stream_id.get_raw_id()) +
+                                              (switched_stream ? " (switched streams)" : " (same stream)"));
 
             msg_info("Play view: stream %s, %s",
                      switched_stream ? "started" : "updated",
@@ -619,7 +707,9 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
                 break;
 
             player_data_.player_has_resumed();
-            player_control_.play_notification(stream_id->get_specific(), false);
+            player_control_.play_notification(stream_id->get_specific(), false,
+                                              std::string("player notified resume playing ") +
+                                              std::to_string(stream_id->get_specific().get_raw_id()));
 
             add_update_flags(UPDATE_FLAGS_PLAYBACK_STATE);
             view_manager_->update_view_if_active(this, DCP::Queue::Mode::FORCE_ASYNC);
@@ -748,7 +838,8 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
 
             if(player_control_.is_any_audio_source_plugged())
             {
-                if(player_control_.source_selected_notification(ausrc_id, is_on_hold))
+                if(player_control_.source_selected_notification(ausrc_id, is_on_hold,
+                                                                "audio source selected"))
                     break;
 
                 /* source has been changed, need to switch views */
@@ -771,7 +862,8 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
                 audio_source->select_now();
                 plug_audio_source(*audio_source, true);
                 player_control_.plug(player_data_);
-                player_control_.source_selected_notification(ausrc_id, is_on_hold);
+                player_control_.source_selected_notification(ausrc_id, is_on_hold,
+                                                             "plugged and selected audio source");
             }
 
             if(view != nullptr)

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015--2021  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015--2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -960,7 +960,8 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
             Playlist::Crawler::Handle crawler_handle,
             ID::List ref_list_id, unsigned int ref_line,
             ID::List list_id, unsigned int current_line,
-            unsigned int directory_depth, I18n::String &&list_title);
+            unsigned int directory_depth, I18n::String &&list_title,
+            std::string &&reason);
 
     std::unique_ptr<Player::Resumer>
     try_resume_from_file_begin(const Player::AudioSource &asrc);

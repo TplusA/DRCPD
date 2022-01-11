@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015--2019, 2021  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015--2019, 2021, 2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -37,9 +37,12 @@
 extern "C" {
 #endif
 
-void dbussignal_dcpd_playback(GDBusProxy *proxy, const gchar *sender_name,
-                              const gchar *signal_name, GVariant *parameters,
-                              gpointer user_data);
+void dbussignal_dcpd_playback_from_dcpd(GDBusProxy *proxy, const gchar *sender_name,
+                                        const gchar *signal_name, GVariant *parameters,
+                                        gpointer user_data);
+void dbussignal_dcpd_playback_from_rest(GDBusProxy *proxy, const gchar *sender_name,
+                                        const gchar *signal_name, GVariant *parameters,
+                                        gpointer user_data);
 void dbussignal_dcpd_views(GDBusProxy *proxy, const gchar *sender_name,
                            const gchar *signal_name, GVariant *parameters,
                            gpointer user_data);

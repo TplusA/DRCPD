@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015--2021  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015--2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -960,7 +960,8 @@ void ViewFileBrowser::View::try_resume_from_arguments(
         Playlist::Crawler::Handle crawler_handle,
         ID::List ref_list_id, unsigned int ref_line,
         ID::List list_id, unsigned int current_line,
-        unsigned int directory_depth, I18n::String &&list_title)
+        unsigned int directory_depth, I18n::String &&list_title,
+        std::string &&reason)
 {
     auto ref_point =
         std::make_shared<Playlist::Crawler::DirectoryCrawler::Cursor>(
@@ -989,7 +990,7 @@ void ViewFileBrowser::View::try_resume_from_arguments(
             crawler_handle->set_reference_point(std::move(ref_point));
             return std::move(crawler_handle);
         },
-        std::move(find_op), get_local_permissions());
+        std::move(find_op), get_local_permissions(), std::move(reason));
 }
 
 std::unique_ptr<Player::Resumer>
@@ -1029,7 +1030,8 @@ void ViewFileBrowser::View::resume_request()
             Playlist::Crawler::DirectoryCrawler::FindNextOp::Tag::DIRECT_JUMP_FOR_RESUME,
             nullptr, rd.reference_list_id_, rd.reference_line_,
             rd.current_list_id_, rd.current_line_, rd.directory_depth_,
-            I18n::String(rd.list_title_));
+            I18n::String(rd.list_title_),
+            "resume previously played stream on audio source");
     }
     else
         resumer_ = try_resume_from_file_begin(asrc);
@@ -1040,7 +1042,7 @@ static void initiate_playback_from_selected_position(
         const Player::LocalPermissionsIface &permissions,
         Playlist::Crawler::DirectoryCrawler &crawler,
         const Playlist::Crawler::DefaultSettings &settings,
-        ID::List list_id, unsigned int line)
+        ID::List list_id, unsigned int line, std::string &&reason)
 {
     using Cursor = Playlist::Crawler::DirectoryCrawler::Cursor;
 
@@ -1060,7 +1062,7 @@ static void initiate_playback_from_selected_position(
                 std::make_shared<Cursor>(crawler.mk_cursor(list_id, line, 0)),
                 std::make_unique<Playlist::Crawler::DefaultSettings>(settings));
         },
-        std::move(find_op), permissions);
+        std::move(find_op), permissions, std::move(reason));
 }
 
 ViewIface::InputResult
@@ -1074,6 +1076,8 @@ ViewFileBrowser::View::process_event(UI::ViewEventID event_id,
         {
             stop_waiting_for_search_parameters(*search_parameters_view_);
         });
+
+    std::string reason;
 
     switch(event_id)
     {
@@ -1187,6 +1191,8 @@ ViewFileBrowser::View::process_event(UI::ViewEventID event_id,
         if(event_id != UI::ViewEventID::PLAYBACK_COMMAND_START)
             return InputResult::OK;
 
+        reason = "selected non-directory list item";
+
         /* fall-through: event was changed to #UI::ViewEventID::PLAYBACK_START
          *               because the item below the cursor was not a
          *               directory */
@@ -1209,11 +1215,34 @@ ViewFileBrowser::View::process_event(UI::ViewEventID event_id,
             }
 
             if(have_audio_source())
+            {
+                if(reason.empty())
+                {
+                    const auto sender =
+                        UI::Events::downcast<UI::ViewEventID::PLAYBACK_COMMAND_START>(parameters);
+
+                    if(sender == nullptr)
+                        break;
+
+                    switch(sender->get_specific())
+                    {
+                      case DBus::PlaybackSignalSenderID::DCPD:
+                        reason = "plain start command from dcpd";
+                        break;
+
+                      case DBus::PlaybackSignalSenderID::REST_API:
+                        reason = "plain start command from REST API";
+                        break;
+                    }
+                }
+
                 initiate_playback_from_selected_position(
                     *static_cast<ViewPlay::View *>(play_view_),
                     get_audio_source(), permissions,
                     crawler_, crawler_defaults_, file_list_.get_list_id(),
-                    browse_navigation_.get_line_number_by_cursor());
+                    browse_navigation_.get_line_number_by_cursor(),
+                    std::move(reason));
+            }
 
             if(crawler_.is_active())
                 view_manager_->sync_activate_view_by_name(ViewNames::PLAYER, true);
@@ -1262,7 +1291,8 @@ ViewFileBrowser::View::process_event(UI::ViewEventID event_id,
                         std::move(res->take_crawler_handle()),
                         loc.ref_list_id_, loc.ref_item_index_,
                         loc.list_id_, loc.item_index_,
-                        loc.trace_length_, std::move(loc.title_));
+                        loc.trace_length_, std::move(loc.title_),
+                        "resolved StrBo URL");
             }
             catch(...)
             {
