@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2020, 2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -54,7 +54,20 @@ static inline bool should_reject_skip_request(const Player::Data &player_data)
     switch(player_data.get_player_state())
     {
       case Player::PlayerState::STOPPED:
-        return true;
+        switch(player_data.get_intention())
+        {
+          case Player::UserIntention::NOTHING:
+          case Player::UserIntention::STOPPING:
+            return true;
+
+          case Player::UserIntention::PAUSING:
+          case Player::UserIntention::LISTENING:
+          case Player::UserIntention::SKIPPING_PAUSED:
+          case Player::UserIntention::SKIPPING_LIVE:
+            break;
+        }
+
+        break;
 
       case Player::PlayerState::BUFFERING:
       case Player::PlayerState::PLAYING:
