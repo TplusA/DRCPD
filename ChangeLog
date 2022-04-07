@@ -1,3 +1,15 @@
+2022-04-07  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 5.25 released.
+
+	* Playback: Skip over list items which have no URL associated with
+	  them. This may happen with items returned by Airable or UPnP, in
+	  case the corresponding list brokers fail to mark these items as
+	  locked.
+
+	* Playback: Send reasons for start and pause commands to streamplayer
+	  for debugging purposes.
+
 2021-10-19  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 5.24 released.
@@ -1100,4 +1112,4 @@
 	* First release for testing.
 
 
-Copyright 2015--2021 T+A elektroakustik GmbH & Co. KG
+Copyright 2015--2022 T+A elektroakustik GmbH & Co. KG
