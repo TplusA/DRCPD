@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, 2017, 2019--2021  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2017, 2019--2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -779,7 +779,14 @@ class OperationBase: public std::enable_shared_from_this<OperationBase>
           case State::DONE:
           case State::FAILED:
           case State::CANCELED:
-            return do_notify_caller(std::move(lock));
+            {
+                const bool result = do_notify_caller(std::move(lock));
+                msg_vinfo(EXECUTION_VERBOSITY,
+                          "%s %s [%p]: Notify (1) result %d",
+                          EXECUTION_PREFIX, get_short_name().c_str(),
+                          static_cast<const void *>(this), result);
+                return result;
+            }
 
           case State::NOT_STARTED:
           case State::RUNNING:
