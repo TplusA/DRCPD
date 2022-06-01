@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015--2021  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015--2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -292,8 +292,11 @@ static void check_ui_parameters_equality(std::unique_ptr<const UI::Parameters> e
     using Checker = std::function<bool(const std::unique_ptr<const UI::Parameters> &,
                                        const std::unique_ptr<const UI::Parameters> &)>;
 
-    static const std::array<const Checker, 15> checkers
+    static const std::array<const Checker, 18> checkers
     {
+        check_equality<UI::EventID::PLAYBACK_COMMAND_START>,
+        check_equality<UI::EventID::PLAYBACK_COMMAND_STOP>,
+        check_equality<UI::EventID::PLAYBACK_COMMAND_PAUSE>,
         check_equality<UI::EventID::PLAYBACK_FAST_WIND_SET_SPEED>,
         check_equality<UI::EventID::PLAYBACK_SEEK_STREAM_POS>,
         check_equality<UI::EventID::NAV_SCROLL_LINES>,

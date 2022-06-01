@@ -111,7 +111,12 @@ void test_dcpd_playback_start(void)
     DBus::SignalData dbus_signal_data(mk_dbus_signal_data());
     mock_messages->expect_msg_vinfo_formatted(MESSAGE_LEVEL_TRACE,
                                               "Signal de.tahifi.Dcpd.Playback.Start from :1.123");
-    mock_view_manager->expect_store_event(UI::EventID::PLAYBACK_COMMAND_START);
+
+    auto params = UI::Events::mk_params<UI::EventID::PLAYBACK_COMMAND_START>(
+                                DBus::PlaybackSignalSenderID::DCPD);
+    mock_view_manager->expect_store_event(UI::EventID::PLAYBACK_COMMAND_START,
+                                          std::move(params));
+
     dbussignal_dcpd_playback_from_dcpd(dummy_gdbus_proxy, dummy_sender_name,
                                        "Start", nullptr, &dbus_signal_data);
 }
@@ -124,7 +129,12 @@ void test_dcpd_playback_stop(void)
     DBus::SignalData dbus_signal_data(mk_dbus_signal_data());
     mock_messages->expect_msg_vinfo_formatted(MESSAGE_LEVEL_TRACE,
                                               "Signal de.tahifi.Dcpd.Playback.Stop from :1.123");
-    mock_view_manager->expect_store_event(UI::EventID::PLAYBACK_COMMAND_STOP);
+
+    auto params = UI::Events::mk_params<UI::EventID::PLAYBACK_COMMAND_STOP>(
+                                DBus::PlaybackSignalSenderID::DCPD);
+    mock_view_manager->expect_store_event(UI::EventID::PLAYBACK_COMMAND_STOP,
+                                          std::move(params));
+
     dbussignal_dcpd_playback_from_dcpd(dummy_gdbus_proxy, dummy_sender_name,
                                        "Stop", nullptr, &dbus_signal_data);
 }
@@ -137,7 +147,12 @@ void test_dcpd_playback_pause(void)
     DBus::SignalData dbus_signal_data(mk_dbus_signal_data());
     mock_messages->expect_msg_vinfo_formatted(MESSAGE_LEVEL_TRACE,
                                               "Signal de.tahifi.Dcpd.Playback.Pause from :1.123");
-    mock_view_manager->expect_store_event(UI::EventID::PLAYBACK_COMMAND_PAUSE);
+
+    auto params = UI::Events::mk_params<UI::EventID::PLAYBACK_COMMAND_PAUSE>(
+                                DBus::PlaybackSignalSenderID::DCPD);
+    mock_view_manager->expect_store_event(UI::EventID::PLAYBACK_COMMAND_PAUSE,
+                                          std::move(params));
+
     dbussignal_dcpd_playback_from_dcpd(dummy_gdbus_proxy, dummy_sender_name,
                                        "Pause", nullptr, &dbus_signal_data);
 }
