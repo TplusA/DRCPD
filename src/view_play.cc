@@ -745,6 +745,25 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
 
         break;
 
+      case UI::ViewEventID::NOTIFY_STREAM_DROPPED_EARLY:
+        {
+            const auto params =
+                UI::Events::downcast<UI::ViewEventID::NOTIFY_STREAM_DROPPED_EARLY>(parameters);
+
+            if(params == nullptr)
+                break;
+
+            const auto &plist = params->get_specific();
+            const ID::Stream dropped_id(std::get<0>(plist));
+            const std::string &error_id(std::get<1>(plist));
+
+            msg_info("Play view: stream %u dropped by player: %s",
+                dropped_id.get_raw_id(), error_id.c_str());
+            player_data_.player_rejected_unplayed_stream(dropped_id);
+        }
+
+        break;
+
       case UI::ViewEventID::NOTIFY_SPEED_CHANGED:
         {
             const auto params =

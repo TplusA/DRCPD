@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, 2017, 2019--2021  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2017, 2019--2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -347,6 +347,33 @@ Player::QueuedStreams::remove_front(std::unordered_set<ID::OurStream> &ids)
         stream_in_flight_ = ID::OurStream::make_invalid();
 
     return result;
+}
+
+std::unique_ptr<Player::QueuedStream>
+Player::QueuedStreams::remove_anywhere(ID::OurStream id)
+{
+    BUG_IF(id == stream_in_flight_, "Rejected stream is in flight");
+
+    if(queue_.empty())
+        return nullptr;
+
+    const auto id_pos(std::find(queue_.begin(), queue_.end(), id));
+    if(id_pos == queue_.end())
+        return nullptr;
+
+    try
+    {
+        auto result(erase_stream_from_container(streams_, id,
+                                                "remove rejected element",
+                                                on_remove_cb_));
+        queue_.erase(id_pos);
+        return result;
+    }
+    catch(const QueueError &e)
+    {
+        BUG("QueueError exception: %s", e.what());
+        return nullptr;
+    }
 }
 
 std::unique_ptr<Player::QueuedStream>
@@ -847,6 +874,33 @@ bool Player::Data::player_dropped_from_queue(const std::vector<ID::Stream> &drop
         msg_info("Dropped foreign stream %u", id.get_raw_id());
 
     return true;
+}
+
+void Player::Data::player_rejected_unplayed_stream(ID::Stream dropped)
+{
+    msg_vinfo(MESSAGE_LEVEL_DIAG,
+              "Dropping rejected stream: %u", dropped.get_raw_id());
+
+    const auto our_stream(ID::OurStream::make_from_generic_id(dropped));
+
+    if(!our_stream.get().is_valid())
+    {
+        msg_info("Rejected foreign stream %u", dropped.get_raw_id());
+        return;
+    }
+
+    queued_streams_.log("Before drop");
+
+    auto qs = queued_streams_.remove_anywhere(our_stream);
+
+    if(qs == nullptr)
+        BUG("Player rejected our stream [%u] which we don't know about",
+            dropped.get_raw_id());
+    else
+    {
+        remove_data_for_stream(*qs, referenced_lists_);
+        queued_streams_.log("After drop");
+    }
 }
 
 void Player::Data::player_finished_and_idle()

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015--2021  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015--2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -403,6 +403,7 @@ static void log_event_dispatch(const UI::ViewEventID event_id,
         "NOTIFY_STREAM_PAUSED",
         "NOTIFY_STREAM_UNPAUSED",
         "NOTIFY_STREAM_POSITION",
+        "NOTIFY_STREAM_DROPPED_EARLY",
         "NOTIFY_SPEED_CHANGED",
         "NOTIFY_PLAYBACK_MODE_CHANGED",
         "AUDIO_SOURCE_SELECTED",

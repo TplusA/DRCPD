@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016--2021  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016--2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -295,6 +295,7 @@ static void patch_event_id_for_deezer(UI::ViewEventID &event_id)
       case UI::ViewEventID::NOTIFY_STREAM_PAUSED:
       case UI::ViewEventID::NOTIFY_STREAM_UNPAUSED:
       case UI::ViewEventID::NOTIFY_STREAM_POSITION:
+      case UI::ViewEventID::NOTIFY_STREAM_DROPPED_EARLY:
       case UI::ViewEventID::NOTIFY_SPEED_CHANGED:
       case UI::ViewEventID::NOTIFY_PLAYBACK_MODE_CHANGED:
       case UI::ViewEventID::AUDIO_SOURCE_SELECTED:
@@ -379,6 +380,7 @@ ViewFileBrowser::AirableView::process_event(UI::ViewEventID event_id,
       case UI::ViewEventID::NOTIFY_STREAM_PAUSED:
       case UI::ViewEventID::NOTIFY_STREAM_UNPAUSED:
       case UI::ViewEventID::NOTIFY_STREAM_POSITION:
+      case UI::ViewEventID::NOTIFY_STREAM_DROPPED_EARLY:
       case UI::ViewEventID::NOTIFY_SPEED_CHANGED:
       case UI::ViewEventID::NOTIFY_PLAYBACK_MODE_CHANGED:
       case UI::ViewEventID::AUDIO_SOURCE_SELECTED:

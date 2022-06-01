@@ -216,6 +216,12 @@ struct ParamTraits<EventID::VIEW_PLAYER_STREAM_POSITION>
 };
 
 template <>
+struct ParamTraits<EventID::VIEW_PLAYER_STREAM_DROPPED>
+{
+    using PType = SpecificParameters<std::tuple<ID::Stream, std::string>>;
+};
+
+template <>
 struct ParamTraits<EventID::VIEW_PLAYER_SPEED_CHANGED>
 {
     using PType = SpecificParameters<std::tuple<ID::Stream, double>>;

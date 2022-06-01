@@ -360,7 +360,28 @@ void dbussignal_splay_urlfifo(GDBusProxy *proxy, const gchar *sender_name,
 {
     static const char iface_name[] = "de.tahifi.Streamplayer.URLFIFO";
 
-    unknown_signal(iface_name, signal_name, sender_name);
+    log_signal(iface_name, signal_name, sender_name);
+
+    auto *data = static_cast<DBus::SignalData *>(user_data);
+    log_assert(data != nullptr);
+
+    if(strcmp(signal_name, "Dropped") == 0)
+    {
+        check_parameter_assertions(parameters, 2);
+
+        guint16 raw_stream_id;
+        const gchar *dropped_reason;
+
+        g_variant_get(parameters, "(q&s)", &raw_stream_id, &dropped_reason);
+
+        auto params =
+            UI::Events::mk_params<UI::EventID::VIEW_PLAYER_STREAM_DROPPED>(
+                ID::Stream::make_from_raw_id(raw_stream_id), dropped_reason);
+        data->event_sink_.store_event(UI::EventID::VIEW_PLAYER_STREAM_DROPPED,
+                                      std::move(params));
+    }
+    else
+        unknown_signal(iface_name, signal_name, sender_name);
 }
 
 static std::unique_ptr<MetaData::Set> parse_meta_data(GVariantIter *meta_data_iter)

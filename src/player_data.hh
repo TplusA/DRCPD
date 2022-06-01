@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, 2017, 2019--2021  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2017, 2019--2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -487,6 +487,18 @@ class QueuedStreams
      */
     std::unique_ptr<QueuedStream> remove_front(std::unordered_set<ID::OurStream> &ids);
 
+    /*
+     * Remove some item from queue if exists.
+     *
+     * \param id
+     *     The stream ID to remove from the queue.
+     *
+     * \returns
+     *     The removed stream, or \c nullptr if the queue is empty or if
+     *     the \c id does not occur in the queue.
+     */
+    std::unique_ptr<QueuedStream> remove_anywhere(ID::OurStream id);
+
     /*!
      * Move stream from queue to currently playing, remove currently playing.
      *
@@ -804,6 +816,18 @@ class Data
      * what this function does.
      */
     bool player_dropped_from_queue(const std::vector<ID::Stream> &dropped);
+
+    /*!
+     * Update queue: streamplayer has dropped a stream from the queue without
+     * actually having played it.
+     *
+     * The stream can be any of our queued streams, and it may not be the
+     * stream at the front. There is one key property about the dropped stream,
+     * though: it never hit the player's playback engine, so it never had to
+     * chance to alter the playback state. All we need to do here is to find
+     * and remove the ID from our mirror queue.
+     */
+    void player_rejected_unplayed_stream(ID::Stream dropped);
 
     /*!
      * Player has told us that it now playing a particular stream.
