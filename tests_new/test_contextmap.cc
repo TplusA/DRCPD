@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019, 2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2019, 2020, 2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DCPD.
  *
@@ -27,9 +27,13 @@
 
 #include "context_map.hh"
 
+#define MOCK_EXPECTATION_WITH_EXPECTATION_SEQUENCE_SINGLETON
 #include "mock_backtrace.hh"
 
 TEST_SUITE_BEGIN("Context map");
+
+std::shared_ptr<MockExpectationSequence> mock_expectation_sequence_singleton =
+    std::make_shared<MockExpectationSequence>();
 
 class ContextMapTestsFixture
 {
@@ -40,6 +44,7 @@ class ContextMapTestsFixture
     explicit ContextMapTestsFixture():
         mock_backtrace(std::make_unique<MockBacktrace::Mock>())
     {
+        mock_expectation_sequence_singleton->reset();
         MockBacktrace::singleton = mock_backtrace.get();
     }
 
@@ -47,6 +52,7 @@ class ContextMapTestsFixture
     {
         try
         {
+            mock_expectation_sequence_singleton->done();
             mock_backtrace->done();
         }
         catch(...)
