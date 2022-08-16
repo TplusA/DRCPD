@@ -5,10 +5,5 @@
 /config.h.in
 /config.h.in~
 /configure
-/cscope.out
-/GPATH
-/GRTAGS
-/GTAGS
-/tags
-/*.taghl
+/.ccls
 Makefile.in
