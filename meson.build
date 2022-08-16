@@ -20,7 +20,7 @@
 #
 
 project('DRCPD', ['cpp', 'c'],
-    version: '5.25',
+    version: '5.26',
     default_options: ['warning_level=3', 'cpp_std=c++14', 'buildtype=plain'])
 
 PACKAGE = 'drcpd'

@@ -1,3 +1,14 @@
+2022-08-16  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 5.26 released.
+
+	* Playback: Handle streams dropped by streamplayer directly from
+	  queue.
+
+	* Unit tests: Fix failing tests.
+
+	* Misc: Fix several linter warnings.
+
 2022-04-07  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 5.25 released.
