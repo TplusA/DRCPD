@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019, 2020, 2021  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2019, 2020, 2021, 2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -23,6 +23,10 @@
 #define RNFCALL_GET_LOCATION_TRACE_HH
 
 #include "rnfcall_cookiecall.hh"
+#include "dbuslist_exception.hh"
+#include "idtypes.hh"
+#include "de_tahifi_lists.h"
+#include "gerrorwrapper.hh"
 
 namespace DBusRNF
 {
@@ -39,9 +43,6 @@ class GetLocationTraceCall:
     const unsigned int ref_item_index_;
 
   public:
-    GetLocationTraceCall(GetLocationTraceCall &&) = default;
-    GetLocationTraceCall &operator=(GetLocationTraceCall &&) = default;
-
     explicit GetLocationTraceCall(CookieManagerIface &cm, tdbuslistsNavigation *proxy,
                                   ID::List list_id, unsigned int item_index,
                                   ID::List ref_list_id, unsigned int ref_item_index,

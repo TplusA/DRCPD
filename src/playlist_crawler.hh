@@ -133,7 +133,6 @@ class Iface
 
       public:
         Handle(Handle &&) = default;
-        Handle &operator=(Handle &&) = default;
         ~Handle() { crawler_.deactivate(); }
 
         template <
@@ -494,8 +493,7 @@ class OperationBase: public std::enable_shared_from_this<OperationBase>
     }
 
   public:
-    OperationBase(OperationBase &&) = default;
-    OperationBase &operator=(OperationBase &&) = default;
+    OperationBase(OperationBase &&) = delete;
     virtual ~OperationBase() = default;
 
     void cancel()

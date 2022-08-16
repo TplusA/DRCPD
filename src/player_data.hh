@@ -130,7 +130,6 @@ class NowPlayingInfo
     NowPlayingInfo(const NowPlayingInfo &) = delete;
     NowPlayingInfo(NowPlayingInfo &&) = default;
     NowPlayingInfo &operator=(const NowPlayingInfo &) = delete;
-    NowPlayingInfo &operator=(NowPlayingInfo &&) = default;
 
     explicit NowPlayingInfo(std::function<void(ID::Stream)> &&on_remove_cb):
         stream_id_(ID::Stream::make_invalid()),
@@ -256,7 +255,6 @@ class QueuedStream
 
   public:
     QueuedStream(const QueuedStream &) = delete;
-    QueuedStream(QueuedStream &&) = default;
     QueuedStream &operator=(const QueuedStream &) = delete;
 
     explicit QueuedStream(const ID::OurStream &stream_id,
@@ -830,7 +828,7 @@ class Data
     void player_rejected_unplayed_stream(ID::Stream dropped);
 
     /*!
-     * Player has told us that it now playing a particular stream.
+     * Player has told us that it is now playing a particular stream.
      *
      * This function only sets the player state to playing if the stream has
      * not been switched, i.e., if \p switched_stream is false.

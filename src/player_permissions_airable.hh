@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, 2017, 2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2017, 2019, 2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -21,6 +21,8 @@
 
 #ifndef PLAYER_PERMISSIONS_AIRABLE_HH
 #define PLAYER_PERMISSIONS_AIRABLE_HH
+
+#include "player_permissions.hh"
 
 namespace Player
 {

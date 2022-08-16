@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2020, 2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -93,7 +93,7 @@ class DBusListViewport: public ListViewportBase
 
     explicit DBusListViewport(const std::string &parent_list_iface_name,
                               unsigned int cache_size, const char *which):
-        items_(std::move(parent_list_iface_name + " segment " + which)),
+        items_(parent_list_iface_name + " segment " + which),
         cache_size_(cache_size)
     {
         LoggedLock::configure(lock_, "DBusListViewport", MESSAGE_LEVEL_DEBUG);
@@ -392,7 +392,7 @@ class DBusListSegmentFetcher: public std::enable_shared_from_this<DBusListSegmen
                               std::move(list_viewport_));
     }
 
-    const auto query() const
+    auto query() const
     {
         LOGGED_LOCK_CONTEXT_HINT;
         std::lock_guard<LoggedLock::RecMutex> lock(lock_);

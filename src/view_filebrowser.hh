@@ -611,7 +611,7 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
         listbroker_id_(listbroker_id),
         event_sink_(event_store),
         current_list_id_(0),
-        file_list_(std::move(std::string(name) + " view"), cm,
+        file_list_(std::string(name) + " view", cm,
                    DBus::get_lists_navigation_iface(listbroker_id_),
                    list_contexts_, construct_file_item),
         browse_item_filter_(file_list_.mk_viewport(max_lines, "view"), &file_list_),

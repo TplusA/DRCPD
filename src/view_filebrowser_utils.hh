@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015--2017, 2019--2021  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015--2017, 2019--2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -24,6 +24,7 @@
 
 #include "listnav.hh"
 #include "search_parameters.hh"
+#include "dbuslist.hh"
 #include "rnfcall_get_list_id.hh"
 #include "guard.hh"
 
@@ -139,7 +140,7 @@ class Utils
 
             if(result.list_id_.is_valid())
             {
-                child_list_title = std::move(std::string(result.title_.get_text()));
+                child_list_title = std::string(result.title_.get_text());
                 return result.list_id_;
             }
 

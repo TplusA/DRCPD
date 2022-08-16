@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019, 2020, 2021  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2019, 2020, 2021, 2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -23,6 +23,11 @@
 #define RNFCALL_GET_RANKED_STREAM_LINKS_HH
 
 #include "rnfcall_cookiecall.hh"
+#include "idtypes.hh"
+#include "dbuslist_exception.hh"
+#include "de_tahifi_lists.h"
+#include "gvariantwrapper.hh"
+#include "gerrorwrapper.hh"
 
 namespace DBusRNF
 {
@@ -35,7 +40,6 @@ class GetRankedStreamLinksResult
     GVariantWrapper stream_key_;
 
     GetRankedStreamLinksResult(GetRankedStreamLinksResult &&) = default;
-    GetRankedStreamLinksResult &operator=(GetRankedStreamLinksResult &&) = default;
 
     explicit GetRankedStreamLinksResult(
             ListError &&error, GVariantWrapper &&link_list,
@@ -56,9 +60,6 @@ class GetRankedStreamLinksCall:
   public:
     const ID::List list_id_;
     const unsigned int item_index_;
-
-    GetRankedStreamLinksCall(GetRankedStreamLinksCall &&) = default;
-    GetRankedStreamLinksCall &operator=(GetRankedStreamLinksCall &&) = default;
 
     explicit GetRankedStreamLinksCall(CookieManagerIface &cm,
                                       tdbuslistsNavigation *proxy,

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017, 2019, 2021  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2017, 2019, 2021, 2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -21,6 +21,8 @@
 
 #ifndef SCREEN_IDS_HH
 #define SCREEN_IDS_HH
+
+#include <cinttypes>
 
 namespace ScreenID
 {

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019, 2020, 2021  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2019, 2020, 2021, 2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -40,7 +40,6 @@ class GetRangeResult
     const bool have_meta_data_;
 
     GetRangeResult(GetRangeResult &&) = default;
-    GetRangeResult &operator=(GetRangeResult &&) = default;
 
     explicit GetRangeResult(unsigned int first_item_id,
                             GVariantWrapper &&list, bool have_meta_data):
@@ -85,8 +84,6 @@ class GetRangeCallBase:
     {}
 
   public:
-    GetRangeCallBase(GetRangeCallBase &&) = default;
-    GetRangeCallBase &operator=(GetRangeCallBase &&) = default;
     virtual ~GetRangeCallBase() = default;
 
     ID::List get_list_id() const { return list_id_; }
@@ -215,9 +212,6 @@ class GetRangeCallBase:
 class GetRangeCall: public GetRangeCallBase
 {
   public:
-    GetRangeCall(GetRangeCall &&) = default;
-    GetRangeCall &operator=(GetRangeCall &&) = default;
-
     explicit GetRangeCall(CookieManagerIface &cm, tdbuslistsNavigation *proxy,
                           const std::string &list_iface_name,
                           ID::List list_id, List::Segment &&segment,
@@ -334,9 +328,6 @@ class GetRangeCall: public GetRangeCallBase
 class GetRangeWithMetaDataCall: public GetRangeCallBase
 {
   public:
-    GetRangeWithMetaDataCall(GetRangeWithMetaDataCall &&) = default;
-    GetRangeWithMetaDataCall &operator=(GetRangeWithMetaDataCall &&) = default;
-
     explicit GetRangeWithMetaDataCall(CookieManagerIface &cm,
                                       tdbuslistsNavigation *proxy,
                                       const std::string &list_iface_name,

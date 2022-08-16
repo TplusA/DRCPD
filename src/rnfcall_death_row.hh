@@ -40,9 +40,7 @@ class DeathRow
 
   public:
     DeathRow(const DeathRow &) = delete;
-    DeathRow(DeathRow &&) = default;
     DeathRow &operator=(const DeathRow &) = delete;
-    DeathRow &operator=(DeathRow &&) = default;
 
     explicit DeathRow()
     {

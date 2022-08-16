@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019, 2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2019, 2020, 2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -23,6 +23,11 @@
 #define RNFCALL_GET_URIS_HH
 
 #include "rnfcall_cookiecall.hh"
+#include "idtypes.hh"
+#include "dbuslist_exception.hh"
+#include "de_tahifi_lists.h"
+#include "gvariantwrapper.hh"
+#include "gerrorwrapper.hh"
 
 #include <vector>
 #include <string>
@@ -73,9 +78,6 @@ class GetURIsCall:
   public:
     const ID::List list_id_;
     const unsigned int item_index_;
-
-    GetURIsCall(GetURIsCall &&) = default;
-    GetURIsCall &operator=(GetURIsCall &&) = default;
 
     explicit GetURIsCall(CookieManagerIface &cm, tdbuslistsNavigation *proxy,
                          ID::List list_id, unsigned int item_index,

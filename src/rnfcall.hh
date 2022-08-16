@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019, 2020, 2021  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2019, 2020, 2021, 2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -77,7 +77,6 @@ class ContextData
 
   public:
     ContextData(ContextData &&) = default;
-    ContextData &operator=(ContextData &&) = default;
 
     virtual ~ContextData() = default;
 
@@ -208,9 +207,6 @@ class CallBase
 
   public:
     CallBase(const CallBase &) = delete;
-    CallBase(CallBase &&) = default;
-    CallBase &operator=(const CallBase &) = delete;
-    CallBase &operator=(CallBase &&) = default;
 
     virtual ~CallBase()
     {

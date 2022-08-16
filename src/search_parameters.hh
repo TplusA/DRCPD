@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, 2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2019, 2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -21,6 +21,8 @@
 
 #ifndef SEARCH_PARAMETERS_HH
 #define SEARCH_PARAMETERS_HH
+
+#include <string>
 
 class SearchParameters
 {

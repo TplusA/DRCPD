@@ -91,7 +91,6 @@ class DirectoryCrawler: public Iface, public PublicIface
         {}
 
         Cursor(const Cursor &) = default;
-        Cursor &operator=(Cursor &&) = default;
 
         Cursor &operator=(const Cursor &src)
         {
@@ -222,9 +221,7 @@ class DirectoryCrawler: public Iface, public PublicIface
 
       public:
         FindNextOp(const FindNextOp &) = delete;
-        FindNextOp(FindNextOp &&) = default;
         FindNextOp &operator=(const FindNextOp &) = delete;
-        FindNextOp &operator=(FindNextOp &&) = default;
 
         explicit FindNextOp(std::string &&debug_description, Tag tag,
                             List::DBusList &dbus_list,

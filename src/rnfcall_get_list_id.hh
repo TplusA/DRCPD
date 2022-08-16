@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019, 2020, 2021  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2019, 2020, 2021, 2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -39,7 +39,6 @@ class GetListIDResult
     I18n::String title_;
 
     GetListIDResult(GetListIDResult &&) = default;
-    GetListIDResult &operator=(GetListIDResult &&) = default;
 
     explicit GetListIDResult(ListError &&error, ID::List &&list_id,
                              I18n::String &&title):
@@ -71,8 +70,6 @@ class GetListIDCallBase:
     {}
 
   public:
-    GetListIDCallBase(GetListIDCallBase &&) = default;
-    GetListIDCallBase &operator=(GetListIDCallBase &&) = default;
     virtual ~GetListIDCallBase() = default;
 
     virtual std::shared_ptr<GetListIDCallBase> clone_modified(ID::List list_id) = 0;
@@ -84,9 +81,6 @@ class GetListIDCallBase:
 class GetListIDCall: public GetListIDCallBase
 {
   public:
-    GetListIDCall(GetListIDCall &&) = default;
-    GetListIDCall &operator=(GetListIDCall &&) = default;
-
     explicit GetListIDCall(CookieManagerIface &cm, tdbuslistsNavigation *proxy,
                            ID::List list_id, unsigned int item_index,
                            std::unique_ptr<ContextData> context_data,
@@ -180,9 +174,6 @@ class GetParameterizedListIDCall: public GetListIDCallBase
     std::string search_query_;
 
   public:
-    GetParameterizedListIDCall(GetParameterizedListIDCall &&) = default;
-    GetParameterizedListIDCall &operator=(GetParameterizedListIDCall &&) = default;
-
     explicit GetParameterizedListIDCall(
             CookieManagerIface &cm, tdbuslistsNavigation *proxy,
             ID::List list_id, unsigned int item_index, std::string &&search_query,

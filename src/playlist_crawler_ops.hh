@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, 2017, 2019--2021  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2017, 2019--2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -127,9 +127,7 @@ class FindNextOpBase: public OperationBase
 
   public:
     FindNextOpBase(const FindNextOpBase &) = delete;
-    FindNextOpBase(FindNextOpBase &&) = default;
     FindNextOpBase &operator=(const FindNextOpBase &) = delete;
-    FindNextOpBase &operator=(FindNextOpBase &&) = default;
 
     virtual ~FindNextOpBase() = default;
 
@@ -165,9 +163,7 @@ class GetURIsOpBase: public OperationBase
 
   public:
     GetURIsOpBase(const GetURIsOpBase &) = delete;
-    GetURIsOpBase(GetURIsOpBase &&) = default;
     GetURIsOpBase &operator=(const GetURIsOpBase &) = delete;
-    GetURIsOpBase &operator=(GetURIsOpBase &&) = default;
 
     explicit GetURIsOpBase(std::string &&debug_description,
                            CompletionCallback &&completion_callback,
@@ -215,7 +211,6 @@ class DefaultSettings: public DefaultSettingsBase
     DefaultSettings(const DefaultSettings &) = default;
     DefaultSettings(DefaultSettings &&) = default;
     DefaultSettings &operator=(const DefaultSettings &) = delete;
-    DefaultSettings &operator=(DefaultSettings &&) = default;
 
     explicit DefaultSettings(Direction direction,
                              FindNextOpBase::RecursiveMode recursive_mode):

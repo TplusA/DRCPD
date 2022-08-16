@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016--2021  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016--2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -51,9 +51,7 @@ class OAuthRequest
 
   public:
     OAuthRequest(const OAuthRequest &) = delete;
-    OAuthRequest(OAuthRequest &&) = default;
     OAuthRequest &operator=(const OAuthRequest &) = delete;
-    OAuthRequest &operator=(OAuthRequest &&) = default;
 
     explicit OAuthRequest():
         context_id_(List::ContextMap::INVALID_ID),

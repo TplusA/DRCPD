@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019, 2020, 2021  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2019, 2020, 2021, 2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -44,7 +44,6 @@ class RealizeLocationResult
     I18n::String title_;
 
     RealizeLocationResult(RealizeLocationResult &&) = default;
-    RealizeLocationResult &operator=(RealizeLocationResult &&) = default;
 
     explicit RealizeLocationResult(ListError &&error,
                                    ID::List &&list_id, unsigned int item_index,
@@ -71,9 +70,6 @@ class RealizeLocationCall:
     const std::string url_;
 
   public:
-    RealizeLocationCall(RealizeLocationCall &&) = default;
-    RealizeLocationCall &operator=(RealizeLocationCall &&) = default;
-
     explicit RealizeLocationCall(CookieManagerIface &cm, tdbuslistsNavigation *proxy,
                                  std::string &&url,
                                  std::unique_ptr<ContextData> context_data,
