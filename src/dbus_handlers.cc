@@ -494,7 +494,7 @@ void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
             auto params =
                 UI::Events::mk_params<UI::EventID::VIEW_PLAYER_NOW_PLAYING>(
                     ID::Stream::make_from_raw_id(raw_stream_id),
-                    std::move(GVariantWrapper(stream_key_variant)),
+                    GVariantWrapper(stream_key_variant),
                     queue_is_full, std::vector<ID::Stream>(),
                     std::move(md), url_string);
             move_dropped_stream_ids(std::get<3>(params->get_specific_non_const()),
@@ -1061,10 +1061,10 @@ gboolean dbusmethod_config_set_value(tdbusConfigurationWrite *object,
                                                &local_key, section))
     {
         if(section == Configuration::DrcpdValues::CONFIGURATION_SECTION_NAME)
-            result = insert_packed_value(std::move(data->drcpd_config_mgr_.get_update_scope(origin)),
+            result = insert_packed_value(data->drcpd_config_mgr_.get_update_scope(origin),
                                          local_key, value);
         else if(section == Configuration::I18nValues::CONFIGURATION_SECTION_NAME)
-            result = insert_packed_value(std::move(data->i18n_config_mgr_.get_update_scope(origin)),
+            result = insert_packed_value(data->i18n_config_mgr_.get_update_scope(origin),
                                          local_key, value);
     }
 
@@ -1153,9 +1153,9 @@ gboolean dbusmethod_config_set_multiple_values(tdbusConfigurationWrite *object,
                                                    &local_key, section))
         {
             if(section == Configuration::DrcpdValues::CONFIGURATION_SECTION_NAME)
-                result = scope_drcpd().insert_boxed(key, std::move(GVariantWrapper(value)));
+                result = scope_drcpd().insert_boxed(key, GVariantWrapper(value));
             else if(section == Configuration::I18nValues::CONFIGURATION_SECTION_NAME)
-                result = scope_i18n().insert_boxed(key, std::move(GVariantWrapper(value)));
+                result = scope_i18n().insert_boxed(key, GVariantWrapper(value));
         }
 
         switch(result)

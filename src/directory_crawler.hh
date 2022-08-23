@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, 2017, 2019--2021  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2017, 2019--2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -311,9 +311,9 @@ class DirectoryCrawler: public Iface, public PublicIface
 
       public:
         GetURIsOp(const GetURIsOp &) = delete;
-        GetURIsOp(GetURIsOp &&) = default;
+        GetURIsOp(GetURIsOp &&) = delete;
         GetURIsOp &operator=(const GetURIsOp &) = delete;
-        GetURIsOp &operator=(GetURIsOp &&) = default;
+        GetURIsOp &operator=(GetURIsOp &&) = delete;
 
         explicit GetURIsOp(std::string &&debug_description,
                            DBusRNF::CookieManagerIface &cm,

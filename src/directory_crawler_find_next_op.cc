@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019, 2020, 2021  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2019, 2020, 2021, 2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -221,7 +221,7 @@ Playlist::Crawler::DirectoryCrawler::FindNextOp::finish_with_current_item_or_con
     const auto hint_result =
         position_->hint_planned_access(
             dbus_list_, is_forward_direction(direction_),
-            [op = std::move(std::static_pointer_cast<FindNextOp>(shared_from_this()))]
+            [op = std::static_pointer_cast<FindNextOp>(shared_from_this())]
             (auto op_result)
             {
                 if(!op->is_op_active())

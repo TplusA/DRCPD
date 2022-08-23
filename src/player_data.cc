@@ -77,7 +77,7 @@ mk_async_resolve_redirect(tdbusAirable *proxy,
                           "Async D-Bus method call failed: %s",
                           error.failed() ? error->message : "*NULL*");
 
-            promise.set_value(std::move(std::make_tuple(error_code, uri)));
+            promise.set_value(std::make_tuple(error_code, uri));
         },
         std::move(result_available_fn),
         [] (Player::AsyncResolveRedirect::PromiseReturnType &values)
@@ -970,7 +970,7 @@ Player::Data::get_queued_meta_data(const ID::OurStream &stream_id) const
     return
         queued_streams_.with_stream<const MetaData::Set &>(
             stream_id,
-            [stream_id] (const QueuedStream *qs) -> const MetaData::Set &
+            [] (const QueuedStream *qs) -> const MetaData::Set &
             {
                 return qs != nullptr
                     ? qs->get_meta_data()

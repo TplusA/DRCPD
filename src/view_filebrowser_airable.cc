@@ -231,7 +231,7 @@ bool ViewFileBrowser::AirableView::register_audio_sources()
         {
             /* take any string as is if it begins with "airable." or if it is
              * exactly the string "airable" */
-            new_audio_source(std::move(std::string(ctx.string_id_)), std::move(cb));
+            new_audio_source(std::string(ctx.string_id_), std::move(cb));
         }
         else
         {

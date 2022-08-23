@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015--2021  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015--2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -438,7 +438,7 @@ List::QueryContextEnterList::restart_if_necessary(std::shared_ptr<QueryContextEn
                 std::make_shared<QueryContextEnterList>(
                     *ctx_local_ref, ctx_local_ref->parameters_.associated_viewport_,
                     replacement_id, ctx_local_ref->parameters_.line_,
-                    std::move(I18n::String(ctx_local_ref->parameters_.title_)));
+                    I18n::String(ctx_local_ref->parameters_.title_));
 
             if(new_ctx == nullptr)
                 msg_out_of_memory("asynchronous context (restart enter list)");

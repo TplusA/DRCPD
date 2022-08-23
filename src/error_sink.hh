@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017, 2019, 2021  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2017, 2019, 2021, 2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -104,37 +104,37 @@ class Sink
 
     void sink(ScreenID::Error code)
     {
-        sink_error(std::move(Error(code)));
+        sink_error(Error(code));
     }
 
     void sink(ScreenID::Error code, std::string &&message)
     {
-        sink_error(std::move(Error(code, std::move(message))));
+        sink_error(Error(code, std::move(message)));
     }
 
     void sink(ScreenID::Error code, const char *message)
     {
         if(message != nullptr)
-            sink_error(std::move(Error(code, message)));
+            sink_error(Error(code, message));
         else
-            sink_error(std::move(Error(code)));
+            sink_error(Error(code));
     }
 
     void sink(ScreenID::Error code, std::string &&message,
               const std::string &context_id)
     {
-        sink_error(std::move(Error(code, std::move(message), context_id)));
+        sink_error(Error(code, std::move(message), context_id));
     }
 
     void sink(ScreenID::Error code, const char *message,
               const std::string &context_id)
     {
         if(message != nullptr)
-            sink_error(std::move(Error(code, message, context_id)));
+            sink_error(Error(code, message, context_id));
         else if(context_id.empty())
-            sink_error(std::move(Error(code)));
+            sink_error(Error(code));
         else
-            sink_error(std::move(Error(code, false, context_id)));
+            sink_error(Error(code, false, context_id));
     }
 
     static inline Sink *get_singleton() { return error_sink_singleton; }

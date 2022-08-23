@@ -636,8 +636,7 @@ int main(int argc, char *argv[])
     drcpd_config_manager.load();
 
     static const Configuration::I18nValues
-        default_i18n_settings(std::move(std::string("en")),
-                              std::move(std::string("US")));
+        default_i18n_settings(std::string("en"), std::string("US"));
     I18nConfigMgr i18n_config_manager(configuration_file_name, default_i18n_settings);
     i18n_config_manager.load();
 

@@ -1682,6 +1682,10 @@ static GVariant *to_gvariant(const MetaData::Set &md)
  * \param asrc
  *     Audio source to take D-Bus proxies from.
  *
+ * \param reason
+ *     String which describes in which contexts the URI is sent to the player.
+ *     It is sent along with the play or pause request to the player.
+ *
  * \returns
  *     True in case of success, false otherwise.
  */

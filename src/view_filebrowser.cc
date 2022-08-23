@@ -599,7 +599,7 @@ const std::string &ViewFileBrowser::View::get_status_string_for_empty_root()
         else
             os << XmlEscape(_("empty"));
 
-        status_string_for_empty_root_ = std::move(os.str());
+        status_string_for_empty_root_ = os.str();
     }
 
     return status_string_for_empty_root_;
@@ -996,7 +996,7 @@ void ViewFileBrowser::View::try_resume_from_arguments(
 std::unique_ptr<Player::Resumer>
 ViewFileBrowser::View::try_resume_from_file_begin(const Player::AudioSource &asrc)
 {
-    auto url(std::move(view_manager_->move_resume_url_by_audio_source_id(asrc.id_)));
+    auto url(view_manager_->move_resume_url_by_audio_source_id(asrc.id_));
 
     if(url.empty())
         return nullptr;
@@ -1288,7 +1288,7 @@ ViewFileBrowser::View::process_event(UI::ViewEventID event_id,
                     try_resume_from_arguments(
                         "Find item for resuming by StrBo URL",
                         Playlist::Crawler::DirectoryCrawler::FindNextOp::Tag::DIRECT_JUMP_TO_STRBO_URL,
-                        std::move(res->take_crawler_handle()),
+                        res->take_crawler_handle(),
                         loc.ref_list_id_, loc.ref_item_index_,
                         loc.list_id_, loc.item_index_,
                         loc.trace_length_, std::move(loc.title_),
@@ -1981,8 +1981,8 @@ static void point_to_list_context_root__got_parent_link(
         calls.context_jump_.put_parent_list_id(list_id);
         file_list.enter_list_async(associated_viewport, list_id, line,
                                    List::QueryContextEnterList::CallerID::ENTER_CONTEXT_ROOT,
-                                   std::move(I18n::String(title_translatable,
-                                                          title != nullptr ? title : "")));
+                                   I18n::String(title_translatable,
+                                                title != nullptr ? title : ""));
     }
     else
     {
@@ -2399,7 +2399,7 @@ bool ViewFileBrowser::View::point_to_any_location(
 
     switch(file_list_.enter_list_async(associated_viewport, list_id, line_number,
                                        List::QueryContextEnterList::CallerID::ENTER_ANYWHERE,
-                                       std::move(I18n::String(get_dynamic_title()))))
+                                       I18n::String(get_dynamic_title())))
     {
       case List::AsyncListIface::OpResult::STARTED:
       case List::AsyncListIface::OpResult::SUCCEEDED:
@@ -2463,8 +2463,8 @@ static void point_to_parent_link__got_parent_link(
     if(list_id.is_valid())
         file_list.enter_list_async(associated_viewport, list_id, line,
                                    List::QueryContextEnterList::CallerID::ENTER_PARENT,
-                                   std::move(I18n::String(title_translatable,
-                                                          title != nullptr ? title : "")));
+                                   I18n::String(title_translatable,
+                                                title != nullptr ? title : ""));
     else
     {
         if(line == 1)
@@ -2552,7 +2552,7 @@ void ViewFileBrowser::View::reload_list()
     if(line >= 0)
         file_list_.enter_list_async(get_viewport().get(), current_list_id_, line,
                                     List::QueryContextEnterList::CallerID::RELOAD_LIST,
-                                    std::move(I18n::String(get_dynamic_title())));
+                                    I18n::String(get_dynamic_title()));
     else
         point_to_root_directory();
 }

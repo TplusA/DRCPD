@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2015, 2016, 2019, 2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -534,8 +535,6 @@ class Nav
     class const_iterator
     {
       private:
-        const_iterator &operator=(const const_iterator &);
-
         const Nav &nav_;
         unsigned int item_;
         unsigned int line_number_;
