@@ -408,7 +408,7 @@ class OperationBase: public std::enable_shared_from_this<OperationBase>
      */
     template <
         typename T,
-        typename = std::enable_if_t<std::is_convertible<T &, OperationBase &>::value>
+        typename = std::enable_if_t<std::is_convertible<T *, OperationBase *>::value>
     >
     using CompletionCallbackBase = std::function<bool(T &op)>;
 
