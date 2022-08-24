@@ -166,16 +166,33 @@ static void send_current_stream_info_to_dcpd(const Player::Data &player_data)
         return;
     }
 
+    static stream_id_t sent_stream_id;
+    static std::string sent_title;
+    static std::string sent_url;
+
+    if(sent_stream_id == stream_id.get_raw_id() &&
+       sent_title == md.values_[MetaData::Set::ID::INTERNAL_DRCPD_TITLE] &&
+       sent_url == md.values_[MetaData::Set::ID::INTERNAL_DRCPD_URL])
+        return;
+
+    sent_stream_id = stream_id.get_raw_id();
+    sent_title = md.values_[MetaData::Set::ID::INTERNAL_DRCPD_TITLE];
+    sent_url = md.values_[MetaData::Set::ID::INTERNAL_DRCPD_URL];
+
     GErrorWrapper error;
 
     tdbus_dcpd_playback_call_set_stream_info_sync(
-            DBus::get_dcpd_playback_iface(), stream_id.get_raw_id(),
-            md.values_[MetaData::Set::ID::INTERNAL_DRCPD_TITLE].c_str(),
-            md.values_[MetaData::Set::ID::INTERNAL_DRCPD_URL].c_str(),
+            DBus::get_dcpd_playback_iface(),
+            sent_stream_id, sent_title.c_str(), sent_url.c_str(),
             NULL, error.await());
 
     if(error.log_failure("Set stream info"))
+    {
         msg_error(0, LOG_NOTICE, "Failed sending stream information to dcpd");
+        sent_stream_id = 0;
+        sent_title.clear();
+        sent_url.clear();
+    }
 }
 
 static void lookup_source_and_nonconst_view(
