@@ -614,18 +614,6 @@ void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
         data->event_sink_.store_event(UI::EventID::VIEW_PLAYER_STREAM_POSITION,
                                       std::move(params));
     }
-    else if(strcmp(signal_name, "Buffer") == 0)
-    {
-        check_parameter_assertions(parameters, 2);
-
-        guchar fill_level_percentage;
-        gboolean is_cumulating;
-
-        g_variant_get(parameters, "(yb)",
-                      &fill_level_percentage, &is_cumulating);
-        msg_info("Player buffer level is at %u%%, %s",
-                 fill_level_percentage, is_cumulating ? "cumulating" : "playing");
-    }
     else if(strcmp(signal_name, "SpeedChanged") == 0)
     {
         check_parameter_assertions(parameters, 2);
@@ -656,6 +644,10 @@ void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
                 parse_shuffle_mode(shuffle_mode));
         data->event_sink_.store_event(UI::EventID::VIEW_PLAYER_PLAYBACK_MODE_CHANGED,
                                       std::move(params));
+    }
+    else if(strcmp(signal_name, "Buffer") == 0)
+    {
+        /* ignored */
     }
     else
         unknown_signal(iface_name, signal_name, sender_name);
