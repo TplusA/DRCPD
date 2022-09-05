@@ -1,3 +1,14 @@
+2022-09-05  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 5.27 released.
+
+	* dbus: Do not send stream information to dcpd if the information
+	  haven't changed. This avoids wasting a good deal of CPU cycles.
+
+	* Misc: Fix uninitialized memory access.
+
+	* Logging: Do not write buffering information to the log.
+
 2022-08-16  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 5.26 released.
