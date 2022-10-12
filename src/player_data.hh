@@ -830,20 +830,14 @@ class Data
     /*!
      * Player has told us that it is now playing a particular stream.
      *
-     * This function only sets the player state to playing if the stream has
-     * not been switched, i.e., if \p switched_stream is false.
+     * This function does not change the player state.
      */
-    bool player_now_playing_stream(ID::Stream stream_id, std::string &&stream_url,
-                                   bool switched_stream)
+    void player_now_playing_stream(ID::Stream stream_id, std::string &&stream_url)
     {
-        if(!switched_stream)
-            return set_player_state(Player::PlayerState::PLAYING);
-
         if(ID::OurStream::compatible_with(stream_id))
             stream_has_changed(stream_id);
 
         now_playing_.now_playing(stream_id, std::move(stream_url));
-        return set_player_state(stream_id, Player::PlayerState::PLAYING);
     }
 
     /*!

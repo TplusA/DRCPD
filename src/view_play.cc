@@ -603,8 +603,8 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
             std::string &url_string(std::get<5>(plist));
 
             player_data_.player_dropped_from_queue(dropped_ids);
-            player_data_.player_now_playing_stream(
-                        stream_id, std::move(url_string), switched_stream);
+            if(switched_stream)
+                player_data_.player_now_playing_stream(stream_id, std::move(url_string));
             player_data_.get_now_playing().put_meta_data(stream_id, std::move(meta_data));
 
             player_control_.play_notification(stream_id, switched_stream,
