@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019, 2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2019, 2020, 2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -57,29 +57,6 @@ enum class CallState
     /*! Sentinel. */
     LAST_VALUE = ABOUT_TO_DESTROY,
 };
-
-/*!
- * Whether or not the state is a final state.
- */
-static inline bool state_is_done(CallState state)
-{
-    switch(state)
-    {
-      case CallState::RESULT_FETCHED:
-      case CallState::ABORTED_BY_LIST_BROKER:
-      case CallState::FAILED:
-      case CallState::ABOUT_TO_DESTROY:
-        return true;
-
-      case CallState::INITIALIZED:
-      case CallState::WAIT_FOR_NOTIFICATION:
-      case CallState::READY_TO_FETCH:
-      case CallState::ABORTING:
-        break;
-    }
-
-    return false;
-}
 
 /*!
  * Whether or not the state indicates that the requested data are available.
