@@ -70,7 +70,7 @@ List::Item *ViewFileBrowser::construct_file_item(const char *name,
 }
 
 static ID::List finish_async_enter_dir_op(List::AsyncListIface::OpResult result,
-                                          const std::shared_ptr<List::QueryContextEnterList> &ctx,
+                                          const List::QueryContextEnterList *const ctx,
                                           ViewFileBrowser::View::AsyncCalls &calls,
                                           ID::List current_list_id,
                                           ViewSerializeBase &view)
@@ -107,7 +107,7 @@ static ID::List finish_async_enter_dir_op(List::AsyncListIface::OpResult result,
 
 bool ViewFileBrowser::View::handle_enter_list_event_finish(
         List::AsyncListIface::OpResult result,
-        const std::shared_ptr<List::QueryContextEnterList> &ctx)
+        const List::QueryContextEnterList *const ctx)
 {
     if(result == List::AsyncListIface::OpResult::STARTED)
         return false;
@@ -141,7 +141,7 @@ bool ViewFileBrowser::View::handle_enter_list_event_finish(
 
 void ViewFileBrowser::View::handle_enter_list_event_update_after_finish(
         List::AsyncListIface::OpResult result,
-        const std::shared_ptr<List::QueryContextEnterList> &ctx)
+        const List::QueryContextEnterList *const ctx)
 {
     if(result == List::AsyncListIface::OpResult::SUCCEEDED)
     {
@@ -293,7 +293,7 @@ bool ViewFileBrowser::View::init()
         [this] (List::AsyncListIface::OpResult result,
                 std::shared_ptr<List::QueryContextEnterList> ctx)
         {
-            handle_enter_list_event(result, ctx);
+            handle_enter_list_event(result, ctx.get());
         });
 
     (void)point_to_root_directory();

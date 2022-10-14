@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015--2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015--2020, 2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -102,9 +102,9 @@ class TreeItem: virtual public Item
         child_list_(nullptr)
     {}
 
-    void set_child_list(const std::shared_ptr<ListIface> &list)
+    void set_child_list(std::shared_ptr<ListIface> list)
     {
-        child_list_ = list;
+        child_list_ = std::move(list);
     }
 
     const List::ListIface *down() const

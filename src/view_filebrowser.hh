@@ -935,16 +935,16 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
     virtual void append_referenced_lists(std::vector<ID::List> &list_ids) const {}
 
     virtual void handle_enter_list_event(List::AsyncListIface::OpResult result,
-                                         const std::shared_ptr<List::QueryContextEnterList> &ctx)
+                                         const List::QueryContextEnterList *const ctx)
     {
         if(handle_enter_list_event_finish(result, ctx))
             handle_enter_list_event_update_after_finish(result, ctx);
     }
 
     bool handle_enter_list_event_finish(List::AsyncListIface::OpResult result,
-                                        const std::shared_ptr<List::QueryContextEnterList> &ctx);
+                                        const List::QueryContextEnterList *const ctx);
     void handle_enter_list_event_update_after_finish(List::AsyncListIface::OpResult result,
-                                                     const std::shared_ptr<List::QueryContextEnterList> &ctx);
+                                                     const List::QueryContextEnterList *const ctx);
 
   private:
     void serialized_item_state_changed(const DBusRNF::GetRangeCallBase &call,

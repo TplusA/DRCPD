@@ -305,7 +305,7 @@ class AirableView: public View
 
     void cancel_and_delete_all_async_calls() final override;
     void handle_enter_list_event(List::AsyncListIface::OpResult result,
-                                 const std::shared_ptr<List::QueryContextEnterList> &ctx) final override;
+                                 const List::QueryContextEnterList *const ctx) final override;
     bool point_to_child_directory(const SearchParameters *search_parameters = nullptr) final override;
     GoToSearchForm point_to_search_form(List::context_id_t ctx_id) final override;
     void log_out_from_context(List::context_id_t context) final override;

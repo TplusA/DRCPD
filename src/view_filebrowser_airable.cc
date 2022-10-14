@@ -613,8 +613,9 @@ void ViewFileBrowser::AirableView::finish_async_point_to_child_directory()
     file_list_.detach_viewport(std::move(viewport));
 }
 
-void ViewFileBrowser::AirableView::handle_enter_list_event(List::AsyncListIface::OpResult result,
-                                                           const std::shared_ptr<List::QueryContextEnterList> &ctx)
+void ViewFileBrowser::AirableView::handle_enter_list_event(
+        List::AsyncListIface::OpResult result,
+        const List::QueryContextEnterList *const ctx)
 {
     if(!View::handle_enter_list_event_finish(result, ctx))
         return;
