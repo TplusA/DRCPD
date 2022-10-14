@@ -1,3 +1,12 @@
+2022-10-14  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 5.28 released.
+
+	* Playback: Fix handling of play and pause state. This avoids
+	  displaying pause state while the player is actually playing.
+
+	* Stability: Fix crash during startup and on audio source selection.
+
 2022-09-05  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 5.27 released.
