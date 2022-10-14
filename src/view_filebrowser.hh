@@ -145,7 +145,12 @@ class JumpToContext
         return result;
     }
 
-    bool is_jumping_to_context() const { return state_ != State::NOT_JUMPING; }
+    bool is_jumping_to_any_context() const { return state_ != State::NOT_JUMPING; }
+
+    bool is_jumping_to_context(const List::context_id_t &ctx_id) const
+    {
+        return state_ != State::NOT_JUMPING && destination_ == ctx_id;
+    }
 
     State get_state() const { return state_; }
 

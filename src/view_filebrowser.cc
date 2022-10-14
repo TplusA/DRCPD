@@ -143,6 +143,9 @@ void ViewFileBrowser::View::handle_enter_list_event_update_after_finish(
         List::AsyncListIface::OpResult result,
         const List::QueryContextEnterList *const ctx)
 {
+    auto lock(async_calls_.acquire_lock());
+    const bool is_jumping_to_context = async_calls_.context_jump_.is_jumping_to_any_context();
+
     if(result == List::AsyncListIface::OpResult::SUCCEEDED)
     {
         browse_item_filter_.list_content_changed();
@@ -162,8 +165,7 @@ void ViewFileBrowser::View::handle_enter_list_event_update_after_finish(
         {
           case List::QueryContextEnterList::CallerID::ENTER_CONTEXT_ROOT:
             {
-                auto lock(async_calls_.acquire_lock());
-                log_assert(async_calls_.context_jump_.is_jumping_to_context());
+                log_assert(is_jumping_to_context);
 
                 switch(async_calls_.context_jump_.get_state())
                 {
@@ -189,8 +191,6 @@ void ViewFileBrowser::View::handle_enter_list_event_update_after_finish(
             break;
 
           case List::QueryContextEnterList::CallerID::ENTER_ANYWHERE:
-            log_assert(!async_calls_.context_jump_.is_jumping_to_context());
-
             if(async_calls_.jump_anywhere_context_boundary_.is_valid())
                 context_restriction_.set_boundary(async_calls_.jump_anywhere_context_boundary_);
             else
@@ -206,38 +206,36 @@ void ViewFileBrowser::View::handle_enter_list_event_update_after_finish(
           case List::QueryContextEnterList::CallerID::CRAWLER_FIRST_ENTRY:
           case List::QueryContextEnterList::CallerID::CRAWLER_DESCEND:
           case List::QueryContextEnterList::CallerID::CRAWLER_ASCEND:
-            log_assert(!async_calls_.context_jump_.is_jumping_to_context());
-            break;
-
           case List::QueryContextEnterList::CallerID::RELOAD_LIST:
             break;
         }
     }
 
+    lock.unlock();
+
     if(!current_list_id_.is_valid())
+        browse_item_filter_.list_content_changed();
+
+    switch(ctx->get_caller_id())
     {
-        switch(ctx->get_caller_id())
-        {
-          case List::QueryContextEnterList::CallerID::ENTER_ROOT:
-            break;
+      case List::QueryContextEnterList::CallerID::ENTER_ROOT:
+      case List::QueryContextEnterList::CallerID::ENTER_CONTEXT_ROOT:
+        break;
 
-          case List::QueryContextEnterList::CallerID::ENTER_CONTEXT_ROOT:
-            break;
-
-          case List::QueryContextEnterList::CallerID::ENTER_CHILD:
-          case List::QueryContextEnterList::CallerID::ENTER_PARENT:
-          case List::QueryContextEnterList::CallerID::ENTER_ANYWHERE:
-          case List::QueryContextEnterList::CallerID::RELOAD_LIST:
+      case List::QueryContextEnterList::CallerID::ENTER_CHILD:
+      case List::QueryContextEnterList::CallerID::ENTER_PARENT:
+      case List::QueryContextEnterList::CallerID::ENTER_ANYWHERE:
+      case List::QueryContextEnterList::CallerID::RELOAD_LIST:
+        if(!is_jumping_to_context && !current_list_id_.is_valid())
             point_to_root_directory();
-            break;
+        break;
 
-          case List::QueryContextEnterList::CallerID::CRAWLER_RESET_POSITION:
-          case List::QueryContextEnterList::CallerID::CRAWLER_FIRST_ENTRY:
-          case List::QueryContextEnterList::CallerID::CRAWLER_DESCEND:
-          case List::QueryContextEnterList::CallerID::CRAWLER_ASCEND:
-            BUG("%s: Wrong caller ID in %s()", name_, __PRETTY_FUNCTION__);
-            break;
-        }
+      case List::QueryContextEnterList::CallerID::CRAWLER_RESET_POSITION:
+      case List::QueryContextEnterList::CallerID::CRAWLER_FIRST_ENTRY:
+      case List::QueryContextEnterList::CallerID::CRAWLER_DESCEND:
+      case List::QueryContextEnterList::CallerID::CRAWLER_ASCEND:
+        BUG("%s: Wrong caller ID in %s()", name_, __PRETTY_FUNCTION__);
+        break;
     }
 
     if(result == List::AsyncListIface::OpResult::SUCCEEDED ||
@@ -511,7 +509,16 @@ void ViewFileBrowser::View::focus()
                                                    "skipper"), &file_list_);
 
     if(!current_list_id_.is_valid() && !is_fetching_directory())
-        (void)point_to_root_directory();
+    {
+        bool can_jump;
+        {
+            auto lock(lock_async_calls());
+            can_jump = !async_calls_.context_jump_.is_jumping_to_any_context();
+        }
+
+        if(can_jump)
+            (void)point_to_root_directory();
+    }
 
     if(resumer_ != nullptr)
         handle_resume_request(resumer_, get_audio_source(), name_);
@@ -1387,7 +1394,7 @@ void ViewFileBrowser::View::process_broadcast(UI::BroadcastEventID event_id,
 ViewFileBrowser::View::ListAccessPermission
 ViewFileBrowser::View::may_access_list_for_serialization() const
 {
-    if(async_calls_.context_jump_.is_jumping_to_context())
+    if(async_calls_.context_jump_.is_jumping_to_any_context())
         return ListAccessPermission::DENIED__LOADING;
 
     if(context_restriction_.is_blocked())
@@ -2011,6 +2018,9 @@ bool ViewFileBrowser::View::point_to_root_directory()
 
 bool ViewFileBrowser::View::do_point_to_context_root_directory(List::context_id_t ctx_id)
 {
+    BUG_IF(async_calls_.get_context_root_ != nullptr,
+           "Replacing active GetContextRoot call");
+
     async_calls_.get_context_root_ = std::make_shared<AsyncCalls::GetContextRoot>(
         file_list_.get_dbus_proxy(),
         [] (GObject *source_object) { return TDBUS_LISTS_NAVIGATION(source_object); },
@@ -2050,7 +2060,8 @@ bool ViewFileBrowser::View::do_point_to_context_root_directory(List::context_id_
         "get context root directory",
         "AsyncCalls::GetContextRoot", MESSAGE_LEVEL_DEBUG);
 
-    async_calls_.context_jump_.cancel();
+    if(async_calls_.context_jump_.is_jumping_to_context(ctx_id))
+        return false;
 
     if(async_calls_.get_context_root_ == nullptr)
     {
@@ -2133,7 +2144,7 @@ static bool sink_point_to_child_error(ListError::Code error,
         break;
 
       case ListError::Code::AUTHENTICATION:
-        if(jtc.is_jumping_to_context())
+        if(jtc.is_jumping_to_any_context())
             ViewFileBrowser::StandardError::service_authentication_failure(
                 list_contexts, jtc.get_destination(), is_error_allowed);
         else if(child_name.empty())
@@ -2189,7 +2200,7 @@ static bool sink_point_to_child_error(ListError::Code error,
         break;
     }
 
-    if(jtc.is_jumping_to_context())
+    if(jtc.is_jumping_to_any_context())
         jtc.cancel();
 
     return true;
@@ -2227,7 +2238,7 @@ static void point_to_child_directory__got_list_id(
             {
                 List::QueryContextEnterList::CallerID caller_id;
 
-                if(calls.context_jump_.is_jumping_to_context())
+                if(calls.context_jump_.is_jumping_to_any_context())
                 {
                     calls.context_jump_.put_context_list_id(result.list_id_);
                     caller_id =
