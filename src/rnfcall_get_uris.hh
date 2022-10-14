@@ -69,7 +69,7 @@ class GetURIsResult
     }
 };
 
-class GetURIsCall:
+class GetURIsCall final:
     public DBusRNF::CookieCall<GetURIsResult, Busy::Source::GETTING_ITEM_URI>
 {
   private:

@@ -50,7 +50,7 @@ class GetRankedStreamLinksResult
     {}
 };
 
-class GetRankedStreamLinksCall:
+class GetRankedStreamLinksCall final:
     public DBusRNF::CookieCall<GetRankedStreamLinksResult,
                                Busy::Source::GETTING_ITEM_STREAM_LINKS>
 {

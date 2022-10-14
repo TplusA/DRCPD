@@ -209,7 +209,7 @@ class GetRangeCallBase:
     const void *get_proxy_ptr() const final override { return proxy_; }
 };
 
-class GetRangeCall: public GetRangeCallBase
+class GetRangeCall final: public GetRangeCallBase
 {
   public:
     explicit GetRangeCall(CookieManagerIface &cm, tdbuslistsNavigation *proxy,
@@ -325,7 +325,7 @@ class GetRangeCall: public GetRangeCallBase
     const char *name() const final override { return "GetRange"; }
 };
 
-class GetRangeWithMetaDataCall: public GetRangeCallBase
+class GetRangeWithMetaDataCall final: public GetRangeCallBase
 {
   public:
     explicit GetRangeWithMetaDataCall(CookieManagerIface &cm,

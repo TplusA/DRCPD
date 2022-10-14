@@ -31,7 +31,7 @@
 namespace DBusRNF
 {
 
-class GetLocationTraceCall:
+class GetLocationTraceCall final:
     public DBusRNF::CookieCall<std::tuple<const ListError, const std::string>,
                                Busy::Source::GETTING_LOCATION_TRACE>
 {

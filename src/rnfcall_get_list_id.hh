@@ -78,7 +78,7 @@ class GetListIDCallBase:
     const void *get_proxy_ptr() const final override { return proxy_; }
 };
 
-class GetListIDCall: public GetListIDCallBase
+class GetListIDCall final: public GetListIDCallBase
 {
   public:
     explicit GetListIDCall(CookieManagerIface &cm, tdbuslistsNavigation *proxy,
@@ -168,7 +168,7 @@ class GetListIDCall: public GetListIDCallBase
     const char *name() const final override { return "GetListId"; }
 };
 
-class GetParameterizedListIDCall: public GetListIDCallBase
+class GetParameterizedListIDCall final: public GetListIDCallBase
 {
   private:
     std::string search_query_;

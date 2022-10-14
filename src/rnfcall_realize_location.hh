@@ -61,7 +61,7 @@ class RealizeLocationResult
     {}
 };
 
-class RealizeLocationCall:
+class RealizeLocationCall final:
     public DBusRNF::CookieCall<RealizeLocationResult,
                                Busy::Source::REALIZING_LOCATION_TRACE>
 {
