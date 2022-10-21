@@ -1,3 +1,10 @@
+2022-10-21  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 5.29 released.
+
+	* Playback: When skipping app streams in pause mode, automatically
+	  leave pause mode and play the next stream.
+
 2022-10-14  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 5.28 released.
