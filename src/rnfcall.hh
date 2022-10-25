@@ -42,8 +42,15 @@ class CallBase;
 /*!
  * Base class for extra data and notifications used during RNF calls.
  *
- * Any data can be added to derived classes for use in client code which
- * processes RNF calls.
+ * #ContextData objects are used for associating any extra data (or even
+ * functionality) with an RNF call, and passing these back to the caller when
+ * the call finishes. Any data may be added to derived classes for use in
+ * client code which processes the RNF call results.
+ *
+ * For convenience, the caller may want to use a #DBusRNF::Chain object if it
+ * doesn't require more data than can conveniently be passed via a lambda
+ * function. The #DBusRNF::Chain class merely specializes the notification
+ * function and calls it so that no extra downcast is required.
  */
 class ContextData
 {
@@ -92,6 +99,12 @@ class ContextData
 
 /*!
  * Generic context data for simple notification.
+ *
+ * This class extends from #DBusRNF::ContextData, and adds nothing but a
+ * specialized notification callback. The \c call is converted to the type
+ * passed in the \p CallType template parameter, adding type-safety and freeing
+ * the callback from downcasting the #DBusRNF::CallBase reference to the
+ * correct derived type.
  *
  * Frequently, client code which requires notification can get away by using
  * this class template and passing any extra data by a lambda function. It is
