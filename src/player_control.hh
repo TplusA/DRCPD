@@ -339,15 +339,13 @@ class Control
         void (Control::*)(size_t, QueuedStream::ResolvedRedirectResult,
                           ID::OurStream, InsertMode, PlayNewMode);
 
-    QueuedStream::OpResult
-    queue_item_from_op(Playlist::Crawler::GetURIsOpBase &op,
-                       Playlist::Crawler::Direction direction,
-                       const QueueItemRedirectResolved &callback,
-                       InsertMode insert_mode, PlayNewMode play_new_mode);
-    QueuedStream::OpResult
-    queue_item_from_op_tail(ID::OurStream stream_id, InsertMode insert_mode,
-                            PlayNewMode play_new_mode,
-                            QueuedStream::ResolvedRedirectCallback &&callback);
+    bool queue_item_from_op(Playlist::Crawler::GetURIsOpBase &op,
+                            Playlist::Crawler::Direction direction,
+                            const QueueItemRedirectResolved &callback,
+                            InsertMode insert_mode, PlayNewMode play_new_mode);
+    bool queue_item_from_op_tail(ID::OurStream stream_id, InsertMode insert_mode,
+                                 PlayNewMode play_new_mode,
+                                 QueuedStream::ResolvedRedirectCallback &&callback);
 
     enum class ReplayResult
     {

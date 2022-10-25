@@ -706,22 +706,15 @@ bool Player::Control::found_item_uris_for_playing(
         /* fall-through */
 
       case UserIntention::PAUSING:
-        switch(queue_item_from_op(op, from_direction,
-                                  &Player::Control::async_redirect_resolved_for_playing,
-                                  InsertMode::REPLACE_ALL,
-                                  PlayNewMode::SEND_PAUSE_COMMAND_IF_IDLE))
+        if(queue_item_from_op(op, from_direction,
+                              &Player::Control::async_redirect_resolved_for_playing,
+                              InsertMode::REPLACE_ALL,
+                              PlayNewMode::SEND_PAUSE_COMMAND_IF_IDLE))
         {
-          case QueuedStream::OpResult::SUCCEEDED:
             start_prefetch_next_item("found URIs for first stream",
                                      Playlist::Crawler::Bookmark::ABOUT_TO_PLAY,
                                      Playlist::Crawler::Direction::FORWARD, false,
                                      Execution::NOW);
-            break;
-
-          case QueuedStream::OpResult::STARTED:
-          case QueuedStream::OpResult::FAILED:
-          case QueuedStream::OpResult::CANCELED:
-            break;
         }
 
         break;
@@ -735,22 +728,16 @@ bool Player::Control::found_item_uris_for_playing(
         /* fall-through */
 
       case UserIntention::LISTENING:
-        switch(queue_item_from_op(op, from_direction,
-                                  &Player::Control::async_redirect_resolved_for_playing,
-                                  InsertMode::REPLACE_ALL,
-                                  PlayNewMode::SEND_PLAY_COMMAND_IF_IDLE))
+        if(queue_item_from_op(op, from_direction,
+                              &Player::Control::async_redirect_resolved_for_playing,
+                              InsertMode::REPLACE_ALL,
+                              PlayNewMode::SEND_PLAY_COMMAND_IF_IDLE))
 
         {
-          case QueuedStream::OpResult::SUCCEEDED:
             if(reason.empty())
                 reason = "found next URI in list while listening";
-            send_play_command(audio_source_, std::move(reason));
-            break;
 
-          case QueuedStream::OpResult::STARTED:
-          case QueuedStream::OpResult::FAILED:
-          case QueuedStream::OpResult::CANCELED:
-            break;
+            send_play_command(audio_source_, std::move(reason));
         }
 
         break;
@@ -2307,26 +2294,19 @@ bool Player::Control::found_prefetched_item_uris(
 
       case UserIntention::PAUSING:
       case UserIntention::LISTENING:
-        switch(queue_item_from_op(op, from_direction,
-                                  &Control::async_redirect_resolved_prefetched,
-                                  InsertMode::APPEND,
-                                  force_play_uri_when_available || intention == UserIntention::LISTENING
-                                  ? PlayNewMode::SEND_PLAY_COMMAND_IF_IDLE
-                                  : PlayNewMode::SEND_PAUSE_COMMAND_IF_IDLE))
+        if(queue_item_from_op(op, from_direction,
+                              &Control::async_redirect_resolved_prefetched,
+                              InsertMode::APPEND,
+                              force_play_uri_when_available || intention == UserIntention::LISTENING
+                              ? PlayNewMode::SEND_PLAY_COMMAND_IF_IDLE
+                              : PlayNewMode::SEND_PAUSE_COMMAND_IF_IDLE))
         {
-          case QueuedStream::OpResult::SUCCEEDED:
             start_prefetch_next_item("lookahead after successfully prefetched URIs",
                                      Playlist::Crawler::Bookmark::PREFETCH_CURSOR,
                                      prefetch_direction_after_failure_, false,
                                      intention == UserIntention::LISTENING
                                      ? Execution::DELAYED
                                      : Execution::NOW);
-            break;
-
-          case QueuedStream::OpResult::STARTED:
-          case QueuedStream::OpResult::FAILED:
-          case QueuedStream::OpResult::CANCELED:
-            break;
         }
 
         break;
@@ -2382,44 +2362,30 @@ void Player::Control::async_redirect_resolved_for_playing(
 
       case UserIntention::SKIPPING_PAUSED:
       case UserIntention::PAUSING:
-        switch(queue_item_from_op_tail(
+        if(queue_item_from_op_tail(
                 for_stream, insert_mode, play_new_mode,
                 [this] (size_t i, auto r) { unexpected_resolve_error(i, r); }))
         {
-          case QueuedStream::OpResult::SUCCEEDED:
             start_prefetch_next_item("resolved redirect for first stream",
                                      Playlist::Crawler::Bookmark::ABOUT_TO_PLAY,
                                      Playlist::Crawler::Direction::FORWARD, false,
                                      Execution::NOW);
-            break;
-
-          case QueuedStream::OpResult::STARTED:
-          case QueuedStream::OpResult::FAILED:
-          case QueuedStream::OpResult::CANCELED:
-            break;
         }
 
         break;
 
       case UserIntention::SKIPPING_LIVE:
       case UserIntention::LISTENING:
-        switch(queue_item_from_op_tail(
+        if(queue_item_from_op_tail(
                 for_stream, insert_mode, play_new_mode,
                 [this] (size_t i, auto r) { unexpected_resolve_error(i, r); }))
         {
-          case QueuedStream::OpResult::SUCCEEDED:
             send_play_command(audio_source_,
                               std::string("resolved stream URL for ") +
                               std::to_string(for_stream.get().get_raw_id()) + " while " +
                               (player_data_->get_intention() == UserIntention::LISTENING
                                ? "listening"
                                : "skipping live"));
-            break;
-
-          case QueuedStream::OpResult::STARTED:
-          case QueuedStream::OpResult::FAILED:
-          case QueuedStream::OpResult::CANCELED:
-            break;
         }
 
         break;
@@ -2447,19 +2413,8 @@ void Player::Control::async_redirect_resolved_prefetched(
       case UserIntention::SKIPPING_LIVE:
       case UserIntention::PAUSING:
       case UserIntention::LISTENING:
-        switch(queue_item_from_op_tail(
-                for_stream, insert_mode, play_new_mode,
-                [this] (size_t i, auto r) { unexpected_resolve_error(i, r); }))
-        {
-          case QueuedStream::OpResult::SUCCEEDED:
-            break;
-
-          case QueuedStream::OpResult::STARTED:
-          case QueuedStream::OpResult::FAILED:
-          case QueuedStream::OpResult::CANCELED:
-            break;
-        }
-
+        queue_item_from_op_tail(for_stream, insert_mode, play_new_mode,
+                                [this] (size_t i, auto r) { unexpected_resolve_error(i, r); });
         break;
     }
 }
@@ -2473,7 +2428,7 @@ void Player::Control::unexpected_resolve_error(
     unplug(false);
 }
 
-Player::QueuedStream::OpResult
+bool
 Player::Control::queue_item_from_op(Playlist::Crawler::GetURIsOpBase &op,
                                     Playlist::Crawler::Direction direction,
                                     const QueueItemRedirectResolved &callback,
@@ -2482,12 +2437,12 @@ Player::Control::queue_item_from_op(Playlist::Crawler::GetURIsOpBase &op,
     using DirCursor = Playlist::Crawler::DirectoryCrawler::Cursor;
 
     if(player_data_ == nullptr || crawler_handle_ == nullptr)
-        return QueuedStream::OpResult::CANCELED;
+        return false;
 
     if(dynamic_cast<const Playlist::Crawler::DirectoryCrawler::GetURIsOp *>(&op) == nullptr)
     {
         MSG_NOT_IMPLEMENTED();
-        return QueuedStream::OpResult::FAILED;
+        return false;
     }
 
     log_assert(op.is_op_successful());
@@ -2521,7 +2476,7 @@ Player::Control::queue_item_from_op(Playlist::Crawler::GetURIsOpBase &op,
             list_id, std::move(pos)));
 
     if(!stream_id.get().is_valid())
-        return QueuedStream::OpResult::FAILED;
+        return false;
 
     return queue_item_from_op_tail(
             stream_id, insert_mode, play_new_mode,
@@ -2532,7 +2487,7 @@ Player::Control::queue_item_from_op(Playlist::Crawler::GetURIsOpBase &op,
             });
 }
 
-Player::QueuedStream::OpResult
+bool
 Player::Control::queue_item_from_op_tail(ID::OurStream stream_id,
                                          InsertMode insert_mode,
                                          PlayNewMode play_new_mode,
@@ -2541,19 +2496,7 @@ Player::Control::queue_item_from_op_tail(ID::OurStream stream_id,
     const auto result(queue_stream_or_forget(*player_data_, stream_id, insert_mode,
                                              play_new_mode, std::move(callback),
                                              audio_source_, "resolved stream URL"));
-
-    switch(result)
-    {
-      case QueuedStream::OpResult::SUCCEEDED:
-        break;
-
-      case QueuedStream::OpResult::STARTED:
-      case QueuedStream::OpResult::FAILED:
-      case QueuedStream::OpResult::CANCELED:
-        break;
-    }
-
-    return result;
+    return result == QueuedStream::OpResult::SUCCEEDED;
 }
 
 Player::Control::ReplayResult
