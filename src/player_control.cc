@@ -588,7 +588,7 @@ bool Player::Control::found_item_for_playing(
     if(op->is_op_canceled())
         return false;
 
-    bool stop = true;
+    bool list_exhausted = true;
 
     if(op->is_op_failure())
         BUG("Item found for playing: FAILED");
@@ -600,7 +600,7 @@ bool Player::Control::found_item_for_playing(
         switch(op->result_.pos_state_)
         {
           case PositionalState::SOMEWHERE_IN_LIST:
-            stop = false;
+            list_exhausted = false;
             break;
 
           case PositionalState::UNKNOWN:
@@ -616,7 +616,7 @@ bool Player::Control::found_item_for_playing(
         return false;
     }
 
-    if(stop)
+    if(list_exhausted)
     {
         skip_requests_.reset(nullptr);
 
