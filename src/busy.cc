@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016--2022  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016--2023  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -241,7 +241,6 @@ class GlobalBusyState
             "RESUMING_PLAYBACK",
             "GETTING_LOCATION_TRACE",
             "REALIZING_LOCATION_TRACE",
-            "RESOLVING_AIRABLE_REDIRECT",
         };
 
         bool bug = false;

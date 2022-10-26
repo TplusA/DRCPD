@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015--2022  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015--2023  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -703,6 +703,11 @@ void dbussignal_airable_sec(GDBusProxy *proxy, const gchar *sender_name,
                 login_url, login_code);
         data->event_sink_.store_event(UI::EventID::VIEW_AIRABLE_SERVICE_OAUTH_REQUEST,
                                       std::move(params));
+    }
+    else if(strcmp(signal_name, "DataAvailable") == 0 ||
+            strcmp(signal_name, "DataError") == 0)
+    {
+        /* ignored */
     }
     else
         unknown_signal(iface_name, signal_name, sender_name);

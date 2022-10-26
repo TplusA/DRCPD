@@ -89,10 +89,6 @@ enum class VisibleStreamState
 
 using AppStreamID = ID::SourcedStream<STREAM_ID_SOURCE_APP>;
 
-using AsyncResolveRedirect =
-    DBus::AsyncCall<tdbusAirable, std::tuple<guchar, gchar *>,
-                    Busy::Source::RESOLVING_AIRABLE_REDIRECT>;
-
 /*!
  * Information about the currently playing stream, if any.
  *
@@ -205,12 +201,6 @@ class QueuedStream
         /*! This object has just been constructed, no actions going on */
         FLOATING,
 
-        /*! Waiting for indirect URI to be resolved (resolving link to link) */
-        RESOLVING_INDIRECT_URI,
-
-        /*! Stream URI definitely available or definitely empty */
-        MAY_HAVE_DIRECT_URI,
-
         /*! Stream URI has been sent to stream player */
         QUEUED,
 
@@ -221,24 +211,6 @@ class QueuedStream
         ABOUT_TO_DIE,
     };
 
-    enum class OpResult
-    {
-        STARTED,
-        SUCCEEDED,
-        FAILED,
-        CANCELED,
-    };
-
-    enum class ResolvedRedirectResult
-    {
-        FOUND,
-        FAILED,
-        CANCELED,
-    };
-
-    using ResolvedRedirectCallback =
-        std::function<void(size_t idx, ResolvedRedirectResult result)>;
-
   private:
     State state_;
 
@@ -246,10 +218,6 @@ class QueuedStream
     std::unique_ptr<MetaData::Set> meta_data_;
     std::vector<std::string> uris_;
     Airable::SortedLinks airable_links_;
-
-    size_t next_uri_to_try_;
-
-    std::shared_ptr<AsyncResolveRedirect> async_resolve_redirect_call_;
 
     const std::unique_ptr<Playlist::Crawler::CursorBase> originating_cursor_;
 
@@ -271,37 +239,22 @@ class QueuedStream
         meta_data_(std::move(meta_data)),
         uris_(std::move(uris)),
         airable_links_(std::move(airable_links)),
-        next_uri_to_try_(0),
         originating_cursor_(std::move(originating_cursor))
     {
         msg_log_assert(meta_data_ != nullptr);
     }
 
-    ~QueuedStream()
+    bool has_no_uris() const
     {
-        AsyncResolveRedirect::cancel_and_delete(async_resolve_redirect_call_);
+        return uris_.empty() && airable_links_.empty();
     }
+
+    const auto &get_direct_uris() const { return uris_; }
+    const auto &get_airable_links() const { return airable_links_; }
 
     const GVariantWrapper &get_stream_key() const { return stream_key_; }
     const Playlist::Crawler::CursorBase &get_originating_cursor() const { return *originating_cursor_; }
     const MetaData::Set &get_meta_data() const { return *meta_data_; }
-
-    void iter_reset()
-    {
-        MSG_BUG_IF(state_ == State::RESOLVING_INDIRECT_URI &&
-                   async_resolve_redirect_call_ == nullptr,
-                   "No active resolve op in state %d, stream %u",
-                   int(state_), stream_id_.get().get_raw_id());
-        MSG_BUG_IF(state_ != State::RESOLVING_INDIRECT_URI &&
-                   async_resolve_redirect_call_ != nullptr,
-                   "Active resolve op in state %d, stream %u",
-                   int(state_), stream_id_.get().get_raw_id());
-        AsyncResolveRedirect::cancel_and_delete(async_resolve_redirect_call_);
-        next_uri_to_try_ = 0;
-    }
-
-    OpResult iter_next(tdbusAirable *proxy, const std::string *&uri,
-                       ResolvedRedirectCallback &&callback);
 
     bool set_state(State new_state, const char *reason)
     {
@@ -311,16 +264,8 @@ class QueuedStream
         switch(new_state)
         {
           case State::FLOATING:
-          case State::RESOLVING_INDIRECT_URI:
-            msg_log_assert(state_ == State::FLOATING);
-            break;
-
-          case State::MAY_HAVE_DIRECT_URI:
-            msg_log_assert(state_ != State::ABOUT_TO_DIE);
-            break;
-
           case State::QUEUED:
-            msg_log_assert(state_ == State::MAY_HAVE_DIRECT_URI);
+            msg_log_assert(state_ == State::FLOATING);
             break;
 
           case State::CURRENT:
@@ -346,34 +291,14 @@ class QueuedStream
         {
           case QueuedStream::State::QUEUED:
           case QueuedStream::State::CURRENT:
-            state_ = State::MAY_HAVE_DIRECT_URI;
+            state_ = State::FLOATING;
             break;
 
           case State::FLOATING:
-          case State::RESOLVING_INDIRECT_URI:
-          case State::MAY_HAVE_DIRECT_URI:
           case State::ABOUT_TO_DIE:
             break;
         }
     }
-
-  private:
-    bool iter_next_resolved(const std::string *&uri)
-    {
-        if(next_uri_to_try_ < uris_.size())
-        {
-            uri = &uris_[next_uri_to_try_++];
-            return true;
-        }
-        else
-        {
-            uri = nullptr;
-            return false;
-        }
-    }
-
-    void process_resolved_redirect(DBus::AsyncCall_ &async_call, size_t idx,
-                                   ResolvedRedirectCallback &&callback);
 };
 
 /*!
@@ -684,8 +609,6 @@ class Data
 
     double playback_speed_;
 
-    tdbusAirable *airable_proxy_;
-
   public:
     Data(const Data &) = delete;
     Data &operator=(const Data &) = delete;
@@ -699,8 +622,7 @@ class Data
         intention_(UserIntention::NOTHING),
         player_state_(PlayerState::STOPPED),
         now_playing_([] (auto id) { msg_info("Finished playing stream %u", id.get_raw_id()); }),
-        playback_speed_(1.0),
-        airable_proxy_(DBus::get_airable_sec_iface())
+        playback_speed_(1.0)
     {
         LoggedLock::configure(lock_, "Player::Data", MESSAGE_LEVEL_DEBUG);
     }
@@ -779,6 +701,7 @@ class Data
 
     void queued_stream_playing_next();
 
+    void prepare_stream_for_recovery(ID::OurStream stream_id);
     std::vector<ID::OurStream> copy_all_queued_streams_for_recovery();
 
     void queued_stream_remove(ID::OurStream stream_id);
@@ -878,16 +801,8 @@ class Data
      */
     void player_finished_and_idle();
 
-    QueuedStream::OpResult
-    get_first_stream_uri(const ID::OurStream &stream_id,
-                         const GVariantWrapper *&stream_key,
-                         const std::string *&uri,
-                         QueuedStream::ResolvedRedirectCallback &&callback);
-    QueuedStream::OpResult
-    get_next_stream_uri(const ID::OurStream &stream_id,
-                        const GVariantWrapper *&stream_key,
-                        const std::string *&uri,
-                        QueuedStream::ResolvedRedirectCallback &&callback);
+    GVariantWrapper mk_stream_uris_for_player(const ID::OurStream &stream_id,
+                                              const GVariantWrapper *&stream_key);
 
     const MetaData::Set &
     get_queued_meta_data(const ID::OurStream &stream_id) const;

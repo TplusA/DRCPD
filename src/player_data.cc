@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, 2017, 2019--2022  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2017, 2019--2023  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -50,185 +50,6 @@ namespace std
             return std::hash<uint32_t>{}(id.get_raw_id());
         }
     };
-}
-
-static std::shared_ptr<Player::AsyncResolveRedirect>
-mk_async_resolve_redirect(tdbusAirable *proxy,
-                          DBus::AsyncResultAvailableFunction &&result_available_fn)
-{
-    return std::make_shared<Player::AsyncResolveRedirect>(
-        proxy,
-        [] (GObject *source_object) { return TDBUS_AIRABLE(source_object); },
-        [] (DBus::AsyncResult &async_ready,
-            Player::AsyncResolveRedirect::PromiseType &promise,
-            tdbusAirable *p, GAsyncResult *async_result, GErrorWrapper &error)
-        {
-            guchar error_code = 0;
-            gchar *uri = NULL;
-
-            async_ready =
-                tdbus_airable_call_resolve_redirect_finish(
-                    p, &error_code, &uri, async_result, error.await())
-                ? DBus::AsyncResult::READY
-                : DBus::AsyncResult::FAILED;
-
-            if(async_ready == DBus::AsyncResult::FAILED)
-                msg_error(0, LOG_NOTICE,
-                          "Async D-Bus method call failed: %s",
-                          error.failed() ? error->message : "*NULL*");
-
-            promise.set_value(std::make_tuple(error_code, uri));
-        },
-        std::move(result_available_fn),
-        [] (Player::AsyncResolveRedirect::PromiseReturnType &values)
-        {
-            if(std::get<1>(values) != nullptr)
-                g_free(std::get<1>(values));
-        },
-        [] () { return true; },
-        "resolve indirect URL (redirect)",
-        "AsyncResolveRedirect", MESSAGE_LEVEL_DEBUG);
-}
-
-Player::QueuedStream::OpResult
-Player::QueuedStream::iter_next(tdbusAirable *proxy, const std::string *&uri,
-                                ResolvedRedirectCallback &&callback)
-{
-    MSG_BUG_IF(state_ != State::FLOATING && state_ != State::MAY_HAVE_DIRECT_URI,
-               "Try get URI in state %d", int(state_));
-
-    if(airable_links_.empty())
-    {
-        iter_next_resolved(uri);
-        set_state(State::MAY_HAVE_DIRECT_URI,
-                  uri != nullptr ? "have next direct URI" : "have no next direct URI");
-        return OpResult::SUCCEEDED;
-    }
-
-    /* try cached resolved URIs first */
-    if(iter_next_resolved(uri))
-    {
-        set_state(State::MAY_HAVE_DIRECT_URI, "have cached URI");
-        return OpResult::SUCCEEDED;
-    }
-
-    AsyncResolveRedirect::cancel_and_delete(async_resolve_redirect_call_);
-
-    if(next_uri_to_try_ >= airable_links_.size())
-    {
-        /* end of list */
-        uri = nullptr;
-        set_state(State::MAY_HAVE_DIRECT_URI, "have no next indirect URI");
-        return OpResult::SUCCEEDED;
-    }
-
-    async_resolve_redirect_call_ =
-        mk_async_resolve_redirect(
-            proxy,
-            [this, cb = std::move(callback)] (auto &call) mutable
-            { process_resolved_redirect(call, next_uri_to_try_, std::move(cb)); });
-
-    if(async_resolve_redirect_call_ == nullptr)
-        return OpResult::FAILED;
-
-    const Airable::RankedLink *const ranked_link = airable_links_[next_uri_to_try_];
-    msg_log_assert(ranked_link != nullptr);
-
-    msg_vinfo(MESSAGE_LEVEL_DIAG, "Resolving Airable redirect at %zu: \"%s\"",
-              next_uri_to_try_,  ranked_link->get_stream_link().c_str());
-
-    set_state(State::RESOLVING_INDIRECT_URI, "resolve next indirect URI");
-    async_resolve_redirect_call_->invoke(tdbus_airable_call_resolve_redirect,
-                                         ranked_link->get_stream_link().c_str());
-
-    return OpResult::STARTED;
-}
-
-/*!
- * Invoke callback if avalable.
- */
-template <typename CBType, typename ResultType>
-static void call_callback(CBType callback, size_t idx, ResultType result)
-{
-    if(callback != nullptr)
-        callback(idx, result);
-}
-
-static Player::QueuedStream::ResolvedRedirectResult
-map_asyncresult_to_resolve_redirect_result(const DBus::AsyncResult &async_result)
-{
-    switch(async_result)
-    {
-      case DBus::AsyncResult::INITIALIZED:
-      case DBus::AsyncResult::IN_PROGRESS:
-      case DBus::AsyncResult::READY:
-      case DBus::AsyncResult::FAILED:
-        break;
-
-      case DBus::AsyncResult::DONE:
-        return Player::QueuedStream::ResolvedRedirectResult::FOUND;
-
-      case DBus::AsyncResult::CANCELING_DIRECTLY:
-      case DBus::AsyncResult::CANCELED:
-      case DBus::AsyncResult::RESTARTED:
-        return Player::QueuedStream::ResolvedRedirectResult::CANCELED;
-    }
-
-    return Player::QueuedStream::ResolvedRedirectResult::FAILED;
-}
-
-void Player::QueuedStream::process_resolved_redirect(
-        DBus::AsyncCall_ &async_call, size_t idx,
-        ResolvedRedirectCallback &&callback)
-{
-    set_state(State::MAY_HAVE_DIRECT_URI, "resolved indirect URI");
-
-    if(&async_call != async_resolve_redirect_call_.get())
-    {
-        msg_vinfo(MESSAGE_LEVEL_DEBUG,
-                  "Ignoring result for resolve request at index %zu, canceled",
-                  idx);
-        call_callback(callback, idx, ResolvedRedirectResult::CANCELED);
-        return;
-    }
-
-    msg_log_assert(idx == next_uri_to_try_);
-    msg_log_assert(idx == uris_.size());
-
-    const auto last_ref(std::move(async_resolve_redirect_call_));
-
-    auto &async(static_cast<AsyncResolveRedirect &>(async_call));
-    DBus::AsyncResult async_result(async.wait_for_result());
-
-    if(!async.success() ||
-       async_result != DBus::AsyncResult::DONE)
-    {
-        msg_error(0, LOG_ERR,
-                  "Resolve request for URI at index %zu failed: %u",
-                  idx, static_cast<unsigned int>(async_result));
-        call_callback(callback, idx, map_asyncresult_to_resolve_redirect_result(async_result));
-        return;
-    }
-
-    const auto &result(async.get_result(async_result));
-    const ListError error(std::get<0>(result));
-
-    if(error != ListError::Code::OK)
-    {
-        msg_error(0, LOG_ERR,
-                  "Got error %s instead of resolved URI at index %zu",
-                  error.to_string(), idx);
-        call_callback(callback, idx, ResolvedRedirectResult::FAILED);
-        return;
-    }
-
-    gchar *const uri(std::get<1>(result));
-    uris_.push_back(uri);
-
-    msg_vinfo(MESSAGE_LEVEL_DIAG,
-              "Resolved Airable redirect at %zu: \"%s\"", idx, uri);
-
-    call_callback(callback, idx, ResolvedRedirectResult::FOUND);
 }
 
 ID::OurStream
@@ -541,10 +362,6 @@ static void log_queued_stream_id(
     {
         if(s->second->is_state(Player::QueuedStream::State::FLOATING))
             os << '~';
-        else if(s->second->is_state(Player::QueuedStream::State::RESOLVING_INDIRECT_URI))
-            os << "...";
-        else if(s->second->is_state(Player::QueuedStream::State::MAY_HAVE_DIRECT_URI))
-            os << '@';
         else if(s->second->is_state(Player::QueuedStream::State::CURRENT))
             os << '*';
         else if(s->second->is_state(Player::QueuedStream::State::ABOUT_TO_DIE))
@@ -742,12 +559,17 @@ void Player::Data::queued_stream_playing_next()
     queued_streams_.shift_if_not_flying();
 }
 
+void Player::Data::prepare_stream_for_recovery(ID::OurStream stream_id)
+{
+    queued_streams_.with_stream<void>(stream_id, [] (auto &qs) { qs.prepare_for_recovery(); });
+}
+
 std::vector<ID::OurStream> Player::Data::copy_all_queued_streams_for_recovery()
 {
     auto result(queued_streams_.copy_all_stream_ids());
 
     for(const auto &id : result)
-        queued_streams_.with_stream<void>(id, [] (auto &qs) { qs.prepare_for_recovery(); });
+        prepare_stream_for_recovery(id);
 
     return result;
 }
@@ -911,57 +733,78 @@ void Player::Data::player_finished_and_idle()
     playback_speed_ = 1.0;
 }
 
-Player::QueuedStream::OpResult
-Player::Data::get_first_stream_uri(const ID::OurStream &stream_id,
-                                   const GVariantWrapper *&stream_key,
-                                   const std::string *&uri,
-                                   QueuedStream::ResolvedRedirectCallback &&callback)
+static inline GVariantWrapper
+mk_stream_uris(const ID::OurStream &stream_id,
+               const std::vector<std::string> &direct_uris,
+               const Airable::SortedLinks &airable_links)
 {
-    return
-        queued_streams_.with_stream<QueuedStream::OpResult>(
-            stream_id,
-            [this, &stream_key, &uri, &callback]
-            (QueuedStream *qs)
+    GVariantBuilder builder;
+    g_variant_builder_init(&builder, G_VARIANT_TYPE("a(sb)"));
+
+    if(direct_uris.empty())
+    {
+        if(airable_links.size() == 1)
+        {
+            /* special case for single link for better logs */
+            const auto &lnk(*airable_links.begin());
+            msg_info("Passing Airable link for stream %u to player: \"%s\"",
+                     stream_id.get().get_raw_id(), lnk->get_stream_link().c_str());
+            g_variant_builder_add(&builder, "(sb)", lnk->get_stream_link().c_str(), TRUE);
+        }
+        else
+        {
+            msg_info("Passing %zu Airable links for stream %u to player:",
+                     airable_links.size(), stream_id.get().get_raw_id());
+            for(const auto &lnk : airable_links)
             {
-                if(qs != nullptr)
-                {
-                    qs->iter_reset();
-                    stream_key = &qs->get_stream_key();
-                    return qs->iter_next(airable_proxy_, uri, std::move(callback));
-                }
-                else
-                {
-                    stream_key = nullptr;
-                    uri = nullptr;
-                    return QueuedStream::OpResult::SUCCEEDED;
-                }
-            });
+                msg_info("Airable link: \"%s\"", lnk->get_stream_link().c_str());
+                g_variant_builder_add(&builder, "(sb)", lnk->get_stream_link().c_str(), TRUE);
+            }
+        }
+    }
+    else
+    {
+        if(direct_uris.size() == 1)
+        {
+            /* special case for single URI for better logs */
+            msg_info("Passing direct URI for stream %u to player: \"%s\"",
+                     stream_id.get().get_raw_id(), direct_uris[0].c_str());
+            g_variant_builder_add(&builder, "(sb)", direct_uris[0].c_str(), FALSE);
+        }
+        else
+        {
+            msg_info("Passing %zu direct URIs for stream %u to player:",
+                     direct_uris.size(), stream_id.get().get_raw_id());
+            for(const auto &uri : direct_uris)
+            {
+                msg_info("Direct URI: \"%s\"", uri.c_str());
+                g_variant_builder_add(&builder, "(sb)", uri.c_str(), FALSE);
+            }
+        }
+    }
+
+    return GVariantWrapper(g_variant_builder_end(&builder));
 }
 
-Player::QueuedStream::OpResult
-Player::Data::get_next_stream_uri(const ID::OurStream &stream_id,
-                                  const GVariantWrapper *&stream_key,
-                                  const std::string *&uri,
-                                  QueuedStream::ResolvedRedirectCallback &&callback)
+GVariantWrapper
+Player::Data::mk_stream_uris_for_player(const ID::OurStream &stream_id,
+                                        const GVariantWrapper *&stream_key)
 {
-    return
-        queued_streams_.with_stream<QueuedStream::OpResult>(
-            stream_id,
-            [this, &stream_key, &uri, &callback]
-            (QueuedStream *qs)
-            {
-                if(qs != nullptr)
-                {
-                    stream_key = &qs->get_stream_key();
-                    return qs->iter_next(airable_proxy_, uri, std::move(callback));
-                }
-                else
-                {
-                    stream_key = nullptr;
-                    uri = nullptr;
-                    return QueuedStream::OpResult::SUCCEEDED;
-                }
-            });
+    return queued_streams_.with_stream<GVariantWrapper>(
+        stream_id,
+        [this, &stream_id, &stream_key] (QueuedStream *qs)
+        {
+            if(qs == nullptr || qs->has_no_uris())
+                stream_key = nullptr;
+            else
+                stream_key = &qs->get_stream_key();
+
+            if(stream_key == nullptr)
+                return GVariantWrapper();
+
+            return mk_stream_uris(stream_id,
+                                  qs->get_direct_uris(), qs->get_airable_links());
+        });
 }
 
 const MetaData::Set &

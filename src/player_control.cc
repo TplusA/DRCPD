@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016--2022  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016--2023  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -197,6 +197,21 @@ void Player::Control::plug(const LocalPermissionsIface &permissions)
     retry_data_.reset();
 }
 
+static std::vector<ID::Stream> move_gvariant_ids_to_vector(GVariantWrapper &&ids)
+{
+    GVariantIter it;
+    if(g_variant_iter_init(&it, GVariantWrapper::get(ids)) == 0)
+        return {};
+
+    uint16_t id;
+    std::vector<ID::Stream> vec;
+
+    while(g_variant_iter_next(&it, "q", &id))
+        vec.push_back(ID::Stream::make_from_raw_id(id));
+
+    return vec;
+}
+
 static bool invalidate_prefetched_uris(Player::AudioSource *asrc,
                                        Player::Data &player_data)
 {
@@ -223,17 +238,8 @@ static bool invalidate_prefetched_uris(Player::AudioSource *asrc,
     GVariantWrapper queued_ids(raw_queued_ids, GVariantWrapper::Transfer::JUST_MOVE);
     GVariantWrapper removed_ids(raw_removed_ids, GVariantWrapper::Transfer::JUST_MOVE);
 
-    GVariantIter it;
-    if(g_variant_iter_init(&it, GVariantWrapper::get(removed_ids)) == 0)
-        return true;
-
-    uint16_t id;
-    std::vector<ID::Stream> removed;
-
-    while(g_variant_iter_next(&it, "q", &id))
-        removed.push_back(ID::Stream::make_from_raw_id(id));
-
-    player_data.player_dropped_from_queue(removed);
+    player_data.player_dropped_from_queue(
+                    move_gvariant_ids_to_vector(std::move(removed_ids)));
     return true;
 }
 
@@ -692,8 +698,6 @@ bool Player::Control::found_item_uris_for_playing(
         return false;
     }
 
-    std::string reason;
-
     switch(player_data_->get_intention())
     {
       case UserIntention::NOTHING:
@@ -710,7 +714,6 @@ bool Player::Control::found_item_uris_for_playing(
 
       case UserIntention::PAUSING:
         if(queue_item_from_op(op, from_direction,
-                              &Player::Control::async_redirect_resolved_for_playing,
                               InsertMode::REPLACE_ALL,
                               PlayNewMode::SEND_PAUSE_COMMAND_IF_IDLE))
         {
@@ -727,25 +730,13 @@ bool Player::Control::found_item_uris_for_playing(
         msg_vinfo(MESSAGE_LEVEL_DIAG,
                   "Found URIs while skipping and playing, "
                   "treating like non-skipping");
-        reason = "found next URI in list while skipping";
 
         /* fall-through */
 
       case UserIntention::LISTENING:
-        if(queue_item_from_op(op, from_direction,
-                              &Player::Control::async_redirect_resolved_for_playing,
-                              InsertMode::REPLACE_ALL,
-                              PlayNewMode::SEND_PLAY_COMMAND_IF_IDLE))
-
-        {
-            if(reason.empty())
-                reason = "found next URI in list while listening";
-
-            send_play_command(audio_source_, std::move(reason));
-            return true;
-        }
-
-        break;
+        return queue_item_from_op(op, from_direction,
+                                  InsertMode::REPLACE_ALL,
+                                  PlayNewMode::SEND_PLAY_COMMAND_IF_IDLE);
     }
 
     return false;
@@ -1668,8 +1659,8 @@ static GVariant *to_gvariant(const MetaData::Set &md)
  *     player is idle. Otherwise, the entry is just pushed into the player's
  *     internal queue.
  *
- * \param queued_url
- *     Which URL was chosen for this stream.
+ * \param uris
+ *     Which URIs are associated with this stream.
  *
  * \param asrc
  *     Audio source to take D-Bus proxies from.
@@ -1687,14 +1678,11 @@ static bool send_selected_file_uri_to_streamplayer(
         const MetaData::Set &meta_data,
         Player::Control::InsertMode insert_mode,
         Player::Control::PlayNewMode play_new_mode,
-        const std::string &queued_url, const Player::AudioSource &asrc,
+        GVariantWrapper &&uris, const Player::AudioSource &asrc,
         std::string &&reason)
 {
-    if(queued_url.empty())
+    if(g_variant_n_children(GVariantWrapper::get(uris)) == 0)
         return false;
-
-    msg_info("Passing URI for stream %u to player: \"%s\"",
-             stream_id.get().get_raw_id(), queued_url.c_str());
 
     gboolean fifo_overflow = FALSE;
     gboolean is_playing = FALSE;
@@ -1719,18 +1707,25 @@ static bool send_selected_file_uri_to_streamplayer(
 
     if(urlfifo_proxy != nullptr)
     {
+        GVariant *raw_dropped_ids_before;
         GErrorWrapper error;
         tdbus_splay_urlfifo_call_push_sync(
             urlfifo_proxy, stream_id.get().get_raw_id(),
-            queued_url.c_str(), GVariantWrapper::get(stream_key),
+            GVariantWrapper::move(uris), GVariantWrapper::get(stream_key),
             0, "ms", 0, "ms", keep_first_n, to_gvariant(meta_data),
-            &fifo_overflow, &is_playing, nullptr, error.await());
+            &fifo_overflow, &is_playing, &raw_dropped_ids_before, nullptr,
+            nullptr, error.await());
+        GVariantWrapper dropped_ids_before(raw_dropped_ids_before,
+                                           GVariantWrapper::Transfer::JUST_MOVE);
 
         if(error.log_failure("Push stream"))
         {
             msg_error(0, LOG_NOTICE, "Failed queuing URI to streamplayer");
             return false;
         }
+
+        player.player_dropped_from_queue(
+                move_gvariant_ids_to_vector(std::move(dropped_ids_before)));
     }
 
     if(fifo_overflow)
@@ -1771,22 +1766,16 @@ static bool send_selected_file_uri_to_streamplayer(
     return true;
 }
 
-static Player::QueuedStream::OpResult
+static bool
 queue_stream_or_forget(Player::Data &player, ID::OurStream stream_id,
                        Player::Control::InsertMode insert_mode,
                        Player::Control::PlayNewMode play_new_mode,
-                       Player::QueuedStream::ResolvedRedirectCallback &&callback,
                        const Player::AudioSource *asrc, std::string &&reason)
 {
     const GVariantWrapper *stream_key;
-    const std::string *uri = nullptr;
-    const auto result(player.get_first_stream_uri(stream_id, stream_key,
-                                                  uri, std::move(callback)));
+    GVariantWrapper uris(player.mk_stream_uris_for_player(stream_id, stream_key));
 
-    if(uri == nullptr)
-        return result;
-
-    bool failed = asrc == nullptr;
+    bool failed = asrc == nullptr || stream_key == nullptr;
 
     if(!failed)
     {
@@ -1796,16 +1785,14 @@ queue_stream_or_forget(Player::Data &player, ID::OurStream stream_id,
             !send_selected_file_uri_to_streamplayer(player, stream_id,
                                                     *stream_key, meta_data,
                                                     insert_mode, play_new_mode,
-                                                    *uri, *asrc, std::move(reason));
+                                                    std::move(uris), *asrc,
+                                                    std::move(reason));
     }
 
     if(failed)
-    {
         player.queued_stream_remove(stream_id);
-        return Player::QueuedStream::OpResult::FAILED;
-    }
 
-    return result;
+    return !failed;
 }
 
 static bool bookmark_about_to_play_next(const Player::Data &data,
@@ -2303,7 +2290,6 @@ bool Player::Control::found_prefetched_item_uris(
       case UserIntention::PAUSING:
       case UserIntention::LISTENING:
         if(queue_item_from_op(op, from_direction,
-                              &Control::async_redirect_resolved_prefetched,
                               InsertMode::APPEND,
                               force_play_uri_when_available || intention == UserIntention::LISTENING
                               ? PlayNewMode::SEND_PLAY_COMMAND_IF_IDLE
@@ -2324,123 +2310,9 @@ bool Player::Control::found_prefetched_item_uris(
     return false;
 }
 
-static bool async_redirect_check_preconditions(
-        const Player::Data *player, const Playlist::Crawler::Iface::Handle *ch,
-        Player::QueuedStream::ResolvedRedirectResult result,
-        size_t idx, const char *what)
-{
-    if(player == nullptr || ch == nullptr)
-    {
-        not_attached_bug(what, true);
-        return false;
-    }
-
-    switch(result)
-    {
-      case Player::QueuedStream::ResolvedRedirectResult::FOUND:
-        break;
-
-      case Player::QueuedStream::ResolvedRedirectResult::FAILED:
-        MSG_BUG("%s: canceled at %zu, but case not handled", what, idx);
-        return false;
-
-      case Player::QueuedStream::ResolvedRedirectResult::CANCELED:
-        MSG_BUG("%s: failed at %zu, but case not handled", what, idx);
-        return false;
-    }
-
-    return true;
-}
-
-void Player::Control::async_redirect_resolved_for_playing(
-        size_t idx, QueuedStream::ResolvedRedirectResult result,
-        ID::OurStream for_stream, InsertMode insert_mode, PlayNewMode play_new_mode)
-{
-    auto locks(lock());
-
-    if(!async_redirect_check_preconditions(player_data_, crawler_handle_.get(),
-                                           result, idx,
-                                           "Resolved redirect for playing"))
-        return;
-
-    switch(player_data_->get_intention())
-    {
-      case UserIntention::NOTHING:
-      case UserIntention::STOPPING:
-        break;
-
-      case UserIntention::SKIPPING_PAUSED:
-      case UserIntention::PAUSING:
-        if(queue_item_from_op_tail(
-                for_stream, insert_mode, play_new_mode,
-                [this] (size_t i, auto r) { unexpected_resolve_error(i, r); }))
-        {
-            start_prefetch_next_item("resolved redirect for first stream",
-                                     Playlist::Crawler::Bookmark::ABOUT_TO_PLAY,
-                                     Playlist::Crawler::Direction::FORWARD, false,
-                                     Execution::NOW);
-        }
-
-        break;
-
-      case UserIntention::SKIPPING_LIVE:
-      case UserIntention::LISTENING:
-        if(queue_item_from_op_tail(
-                for_stream, insert_mode, play_new_mode,
-                [this] (size_t i, auto r) { unexpected_resolve_error(i, r); }))
-        {
-            send_play_command(audio_source_,
-                              std::string("resolved stream URL for ") +
-                              std::to_string(for_stream.get().get_raw_id()) + " while " +
-                              (player_data_->get_intention() == UserIntention::LISTENING
-                               ? "listening"
-                               : "skipping live"));
-        }
-
-        break;
-    }
-}
-
-void Player::Control::async_redirect_resolved_prefetched(
-        size_t idx, QueuedStream::ResolvedRedirectResult result,
-        ID::OurStream for_stream, InsertMode insert_mode, PlayNewMode play_new_mode)
-{
-    auto locks(lock());
-
-    if(!async_redirect_check_preconditions(player_data_, crawler_handle_.get(),
-                                           result, idx,
-                                           "Resolved redirect for prefetching"))
-        return;
-
-    switch(player_data_->get_intention())
-    {
-      case UserIntention::NOTHING:
-      case UserIntention::STOPPING:
-        break;
-
-      case UserIntention::SKIPPING_PAUSED:
-      case UserIntention::SKIPPING_LIVE:
-      case UserIntention::PAUSING:
-      case UserIntention::LISTENING:
-        queue_item_from_op_tail(for_stream, insert_mode, play_new_mode,
-                                [this] (size_t i, auto r) { unexpected_resolve_error(i, r); });
-        break;
-    }
-}
-
-void Player::Control::unexpected_resolve_error(
-        size_t idx, QueuedStream::ResolvedRedirectResult result)
-{
-    MSG_BUG("Asynchronous resolution of Airable redirect failed unexpectedly "
-            "for URL at index %zu, result %u", idx,
-            static_cast<unsigned int>(result));
-    unplug(false);
-}
-
 bool
 Player::Control::queue_item_from_op(Playlist::Crawler::GetURIsOpBase &op,
                                     Playlist::Crawler::Direction direction,
-                                    const QueueItemRedirectResolved &callback,
                                     InsertMode insert_mode, PlayNewMode play_new_mode)
 {
     using DirCursor = Playlist::Crawler::DirectoryCrawler::Cursor;
@@ -2457,6 +2329,22 @@ Player::Control::queue_item_from_op(Playlist::Crawler::GetURIsOpBase &op,
     msg_log_assert(op.is_op_successful());
     msg_log_assert(!op.is_op_canceled());
 
+    /*
+     * At this point, we have a list of links to the the stream (usually only
+     * one link, though), or a list of Airable links in case of Airable audio
+     * sources. The player is responsible for resolving the Airable links any
+     * and every time it needs them (it may have to reconnect to the streaming
+     * server due to some connection problem, which will fail in case the link
+     * has expired already, to mention a non-obvious case where the original
+     * Airable link would be needed).
+     *
+     * Next, we apply bit rate limitation so that streams exceeding the
+     * configured maximum bitrate are ranked worse than any other stream which
+     * does not exceed the limit.
+     *
+     * Then, we bookmark the position in the list, store the stream information
+     * in our own queue, and send these data also to the player.
+     */
     auto &dir_op = static_cast<Playlist::Crawler::DirectoryCrawler::GetURIsOp &>(op);
     dir_op.result_.sorted_links_.finalize(bitrate_limiter_);
 
@@ -2487,25 +2375,9 @@ Player::Control::queue_item_from_op(Playlist::Crawler::GetURIsOpBase &op,
     if(!stream_id.get().is_valid())
         return false;
 
-    return queue_item_from_op_tail(
-            stream_id, insert_mode, play_new_mode,
-            [this, callback, stream_id, insert_mode, play_new_mode]
-            (size_t i, auto r)
-            {
-                (this->*callback)(i, r, stream_id, insert_mode, play_new_mode);
-            });
-}
-
-bool
-Player::Control::queue_item_from_op_tail(ID::OurStream stream_id,
-                                         InsertMode insert_mode,
-                                         PlayNewMode play_new_mode,
-                                         QueuedStream::ResolvedRedirectCallback &&callback)
-{
-    const auto result(queue_stream_or_forget(*player_data_, stream_id, insert_mode,
-                                             play_new_mode, std::move(callback),
-                                             audio_source_, "resolved stream URL"));
-    return result == QueuedStream::OpResult::SUCCEEDED;
+    return queue_stream_or_forget(*player_data_, stream_id, insert_mode,
+                                  play_new_mode, audio_source_,
+                                  "have stream URLs");
 }
 
 Player::Control::ReplayResult
@@ -2525,26 +2397,11 @@ Player::Control::replay(ID::OurStream stream_id, bool is_retry,
     if(is_retry)
         msg_info("Retry stream %u", stream_id.get().get_raw_id());
 
-    bool is_queued = false;
-
-    switch(queue_stream_or_forget(
-                *player_data_, stream_id,
-                InsertMode::REPLACE_ALL, play_new_mode,
-                [this] (size_t i, auto r) { unexpected_resolve_error(i, r); },
-                audio_source_, "replay stream"))
-    {
-      case QueuedStream::OpResult::STARTED:
-        MSG_BUG("Unexpected async redirect resolution while replaying");
-        return ReplayResult::RETRY_FAILED_HARD;
-
-      case QueuedStream::OpResult::SUCCEEDED:
-        is_queued = true;
-        break;
-
-      case QueuedStream::OpResult::FAILED:
-      case QueuedStream::OpResult::CANCELED:
-        break;
-    }
+    player_data_->prepare_stream_for_recovery(stream_id);
+    const bool is_queued =
+        queue_stream_or_forget(*player_data_, stream_id,
+                               InsertMode::REPLACE_ALL, play_new_mode,
+                               audio_source_, "replay stream");
 
     if(!is_queued && is_retry)
         return ReplayResult::RETRY_FAILED_HARD;
@@ -2552,24 +2409,10 @@ Player::Control::replay(ID::OurStream stream_id, bool is_retry,
     const auto queued_ids(player_data_->copy_all_queued_streams_for_recovery());
 
     for(const auto id : queued_ids)
-    {
-        switch(queue_stream_or_forget(
-                    *player_data_, id, InsertMode::APPEND, PlayNewMode::KEEP,
-                    [this] (size_t i, auto r) { unexpected_resolve_error(i, r); },
-                    audio_source_, "replay queued stream"))
-        {
-          case QueuedStream::OpResult::STARTED:
-            MSG_BUG("Unexpected queuing result while replaying");
-            break;
-
-          case QueuedStream::OpResult::SUCCEEDED:
-            break;
-
-          case QueuedStream::OpResult::FAILED:
-          case QueuedStream::OpResult::CANCELED:
-            break;
-        }
-    }
+        if(id != stream_id)
+            queue_stream_or_forget(*player_data_, id,
+                                   InsertMode::APPEND, PlayNewMode::KEEP,
+                                   audio_source_, "replay queued stream");
 
     msg_info("Queued %zu streams once again", queued_ids.size());
 

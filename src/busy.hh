@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016--2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016--2020, 2023  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -53,12 +53,9 @@ enum class Source
     GETTING_LOCATION_TRACE,
     REALIZING_LOCATION_TRACE,
 
-    /* specific to Airable */
-    RESOLVING_AIRABLE_REDIRECT,
-
     /* internal */
     FIRST_SOURCE = WAITING_FOR_PLAYER,
-    LAST_SOURCE = RESOLVING_AIRABLE_REDIRECT,
+    LAST_SOURCE = REALIZING_LOCATION_TRACE,
 };
 
 /*!

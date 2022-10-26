@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017, 2019, 2022  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2017, 2019, 2022, 2023  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -98,18 +98,86 @@ class SortedLinks
 
     void finalize(const std::function<bool(uint32_t)> &is_bitrate_in_range);
 
-    const RankedLink *operator[](size_t i) const
+    class const_iterator
     {
-        if(i < playable_.size())
-            return playable_[i];
+      private:
+        size_t idx_;
+        size_t end_idx_;
 
-        i -= playable_.size();
+        const std::vector<const RankedLink *> *playable_;
+        const std::vector<const RankedLink *> *stuttering_;
+        const std::vector<const RankedLink *> *current_vector_;
+        size_t current_vector_index_;
 
-        if(i < stuttering_.size())
-            return stuttering_[i];
+      public:
+        const_iterator(const const_iterator &) = default;
+        const_iterator(const_iterator &&) = default;
 
-        return nullptr;
-    }
+        explicit const_iterator(const std::vector<const RankedLink *> *playable,
+                                const std::vector<const RankedLink *> *stuttering):
+            idx_(0),
+            end_idx_(playable->size() + stuttering->size()),
+            playable_(playable),
+            stuttering_(stuttering),
+            current_vector_(playable_->empty() ? stuttering_ : playable_),
+            current_vector_index_(0)
+        {}
+
+        explicit const_iterator(size_t total_size):
+            idx_(total_size),
+            end_idx_(total_size),
+            playable_(nullptr),
+            stuttering_(nullptr),
+            current_vector_(nullptr),
+            current_vector_index_(0)
+        {}
+
+        const_iterator &operator++()
+        {
+            if(idx_ >= end_idx_)
+                return *this;
+
+            ++idx_;
+            ++current_vector_index_;
+
+            if(current_vector_ == playable_ &&
+               current_vector_index_ == playable_->size())
+            {
+                current_vector_ = stuttering_;
+                current_vector_index_ = 0;
+            }
+
+            return *this;
+        }
+
+        const_iterator &operator--()
+        {
+            if(idx_ == 0)
+                return *this;
+
+            --idx_;
+
+            if(current_vector_index_ > 0)
+                --current_vector_index_;
+            else
+            {
+                current_vector_ = playable_;
+                current_vector_index_ = playable_->size() - 1;
+            }
+
+            return *this;
+        }
+
+        bool operator!=(const const_iterator &other) const { return idx_ != other.idx_; }
+
+        const RankedLink *operator*() const
+        {
+            return (*current_vector_)[current_vector_index_];
+        }
+    };
+
+    const_iterator begin() const { return const_iterator(&playable_, &stuttering_); }
+    const_iterator end() const { return const_iterator(playable_.size() + stuttering_.size()); }
 };
 
 }

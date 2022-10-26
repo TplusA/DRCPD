@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016--2022  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016--2023  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -161,12 +161,13 @@ class Control
 
         void reset()
         {
-            playing(ID::Stream::make_invalid());
+            count_ = 0;
+            stream_id_ = ID::OurStream::make_invalid();
         }
 
         void playing(ID::Stream stream_id)
         {
-            count_ = 0;
+            msg_log_assert(stream_id.is_valid());
             stream_id_ = ID::OurStream::make_from_generic_id(stream_id);
         }
 
@@ -323,29 +324,9 @@ class Control
                                     Playlist::Crawler::Direction from_direction,
                                     bool force_play_uri_when_available);
 
-    void async_redirect_resolved_for_playing(
-            size_t idx, QueuedStream::ResolvedRedirectResult result,
-            ID::OurStream for_stream, InsertMode insert_mode,
-            PlayNewMode play_new_mode);
-    void async_redirect_resolved_prefetched(
-            size_t idx, QueuedStream::ResolvedRedirectResult result,
-            ID::OurStream for_stream, InsertMode insert_mode,
-            PlayNewMode play_new_mode);
-
-    void unexpected_resolve_error(size_t idx,
-                                  QueuedStream::ResolvedRedirectResult result);
-
-    using QueueItemRedirectResolved =
-        void (Control::*)(size_t, QueuedStream::ResolvedRedirectResult,
-                          ID::OurStream, InsertMode, PlayNewMode);
-
     bool queue_item_from_op(Playlist::Crawler::GetURIsOpBase &op,
                             Playlist::Crawler::Direction direction,
-                            const QueueItemRedirectResolved &callback,
                             InsertMode insert_mode, PlayNewMode play_new_mode);
-    bool queue_item_from_op_tail(ID::OurStream stream_id, InsertMode insert_mode,
-                                 PlayNewMode play_new_mode,
-                                 QueuedStream::ResolvedRedirectCallback &&callback);
 
     enum class ReplayResult
     {
