@@ -2069,14 +2069,18 @@ bool ViewFileBrowser::View::do_point_to_context_root_directory(List::context_id_
         return false;
     }
 
-    async_calls_.context_jump_.begin(current_list_id_,
-                                     browse_navigation_.get_cursor(), ctx_id);
+    if(!async_calls_.context_jump_.begin(current_list_id_,
+                                         browse_navigation_.get_cursor(), ctx_id))
+    {
+        async_calls_.get_context_root_ = nullptr;
+        return false;
+    }
 
     async_calls_.get_context_root_->invoke(
         tdbus_lists_navigation_call_get_root_link_to_context,
         list_contexts_[ctx_id].string_id_.c_str());
 
-    return false;
+    return true;
 }
 
 void ViewFileBrowser::View::set_list_context_root(List::context_id_t ctx_id)

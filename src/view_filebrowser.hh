@@ -96,15 +96,25 @@ class JumpToContext
         destination_(List::ContextMap::INVALID_ID)
     {}
 
-    void begin(ID::List source_list_id, unsigned int source_line,
+    bool begin(ID::List source_list_id, unsigned int source_line,
                const List::context_id_t &destination)
     {
-        log_assert(state_ == State::NOT_JUMPING);
+        if(state_ != State::NOT_JUMPING)
+        {
+            BUG("Already jumping to context %d (state %d, source list %u, line %u, parent %u, context list %u), "
+                "requested to jump to %d now (source list %u, line %u)",
+                int(destination_), int(state_), source_.first.get_raw_id(),
+                source_.second, parent_list_id_.get_raw_id(), context_list_id_.get_raw_id(),
+                int(destination), source_list_id.get_raw_id(), source_line);
+            return false;
+        }
+
         log_assert(destination != List::ContextMap::INVALID_ID);
         source_.first = source_list_id;
         source_.second = source_line;
         destination_ = destination;
         set_state(State::GET_CONTEXT_PARENT_ID);
+        return true;
     }
 
     void put_parent_list_id(const ID::List list_id)
