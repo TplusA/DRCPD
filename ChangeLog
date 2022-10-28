@@ -1,3 +1,13 @@
+2022-10-28  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 5.30 released.
+
+	* Playback: When skipping any stream in pause mode, automatically
+	  leave pause mode and play the next stream.
+
+	* Stability: Replace assertion with bug message when trying to enter
+	  root directory while jumping to context.
+
 2022-10-21  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 5.29 released.
