@@ -607,9 +607,7 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
             if(switched_stream)
             {
                 player_data_.player_now_playing_stream(stream_id, std::move(url_string));
-
-                if(ID::SourcedStream<STREAM_ID_SOURCE_APP>::compatible_with(stream_id))
-                    player_data_.set_intention(Player::UserIntention::LISTENING);
+                player_data_.set_intention(Player::UserIntention::LISTENING);
             }
 
             player_data_.get_now_playing().put_meta_data(stream_id, std::move(meta_data));
