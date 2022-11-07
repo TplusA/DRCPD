@@ -27,6 +27,7 @@
 #include "ui_events.hh"
 #include "playlist_cursor.hh"
 
+#include <array>
 #include <functional>
 #include <unordered_set>
 #include <forward_list>

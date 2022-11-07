@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016--2021  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016--2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -24,6 +24,7 @@
 
 #include <ostream>
 #include <atomic>
+#include <array>
 
 #include "screen_ids.hh"
 #include "dcp_transaction_queue.hh"
