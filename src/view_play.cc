@@ -72,9 +72,10 @@ void ViewPlay::View::plug_audio_source(Player::AudioSource &audio_source,
                                        bool with_enforced_intentions,
                                        const std::string *external_player_id)
 {
-    player_control_.plug(audio_source, with_enforced_intentions,
-                         [this] (Player::Control::FinishedWith what) { player_finished(what); },
-                         external_player_id);
+    player_control_.plug(
+        audio_source, with_enforced_intentions,
+        [this] (Player::Control::FinishedWith what) { player_finished(what, true); },
+        external_player_id);
 }
 
 void ViewPlay::View::prepare_for_playing(
@@ -115,7 +116,8 @@ void ViewPlay::View::stop_playing(const Player::AudioSource &audio_source)
         player_control_.unplug(false);
 }
 
-void ViewPlay::View::player_finished(Player::Control::FinishedWith what)
+void ViewPlay::View::player_finished(Player::Control::FinishedWith what,
+                                     bool is_active_controller)
 {
     switch(what)
     {
@@ -135,7 +137,9 @@ void ViewPlay::View::player_finished(Player::Control::FinishedWith what)
         }
     }
 
-    player_control_.unplug(false);
+    if(is_active_controller)
+        player_control_.unplug(false);
+
     player_data_.player_finished_and_idle();
 
     add_update_flags(UPDATE_FLAGS_PLAYBACK_STATE);
@@ -676,7 +680,8 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
                          error_id.empty() ? "" : " with error",
                          is_visible_ ? "send screen update" : "but view is invisible");
 
-                player_finished(Player::Control::FinishedWith::PLAYING);
+                player_finished(Player::Control::FinishedWith::PLAYING,
+                                stop_reaction == Player::Control::StopReaction::STOPPED);
 
                 break;
 

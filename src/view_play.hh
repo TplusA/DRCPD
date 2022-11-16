@@ -128,7 +128,7 @@ class View: public ViewIface, public ViewSerializeBase
     void handle_audio_path_changed(const std::string &ausrc_id,
                                    const std::string &player_id,
                                    std::function<InputResult(const char *)> before_view_activation);
-    void player_finished(Player::Control::FinishedWith what);
+    void player_finished(Player::Control::FinishedWith what, bool is_active_controller);
     void plug_audio_source(Player::AudioSource &audio_source,
                            bool with_enforced_intentions,
                            const std::string *external_player_id = nullptr);
