@@ -1,3 +1,10 @@
+2022-11-17  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 5.31 released.
+
+	* Playback: Don't mess with the player's queue on stream stop if we
+	  are not the controlling instance.
+
 2022-10-28  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 5.30 released.
