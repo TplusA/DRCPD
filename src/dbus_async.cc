@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019, 2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2019, 2020, 2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -57,8 +57,8 @@ void register_call(std::shared_ptr<AsyncCall_> call)
     std::lock_guard<LoggedLock::Mutex> lock(async_call_pool_data.lock);
     auto &aq(async_call_pool_data.active_queries);
 
-    BUG_IF(aq.find(call) != aq.end(),
-           "Async call %p already registered", static_cast<void *>(call.get()));
+    MSG_BUG_IF(aq.find(call) != aq.end(),
+               "Async call %p already registered", static_cast<void *>(call.get()));
     aq.emplace(std::move(call));
 }
 
@@ -68,8 +68,8 @@ void unregister_call(std::shared_ptr<AsyncCall_> call)
     std::lock_guard<LoggedLock::Mutex> lock(async_call_pool_data.lock);
     auto &aq(async_call_pool_data.active_queries);
 
-    BUG_IF(aq.find(call) == aq.end(),
-           "Async call %p not registered", static_cast<void *>(call.get()));
+    MSG_BUG_IF(aq.find(call) == aq.end(),
+               "Async call %p not registered", static_cast<void *>(call.get()));
     aq.erase(call);
 }
 

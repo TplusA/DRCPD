@@ -84,8 +84,8 @@ Player::Skipper::forward_request(
         RunNewFindNextOp &&run_new_find_next_fn,
         SkipperDoneCallback &&done)
 {
-    log_assert(run_new_find_next_fn != nullptr);
-    log_assert(done != nullptr);
+    msg_log_assert(run_new_find_next_fn != nullptr);
+    msg_log_assert(done != nullptr);
 
     if(pos == nullptr)
         return RequestResult::FAILED;
@@ -139,7 +139,7 @@ Player::Skipper::forward_request(
     if(find_next_op_ != nullptr)
         return RequestResult::FIRST_SKIP_REQUEST_PENDING;
 
-    BUG("Failed starting find operation for forward skip");
+    MSG_BUG("Failed starting find operation for forward skip");
     reset__unlocked();
     return RequestResult::FAILED;
 }
@@ -150,8 +150,8 @@ Player::Skipper::backward_request(
         RunNewFindNextOp &&run_new_find_next_fn,
         SkipperDoneCallback &&done)
 {
-    log_assert(run_new_find_next_fn != nullptr);
-    log_assert(done != nullptr);
+    msg_log_assert(run_new_find_next_fn != nullptr);
+    msg_log_assert(done != nullptr);
 
     if(pos == nullptr)
         return RequestResult::FAILED;
@@ -205,7 +205,7 @@ Player::Skipper::backward_request(
     if(find_next_op_ != nullptr)
         return RequestResult::FIRST_SKIP_REQUEST_PENDING;
 
-    BUG("Failed starting find operation for backward skip");
+    MSG_BUG("Failed starting find operation for backward skip");
     reset__unlocked();
     return RequestResult::FAILED;
 }
@@ -218,7 +218,7 @@ bool Player::Skipper::found_or_failed(Playlist::Crawler::FindNextOpBase &op,
 
     if(!op.is_op_successful())
     {
-        log_assert(&op == find_next_op_.get());
+        msg_log_assert(&op == find_next_op_.get());
         auto fnop(std::move(find_next_op_));
         reset__unlocked();
         lock.unlock();
@@ -232,7 +232,7 @@ bool Player::Skipper::found_or_failed(Playlist::Crawler::FindNextOpBase &op,
         break;
 
       case Playlist::Crawler::FindNextOpBase::PositionalState::UNKNOWN:
-        BUG("Unknown positional state while skipping");
+        MSG_BUG("Unknown positional state while skipping");
         break;
 
       case Playlist::Crawler::FindNextOpBase::PositionalState::REACHED_START_OF_LIST:
@@ -244,7 +244,7 @@ bool Player::Skipper::found_or_failed(Playlist::Crawler::FindNextOpBase &op,
     if(pending_skip_requests_ == 0)
     {
         /* all skip requests have been processed, back to normal */
-        log_assert(&op == find_next_op_.get());
+        msg_log_assert(&op == find_next_op_.get());
         auto fnop(std::move(find_next_op_));
         reset__unlocked();
         lock.unlock();
@@ -274,9 +274,9 @@ bool Player::Skipper::found_or_failed(Playlist::Crawler::FindNextOpBase &op,
 
     if(find_next_op_ == nullptr)
     {
-        log_assert(&op == find_next_op_.get());
+        msg_log_assert(&op == find_next_op_.get());
         auto fnop(std::move(find_next_op_));
-        BUG("Failed starting next find operation for skipping");
+        MSG_BUG("Failed starting next find operation for skipping");
         reset__unlocked();
         lock.unlock();
 

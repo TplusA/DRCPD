@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017, 2019, 2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2017, 2019, 2020, 2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -60,8 +60,8 @@ class CacheEnforcer
 
     ~CacheEnforcer()
     {
-        log_assert(state_ != State::STARTED);
-        log_assert(pointer_to_self_ == nullptr);
+        msg_log_assert(state_ != State::STARTED);
+        msg_log_assert(pointer_to_self_ == nullptr);
     }
 
     void start();

@@ -52,11 +52,11 @@ static void unknown_signal(const char *iface_name, const char *signal_name,
 static void check_parameter_assertions(GVariant *parameters,
                                        guint expected_number_of_parameters)
 {
-    /* we may use #log_assert() here because the GDBus code is supposed to do
-     * any type checks before calling us---here, we just make sure we can
+    /* we may use #msg_log_assert() here because the GDBus code is supposed to
+     * do any type checks before calling us---here, we just make sure we can
      * trust those type checks */
-    log_assert(g_variant_type_is_tuple(g_variant_get_type(parameters)));
-    log_assert(g_variant_n_children(parameters) == expected_number_of_parameters);
+    msg_log_assert(g_variant_type_is_tuple(g_variant_get_type(parameters)));
+    msg_log_assert(g_variant_n_children(parameters) == expected_number_of_parameters);
 }
 
 static void dbussignal_dcpd_playback(GDBusProxy *proxy, const gchar *sender_name,
@@ -69,7 +69,7 @@ static void dbussignal_dcpd_playback(GDBusProxy *proxy, const gchar *sender_name
     log_signal(iface_name, signal_name, sender_name);
 
     auto *data = static_cast<DBus::SignalData *>(user_data);
-    log_assert(data != nullptr);
+    msg_log_assert(data != nullptr);
 
     if(strcmp(signal_name, "Start") == 0)
     {
@@ -156,7 +156,7 @@ void dbussignal_dcpd_views(GDBusProxy *proxy, const gchar *sender_name,
     log_signal(iface_name, signal_name, sender_name);
 
     auto *data = static_cast<DBus::SignalData *>(user_data);
-    log_assert(data != nullptr);
+    msg_log_assert(data != nullptr);
 
     if(strcmp(signal_name, "Open") == 0)
     {
@@ -189,7 +189,7 @@ void dbussignal_dcpd_views(GDBusProxy *proxy, const gchar *sender_name,
         const gchar *context = g_variant_get_string(context_value, NULL);
 
         GVariant *search_params_value = g_variant_get_child_value(parameters, 1);
-        log_assert(search_params_value != nullptr);
+        msg_log_assert(search_params_value != nullptr);
 
         GVariantIter iter;
         std::string search_string;
@@ -237,7 +237,7 @@ void dbussignal_dcpd_listnav(GDBusProxy *proxy, const gchar *sender_name,
     log_signal(iface_name, signal_name, sender_name);
 
     auto *data = static_cast<DBus::SignalData *>(user_data);
-    log_assert(data != nullptr);
+    msg_log_assert(data != nullptr);
 
     if(strcmp(signal_name, "LevelUp") == 0)
         data->event_sink_.store_event(UI::EventID::NAV_GO_BACK_ONE_LEVEL);
@@ -285,7 +285,7 @@ void dbussignal_lists_navigation(GDBusProxy *proxy, const gchar *sender_name,
     log_signal(iface_name, signal_name, sender_name);
 
     auto *data = static_cast<DBus::SignalData *>(user_data);
-    log_assert(data != nullptr);
+    msg_log_assert(data != nullptr);
 
     if(strcmp(signal_name, "ListInvalidate") == 0)
     {
@@ -356,7 +356,7 @@ void dbussignal_splay_urlfifo(GDBusProxy *proxy, const gchar *sender_name,
     log_signal(iface_name, signal_name, sender_name);
 
     auto *data = static_cast<DBus::SignalData *>(user_data);
-    log_assert(data != nullptr);
+    msg_log_assert(data != nullptr);
 
     if(strcmp(signal_name, "Dropped") == 0)
     {
@@ -379,7 +379,7 @@ void dbussignal_splay_urlfifo(GDBusProxy *proxy, const gchar *sender_name,
 
 static std::unique_ptr<MetaData::Set> parse_meta_data(GVariantIter *meta_data_iter)
 {
-    log_assert(meta_data_iter != nullptr);
+    msg_log_assert(meta_data_iter != nullptr);
 
     auto md(std::make_unique<MetaData::Set>());
     if(md == nullptr)
@@ -464,7 +464,7 @@ void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
     log_signal(iface_name, signal_name, sender_name);
 
     auto *data = static_cast<DBus::SignalData *>(user_data);
-    log_assert(data != nullptr);
+    msg_log_assert(data != nullptr);
 
     if(strcmp(signal_name, "NowPlaying") == 0)
     {
@@ -655,7 +655,7 @@ void dbussignal_airable_sec(GDBusProxy *proxy, const gchar *sender_name,
     log_signal(iface_name, signal_name, sender_name);
 
     auto *data = static_cast<DBus::SignalData *>(user_data);
-    log_assert(data != nullptr);
+    msg_log_assert(data != nullptr);
 
     if(strcmp(signal_name, "ExternalServiceLoginStatus") == 0)
     {
@@ -717,7 +717,7 @@ void dbussignal_audiopath_manager(GDBusProxy *proxy, const gchar *sender_name,
     log_signal(iface_name, signal_name, sender_name);
 
     auto *data = static_cast<DBus::SignalData *>(user_data);
-    log_assert(data != nullptr);
+    msg_log_assert(data != nullptr);
 
     if(strcmp(signal_name, "PlayerRegistered") == 0)
     {
@@ -784,7 +784,7 @@ void dbussignal_rest_display_updates(GDBusProxy *proxy, const gchar *sender_name
     log_signal(iface_name, signal_name, sender_name);
 
     auto *data = static_cast<DBus::SignalData *>(user_data);
-    log_assert(data != nullptr);
+    msg_log_assert(data != nullptr);
 
     if(strcmp(signal_name, "Object") == 0)
     {
@@ -933,7 +933,7 @@ gboolean dbusmethod_config_get_all_keys(tdbusConfigurationRead *object,
     enter_config_read_handler(invocation);
 
     auto *data = static_cast<DBus::SignalData *>(user_data);
-    log_assert(data != nullptr);
+    msg_log_assert(data != nullptr);
 
     auto keys(data->drcpd_config_mgr_.keys());
     auto temp(data->i18n_config_mgr_.keys());
@@ -955,7 +955,7 @@ gboolean dbusmethod_config_get_value(tdbusConfigurationRead *object,
     enter_config_read_handler(invocation);
 
     auto *data = static_cast<DBus::SignalData *>(user_data);
-    log_assert(data != nullptr);
+    msg_log_assert(data != nullptr);
 
     GVariantWrapper value = data->drcpd_config_mgr_.lookup_boxed(key);
     if(value == nullptr)
@@ -993,7 +993,7 @@ gboolean dbusmethod_config_get_all_values(tdbusConfigurationRead *object,
     enter_config_read_handler(invocation);
 
     auto *data = static_cast<DBus::SignalData *>(user_data);
-    log_assert(data != nullptr);
+    msg_log_assert(data != nullptr);
 
     GVariantDict dict;
     g_variant_dict_init(&dict, nullptr);
@@ -1036,7 +1036,7 @@ gboolean dbusmethod_config_set_value(tdbusConfigurationWrite *object,
     enter_config_write_handler(invocation);
 
     auto *data = static_cast<DBus::SignalData *>(user_data);
-    log_assert(data != nullptr);
+    msg_log_assert(data != nullptr);
 
     Configuration::InsertResult result = Configuration::InsertResult::KEY_UNKNOWN;
     std::string section;
@@ -1114,7 +1114,7 @@ gboolean dbusmethod_config_set_multiple_values(tdbusConfigurationWrite *object,
     enter_config_write_handler(invocation);
 
     auto *data = static_cast<DBus::SignalData *>(user_data);
-    log_assert(data != nullptr);
+    msg_log_assert(data != nullptr);
 
     GVariantBuilder errors;
     g_variant_builder_init(&errors, G_VARIANT_TYPE("a{ss}"));

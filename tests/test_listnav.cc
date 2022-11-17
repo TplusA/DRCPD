@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2016, 2019, 2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016, 2019, 2020, 2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -158,7 +158,7 @@ class NavItemFlags: public List::NavItemFilterIface
 
     unsigned int get_flags_for_item(unsigned int item) const override
     {
-        log_assert(list_ != nullptr);
+        msg_log_assert(list_ != nullptr);
         return const_cast<List::ListIface *>(list_)->get_item(viewport_, item)->get_flags();
     }
 

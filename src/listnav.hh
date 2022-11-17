@@ -62,8 +62,8 @@ class NavItemFilterIface
     virtual void tie(std::shared_ptr<List::ListViewportBase> vp,
                      const List::ListIface *list)
     {
-        log_assert(vp != nullptr);
-        log_assert(list != nullptr);
+        msg_log_assert(vp != nullptr);
+        msg_log_assert(list != nullptr);
 
         if(viewport_ == vp && list_ == list)
             return;
@@ -247,8 +247,8 @@ class Nav
         if(this == &src)
             return;
 
-        BUG_IF(&src.item_filter_ != &item_filter_,
-               "Incompatible item filters");
+        MSG_BUG_IF(&src.item_filter_ != &item_filter_,
+                   "Incompatible item filters");
 
         cursor_ = src.cursor_;
         first_displayed_item_ = src.first_displayed_item_;
@@ -482,10 +482,10 @@ class Nav
             return;
         }
 
-        log_assert(maximum_number_of_displayed_lines_ > 0);
+        msg_log_assert(maximum_number_of_displayed_lines_ > 0);
 
         const unsigned int max_items = get_total_number_of_visible_items();
-        log_assert(line_number < max_items);
+        msg_log_assert(line_number < max_items);
 
         if(max_items < maximum_number_of_displayed_lines_)
         {
@@ -504,7 +504,7 @@ class Nav
                                         distance_to_end_of_list - 1;
         }
 
-        log_assert(selected_line_number_ < maximum_number_of_displayed_lines_);
+        msg_log_assert(selected_line_number_ < maximum_number_of_displayed_lines_);
 
         recover_first_displayed_item_by_cursor();
     }

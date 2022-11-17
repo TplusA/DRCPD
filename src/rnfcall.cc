@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019, 2020, 2021  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2019, 2020, 2021, 2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -55,7 +55,7 @@ bool DBusRNF::CallBase::abort_request_internal(bool suppress_errors)
         if(was_aborted_after_done_)
         {
             if(!suppress_errors)
-                BUG("Multiple aborts of finished RNF call (state %d)", int(state_));
+                MSG_BUG("Multiple aborts of finished RNF call (state %d)", int(state_));
 
             return false;
         }
@@ -66,7 +66,7 @@ bool DBusRNF::CallBase::abort_request_internal(bool suppress_errors)
       case CallState::ABORTING:
       case CallState::ABORTED_BY_LIST_BROKER:
         if(!suppress_errors)
-            BUG("Multiple aborts of RNF call (state %d)", int(state_));
+            MSG_BUG("Multiple aborts of RNF call (state %d)", int(state_));
 
         return false;
 
@@ -94,7 +94,7 @@ bool DBusRNF::CallBase::abort_request_internal(bool suppress_errors)
     }
     catch(...)
     {
-        BUG("Got exception while aborting cookie %u", cookie);
+        MSG_BUG("Got exception while aborting cookie %u", cookie);
     }
 
     return false;
@@ -108,15 +108,15 @@ void DBusRNF::CallBase::notification(uint32_t cookie, CallState new_state,
 
     if(cookie == 0)
     {
-        BUG("%s notification for invalid cookie [%p]",
-            what, static_cast<void *>(this));
+        MSG_BUG("%s notification for invalid cookie [%p]",
+                what, static_cast<void *>(this));
         return;
     }
 
     if(cookie != cookie_ && cookie != cleared_cookie_)
     {
-        BUG("%s notification for wrong cookie %u (expected %u or %u) [%p]",
-            what, cookie, cookie_, cleared_cookie_, static_cast<void *>(this));
+        MSG_BUG("%s notification for wrong cookie %u (expected %u or %u) [%p]",
+                what, cookie, cookie_, cleared_cookie_, static_cast<void *>(this));
         return;
     }
 
@@ -134,8 +134,8 @@ void DBusRNF::CallBase::notification(uint32_t cookie, CallState new_state,
       case CallState::ABORTED_BY_LIST_BROKER:
       case CallState::FAILED:
       case CallState::ABOUT_TO_DESTROY:
-        BUG("%s notification in unexpected state %d [%p]",
-            what, int(state_), static_cast<void *>(this));
+        MSG_BUG("%s notification in unexpected state %d [%p]",
+                what, int(state_), static_cast<void *>(this));
         break;
     }
 }

@@ -44,21 +44,21 @@ class Error
     explicit Error(ScreenID::Error code):
         code_(code)
     {
-        log_assert(ScreenID::is_real_error(code));
+        msg_log_assert(ScreenID::is_real_error(code));
     }
 
     explicit Error(ScreenID::Error code, std::string &&message):
         code_(code),
         message_(std::move(message))
     {
-        log_assert(ScreenID::is_real_error(code));
+        msg_log_assert(ScreenID::is_real_error(code));
     }
 
     explicit Error(ScreenID::Error code, const char *message):
         code_(code),
         message_(message)
     {
-        log_assert(ScreenID::is_real_error(code));
+        msg_log_assert(ScreenID::is_real_error(code));
     }
 
     explicit Error(ScreenID::Error code, std::string &&message,
@@ -67,7 +67,7 @@ class Error
         context_id_(context_id),
         message_(std::move(message))
     {
-        log_assert(ScreenID::is_real_error(code));
+        msg_log_assert(ScreenID::is_real_error(code));
     }
 
     explicit Error(ScreenID::Error code, const char *message,
@@ -76,7 +76,7 @@ class Error
         context_id_(context_id),
         message_(message)
     {
-        log_assert(ScreenID::is_real_error(code));
+        msg_log_assert(ScreenID::is_real_error(code));
     }
 
     explicit Error(ScreenID::Error code, bool dummy,
@@ -84,7 +84,7 @@ class Error
         code_(code),
         context_id_(context_id)
     {
-        log_assert(ScreenID::is_real_error(code));
+        msg_log_assert(ScreenID::is_real_error(code));
     }
 };
 

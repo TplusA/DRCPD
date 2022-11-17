@@ -148,7 +148,7 @@ static ID::List get_child_id_for_enter(List::DBusList &dbus_list, List::Nav &nav
           case ListError::Code::BUSY_3000:
           case ListError::Code::BUSY_5000:
           case ListError::Code::BUSY:
-            BUG("List broker is busy, should retry later");
+            MSG_BUG("List broker is busy, should retry later");
             return ID::List();
 
           case ListError::Code::INTERRUPTED:
@@ -247,8 +247,8 @@ Playlist::Crawler::DirectoryCrawler::FindNextOp::finish_with_current_item_or_con
         return fail_here();
 
       case List::AsyncListIface::OpResult::CANCELED:
-        BUG("Unexpected canceled result");
-        log_assert(is_op_canceled());
+        MSG_BUG("Unexpected canceled result");
+        msg_log_assert(is_op_canceled());
         return Continue::LATER;
     }
 
@@ -266,12 +266,12 @@ Playlist::Crawler::DirectoryCrawler::FindNextOp::finish_with_current_item_or_con
         return Continue::LATER;
 
       case List::AsyncListIface::OpResult::FAILED:
-        BUG("Unexpected failed result");
+        MSG_BUG("Unexpected failed result");
         return fail_here();
 
       case List::AsyncListIface::OpResult::CANCELED:
-        BUG("Unexpected canceled result");
-        log_assert(is_op_canceled());
+        MSG_BUG("Unexpected canceled result");
+        msg_log_assert(is_op_canceled());
         return Continue::LATER;
 
       case List::AsyncListIface::OpResult::BUSY:
@@ -280,13 +280,13 @@ Playlist::Crawler::DirectoryCrawler::FindNextOp::finish_with_current_item_or_con
 
     if(item == nullptr)
     {
-        BUG("Unexpected null item");
+        MSG_BUG("Unexpected null item");
         return fail_here();
     }
 
     /* we have something */
     file_item_ = dynamic_cast<const ViewFileBrowser::FileItem *>(item);
-    log_assert(file_item_ != nullptr);
+    msg_log_assert(file_item_ != nullptr);
 
     if(!file_item_->get_kind().is_directory())
     {
@@ -354,12 +354,12 @@ Playlist::Crawler::DirectoryCrawler::FindNextOp::finish_with_current_item_or_con
         return fail_here();
 
       case List::AsyncListIface::OpResult::SUCCEEDED:
-        BUG("Unexpected success from enter_list_async()");
+        MSG_BUG("Unexpected success from enter_list_async()");
         return fail_here();
 
       case List::AsyncListIface::OpResult::CANCELED:
-        BUG("Unexpected canceled result");
-        log_assert(is_op_canceled());
+        MSG_BUG("Unexpected canceled result");
+        msg_log_assert(is_op_canceled());
         break;
 
       case List::AsyncListIface::OpResult::BUSY:
@@ -432,7 +432,7 @@ Playlist::Crawler::DirectoryCrawler::FindNextOp::continue_search()
         break;
 
       case List::AsyncListIface::OpResult::SUCCEEDED:
-        BUG("Unexpected result from enter_list_async()");
+        MSG_BUG("Unexpected result from enter_list_async()");
         return fail_here();
 
       case List::AsyncListIface::OpResult::FAILED:
@@ -440,8 +440,8 @@ Playlist::Crawler::DirectoryCrawler::FindNextOp::continue_search()
         return fail_here();
 
       case List::AsyncListIface::OpResult::CANCELED:
-        BUG("Canceled entering parent list");
-        log_assert(is_op_canceled());
+        MSG_BUG("Canceled entering parent list");
+        msg_log_assert(is_op_canceled());
         break;
 
       case List::AsyncListIface::OpResult::BUSY:
@@ -561,7 +561,7 @@ void Playlist::Crawler::DirectoryCrawler::FindNextOp::enter_list_event(
 
       case List::AsyncListIface::OpResult::CANCELED:
         /* not really interested in this */
-        log_assert(is_op_canceled());
+        msg_log_assert(is_op_canceled());
         return;
 
       case List::AsyncListIface::OpResult::BUSY:
@@ -577,17 +577,17 @@ void Playlist::Crawler::DirectoryCrawler::FindNextOp::enter_list_event(
       case List::QueryContextEnterList::CallerID::ENTER_CONTEXT_ROOT:
       case List::QueryContextEnterList::CallerID::ENTER_ANYWHERE:
       case List::QueryContextEnterList::CallerID::RELOAD_LIST:
-        BUG("Invalid caller ID %d", int(cid));
+        MSG_BUG("Invalid caller ID %d", int(cid));
         operation_finished(false);
         break;
 
       case List::QueryContextEnterList::CallerID::CRAWLER_RESET_POSITION:
       case List::QueryContextEnterList::CallerID::CRAWLER_FIRST_ENTRY:
         /* first entry into first list */
-        log_assert(directory_depth_ == 0 ||
-                   cid == List::QueryContextEnterList::CallerID::CRAWLER_RESET_POSITION);
-        log_assert(directories_entered_ == 0);
-        log_assert(!is_waiting_for_item_hint_);
+        msg_log_assert(directory_depth_ == 0 ||
+                       cid == List::QueryContextEnterList::CallerID::CRAWLER_RESET_POSITION);
+        msg_log_assert(directories_entered_ == 0);
+        msg_log_assert(!is_waiting_for_item_hint_);
 
         if(!has_succeeded)
         {
@@ -688,7 +688,7 @@ bool Playlist::Crawler::DirectoryCrawler::FindNextOp::do_start()
         return true;
 
       case List::AsyncListIface::OpResult::SUCCEEDED:
-        BUG("Unexpected result from enter_list_async()");
+        MSG_BUG("Unexpected result from enter_list_async()");
         break;
 
       case List::AsyncListIface::OpResult::FAILED:

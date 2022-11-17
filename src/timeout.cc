@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, 2019, 2021  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2019, 2021, 2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -32,11 +32,11 @@
 bool Timeout::Timer::start(std::chrono::milliseconds &&timeout,
                            TimeoutCallback &&callback)
 {
-    log_assert(callback != nullptr);
+    msg_log_assert(callback != nullptr);
 
     if(timeout_event_source_id_ > 0)
     {
-        BUG("Timer already started");
+        MSG_BUG("Timer already started");
         return false;
     }
 

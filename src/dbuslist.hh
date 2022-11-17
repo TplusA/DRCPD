@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015--2017, 2019, 2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015--2017, 2019, 2020, 2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -145,17 +145,17 @@ class QueryContextEnterList: public QueryContext_
         }
         catch(const DBusListException &e)
         {
-            BUG("Got list exception while synchronizing enter-list cancel: %s",
-                e.what());
+            MSG_BUG("Got list exception while synchronizing enter-list cancel: %s",
+                    e.what());
         }
         catch(const std::exception &e)
         {
-            BUG("Got std exception while synchronizing enter-list cancel: %s",
-                e.what());
+            MSG_BUG("Got std exception while synchronizing enter-list cancel: %s",
+                    e.what());
         }
         catch(...)
         {
-            BUG("Got unknown exception while synchronizing enter-list cancel");
+            MSG_BUG("Got unknown exception while synchronizing enter-list cancel");
         }
 
         return ret;

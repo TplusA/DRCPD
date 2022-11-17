@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, 2017, 2019, 2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2017, 2019, 2020, 2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -35,7 +35,7 @@ bool ViewSearch::View::init()
 
 void ViewSearch::View::focus()
 {
-    BUG("View \"%s\" got focus", name_);
+    MSG_BUG("View \"%s\" got focus", name_);
 }
 
 void ViewSearch::View::defocus() {}
@@ -89,8 +89,8 @@ ViewSearch::View::process_event(UI::ViewEventID event_id,
         query_ = nullptr;
     }
     else
-        BUG("Unexpected view event 0x%08x for search view",
-            static_cast<unsigned int>(event_id));
+        MSG_BUG("Unexpected view event 0x%08x for search view",
+                static_cast<unsigned int>(event_id));
 
     return InputResult::OK;
 }
@@ -98,7 +98,7 @@ ViewSearch::View::process_event(UI::ViewEventID event_id,
 bool ViewSearch::View::write_xml(std::ostream &os, uint32_t bits,
                                  const DCP::Queue::Data &data)
 {
-    log_assert(!request_context_.empty());
+    msg_log_assert(!request_context_.empty());
 
     os << "<context>" << request_context_ << "</context>"
        << "<input title=\"Search for\" type=\"text\" id=\"text0\" required=\"true\">"

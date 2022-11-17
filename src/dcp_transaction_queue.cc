@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, 2017, 2019, 2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2017, 2019, 2020, 2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -85,7 +85,7 @@ bool DCP::Queue::start_transaction(Mode mode)
 
           case Mode::FORCE_ASYNC:
             if(active_.dcpd_.start(true))
-                BUG("Unexpected result for starting asynchronous DCP transaction");
+                MSG_BUG("Unexpected result for starting asynchronous DCP transaction");
 
             return active_.dcpd_.is_started_async();
         }
@@ -121,18 +121,18 @@ bool DCP::Queue::process()
 
             if(!active_.dcpd_.start())
             {
-                log_assert(active_.data_ != nullptr);
+                msg_log_assert(active_.data_ != nullptr);
                 break;
             }
 
-            log_assert(active_.data_ == nullptr);
+            msg_log_assert(active_.data_ == nullptr);
 
             active_.data_ = std::move(q_.data_.front());
             q_.data_.pop_front();
         }
 
-        log_assert(active_.dcpd_.stream() != nullptr);
-        log_assert(active_.data_ != nullptr);
+        msg_log_assert(active_.dcpd_.stream() != nullptr);
+        msg_log_assert(active_.data_ != nullptr);
 
         if(active_.data_->view_->write_whole_xml(*active_.dcpd_.stream(),
                                                  *active_.data_))
@@ -154,26 +154,26 @@ bool DCP::Queue::finish_transaction(DCP::Transaction::Result result)
 
     if(!active_.dcpd_.is_in_progress())
     {
-        BUG("Received result from DCPD for idle transaction");
+        MSG_BUG("Received result from DCPD for idle transaction");
         return true;
     }
 
     if(result == DCP::Transaction::OK)
     {
-        log_assert(active_.data_ != nullptr);
+        msg_log_assert(active_.data_ != nullptr);
         active_.data_.reset();
 
         if(active_.dcpd_.done())
             return true;
 
-        BUG("Failed closing successful transaction, trying to abort");
+        MSG_BUG("Failed closing successful transaction, trying to abort");
     }
 
     active_.data_.reset();
 
     if(!active_.dcpd_.abort())
     {
-        BUG("Failed aborting DCPD transaction, aborting program.");
+        MSG_BUG("Failed aborting DCPD transaction, aborting program.");
         os_abort();
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, 2017, 2019, 2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2017, 2019, 2020, 2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -143,7 +143,7 @@ class EventQueue
 
     void post(std::unique_ptr<Events::BaseEvent> event)
     {
-        log_assert(event != nullptr);
+        msg_log_assert(event != nullptr);
 
         bool need_trigger;
 

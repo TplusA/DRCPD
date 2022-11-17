@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2020, 2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -149,7 +149,7 @@ class Skipper
     List::NavItemFilterIface &get_item_filter(bool expecting_tied = true)
     {
         const auto is_tied = skip_item_filter_.is_tied();
-        BUG_IF(expecting_tied && !is_tied, "Returning untied item filter");
+        MSG_BUG_IF(expecting_tied && !is_tied, "Returning untied item filter");
         return skip_item_filter_;
     }
 

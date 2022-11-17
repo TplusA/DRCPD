@@ -104,8 +104,8 @@ ViewSourceREST::View::process_event(UI::ViewEventID event_id,
       case UI::ViewEventID::AUDIO_PATH_CHANGED:
       case UI::ViewEventID::STRBO_URL_RESOLVED:
       case UI::ViewEventID::PLAYBACK_TRY_RESUME:
-        BUG("Unexpected view event 0x%08x for REST audio source view",
-            static_cast<unsigned int>(event_id));
+        MSG_BUG("Unexpected view event 0x%08x for REST audio source view",
+                static_cast<unsigned int>(event_id));
         break;
     }
 
@@ -175,7 +175,7 @@ process_display_update(ViewSourceREST::View &view, const nlohmann::json &req,
 
 bool ViewSourceREST::View::set_line(size_t idx, std::string &&str)
 {
-    log_assert(idx < lines_.size());
+    msg_log_assert(idx < lines_.size());
 
     if(lines_.at(idx) == str)
         return false;
@@ -192,7 +192,7 @@ bool ViewSourceREST::View::set_line(size_t idx, std::string &&str)
 
 bool ViewSourceREST::View::set_line(size_t idx, const std::string &str)
 {
-    log_assert(idx < lines_.size());
+    msg_log_assert(idx < lines_.size());
 
     if(lines_.at(idx) == str)
         return false;

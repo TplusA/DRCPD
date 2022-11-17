@@ -197,7 +197,7 @@ class ViewSerializeBase
 
         const auto ids(get_dynamic_ids(bits));
 
-        log_assert(ids.first <= ViewID::LAST_VIEW_ID);
+        msg_log_assert(ids.first <= ViewID::LAST_VIEW_ID);
 
         os << "<" << (data.is_full_serialize_ ? "view" : "update") << " id=\""
            << idnames[size_t(ids.first)] << "\">";
@@ -259,13 +259,13 @@ class ViewSerializeBase
 
     void serialize_begin()
     {
-        BUG_IF(is_serializing_, "Already serializing");
+        MSG_BUG_IF(is_serializing_, "Already serializing");
         is_serializing_ = true;
     }
 
     void serialize_end()
     {
-        BUG_IF(!is_serializing_, "Not serializing");
+        MSG_BUG_IF(!is_serializing_, "Not serializing");
         is_serializing_ = false;
     }
 

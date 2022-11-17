@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015--2021  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015--2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -161,7 +161,7 @@ static gboolean dcp_fifo_in_dispatch(int fd, GIOCondition condition,
     if(data.files.dcp_fifo.in_fd < 0)
         return G_SOURCE_REMOVE;
 
-    log_assert(fd == data.files.dcp_fifo.in_fd);
+    msg_log_assert(fd == data.files.dcp_fifo.in_fd);
 
     gboolean return_value = G_SOURCE_CONTINUE;
 
@@ -214,7 +214,7 @@ static std::chrono::milliseconds
 transaction_timeout_exceeded(ViewManager::VMIface *const vm)
 {
     msg_error(ETIMEDOUT, LOG_CRIT, "DCPD answer timeout exceeded");
-    log_assert(vm != nullptr);
+    msg_log_assert(vm != nullptr);
 
     vm->serialization_result(DCP::Transaction::TIMEOUT);
 
@@ -408,7 +408,7 @@ static int process_command_line(int argc, char *argv[],
 static gboolean do_call_in_main_context(gpointer user_data)
 {
     auto *fn = static_cast<std::function<void()> *>(user_data);
-    log_assert(fn != nullptr);
+    msg_log_assert(fn != nullptr);
 
     try
     {
@@ -471,7 +471,7 @@ static void defer_ui_event_processing(UIEventsProcessingData &data)
  */
 static void defer_dcp_transfer(DCP::Queue *queue)
 {
-    log_assert(queue != nullptr);
+    msg_log_assert(queue != nullptr);
 
     auto *fn_object =
         new std::function<void()>([queue] { queue->process_pending_transactions(); });

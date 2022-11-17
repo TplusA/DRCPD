@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2016, 2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016, 2019, 2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -105,7 +105,7 @@ int fifo_write_from_buffer(const uint8_t *src, size_t count, int fd)
             return -1;
         }
 
-        log_assert((size_t)len <= count);
+        msg_log_assert((size_t)len <= count);
 
         src += len;
         count -= len;
@@ -136,7 +136,7 @@ int fifo_try_read_to_buffer(uint8_t *dest, size_t count, size_t *dest_pos,
             break;
         }
 
-        log_assert((size_t)len <= count);
+        msg_log_assert((size_t)len <= count);
 
         dest += len;
         count -= len;

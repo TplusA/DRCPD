@@ -212,11 +212,11 @@ static void lookup_source_and_nonconst_view(
         view = ausrc_and_view.second;
 
         if(view == nullptr)
-            BUG("Have no view for audio source %s", audio_source_id.c_str());
+            MSG_BUG("Have no view for audio source %s", audio_source_id.c_str());
     }
     catch(const std::out_of_range &e)
     {
-        BUG("Audio source %s not known", audio_source_id.c_str());
+        MSG_BUG("Audio source %s not known", audio_source_id.c_str());
     }
 }
 
@@ -245,7 +245,7 @@ static void lookup_view_for_external_source(ViewPlay::View::AudioSourceAndViewBy
     }
     catch(const std::out_of_range &e)
     {
-        BUG("View for external audio source %s not known", audio_source_id.c_str());
+        MSG_BUG("View for external audio source %s not known", audio_source_id.c_str());
     }
 }
 
@@ -291,7 +291,7 @@ set_rest_view_display_update(ViewManager::VMIface &view_man,
                             view_man.get_view_by_name(ViewNames::REST_API));
     if(view == nullptr)
     {
-        BUG("Failed to lookup REST API view");
+        MSG_BUG("Failed to lookup REST API view");
         return ViewIface::InputResult::OK;
     }
 
@@ -364,7 +364,7 @@ void ViewPlay::View::handle_audio_path_changed(
         msg_info("Plug external audio source %s into player",
                  audio_source->id_.c_str());
 
-        log_assert(view != nullptr);
+        msg_log_assert(view != nullptr);
 
         audio_source->select_now();
         plug_audio_source(*audio_source,
@@ -595,8 +595,8 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
             if(!stream_id.is_valid())
             {
                 /* we are not sending such IDs */
-                BUG("Invalid stream ID %u received from Streamplayer",
-                    stream_id.get_raw_id());
+                MSG_BUG("Invalid stream ID %u received from Streamplayer",
+                        stream_id.get_raw_id());
                 break;
             }
 
@@ -756,8 +756,8 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
 
             if(!std::get<0>(plist).is_valid())
             {
-                BUG("Play view: received stream position for invalid ID %u",
-                    std::get<0>(plist).get_raw_id());
+                MSG_BUG("Play view: received stream position for invalid ID %u",
+                        std::get<0>(plist).get_raw_id());
                 break;
             }
 
@@ -844,8 +844,8 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
             if(!stream_id.is_valid())
             {
                 /* we are not sending such IDs */
-                BUG("Invalid stream ID %u received from Streamplayer",
-                    stream_id.get_raw_id());
+                MSG_BUG("Invalid stream ID %u received from Streamplayer",
+                        stream_id.get_raw_id());
                 break;
             }
 
@@ -1012,8 +1012,8 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
       case UI::ViewEventID::PLAYBACK_TRY_RESUME:
       case UI::ViewEventID::STRBO_URL_RESOLVED:
       case UI::ViewEventID::SET_DISPLAY_CONTENT:
-        BUG("Unexpected view event 0x%08x for play view",
-            static_cast<unsigned int>(event_id));
+        MSG_BUG("Unexpected view event 0x%08x for play view",
+                static_cast<unsigned int>(event_id));
 
         break;
     }
@@ -1214,7 +1214,7 @@ void ViewPlay::View::serialize(DCP::Queue &queue, DCP::Queue::Mode mode,
                                std::ostream *debug_os)
 {
     if(!is_visible_)
-        BUG("serializing invisible ViewPlay::View");
+        MSG_BUG("serializing invisible ViewPlay::View");
 
     ViewSerializeBase::serialize(queue, mode);
 
@@ -1257,7 +1257,7 @@ void ViewPlay::View::serialize(DCP::Queue &queue, DCP::Queue::Mode mode,
 
 std::string MetaData::Reformatters::bitrate(const char *in)
 {
-    log_assert(in != NULL);
+    msg_log_assert(in != NULL);
 
     bool failed = false;
     unsigned long result = 0;

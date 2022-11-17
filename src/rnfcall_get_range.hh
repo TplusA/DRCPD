@@ -154,7 +154,7 @@ class GetRangeCallBase:
         switch(get_state())
         {
           case DBusRNF::CallState::INITIALIZED:
-            BUG("Unexpected call state");
+            MSG_BUG("Unexpected call state");
             break;
 
           case DBusRNF::CallState::WAIT_FOR_NOTIFICATION:
@@ -275,7 +275,7 @@ class GetRangeCall final: public GetRangeCallBase
             throw List::DBusListException(list_error_);
         }
 
-        log_assert(g_variant_type_is_array(
+        msg_log_assert(g_variant_type_is_array(
             g_variant_get_type(GVariantWrapper::get(list))));
 
         result.set_value(GetRangeResult(first_item_id, std::move(list), false));
@@ -316,7 +316,7 @@ class GetRangeCall final: public GetRangeCallBase
             throw List::DBusListException(list_error_);
         }
 
-        log_assert(g_variant_type_is_array(
+        msg_log_assert(g_variant_type_is_array(
             g_variant_get_type(GVariantWrapper::get(list))));
 
         result.set_value(GetRangeResult(first_item_id, std::move(list), false));
@@ -393,7 +393,7 @@ class GetRangeWithMetaDataCall final: public GetRangeCallBase
             throw List::DBusListException(e);
         }
 
-        log_assert(g_variant_type_is_array(
+        msg_log_assert(g_variant_type_is_array(
             g_variant_get_type(GVariantWrapper::get(list))));
 
         result.set_value(GetRangeResult(first_item_id, std::move(list), true));
@@ -435,7 +435,7 @@ class GetRangeWithMetaDataCall final: public GetRangeCallBase
             throw List::DBusListException(list_error_);
         }
 
-        log_assert(g_variant_type_is_array(
+        msg_log_assert(g_variant_type_is_array(
             g_variant_get_type(GVariantWrapper::get(list))));
 
         result.set_value(GetRangeResult(first_item_id, std::move(list), true));

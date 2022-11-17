@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016--2021  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016--2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -42,7 +42,7 @@ Playlist::Crawler::PublicIface &
 Playlist::Crawler::DirectoryCrawler::set_cursor(const CursorBase &cursor)
 {
     const auto *const c = dynamic_cast<const Cursor *>(&cursor);
-    log_assert(c != nullptr);
+    msg_log_assert(c != nullptr);
     start_cache_enforcer(c->get_list_id());
     return *this;
 }
@@ -57,7 +57,7 @@ bool Playlist::Crawler::DirectoryCrawler::list_invalidate(ID::List list_id, ID::
     LOGGED_LOCK_CONTEXT_HINT;
     std::lock_guard<LoggedLock::Mutex> lock(lock_);
 
-    log_assert(list_id.is_valid());
+    msg_log_assert(list_id.is_valid());
 
     if(DerivedCrawlerFuns::reference_point(*this) == nullptr)
         return false;
@@ -89,7 +89,7 @@ Playlist::Crawler::DirectoryCrawler::Cursor::hint_planned_access(
 {
     const auto total_list_size = nav_.get_total_number_of_visible_items();
     const auto hint_count = nav_.maximum_number_of_displayed_lines_;
-    log_assert(hint_count > 0);
+    msg_log_assert(hint_count > 0);
 
     if(total_list_size <= hint_count)
         return list.get_item_async_set_hint(nav_.get_viewport(),
@@ -166,15 +166,15 @@ void Playlist::Crawler::DirectoryCrawler::async_list__enter_list_event(
     if(found_op != DerivedCrawlerFuns::ops(*this).end())
         std::static_pointer_cast<FindNextOp>(*found_op)->enter_list_event(result, *ctx);
     else
-        BUG("Got asynchronous enter-list result %d (cid %d), "
-            "but found no matching op", int(result), int(cid));
+        MSG_BUG("Got asynchronous enter-list result %d (cid %d), "
+                "but found no matching op", int(result), int(cid));
 }
 
 void Playlist::Crawler::DirectoryCrawler::start_cache_enforcer(ID::List list_id)
 {
     msg_info("Keeping list %u in cache", list_id.get_raw_id());
 
-    log_assert(list_id.is_valid());
+    msg_log_assert(list_id.is_valid());
 
     stop_cache_enforcer();
 

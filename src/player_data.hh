@@ -155,7 +155,7 @@ class NowPlayingInfo
 
     bool is_stream(const ID::Stream &id) const
     {
-        log_assert(id.is_valid());
+        msg_log_assert(id.is_valid());
         return stream_id_ == id;
     }
 
@@ -274,7 +274,7 @@ class QueuedStream
         next_uri_to_try_(0),
         originating_cursor_(std::move(originating_cursor))
     {
-        log_assert(meta_data_ != nullptr);
+        msg_log_assert(meta_data_ != nullptr);
     }
 
     ~QueuedStream()
@@ -288,14 +288,14 @@ class QueuedStream
 
     void iter_reset()
     {
-        BUG_IF(state_ == State::RESOLVING_INDIRECT_URI &&
-               async_resolve_redirect_call_ == nullptr,
-               "No active resolve op in state %d, stream %u",
-               int(state_), stream_id_.get().get_raw_id());
-        BUG_IF(state_ != State::RESOLVING_INDIRECT_URI &&
-               async_resolve_redirect_call_ != nullptr,
-               "Active resolve op in state %d, stream %u",
-               int(state_), stream_id_.get().get_raw_id());
+        MSG_BUG_IF(state_ == State::RESOLVING_INDIRECT_URI &&
+                   async_resolve_redirect_call_ == nullptr,
+                   "No active resolve op in state %d, stream %u",
+                   int(state_), stream_id_.get().get_raw_id());
+        MSG_BUG_IF(state_ != State::RESOLVING_INDIRECT_URI &&
+                   async_resolve_redirect_call_ != nullptr,
+                   "Active resolve op in state %d, stream %u",
+                   int(state_), stream_id_.get().get_raw_id());
         AsyncResolveRedirect::cancel_and_delete(async_resolve_redirect_call_);
         next_uri_to_try_ = 0;
     }
@@ -312,19 +312,19 @@ class QueuedStream
         {
           case State::FLOATING:
           case State::RESOLVING_INDIRECT_URI:
-            log_assert(state_ == State::FLOATING);
+            msg_log_assert(state_ == State::FLOATING);
             break;
 
           case State::MAY_HAVE_DIRECT_URI:
-            log_assert(state_ != State::ABOUT_TO_DIE);
+            msg_log_assert(state_ != State::ABOUT_TO_DIE);
             break;
 
           case State::QUEUED:
-            log_assert(state_ == State::MAY_HAVE_DIRECT_URI);
+            msg_log_assert(state_ == State::MAY_HAVE_DIRECT_URI);
             break;
 
           case State::CURRENT:
-            log_assert(state_ == State::QUEUED);
+            msg_log_assert(state_ == State::QUEUED);
             break;
 
           case State::ABOUT_TO_DIE:
@@ -457,7 +457,7 @@ class QueuedStreams
 
     bool is_full(size_t max_length = MAX_ENTRIES) const
     {
-        log_assert(max_length <= MAX_ENTRIES);
+        msg_log_assert(max_length <= MAX_ENTRIES);
         return queue_.size() >= max_length;
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015, 2016, 2017, 2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016, 2017, 2019, 2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -38,13 +38,13 @@ static bool is_invalid_string_id(const List::ContextMap &map, const char *id)
 {
     if(id[0] == '\0' || id[0] == '#')
     {
-        BUG("Invalid context ID \"%s\"", id);
+        MSG_BUG("Invalid context ID \"%s\"", id);
         return true;
     }
 
     if(map[id].is_valid())
     {
-        BUG("Duplicate context ID \"%s\"", id);
+        MSG_BUG("Duplicate context ID \"%s\"", id);
         return true;
     }
 
@@ -56,8 +56,8 @@ List::ContextMap::append(const char *id, const char *description,
                          uint32_t flags,
                          const Player::LocalPermissionsIface *permissions)
 {
-    log_assert(id != nullptr);
-    log_assert(description != nullptr);
+    msg_log_assert(id != nullptr);
+    msg_log_assert(description != nullptr);
 
     if(is_invalid_string_id(*this, id))
     {
@@ -71,7 +71,7 @@ List::ContextMap::append(const char *id, const char *description,
     const context_id_t new_id(contexts_.size() - 1);
 
     if(new_id > DBUS_LISTS_CONTEXT_ID_MAX)
-        BUG("Too many list contexts (ignored)");
+        MSG_BUG("Too many list contexts (ignored)");
 
     return new_id;
 }

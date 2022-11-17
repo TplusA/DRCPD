@@ -227,7 +227,7 @@ class CallBase
         {
           case CallState::WAIT_FOR_NOTIFICATION:
           case CallState::READY_TO_FETCH:
-            BUG("Destroying RNF call with active cookie %u", cookie_);
+            MSG_BUG("Destroying RNF call with active cookie %u", cookie_);
             break;
 
           case CallState::INITIALIZED:
@@ -285,13 +285,13 @@ class CallBase
 
     void detached()
     {
-        log_assert(detached_ == false);
+        msg_log_assert(detached_ == false);
         detached_ = true;
     }
 
     void set_cookie(uint32_t cookie)
     {
-        log_assert(cookie != 0);
+        msg_log_assert(cookie != 0);
         cookie_ = cookie;
     }
 
@@ -479,7 +479,7 @@ class Call: public CallBase, public std::enable_shared_from_this<Call<RT, BS>>
 
         if(get_state() != CallState::INITIALIZED)
         {
-            BUG("RNF request in state %u", int(get_state()));
+            MSG_BUG("RNF request in state %u", int(get_state()));
             throw BadStateError();
         }
 
@@ -513,7 +513,7 @@ class Call: public CallBase, public std::enable_shared_from_this<Call<RT, BS>>
                 manage_cookie(cookie);
             }
             else
-                log_assert(get_cookie() == 0);
+                msg_log_assert(get_cookie() == 0);
 
             set_state(cookie == 0 ? CallState::RESULT_FETCHED : CallState::WAIT_FOR_NOTIFICATION);
             result_notification_lock.unlock();
@@ -531,7 +531,7 @@ class Call: public CallBase, public std::enable_shared_from_this<Call<RT, BS>>
             }
             catch(...)
             {
-                BUG("Double exception on RNF request failure");
+                MSG_BUG("Double exception on RNF request failure");
             }
 
             set_state(CallState::FAILED);
@@ -627,7 +627,7 @@ class Call: public CallBase, public std::enable_shared_from_this<Call<RT, BS>>
           case CallState::INITIALIZED:
           case CallState::WAIT_FOR_NOTIFICATION:
           case CallState::ABOUT_TO_DESTROY:
-            BUG("RNF request in state %u", int(get_state()));
+            MSG_BUG("RNF request in state %u", int(get_state()));
             throw BadStateError();
         }
 
@@ -645,7 +645,7 @@ class Call: public CallBase, public std::enable_shared_from_this<Call<RT, BS>>
             }
             catch(...)
             {
-                BUG("Double exception on RNF fetch failure");
+                MSG_BUG("Double exception on RNF fetch failure");
             }
 
             clear_cookie();

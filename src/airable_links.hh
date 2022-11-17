@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017, 2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2017, 2019, 2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -92,7 +92,7 @@ class SortedLinks
 
     void add(RankedLink &&link)
     {
-        log_assert(!is_finalized_);
+        msg_log_assert(!is_finalized_);
         backing_store_.emplace_back(std::move(link));
     }
 

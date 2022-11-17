@@ -42,8 +42,8 @@ Playlist::Crawler::Handle Playlist::Crawler::Iface::activate(
         std::shared_ptr<Playlist::Crawler::CursorBase> cursor,
         std::unique_ptr<Playlist::Crawler::DefaultSettingsBase> settings)
 {
-    log_assert(cursor != nullptr);
-    log_assert(settings != nullptr);
+    msg_log_assert(cursor != nullptr);
+    msg_log_assert(settings != nullptr);
 
     LOGGED_LOCK_CONTEXT_HINT;
     std::lock_guard<LoggedLock::Mutex> lock(lock_);
@@ -65,14 +65,14 @@ Playlist::Crawler::Handle Playlist::Crawler::Iface::activate(
     }
     catch(const std::exception &e)
     {
-        BUG("Exception during crawler activation: %s", e.what());
+        MSG_BUG("Exception during crawler activation: %s", e.what());
         is_active_ = false;
         reference_point_ = nullptr;
         throw;
     }
     catch(...)
     {
-        BUG("Exception during crawler activation");
+        MSG_BUG("Exception during crawler activation");
         is_active_ = false;
         reference_point_ = nullptr;
         throw;
@@ -83,7 +83,7 @@ Playlist::Crawler::Handle
 Playlist::Crawler::Iface::activate_without_reference_point(
         std::unique_ptr<Playlist::Crawler::DefaultSettingsBase> settings)
 {
-    log_assert(settings != nullptr);
+    msg_log_assert(settings != nullptr);
     static InvalidIface invalid_iface;
 
     LOGGED_LOCK_CONTEXT_HINT;
@@ -103,14 +103,14 @@ Playlist::Crawler::Iface::activate_without_reference_point(
     }
     catch(const std::exception &e)
     {
-        BUG("Exception during crawler activation (no reference point): %s",
-            e.what());
+        MSG_BUG("Exception during crawler activation (no reference point): %s",
+                e.what());
         is_active_ = false;
         throw;
     }
     catch(...)
     {
-        BUG("Exception during crawler activation (no reference point)");
+        MSG_BUG("Exception during crawler activation (no reference point)");
         is_active_ = false;
         throw;
     }
@@ -147,9 +147,9 @@ void Playlist::Crawler::Iface::set_reference_point(
     LOGGED_LOCK_CONTEXT_HINT;
     std::lock_guard<LoggedLock::Mutex> lock(lock_);
 
-    log_assert(cursor != nullptr);
-    log_assert(reference_point_ == nullptr);
-    log_assert(is_active_);
+    msg_log_assert(cursor != nullptr);
+    msg_log_assert(reference_point_ == nullptr);
+    msg_log_assert(is_active_);
 
     reference_point_ = std::move(cursor);
     bookmark_position(Bookmark::PINNED, reference_point_->clone());
@@ -161,7 +161,7 @@ void Playlist::Crawler::Iface::deactivate()
     LOGGED_LOCK_CONTEXT_HINT;
     std::lock_guard<LoggedLock::Mutex> lock(lock_);
 
-    log_assert(is_active_);
+    msg_log_assert(is_active_);
 
     for(auto &op : ops_)
     {
@@ -171,7 +171,7 @@ void Playlist::Crawler::Iface::deactivate()
         }
         catch(...)
         {
-            BUG("Got exception from cancel() while deactivating");
+            MSG_BUG("Got exception from cancel() while deactivating");
         }
     }
 
@@ -183,7 +183,7 @@ void Playlist::Crawler::Iface::deactivate()
     }
     catch(...)
     {
-        BUG("Got exception from deactivated()");
+        MSG_BUG("Got exception from deactivated()");
         reference_point_ = nullptr;
     }
 
@@ -197,8 +197,8 @@ bool Playlist::Crawler::Iface::run(std::shared_ptr<OperationBase> op,
     LOGGED_LOCK_CONTEXT_HINT;
     std::lock_guard<LoggedLock::Mutex> lock(lock_);
 
-    log_assert(op != nullptr);
-    log_assert(reference_point_ != nullptr);
+    msg_log_assert(op != nullptr);
+    msg_log_assert(reference_point_ != nullptr);
 
     ops_.emplace(op);
 
@@ -313,7 +313,7 @@ void Playlist::Crawler::Iface::run_delayed(DelayedOp *op)
 
 void Playlist::Crawler::Iface::operation_complete_notification(std::shared_ptr<OperationBase> op)
 {
-    BUG_IF(op == nullptr, "Operation completed: null");
+    MSG_BUG_IF(op == nullptr, "Operation completed: null");
 
     if(ops_.erase(op) > 0)
     {
@@ -321,12 +321,12 @@ void Playlist::Crawler::Iface::operation_complete_notification(std::shared_ptr<O
             msg_info("Failed to complete: %s", op->get_description().c_str());
     }
     else
-        BUG("Unknown operation completed: %s", op->get_description().c_str());
+        MSG_BUG("Unknown operation completed: %s", op->get_description().c_str());
 }
 
 void Playlist::Crawler::Iface::operation_yielded_notification(std::shared_ptr<OperationBase> op)
 {
-    BUG_IF(op == nullptr, "Operation yielded: null");
+    MSG_BUG_IF(op == nullptr, "Operation yielded: null");
 
     if(ops_.find(op) != ops_.end())
     {
@@ -334,7 +334,7 @@ void Playlist::Crawler::Iface::operation_yielded_notification(std::shared_ptr<Op
             msg_info("Failed to continue: %s", op->get_description().c_str());
     }
     else
-        BUG("Unknown operation yielded: %s", op->get_description().c_str());
+        MSG_BUG("Unknown operation yielded: %s", op->get_description().c_str());
 }
 
 std::ostream &operator<<(std::ostream &os, Playlist::Crawler::OperationBase::State s)

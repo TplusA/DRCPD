@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016--2021  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016--2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -269,7 +269,7 @@ class GlobalBusyState
                 bug = true;
         }
 
-        BUG_IF(bug, "Mismatch between busy flags and busy counters");
+        MSG_BUG_IF(bug, "Mismatch between busy flags and busy counters");
     }
 };
 

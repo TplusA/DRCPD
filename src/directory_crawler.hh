@@ -149,7 +149,7 @@ class DirectoryCrawler: public Iface, public PublicIface
         clone_for_nav_filter(unsigned int max_display_lines,
                              List::NavItemFilterIface &filter) const
         {
-            log_assert(&filter != &nav_.get_item_filter());
+            msg_log_assert(&filter != &nav_.get_item_filter());
             return std::make_unique<Cursor>(max_display_lines, filter, *this);
         }
 
@@ -245,7 +245,7 @@ class DirectoryCrawler: public Iface, public PublicIface
             has_skipped_first_(false),
             file_item_(nullptr)
         {
-            log_assert(position_ != nullptr);
+            msg_log_assert(position_ != nullptr);
         }
 
         const CursorBase &get_position() const final override { return *position_; }
@@ -406,8 +406,8 @@ class DirectoryCrawler: public Iface, public PublicIface
             OperationBase::CompletionCallbackFilter filter,
             FindNextOpBase::FindMode find_mode = FindNextOpBase::FindMode::FIND_FIRST)
     {
-        log_assert(position != nullptr);
-        log_assert(completion_notification != nullptr);
+        msg_log_assert(position != nullptr);
+        msg_log_assert(completion_notification != nullptr);
 
         return std::make_shared<FindNextOp>(
                     std::move(debug_description), tag, traversal_list_,
@@ -423,7 +423,7 @@ class DirectoryCrawler: public Iface, public PublicIface
             FindNextOpBase::RecursiveMode recursive_mode, Direction direction,
             std::unique_ptr<Cursor> position, I18n::String &&list_title)
     {
-        log_assert(position != nullptr);
+        msg_log_assert(position != nullptr);
 
         return std::make_shared<FindNextOp>(
                     std::move(debug_description), tag, traversal_list_,

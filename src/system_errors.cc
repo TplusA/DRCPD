@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2021, 2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -148,7 +148,7 @@ generate_error_message(SystemErrors::MessageType message_type, ErrorCode code,
     switch(code)
     {
       case ErrorCode::INVALID:
-        BUG("Invalid error code, cannot generate meaningful message");
+        MSG_BUG("Invalid error code, cannot generate meaningful message");
         break;
 
       case ErrorCode::NETWORK_PROTOCOL:
@@ -211,9 +211,9 @@ void SystemErrors::handle_error(MessageType message_type,
                                 const char *code, const char *context,
                                 const char *message_for_log, GVariantWrapper &&data)
 {
-    log_assert(code != nullptr);
-    log_assert(context != nullptr);
-    log_assert(message_for_log != nullptr);
+    msg_log_assert(code != nullptr);
+    msg_log_assert(context != nullptr);
+    msg_log_assert(message_for_log != nullptr);
 
     msg_info("System %s %s in context \"%s\": %s",
              message_type_to_string(message_type), code, context,
@@ -239,9 +239,9 @@ void SystemErrors::handle_error(MessageType message_type,
                                                       GVariantWrapper::get(data)).c_str(),
                              context);
     else if(screen_error_code != ScreenID::Error::INVALID)
-        TODO(1440, "Screen error code 0x%04x not supported yet",
-             uint16_t(screen_error_code));
+        MSG_TODO(1440, "Screen error code 0x%04x not supported yet",
+                 uint16_t(screen_error_code));
     else
-        BUG("Message type %d with code %s in context %s not supported yet",
-            int(message_type), code, context);
+        MSG_BUG("Message type %d with code %s in context %s not supported yet",
+                int(message_type), code, context);
 }

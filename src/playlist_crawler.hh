@@ -129,7 +129,7 @@ class Iface
             crawler_(crawler),
             settings_(std::move(settings))
         {
-            log_assert(settings_ != nullptr);
+            msg_log_assert(settings_ != nullptr);
         }
 
       public:
@@ -158,7 +158,7 @@ class Iface
 
         void bookmark(Bookmark bm, std::unique_ptr<CursorBase> cursor) const
         {
-            log_assert(cursor != nullptr);
+            msg_log_assert(cursor != nullptr);
             LOGGED_LOCK_CONTEXT_HINT;
             std::lock_guard<LoggedLock::Mutex> lock(crawler_.lock_);
             crawler_.bookmark_position(bm, std::move(cursor));
@@ -320,7 +320,7 @@ class Iface
 
     void bookmark_position(Bookmark bm, std::unique_ptr<CursorBase> cursor)
     {
-        log_assert(cursor != nullptr);
+        msg_log_assert(cursor != nullptr);
         log_bookmark_access("Set", bm, cursor.get());
         bookmarks_[size_t(bm)] = std::move(cursor);
     }
@@ -604,7 +604,7 @@ class OperationBase: public std::enable_shared_from_this<OperationBase>
             break;
         }
 
-        BUG("Operation yielded in state %d", int(state_));
+        MSG_BUG("Operation yielded in state %d", int(state_));
     }
 
     /* called by derived classes when the operation has completed */
@@ -639,8 +639,8 @@ class OperationBase: public std::enable_shared_from_this<OperationBase>
             break;
         }
 
-        BUG("Operation finished %ssuccessfully in state %d",
-            is_successful ? "" : "un", int(state_));
+        MSG_BUG("Operation finished %ssuccessfully in state %d",
+                is_successful ? "" : "un", int(state_));
     }
 
     /*!
@@ -663,7 +663,7 @@ class OperationBase: public std::enable_shared_from_this<OperationBase>
 
         if(fn == nullptr)
         {
-            BUG("Attempted to notify op caller, but have no callback");
+            MSG_BUG("Attempted to notify op caller, but have no callback");
             return false;
         }
 
@@ -697,7 +697,7 @@ class OperationBase: public std::enable_shared_from_this<OperationBase>
         std::lock_guard<LoggedLock::Mutex> lock(lock_);
 
         op_done_notification_callback_ = std::move(op_done_callback);
-        log_assert(op_done_notification_callback_ != nullptr);
+        msg_log_assert(op_done_notification_callback_ != nullptr);
 
         switch(state_)
         {
@@ -720,8 +720,8 @@ class OperationBase: public std::enable_shared_from_this<OperationBase>
           case State::FAILED:
           case State::CANCELING:
           case State::CANCELED:
-            BUG("Cannot start crawler operation %p in state %d",
-                static_cast<void *>(this), int(state_));
+            MSG_BUG("Cannot start crawler operation %p in state %d",
+                    static_cast<void *>(this), int(state_));
             break;
         }
 
@@ -751,8 +751,8 @@ class OperationBase: public std::enable_shared_from_this<OperationBase>
           case State::DONE:
           case State::FAILED:
           case State::CANCELED:
-            BUG("Cannot continue crawler operation %p in state %d",
-                static_cast<void *>(this), int(state_));
+            MSG_BUG("Cannot continue crawler operation %p in state %d",
+                    static_cast<void *>(this), int(state_));
             break;
         }
 
@@ -793,7 +793,7 @@ class OperationBase: public std::enable_shared_from_this<OperationBase>
             break;
         }
 
-        BUG("Attempted to notify op caller in state %d", int(state_));
+        MSG_BUG("Attempted to notify op caller in state %d", int(state_));
         return false;
     }
 

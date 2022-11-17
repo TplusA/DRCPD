@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017, 2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2017, 2019, 2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -72,7 +72,7 @@ class ViewWithAudioSourceBase
 
     bool select_audio_source(size_t idx)
     {
-        log_assert(idx < audio_sources_.size());
+        msg_log_assert(idx < audio_sources_.size());
 
         if(selected_audio_source_index_ == ssize_t(idx))
             return false;
@@ -89,7 +89,7 @@ class ViewWithAudioSourceBase
 
     Player::AudioSource &get_audio_source_by_index(size_t idx)
     {
-        log_assert(idx < audio_sources_.size());
+        msg_log_assert(idx < audio_sources_.size());
         return audio_sources_[idx];
     }
 
@@ -100,7 +100,7 @@ class ViewWithAudioSourceBase
 
     Player::AudioSource &get_audio_source()
     {
-        log_assert(have_audio_source());
+        msg_log_assert(have_audio_source());
         return get_audio_source_by_index(selected_audio_source_index_);
     }
 

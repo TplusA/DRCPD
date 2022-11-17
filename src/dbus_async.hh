@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, 2017, 2019--2021  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2017, 2019--2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -332,7 +332,7 @@ class AsyncCall: public DBus::AsyncCall_
     template <typename DBusMethodType, typename... Args>
     void invoke(DBusMethodType dbus_method, Args&&... args)
     {
-        log_assert(!is_active());
+        msg_log_assert(!is_active());
 
         Busy::set(BusySourceID);
         call_state_ = AsyncResult::IN_PROGRESS;
@@ -350,7 +350,7 @@ class AsyncCall: public DBus::AsyncCall_
      */
     AsyncResult wait_for_result()
     {
-        log_assert(is_active());
+        msg_log_assert(is_active());
 
         switch(call_state_)
         {
@@ -368,7 +368,7 @@ class AsyncCall: public DBus::AsyncCall_
         }
 
         auto future(promise_.get_future());
-        log_assert(future.valid());
+        msg_log_assert(future.valid());
 
         if(call_state_ != AsyncResult::FAILED &&
            !g_cancellable_is_cancelled(cancellable_))
@@ -408,7 +408,7 @@ class AsyncCall: public DBus::AsyncCall_
     {
         auto lock_this(lock());
 
-        log_assert(is_active());
+        msg_log_assert(is_active());
 
         if(g_cancellable_is_cancelled(cancellable_))
             return false;
@@ -445,7 +445,7 @@ class AsyncCall: public DBus::AsyncCall_
 
     const PromiseReturnType &get_result(AsyncResult &async_result) const
     {
-        log_assert(success());
+        msg_log_assert(success());
         return return_value_;
     }
 
@@ -485,7 +485,7 @@ class AsyncCall: public DBus::AsyncCall_
                 }
                 catch(...)
                 {
-                    BUG("Failed returning async result due to double exception");
+                    MSG_BUG("Failed returning async result due to double exception");
                 }
             }
 

@@ -94,8 +94,8 @@ Player::QueuedStream::OpResult
 Player::QueuedStream::iter_next(tdbusAirable *proxy, const std::string *&uri,
                                 ResolvedRedirectCallback &&callback)
 {
-    BUG_IF(state_ != State::FLOATING && state_ != State::MAY_HAVE_DIRECT_URI,
-           "Try get URI in state %d", int(state_));
+    MSG_BUG_IF(state_ != State::FLOATING && state_ != State::MAY_HAVE_DIRECT_URI,
+               "Try get URI in state %d", int(state_));
 
     if(airable_links_.empty())
     {
@@ -132,7 +132,7 @@ Player::QueuedStream::iter_next(tdbusAirable *proxy, const std::string *&uri,
         return OpResult::FAILED;
 
     const Airable::RankedLink *const ranked_link = airable_links_[next_uri_to_try_];
-    log_assert(ranked_link != nullptr);
+    msg_log_assert(ranked_link != nullptr);
 
     msg_vinfo(MESSAGE_LEVEL_DIAG, "Resolving Airable redirect at %zu: \"%s\"",
               next_uri_to_try_,  ranked_link->get_stream_link().c_str());
@@ -192,8 +192,8 @@ void Player::QueuedStream::process_resolved_redirect(
         return;
     }
 
-    log_assert(idx == next_uri_to_try_);
-    log_assert(idx == uris_.size());
+    msg_log_assert(idx == next_uri_to_try_);
+    msg_log_assert(idx == uris_.size());
 
     const auto last_ref(std::move(async_resolve_redirect_call_));
 
@@ -241,7 +241,7 @@ Player::QueuedStreams::append(const GVariantWrapper &stream_key,
 {
     if(is_full())
     {
-        BUG("Too many streams, cannot queue more");
+        MSG_BUG("Too many streams, cannot queue more");
         return ID::OurStream::make_invalid();
     }
 
@@ -286,14 +286,14 @@ erase_stream_from_container(
             << "Cannot erase " << stream_id.get()
             << " from container: not found [" << reason << "]";
 
-    log_assert(found->first == stream_id);
+    msg_log_assert(found->first == stream_id);
 
     fn(*found->second);
 
     auto result = std::move(found->second);
-    log_assert(result != nullptr);
+    msg_log_assert(result != nullptr);
 
-    log_assert(found->first == stream_id);
+    msg_log_assert(found->first == stream_id);
     streams.erase(found);
     result->set_state(Player::QueuedStream::State::ABOUT_TO_DIE, reason);
 
@@ -352,7 +352,7 @@ Player::QueuedStreams::remove_front(std::unordered_set<ID::OurStream> &ids)
 std::unique_ptr<Player::QueuedStream>
 Player::QueuedStreams::remove_anywhere(ID::OurStream id)
 {
-    BUG_IF(id == stream_in_flight_, "Rejected stream is in flight");
+    MSG_BUG_IF(id == stream_in_flight_, "Rejected stream is in flight");
 
     if(queue_.empty())
         return nullptr;
@@ -371,7 +371,7 @@ Player::QueuedStreams::remove_anywhere(ID::OurStream id)
     }
     catch(const QueueError &e)
     {
-        BUG("QueueError exception: %s", e.what());
+        MSG_BUG("QueueError exception: %s", e.what());
         return nullptr;
     }
 }
@@ -617,14 +617,14 @@ void Player::QueuedStreams::log(const char *prefix, MessageVerboseLevel level) c
         consistent = !stream_in_flight_.get().is_valid() ||
                      streams_.find(stream_in_flight_) != streams_.end();
 
-    BUG_IF(!consistent, "%s: inconsistent QueuedStreams state", prefix);
+    MSG_BUG_IF(!consistent, "%s: inconsistent QueuedStreams state", prefix);
 }
 
 void Player::NowPlayingInfo::now_playing(ID::Stream stream_id,
                                          std::string &&stream_url)
 {
-    log_assert(stream_id.is_valid());
-    log_assert(stream_id != stream_id_);
+    msg_log_assert(stream_id.is_valid());
+    msg_log_assert(stream_id != stream_id_);
 
     if(stream_id_.is_valid())
         on_remove_cb_(stream_id_);
@@ -650,16 +650,16 @@ bool Player::NowPlayingInfo::put_meta_data(ID::Stream stream_id,
 {
     if(stream_id == stream_id_)
     {
-        BUG_IF(!meta_data->values_[MetaData::Set::INTERNAL_DRCPD_URL].empty(),
-               "Meta data already contains internal URL key");
+        MSG_BUG_IF(!meta_data->values_[MetaData::Set::INTERNAL_DRCPD_URL].empty(),
+                   "Meta data already contains internal URL key");
         meta_data->add(MetaData::Set::INTERNAL_DRCPD_URL,
                        std::string(stream_url_));
         meta_data_ = std::move(meta_data);
         return true;
     }
 
-    BUG("Got meta data for stream ID %u, now playing %u",
-        stream_id.get_raw_id(), stream_id_.get_raw_id());
+    MSG_BUG("Got meta data for stream ID %u, now playing %u",
+            stream_id.get_raw_id(), stream_id_.get_raw_id());
     return false;
 }
 
@@ -673,8 +673,8 @@ const MetaData::Set &Player::NowPlayingInfo::get_meta_data(ID::Stream stream_id)
 {
     if(stream_id.is_valid() && stream_id != stream_id_)
     {
-        BUG("Want meta data for stream ID %u, now playing %u",
-            stream_id.get_raw_id(), stream_id_.get_raw_id());
+        MSG_BUG("Want meta data for stream ID %u, now playing %u",
+                stream_id.get_raw_id(), stream_id_.get_raw_id());
         return meta_data_or_empty_ref(nullptr);
     }
 
@@ -700,7 +700,7 @@ static void unref_list_id(std::map<ID::List, size_t> &list_refcounts,
     if(item == list_refcounts.end())
         return;
 
-    log_assert(item->second > 0);
+    msg_log_assert(item->second > 0);
 
     if(--item->second == 0)
         list_refcounts.erase(list_id);
@@ -712,8 +712,8 @@ ID::OurStream Player::Data::queued_stream_append(
         ID::List list_id,
         std::unique_ptr<Playlist::Crawler::CursorBase> originating_cursor)
 {
-    log_assert(originating_cursor != nullptr);
-    log_assert(list_id.is_valid());
+    msg_log_assert(originating_cursor != nullptr);
+    msg_log_assert(list_id.is_valid());
 
     const auto id =
         queued_streams_.append(stream_key, std::move(meta_data), std::move(uris),
@@ -728,7 +728,7 @@ ID::OurStream Player::Data::queued_stream_append(
 
 void Player::Data::queued_stream_sent_to_player(ID::OurStream stream_id)
 {
-    BUG_IF(!stream_id.get().is_valid(), "Sent invalid stream to player");
+    MSG_BUG_IF(!stream_id.get().is_valid(), "Sent invalid stream to player");
 
     if(stream_id.get().is_valid())
         queued_streams_.with_stream<void>(
@@ -784,7 +784,7 @@ bool Player::Data::stream_has_changed(ID::Stream next_stream_id)
 {
     queued_streams_.log("Before change notification");
 
-    log_assert(next_stream_id.is_valid() || !queued_streams_.is_player_queue_filled());
+    msg_log_assert(next_stream_id.is_valid() || !queued_streams_.is_player_queue_filled());
 
     try
     {
@@ -794,7 +794,7 @@ bool Player::Data::stream_has_changed(ID::Stream next_stream_id)
     }
     catch(const QueueError &e)
     {
-        BUG("QueueError exception: %s", e.what());
+        MSG_BUG("QueueError exception: %s", e.what());
     }
 
     queued_streams_.log("Failed after skip notification");
@@ -857,8 +857,8 @@ bool Player::Data::player_dropped_from_queue(const std::vector<ID::Stream> &drop
             for(++it; it != drop_set_ours.end(); ++it)
                 os << ", " << it->get();
 
-            BUG("Player dropped our streams [%s] which we don't know about",
-                os.str().c_str());
+            MSG_BUG("Player dropped our streams [%s] which we don't know about",
+                    os.str().c_str());
 
             queued_streams_.log("After drop unknowns");
             player_failed();
@@ -894,8 +894,8 @@ void Player::Data::player_rejected_unplayed_stream(ID::Stream dropped)
     auto qs = queued_streams_.remove_anywhere(our_stream);
 
     if(qs == nullptr)
-        BUG("Player rejected our stream [%u] which we don't know about",
-            dropped.get_raw_id());
+        MSG_BUG("Player rejected our stream [%u] which we don't know about",
+                dropped.get_raw_id());
     else
     {
         remove_data_for_stream(*qs, referenced_lists_);
@@ -1009,9 +1009,9 @@ bool Player::Data::set_player_state(ID::Stream new_current_stream, PlayerState s
     {
         if(queued_streams_.get_head_stream_id() != our_id)
         {
-            BUG("Head stream ID should be %u, but is %u",
-                queued_streams_.get_head_stream_id().get().get_raw_id(),
-                our_id.get().get_raw_id());
+            MSG_BUG("Head stream ID should be %u, but is %u",
+                    queued_streams_.get_head_stream_id().get().get_raw_id(),
+                    our_id.get().get_raw_id());
             player_failed();
             return false;
         }

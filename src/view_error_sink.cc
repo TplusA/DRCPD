@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017, 2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2017, 2019, 2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -70,7 +70,7 @@ bool ViewErrorSink::View::write_xml(std::ostream &os, uint32_t bits,
 
     if(errors_.empty())
     {
-        BUG("Have no errors");
+        MSG_BUG("Have no errors");
         return false;
     }
 

@@ -138,7 +138,7 @@ class FindNextOpBase: public OperationBase
                                  CompletionCallbackFilter filter)
     {
         if(completion_callback_ != nullptr)
-            BUG("Replacing operation completion callback");
+            MSG_BUG("Replacing operation completion callback");
 
         completion_callback_ = std::move(completion_callback);
         set_completion_callback_filter(filter);
@@ -173,7 +173,7 @@ class GetURIsOpBase: public OperationBase
         completion_callback_(std::move(completion_callback)),
         position_(std::move(position))
     {
-        log_assert(position_ != nullptr);
+        msg_log_assert(position_ != nullptr);
     }
 
     virtual ~GetURIsOpBase() = default;
@@ -186,7 +186,7 @@ class GetURIsOpBase: public OperationBase
                                  CompletionCallbackFilter filter)
     {
         if(completion_callback_ != nullptr)
-            BUG("Replacing operation completion callback");
+            MSG_BUG("Replacing operation completion callback");
 
         completion_callback_ = std::move(completion_callback);
         set_completion_callback_filter(filter);

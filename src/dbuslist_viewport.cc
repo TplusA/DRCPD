@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2020, 2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -194,8 +194,8 @@ void List::DBusListViewport::update_cache_region_with_meta_data(
         if(primary_name_index > sizeof(names) / sizeof(names[0]) &&
            primary_name_index != UINT8_MAX)
         {
-            BUG("Got unexpected index of primary name (%u) [%s]",
-                primary_name_index, items_.get_list_iface_name().c_str());
+            MSG_BUG("Got unexpected index of primary name (%u) [%s]",
+                    primary_name_index, items_.get_list_iface_name().c_str());
             primary_name_index = 0;
         }
 
@@ -225,7 +225,7 @@ List::DBusListSegmentFetcher::DBusListSegmentFetcher(
     list_viewport_(std::move(list_viewport))
 {
     LoggedLock::configure(lock_, "DBusListSegmentFetcher", MESSAGE_LEVEL_DEBUG);
-    log_assert(list_viewport_ != nullptr);
+    msg_log_assert(list_viewport_ != nullptr);
 }
 
 void List::DBusListSegmentFetcher::prepare(const MkGetRangeRNFCall &mk_call,
@@ -242,7 +242,7 @@ void List::DBusListSegmentFetcher::prepare(const MkGetRangeRNFCall &mk_call,
 
                 if(&call != fetcher->get_range_query_.get())
                 {
-                    BUG("Got done notification for unknown GetItem call");
+                    MSG_BUG("Got done notification for unknown GetItem call");
                     return;
                 }
 
@@ -260,7 +260,7 @@ void List::DBusListSegmentFetcher::prepare(const MkGetRangeRNFCall &mk_call,
     Segment missing(list_viewport_->get_missing_segment());
 
     get_range_query_ = mk_call(std::move(missing), std::move(ctx));
-    log_assert(get_range_query_ != nullptr);
+    msg_log_assert(get_range_query_ != nullptr);
 }
 
 List::AsyncListIface::OpResult
@@ -269,7 +269,7 @@ List::DBusListSegmentFetcher::load_segment_in_background()
     LOGGED_LOCK_CONTEXT_HINT;
     std::lock_guard<LoggedLock::RecMutex> lock(lock_);
 
-    log_assert(get_range_query_ != nullptr);
+    msg_log_assert(get_range_query_ != nullptr);
 
     switch(get_range_query_->request())
     {
@@ -281,7 +281,7 @@ List::DBusListSegmentFetcher::load_segment_in_background()
 
       case DBusRNF::CallState::INITIALIZED:
       case DBusRNF::CallState::READY_TO_FETCH:
-        BUG("GetRangeCallBase ended up in unexpected state");
+        MSG_BUG("GetRangeCallBase ended up in unexpected state");
         break;
 
       case DBusRNF::CallState::ABORTING:

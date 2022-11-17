@@ -70,7 +70,7 @@ static unsigned int query_list_size_sync(tdbuslistsNavigation *proxy,
     switch(error.get())
     {
       case ListError::Code::OK:
-        log_assert(first_item == 0);
+        msg_log_assert(first_item == 0);
         return size;
 
       case ListError::Code::INTERNAL:
@@ -103,7 +103,7 @@ static unsigned int query_list_size_sync(tdbuslistsNavigation *proxy,
       case ListError::Code::BUSY_3000:
       case ListError::Code::BUSY_5000:
       case ListError::Code::BUSY:
-        BUG("List broker is busy, should retry getting list size later");
+        MSG_BUG("List broker is busy, should retry getting list size later");
 
         /* fall-through */
 
@@ -127,8 +127,8 @@ static unsigned int query_list_size_sync(tdbuslistsNavigation *proxy,
     }
 
     if(error.get() == ListError::Code::INTERNAL)
-        BUG("Unknown error code %u while obtaining size of list ID %u [%s]",
-            error_code, list_id.get_raw_id(), list_iface_name.c_str());
+        MSG_BUG("Unknown error code %u while obtaining size of list ID %u [%s]",
+                error_code, list_id.get_raw_id(), list_iface_name.c_str());
 
     throw List::DBusListException(error);
 }
@@ -138,7 +138,7 @@ void List::DBusList::enter_list(ID::List list_id)
     LOGGED_LOCK_CONTEXT_HINT;
     std::lock_guard<LoggedLock::RecMutex> lk(lock_);
 
-    log_assert(list_id.is_valid());
+    msg_log_assert(list_id.is_valid());
 
     if(list_id == list_id_)
         return;
@@ -188,7 +188,7 @@ List::DBusList::enter_list_async(const DBusListViewport *associated_viewport,
                                  QueryContextEnterList::CallerID caller_id,
                                  I18n::String &&dynamic_title)
 {
-    log_assert(list_id.is_valid());
+    msg_log_assert(list_id.is_valid());
 
     LOGGED_LOCK_CONTEXT_HINT;
     std::lock_guard<LoggedLock::RecMutex> lk(lock_);
@@ -226,11 +226,11 @@ List::DBusList::enter_list_async(const DBusListViewport *associated_viewport,
                 else if(&c != enter_list_data_.query_->async_call_.get())
                 {
                     if(dynamic_cast<QueryContextEnterList::AsyncListNavCheckRange *>(&c) != nullptr)
-                        BUG("Unexpected async enter-list done notification [%s]",
-                            list_iface_name_.c_str());
+                        MSG_BUG("Unexpected async enter-list done notification [%s]",
+                                list_iface_name_.c_str());
                     else
-                        BUG("Unexpected UNKNOWN async done notification [%s]",
-                            list_iface_name_.c_str());
+                        MSG_BUG("Unexpected UNKNOWN async done notification [%s]",
+                                list_iface_name_.c_str());
                 }
                 else
                 {
@@ -326,7 +326,7 @@ const List::ContextInfo &List::DBusList::get_context_info_by_list_id(ID::List id
 
 bool List::QueryContextEnterList::run_async(DBus::AsyncResultAvailableFunction &&result_available)
 {
-    log_assert(async_call_ == nullptr);
+    msg_log_assert(async_call_ == nullptr);
 
     async_call_ = std::make_shared<AsyncListNavCheckRange>(
         proxy_,
@@ -476,7 +476,7 @@ void List::QueryContextEnterList::put_result(DBus::AsyncResult &async_ready,
     switch(list_error.get())
     {
       case ListError::Code::OK:
-        log_assert(first_item == 0);
+        msg_log_assert(first_item == 0);
         promise.set_value(size);
         return;
 
@@ -513,7 +513,7 @@ void List::QueryContextEnterList::put_result(DBus::AsyncResult &async_ready,
       case ListError::Code::BUSY_3000:
       case ListError::Code::BUSY_5000:
       case ListError::Code::BUSY:
-        BUG("List broker is busy, should retry checking range later");
+        MSG_BUG("List broker is busy, should retry checking range later");
 
         /* fall-through */
 
@@ -537,15 +537,15 @@ void List::QueryContextEnterList::put_result(DBus::AsyncResult &async_ready,
     }
 
     if(list_error.get() == ListError::Code::INTERNAL)
-        BUG("Unknown error code %u while putting async result for list ID %u",
-            error_code, list_id.get_raw_id());
+        MSG_BUG("Unknown error code %u while putting async result for list ID %u",
+                error_code, list_id.get_raw_id());
 
     throw List::DBusListException(list_error);
 }
 
 void List::DBusList::add_referrer(std::shared_ptr<DBusListViewport> vp)
 {
-    log_assert(vp != nullptr);
+    msg_log_assert(vp != nullptr);
     if(viewports_and_fetchers_.find(vp) == viewports_and_fetchers_.end())
         viewports_and_fetchers_[vp] = nullptr;
 }
@@ -571,14 +571,14 @@ static void update_viewport_cache(List::DBusListViewport &viewport,
 const List::Item *
 List::DBusList::get_item(std::shared_ptr<DBusListViewport> vp, unsigned int line)
 {
-    log_assert(vp != nullptr);
+    msg_log_assert(vp != nullptr);
 
     LOGGED_LOCK_CONTEXT_HINT;
     std::lock_guard<LoggedLock::RecMutex> lk(lock_);
 
     add_referrer(vp);
 
-    log_assert(list_id_.is_valid());
+    msg_log_assert(list_id_.is_valid());
 
     if(line >= number_of_items_)
         return nullptr;
@@ -588,11 +588,11 @@ List::DBusList::get_item(std::shared_ptr<DBusListViewport> vp, unsigned int line
 
         if(item.first != nullptr)
         {
-            BUG_IF(!item.second, "Returning invisible item");
+            MSG_BUG_IF(!item.second, "Returning invisible item");
             return item.first;
         }
 
-        BUG_IF(item.second, "View diverges from cache while using synchronous API");
+        MSG_BUG_IF(item.second, "View diverges from cache while using synchronous API");
     }
 
     unsigned int cached_lines_count;
@@ -608,17 +608,17 @@ List::DBusList::get_item(std::shared_ptr<DBusListViewport> vp, unsigned int line
             fetch_window_sync(cm_, dbus_proxy_, list_iface_name_, list_contexts_,
                               list_id_, std::move(missing)));
 
-        log_assert(g_variant_n_children(GVariantWrapper::get(result.list_)) == expected_size);
+        msg_log_assert(g_variant_n_children(GVariantWrapper::get(result.list_)) == expected_size);
         update_viewport_cache(*vp, result, new_item_fn_);
     }
     catch(const std::exception &e)
     {
-        BUG("Exception while getting item in line %u: %s", line, e.what());
+        MSG_BUG("Exception while getting item in line %u: %s", line, e.what());
         return nullptr;
     }
     catch(...)
     {
-        BUG("Exception while getting item in line %u", line);
+        MSG_BUG("Exception while getting item in line %u", line);
         return nullptr;
     }
 
@@ -668,7 +668,7 @@ announce_viewport(List::DBusList::ViewportsAndFetchersMap &vfm,
 
 void List::DBusList::detach_viewport(std::shared_ptr<DBusListViewport> vp)
 {
-    log_assert(vp != nullptr);
+    msg_log_assert(vp != nullptr);
 
     LOGGED_LOCK_CONTEXT_HINT;
     std::lock_guard<LoggedLock::RecMutex> lk(lock_);
@@ -700,15 +700,15 @@ List::DBusList::get_item_async_set_hint(std::shared_ptr<DBusListViewport> vp,
                                         DBusRNF::StatusWatcher &&status_watcher,
                                         HintItemDoneNotification &&hinted_fn)
 {
-    log_assert(vp != nullptr);
+    msg_log_assert(vp != nullptr);
 
     LOGGED_LOCK_CONTEXT_HINT;
     std::lock_guard<LoggedLock::RecMutex> lk(lock_);
 
     if(!list_id_.is_valid())
     {
-        BUG("Cannot hint item access operation %u +%u for invalid list [%s]",
-            line, count, list_iface_name_.c_str());
+        MSG_BUG("Cannot hint item access operation %u +%u for invalid list [%s]",
+                line, count, list_iface_name_.c_str());
         return OpResult::FAILED;
     }
 
@@ -722,12 +722,12 @@ List::DBusList::get_item_async_set_hint(std::shared_ptr<DBusListViewport> vp,
     if(count == 0 || count > vp->get_default_view_size())
     {
         if(count == 0)
-            BUG("Hint async operation with no items [%s]",
-                list_iface_name_.c_str());
+            MSG_BUG("Hint async operation with no items [%s]",
+                    list_iface_name_.c_str());
         else
-            BUG("Hint async operation with more items (%u) "
-                "than default view size (%u) [%s]",
-                count, vp->get_default_view_size(), list_iface_name_.c_str());
+            MSG_BUG("Hint async operation with more items (%u) "
+                    "than default view size (%u) [%s]",
+                    count, vp->get_default_view_size(), list_iface_name_.c_str());
 
         return OpResult::FAILED;
     }
@@ -853,7 +853,7 @@ List::AsyncListIface::OpResult
 List::DBusList::get_item_async(std::shared_ptr<DBusListViewport> vp,
                                unsigned int line, const Item *&item)
 {
-    log_assert(vp != nullptr);
+    msg_log_assert(vp != nullptr);
 
     LOGGED_LOCK_CONTEXT_HINT;
     std::lock_guard<LoggedLock::RecMutex> lk(lock_);
@@ -862,8 +862,8 @@ List::DBusList::get_item_async(std::shared_ptr<DBusListViewport> vp,
 
     if(!list_id_.is_valid())
     {
-        BUG("Cannot fetch line %u for invalid list ID [%s]",
-            line, list_iface_name_.c_str());
+        MSG_BUG("Cannot fetch line %u for invalid list ID [%s]",
+                line, list_iface_name_.c_str());
         return OpResult::FAILED;
     }
 
@@ -951,12 +951,12 @@ void List::DBusList::get_item_result_available_notification(
 
     {
         auto vfpair(viewports_and_fetchers_.find(viewport));
-        BUG_IF(vfpair == viewports_and_fetchers_.end(),
-               "Viewport %p not found", static_cast<const void *>(viewport.get()));
+        MSG_BUG_IF(vfpair == viewports_and_fetchers_.end(),
+                   "Viewport %p not found", static_cast<const void *>(viewport.get()));
 
         if(vfpair->second.get() != &fetcher)
         {
-            log_assert(hinted_fn != nullptr);
+            msg_log_assert(hinted_fn != nullptr);
             hinted_fn(OpResult::CANCELED);
             return;
         }
@@ -1004,7 +1004,7 @@ void List::DBusList::get_item_result_available_notification(
                   call->list_id_.get_raw_id(), list_iface_name_.c_str(),
                   int(op_result));
 
-    log_assert(hinted_fn != nullptr);
+    msg_log_assert(hinted_fn != nullptr);
     hinted_fn(op_result);
 }
 
@@ -1025,11 +1025,11 @@ void List::DBusList::async_done_notification(DBus::AsyncCall_ &async_call)
     else
     {
         if(dynamic_cast<QueryContextEnterList::AsyncListNavCheckRange *>(&async_call) != nullptr)
-            BUG("Unexpected async enter-line done notification [%s]",
-                list_iface_name_.c_str());
+            MSG_BUG("Unexpected async enter-line done notification [%s]",
+                    list_iface_name_.c_str());
         else
-            BUG("Unexpected UNKNOWN async done notification [%s]",
-                list_iface_name_.c_str());
+            MSG_BUG("Unexpected UNKNOWN async done notification [%s]",
+                    list_iface_name_.c_str());
     }
 }
 

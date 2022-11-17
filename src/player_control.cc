@@ -115,8 +115,8 @@ static void set_audio_player_dbus_proxies(const std::string &audio_player_id,
 void Player::Control::plug(std::shared_ptr<List::ListViewportBase> skipper_viewport,
                            const List::ListIface *list)
 {
-    log_assert((skipper_viewport != nullptr && list != nullptr) ||
-               (skipper_viewport == nullptr && list == nullptr));
+    msg_log_assert((skipper_viewport != nullptr && list != nullptr) ||
+                   (skipper_viewport == nullptr && list == nullptr));
 
     if(list != nullptr)
         skip_requests_.tie(std::move(skipper_viewport), list);
@@ -128,11 +128,11 @@ void Player::Control::plug(AudioSource &audio_source, bool with_enforced_intenti
                            const std::function<void(FinishedWith)> &finished_notification,
                            const std::string *external_player_id)
 {
-    log_assert(!is_any_audio_source_plugged());
-    log_assert(finished_notification_ == nullptr);
-    log_assert(crawler_handle_ == nullptr);
-    log_assert(permissions_ == nullptr);
-    log_assert(finished_notification != nullptr);
+    msg_log_assert(!is_any_audio_source_plugged());
+    msg_log_assert(finished_notification_ == nullptr);
+    msg_log_assert(crawler_handle_ == nullptr);
+    msg_log_assert(permissions_ == nullptr);
+    msg_log_assert(finished_notification != nullptr);
 
     audio_source_ = &audio_source;
     with_enforced_intentions_ = with_enforced_intentions;
@@ -170,9 +170,9 @@ void Player::Control::plug(AudioSource &audio_source, bool with_enforced_intenti
 
 void Player::Control::plug(Data &player_data)
 {
-    log_assert(player_data_ == nullptr);
-    log_assert(crawler_handle_ == nullptr);
-    log_assert(permissions_ == nullptr);
+    msg_log_assert(player_data_ == nullptr);
+    msg_log_assert(crawler_handle_ == nullptr);
+    msg_log_assert(permissions_ == nullptr);
 
     player_data_ = &player_data;
     player_data_->attached_to_player_notification();
@@ -242,8 +242,8 @@ void Player::Control::forget_queued_and_playing()
     if(player_data_ != nullptr)
     {
         invalidate_prefetched_uris(audio_source_, *player_data_);
-        BUG_IF(player_data_->queued_streams_get().is_player_queue_filled(),
-               "Queues out of sync");
+        MSG_BUG_IF(player_data_->queued_streams_get().is_player_queue_filled(),
+                   "Queues out of sync");
         player_data_->remove_all_queued_streams(true);
     }
 
@@ -348,7 +348,7 @@ static inline bool send_play_command(const Player::AudioSource *asrc,
 static inline bool send_stop_command(const Player::AudioSource *asrc,
                                      bool force, std::string &&reason)
 {
-    log_assert(asrc != nullptr);
+    msg_log_assert(asrc != nullptr);
 
     return send_simple_playback_command(
             asrc, force,
@@ -482,8 +482,8 @@ void Player::Control::shuffle_mode_toggle_request() const
 
 static void not_attached_bug(const char *what, bool and_crawler = false)
 {
-    BUG("%s, but not attached to player%s anymore",
-        what, and_crawler ? " and/or crawler" : "");
+    MSG_BUG("%s, but not attached to player%s anymore",
+            what, and_crawler ? " and/or crawler" : "");
 }
 
 void Player::Control::play_request(std::shared_ptr<Playlist::Crawler::FindNextOpBase> find_op,
@@ -523,7 +523,7 @@ void Player::Control::play_request(std::shared_ptr<Playlist::Crawler::FindNextOp
 
     if(find_op != nullptr)
     {
-        log_assert(crawler_handle_ != nullptr);
+        msg_log_assert(crawler_handle_ != nullptr);
         prefetch_next_item_op_ = find_op;
 
         /* so we first need to go to our entry point as prescribed by
@@ -581,8 +581,8 @@ bool Player::Control::found_item_for_playing(
 {
     auto locks(lock());
 
-    log_assert(op != nullptr);
-    log_assert(prefetch_next_item_op_ == nullptr || prefetch_next_item_op_ == op);
+    msg_log_assert(op != nullptr);
+    msg_log_assert(prefetch_next_item_op_ == nullptr || prefetch_next_item_op_ == op);
     prefetch_next_item_op_ = nullptr;
 
     if(op->is_op_canceled())
@@ -591,7 +591,7 @@ bool Player::Control::found_item_for_playing(
     bool list_exhausted = true;
 
     if(op->is_op_failure())
-        BUG("Item found for playing: FAILED");
+        MSG_BUG("Item found for playing: FAILED");
     else
     {
         using PositionalState =
@@ -643,7 +643,7 @@ bool Player::Control::found_item_for_playing(
             Playlist::Crawler::OperationBase::CompletionCallbackFilter::SUPPRESS_CANCELED);
 
     if(!crawler_handle_->run(prefetch_uris_op_))
-        BUG("Failed running prefetch URIs for direct playback");
+        MSG_BUG("Failed running prefetch URIs for direct playback");
 
     return true;
 }
@@ -810,8 +810,8 @@ static void enforce_intention(Player::UserIntention intention,
     if(audio_source_ == nullptr ||
        audio_source_->get_state() != Player::AudioSourceState::SELECTED)
     {
-        BUG("Cannot enforce intention on %s audio source",
-            audio_source_ == nullptr ? "null" : "deselected");
+        MSG_BUG("Cannot enforce intention on %s audio source",
+                audio_source_ == nullptr ? "null" : "deselected");
         return;
     }
 
@@ -1031,7 +1031,7 @@ is_stream_expected_playing(const Player::QueuedStreams &queued,
         break;
 
       case StreamExpected::EMPTY_AS_EXPECTED:
-        BUG("%s notification for no reason", mode_name);
+        MSG_BUG("%s notification for no reason", mode_name);
         break;
 
       case StreamExpected::UNEXPECTEDLY_NOT_OURS:
@@ -1051,24 +1051,24 @@ is_stream_expected_playing(const Player::QueuedStreams &queued,
         if(queued.is_player_queue_filled())
         {
             if(result == StreamExpected::UNEXPECTEDLY_OURS)
-                BUG("Out of sync: %s our stream %u that we don't know about",
-                    mode_name, stream_id.get_raw_id());
+                MSG_BUG("Out of sync: %s our stream %u that we don't know about",
+                        mode_name, stream_id.get_raw_id());
             else
-                BUG("Out of sync: %s stream ID should be %u, but streamplayer says it's %u",
-                    mode_name,
-                    queued.get_head_stream_id().get().get_raw_id(),
-                    stream_id.get_raw_id());
+                MSG_BUG("Out of sync: %s stream ID should be %u, but streamplayer says it's %u",
+                        mode_name,
+                        queued.get_head_stream_id().get().get_raw_id(),
+                        stream_id.get_raw_id());
         }
 
         break;
 
       case StreamExpected::INVALID_ID:
-        BUG("Out of sync: %s invalid stream, expected stream %u",
-            mode_name, queued.get_head_stream_id().get().get_raw_id());
+        MSG_BUG("Out of sync: %s invalid stream, expected stream %u",
+                mode_name, queued.get_head_stream_id().get().get_raw_id());
         break;
 
       case StreamExpected::OURS_QUEUED:
-        BUG("Unexpected stream expectation for %s", mode_name);
+        MSG_BUG("Unexpected stream expectation for %s", mode_name);
         break;
     }
 
@@ -1467,7 +1467,7 @@ void Player::Control::play_notification(ID::Stream stream_id,
             switch(prefetch_direction_after_failure_)
             {
               case Playlist::Crawler::Direction::NONE:
-                BUG("Invalid prefetch direction value");
+                MSG_BUG("Invalid prefetch direction value");
                 break;
 
               case Playlist::Crawler::Direction::FORWARD:
@@ -1486,7 +1486,7 @@ void Player::Control::play_notification(ID::Stream stream_id,
                 ID::OurStream::make_from_generic_id(stream_id));
 
         if(qs == nullptr)
-            BUG("No list position for playing stream %u", stream_id.get_raw_id());
+            MSG_BUG("No list position for playing stream %u", stream_id.get_raw_id());
         else if(audio_source_ != nullptr)
         {
             if(is_prefetch_cursor_update_required)
@@ -1732,7 +1732,7 @@ static bool send_selected_file_uri_to_streamplayer(
 
     if(fifo_overflow)
     {
-        BUG("URL FIFO overflow, losing item %u", stream_id.get().get_raw_id());
+        MSG_BUG("URL FIFO overflow, losing item %u", stream_id.get().get_raw_id());
         return false;
     }
 
@@ -1813,7 +1813,7 @@ static bool bookmark_about_to_play_next(const Player::Data &data,
 
     if(qs == nullptr)
     {
-        BUG("No list position for queued stream %u", next.get().get_raw_id());
+        MSG_BUG("No list position for queued stream %u", next.get().get_raw_id());
         return false;
     }
 
@@ -1827,7 +1827,7 @@ Player::Control::stop_notification_with_error(ID::Stream stream_id,
                                               const std::string &error_id,
                                               bool is_urlfifo_empty)
 {
-    log_assert(!error_id.empty());
+    msg_log_assert(!error_id.empty());
 
     if(player_data_ == nullptr || crawler_handle_ == nullptr)
         return StopReaction::NOT_ATTACHED;
@@ -1995,8 +1995,8 @@ Player::Control::stop_notification_with_error(ID::Stream stream_id,
     {
         if(!player_data_->queued_streams_get().is_player_queue_filled())
         {
-            BUG("Out of sync: stream player stopped our stream with error "
-                "and has streams queued, but we don't known which");
+            MSG_BUG("Out of sync: stream player stopped our stream with error "
+                    "and has streams queued, but we don't known which");
             return StopReaction::STOPPED;
         }
 
@@ -2141,7 +2141,7 @@ void Player::Control::start_prefetch_next_item(
 
 void Player::Control::bring_forward_delayed_prefetch()
 {
-    TODO(1504, "%s", "Speed up possibly deferred prefetch op");
+    MSG_TODO(1504, "%s", "Speed up possibly deferred prefetch op");
 }
 
 bool Player::Control::found_prefetched_item(Playlist::Crawler::FindNextOpBase &op,
@@ -2152,12 +2152,12 @@ bool Player::Control::found_prefetched_item(Playlist::Crawler::FindNextOpBase &o
     if(op.is_op_canceled())
         return false;
 
-    log_assert(&op == prefetch_next_item_op_.get());
+    msg_log_assert(&op == prefetch_next_item_op_.get());
     prefetch_next_item_op_ = nullptr;
 
     if(op.is_op_failure())
     {
-        BUG("Item prefetched: FAILED");
+        MSG_BUG("Item prefetched: FAILED");
         return false;
     }
 
@@ -2199,8 +2199,8 @@ bool Player::Control::found_prefetched_item(Playlist::Crawler::FindNextOpBase &o
         switch(prefetch_direction_after_failure_)
         {
           case Playlist::Crawler::Direction::FORWARD:
-            BUG_IF(finished_notification_ == nullptr,
-                   "No finished playing notification function");
+            MSG_BUG_IF(finished_notification_ == nullptr,
+                       "No finished playing notification function");
 
             if(finished_notification_ != nullptr)
                 finished_notification_(FinishedWith::PREFETCHING);
@@ -2239,7 +2239,7 @@ bool Player::Control::found_prefetched_item(Playlist::Crawler::FindNextOpBase &o
             Playlist::Crawler::OperationBase::CompletionCallbackFilter::SUPPRESS_CANCELED);
 
     if(!crawler_handle_->run(prefetch_uris_op_))
-        BUG("Failed running prefetch URIs for gapless playback");
+        MSG_BUG("Failed running prefetch URIs for gapless playback");
 
     return false;
 }
@@ -2334,11 +2334,11 @@ static bool async_redirect_check_preconditions(
         break;
 
       case Player::QueuedStream::ResolvedRedirectResult::FAILED:
-        BUG("%s: canceled at %zu, but case not handled", what, idx);
+        MSG_BUG("%s: canceled at %zu, but case not handled", what, idx);
         return false;
 
       case Player::QueuedStream::ResolvedRedirectResult::CANCELED:
-        BUG("%s: failed at %zu, but case not handled", what, idx);
+        MSG_BUG("%s: failed at %zu, but case not handled", what, idx);
         return false;
     }
 
@@ -2424,9 +2424,9 @@ void Player::Control::async_redirect_resolved_prefetched(
 void Player::Control::unexpected_resolve_error(
         size_t idx, QueuedStream::ResolvedRedirectResult result)
 {
-    BUG("Asynchronous resolution of Airable redirect failed unexpectedly "
-        "for URL at index %zu, result %u", idx,
-        static_cast<unsigned int>(result));
+    MSG_BUG("Asynchronous resolution of Airable redirect failed unexpectedly "
+            "for URL at index %zu, result %u", idx,
+            static_cast<unsigned int>(result));
     unplug(false);
 }
 
@@ -2447,14 +2447,14 @@ Player::Control::queue_item_from_op(Playlist::Crawler::GetURIsOpBase &op,
         return false;
     }
 
-    log_assert(op.is_op_successful());
-    log_assert(!op.is_op_canceled());
+    msg_log_assert(op.is_op_successful());
+    msg_log_assert(!op.is_op_canceled());
 
     auto &dir_op = static_cast<Playlist::Crawler::DirectoryCrawler::GetURIsOp &>(op);
     dir_op.result_.sorted_links_.finalize(bitrate_limiter_);
 
     auto pos(dir_op.extract_position());
-    log_assert(dynamic_cast<const DirCursor *>(pos.get()) != nullptr);
+    msg_log_assert(dynamic_cast<const DirCursor *>(pos.get()) != nullptr);
 
     switch(insert_mode)
     {
@@ -2505,7 +2505,7 @@ Player::Control::ReplayResult
 Player::Control::replay(ID::OurStream stream_id, bool is_retry,
                         PlayNewMode play_new_mode)
 {
-    log_assert(stream_id.get().is_valid());
+    msg_log_assert(stream_id.get().is_valid());
 
     if(!retry_data_.retry(stream_id))
     {
@@ -2527,7 +2527,7 @@ Player::Control::replay(ID::OurStream stream_id, bool is_retry,
                 audio_source_, "replay stream"))
     {
       case QueuedStream::OpResult::STARTED:
-        BUG("Unexpected async redirect resolution while replaying");
+        MSG_BUG("Unexpected async redirect resolution while replaying");
         return ReplayResult::RETRY_FAILED_HARD;
 
       case QueuedStream::OpResult::SUCCEEDED:
@@ -2552,7 +2552,7 @@ Player::Control::replay(ID::OurStream stream_id, bool is_retry,
                     audio_source_, "replay queued stream"))
         {
           case QueuedStream::OpResult::STARTED:
-            BUG("Unexpected queuing result while replaying");
+            MSG_BUG("Unexpected queuing result while replaying");
             break;
 
           case QueuedStream::OpResult::SUCCEEDED:

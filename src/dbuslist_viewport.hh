@@ -386,8 +386,8 @@ class DBusListSegmentFetcher: public std::enable_shared_from_this<DBusListSegmen
         LOGGED_LOCK_CONTEXT_HINT;
         std::lock_guard<LoggedLock::RecMutex> lock(lock_);
 
-        log_assert(get_range_query_ != nullptr);
-        log_assert(list_viewport_ != nullptr);
+        msg_log_assert(get_range_query_ != nullptr);
+        msg_log_assert(list_viewport_ != nullptr);
         return std::make_pair(std::move(get_range_query_),
                               std::move(list_viewport_));
     }

@@ -77,7 +77,7 @@ static ID::List finish_async_enter_dir_op(List::AsyncListIface::OpResult result,
 {
     auto lock(calls.acquire_lock());
 
-    log_assert(result != List::AsyncListIface::OpResult::STARTED);
+    msg_log_assert(result != List::AsyncListIface::OpResult::STARTED);
 
     calls.delete_all();
 
@@ -132,7 +132,7 @@ bool ViewFileBrowser::View::handle_enter_list_event_finish(
       case List::QueryContextEnterList::CallerID::CRAWLER_FIRST_ENTRY:
       case List::QueryContextEnterList::CallerID::CRAWLER_DESCEND:
       case List::QueryContextEnterList::CallerID::CRAWLER_ASCEND:
-        BUG("%s: Wrong caller ID in %s()", name_, __PRETTY_FUNCTION__);
+        MSG_BUG("%s: Wrong caller ID in %s()", name_, __PRETTY_FUNCTION__);
         return false;
     }
 
@@ -165,15 +165,15 @@ void ViewFileBrowser::View::handle_enter_list_event_update_after_finish(
         {
           case List::QueryContextEnterList::CallerID::ENTER_CONTEXT_ROOT:
             {
-                log_assert(is_jumping_to_context);
+                msg_log_assert(is_jumping_to_context);
 
                 switch(async_calls_.context_jump_.get_state())
                 {
                   case JumpToContext::State::NOT_JUMPING:
                   case JumpToContext::State::GET_CONTEXT_PARENT_ID:
                   case JumpToContext::State::GET_CONTEXT_LIST_ID:
-                    BUG("%s: Wrong jtc state %d (see #699)",
-                        name_, static_cast<int>(async_calls_.context_jump_.get_state()));
+                    MSG_BUG("%s: Wrong jtc state %d (see #699)",
+                            name_, static_cast<int>(async_calls_.context_jump_.get_state()));
                     break;
 
                   case JumpToContext::State::ENTER_CONTEXT_PARENT:
@@ -183,7 +183,7 @@ void ViewFileBrowser::View::handle_enter_list_event_update_after_finish(
 
                   case JumpToContext::State::ENTER_CONTEXT_LIST:
                     context_restriction_.set_boundary(async_calls_.context_jump_.end());
-                    log_assert(context_restriction_.is_boundary(current_list_id_));
+                    msg_log_assert(context_restriction_.is_boundary(current_list_id_));
                     break;
                 }
             }
@@ -234,7 +234,7 @@ void ViewFileBrowser::View::handle_enter_list_event_update_after_finish(
       case List::QueryContextEnterList::CallerID::CRAWLER_FIRST_ENTRY:
       case List::QueryContextEnterList::CallerID::CRAWLER_DESCEND:
       case List::QueryContextEnterList::CallerID::CRAWLER_ASCEND:
-        BUG("%s: Wrong caller ID in %s()", name_, __PRETTY_FUNCTION__);
+        MSG_BUG("%s: Wrong caller ID in %s()", name_, __PRETTY_FUNCTION__);
         break;
     }
 
@@ -305,7 +305,7 @@ static std::chrono::milliseconds
 compute_keep_alive_timeout(guint64 expiry_ms, unsigned int percentage,
                            std::chrono::milliseconds fallback)
 {
-    log_assert(percentage <= 100);
+    msg_log_assert(percentage <= 100);
 
     if(expiry_ms == 0)
         return fallback;
@@ -339,7 +339,7 @@ bool ViewFileBrowser::View::late_init()
 
 bool ViewFileBrowser::View::register_audio_sources()
 {
-    log_assert(default_audio_source_name_ != nullptr);
+    msg_log_assert(default_audio_source_name_ != nullptr);
     new_audio_source(default_audio_source_name_, nullptr);
     select_audio_source(0);
 
@@ -494,7 +494,7 @@ static void handle_resume_request(std::unique_ptr<Player::Resumer> &resumer,
 
       case Player::AudioSourceState::SELECTED:
         if(resumer == nullptr)
-            BUG("%s: Have no resumer object", view_name);
+            MSG_BUG("%s: Have no resumer object", view_name);
         else
             resumer->audio_source_available_notification();
 
@@ -677,14 +677,14 @@ bool ViewFileBrowser::View::apply_search_parameters()
 
     if(ctx.check_flags(List::ContextInfo::SEARCH_NOT_POSSIBLE))
     {
-        BUG("%s: Passed search parameters in context %s",
-            name_, ctx.string_id_.c_str());
+        MSG_BUG("%s: Passed search parameters in context %s",
+                name_, ctx.string_id_.c_str());
         return false;
     }
 
     const auto *sview = static_cast<ViewSearch::View *>(search_parameters_view_);
     const auto *params = sview->get_parameters();
-    log_assert(params != nullptr);
+    msg_log_assert(params != nullptr);
 
     bool retval;
 
@@ -693,7 +693,7 @@ bool ViewFileBrowser::View::apply_search_parameters()
     else
     {
         const auto *rview = sview->get_request_view();
-        log_assert(rview != nullptr);
+        msg_log_assert(rview != nullptr);
 
         retval = (ctx.is_valid() && point_to_item(*rview, *params));
     }
@@ -864,7 +864,7 @@ static inline bool have_search_parameters(const ViewIface *view)
 static ViewIface::InputResult move_down_multi(List::Nav &navigation,
                                               unsigned int lines)
 {
-    log_assert(lines > 0);
+    msg_log_assert(lines > 0);
 
     const bool moved = ((lines == 1 || navigation.distance_to_bottom() == 0)
                         ? navigation.down(lines)
@@ -876,7 +876,7 @@ static ViewIface::InputResult move_down_multi(List::Nav &navigation,
 static ViewIface::InputResult move_up_multi(List::Nav &navigation,
                                             unsigned int lines)
 {
-    log_assert(lines > 0);
+    msg_log_assert(lines > 0);
 
     const bool moved = ((lines == 1 || navigation.distance_to_top() == 0)
                         ? navigation.up(lines)
@@ -1318,7 +1318,7 @@ ViewFileBrowser::View::process_event(UI::ViewEventID event_id,
         {
             const auto pages_params =
                 UI::Events::downcast<UI::ViewEventID::NAV_SCROLL_PAGES>(parameters);
-            log_assert(pages_params != nullptr);
+            msg_log_assert(pages_params != nullptr);
 
             const int lines =
                 pages_params->get_specific() * browse_navigation_.maximum_number_of_displayed_lines_;
@@ -1335,7 +1335,7 @@ ViewFileBrowser::View::process_event(UI::ViewEventID event_id,
         {
             const auto lines_params =
                 UI::Events::downcast<UI::ViewEventID::NAV_SCROLL_LINES>(parameters);
-            log_assert(lines_params != nullptr);
+            msg_log_assert(lines_params != nullptr);
 
             const auto lines = lines_params->get_specific();
 
@@ -1371,8 +1371,8 @@ ViewFileBrowser::View::process_event(UI::ViewEventID event_id,
       case UI::ViewEventID::AUDIO_PATH_HALF_CHANGED:
       case UI::ViewEventID::AUDIO_PATH_CHANGED:
       case UI::ViewEventID::SET_DISPLAY_CONTENT:
-        BUG("%s: Unexpected view event 0x%08x for file browser view",
-            name_, static_cast<unsigned int>(event_id));
+        MSG_BUG("%s: Unexpected view event 0x%08x for file browser view",
+                name_, static_cast<unsigned int>(event_id));
 
         break;
     }
@@ -1428,7 +1428,7 @@ bool ViewFileBrowser::View::write_xml(std::ostream &os, uint32_t bits,
         else if((bits & WRITE_FLAG__IS_LOCKED) != 0)
             os << XmlEscape(_("Locked"));
         else
-            BUG("%s: Generic: what are we supposed to display here?!", name_);
+            MSG_BUG("%s: Generic: what are we supposed to display here?!", name_);
 
         os << "</text>";
 
@@ -1702,7 +1702,7 @@ bool ViewFileBrowser::View::owns_dbus_proxy(const void *dbus_proxy) const
 
 bool ViewFileBrowser::View::list_invalidate(ID::List list_id, ID::List replacement_id)
 {
-    log_assert(list_id.is_valid());
+    msg_log_assert(list_id.is_valid());
 
     if(is_root_list(list_id))
         root_list_id_ = replacement_id;
@@ -1767,7 +1767,7 @@ bool ViewFileBrowser::View::data_cookie_set_pending(
     if(pending_cookies_.add(cookie, std::move(notify), std::move(fetch)))
         return true;
 
-    BUG("%s: Duplicate cookie %u", name_, cookie);
+    MSG_BUG("%s: Duplicate cookie %u", name_, cookie);
     return false;
 }
 
@@ -1812,7 +1812,7 @@ bool ViewFileBrowser::View::data_cookies_available(std::vector<uint32_t> &&cooki
         }
         catch(const std::exception &e)
         {
-            BUG("%s: Exception while finishing cookie %u: %s", name_, c, e.what());
+            MSG_BUG("%s: Exception while finishing cookie %u: %s", name_, c, e.what());
         }
     }
 
@@ -1832,8 +1832,8 @@ bool ViewFileBrowser::View::data_cookies_error(std::vector<std::pair<uint32_t, L
         }
         catch(const std::exception &e)
         {
-            BUG("%s: Exception while finishing faulty cookie %u, error %u: %s",
-                name_, std::get<0>(ce), std::get<1>(ce).get_raw_code(), e.what());
+            MSG_BUG("%s: Exception while finishing faulty cookie %u, error %u: %s",
+                    name_, std::get<0>(ce), std::get<1>(ce).get_raw_code(), e.what());
         }
     }
 
@@ -1863,8 +1863,8 @@ static void point_to_root_directory__got_list_id(
                       "%s: Got error for root list ID, error code %s",
                       view_name, result.error_.to_string());
         else if(!result.list_id_.is_valid())
-            BUG("%s: Got invalid list ID for root list, but no error code",
-                view_name);
+            MSG_BUG("%s: Got invalid list ID for root list, but no error code",
+                    view_name);
         else
             file_list.enter_list_async(associated_viewport, result.list_id_, 0,
                                        List::QueryContextEnterList::CallerID::ENTER_ROOT,
@@ -1926,7 +1926,7 @@ bool ViewFileBrowser::View::do_point_to_real_root_directory()
       case DBusRNF::CallState::INITIALIZED:
       case DBusRNF::CallState::READY_TO_FETCH:
       case DBusRNF::CallState::ABOUT_TO_DESTROY:
-        BUG("%s: GetListIDCall for root ended up in unexpected state", name_);
+        MSG_BUG("%s: GetListIDCall for root ended up in unexpected state", name_);
         async_calls_.delete_get_list_id();
         break;
 
@@ -2018,8 +2018,8 @@ bool ViewFileBrowser::View::point_to_root_directory()
 
 bool ViewFileBrowser::View::do_point_to_context_root_directory(List::context_id_t ctx_id)
 {
-    BUG_IF(async_calls_.get_context_root_ != nullptr,
-           "Replacing active GetContextRoot call");
+    MSG_BUG_IF(async_calls_.get_context_root_ != nullptr,
+               "Replacing active GetContextRoot call");
 
     async_calls_.get_context_root_ = std::make_shared<AsyncCalls::GetContextRoot>(
         file_list_.get_dbus_proxy(),
@@ -2090,7 +2090,7 @@ void ViewFileBrowser::View::set_list_context_root(List::context_id_t ctx_id)
     else if(list_contexts_.exists(ctx_id))
         context_restriction_.set_context_id(ctx_id);
     else
-        BUG("%s: Invalid context ID %u passed as filter", name_, ctx_id);
+        MSG_BUG("%s: Invalid context ID %u passed as filter", name_, ctx_id);
 }
 
 void ViewFileBrowser::StandardError::service_authentication_failure(
@@ -2236,8 +2236,8 @@ static void point_to_child_directory__got_list_id(
                                       is_error_allowed))
         {
             if(!result.list_id_.is_valid())
-                BUG("%s: Got invalid list ID for child list, but no error code",
-                    view_name);
+                MSG_BUG("%s: Got invalid list ID for child list, but no error code",
+                        view_name);
             else
             {
                 List::QueryContextEnterList::CallerID caller_id;
@@ -2390,8 +2390,8 @@ bool ViewFileBrowser::View::point_to_child_directory(const SearchParameters *sea
       case DBusRNF::CallState::INITIALIZED:
       case DBusRNF::CallState::READY_TO_FETCH:
       case DBusRNF::CallState::ABOUT_TO_DESTROY:
-        BUG("%s for child ended up in unexpected state",
-            search_parameters == nullptr ? "GetListIDCall" : "GetParameterizedListIDCall");
+        MSG_BUG("%s for child ended up in unexpected state",
+                search_parameters == nullptr ? "GetListIDCall" : "GetParameterizedListIDCall");
         async_calls_.delete_get_list_id();
         break;
 
@@ -2408,7 +2408,7 @@ bool ViewFileBrowser::View::point_to_any_location(
         const List::DBusListViewport *associated_viewport, ID::List list_id,
         unsigned int line_number, ID::List context_boundary)
 {
-    log_assert(list_id.is_valid());
+    msg_log_assert(list_id.is_valid());
 
     async_calls_.jump_anywhere_context_boundary_ = context_boundary;
 
@@ -2486,8 +2486,8 @@ static void point_to_parent_link__got_parent_link(
             msg_info("%s: Cannot enter parent directory, already at root",
                      view_name);
         else
-            BUG("%s: Got invalid list ID for parent of list %u",
-                view_name, child_list_id.get_raw_id());
+            MSG_BUG("%s: Got invalid list ID for parent of list %u",
+                    view_name, child_list_id.get_raw_id());
 
         calls.get_parent_id_.reset();
     }

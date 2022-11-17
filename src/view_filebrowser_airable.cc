@@ -84,8 +84,8 @@ void ViewFileBrowser::AirableView::audio_source_state_changed(
             const auto idx(get_audio_source_index(audio_source));
 
             if(!select_audio_source(idx))
-                BUG("Selected audio source index %zu (%s) again",
-                    idx, audio_source.id_.c_str());
+                MSG_BUG("Selected audio source index %zu (%s) again",
+                        idx, audio_source.id_.c_str());
 
             if(idx > 0)
                 set_list_context_root(audio_source_index_to_list_context(idx));
@@ -205,11 +205,11 @@ ViewFileBrowser::AirableView::logged_out_from_service_notification(const std::st
 
 bool ViewFileBrowser::AirableView::register_audio_sources()
 {
-    log_assert(default_audio_source_name_ == nullptr);
+    msg_log_assert(default_audio_source_name_ == nullptr);
 
     if(list_contexts_.empty())
     {
-        BUG("No list contexts, cannot create audio sources");
+        MSG_BUG("No list contexts, cannot create audio sources");
         return false;
     }
 
@@ -243,8 +243,8 @@ bool ViewFileBrowser::AirableView::register_audio_sources()
     }
 
     /* for the time being, we need the root audio source in the first slot */
-    log_assert(audio_source_index_to_list_context(0) == 0);
-    log_assert(get_audio_source_by_index(0).id_ == "airable");
+    msg_log_assert(audio_source_index_to_list_context(0) == 0);
+    msg_log_assert(get_audio_source_by_index(0).id_ == "airable");
 
     select_audio_source(0);
 
@@ -464,8 +464,8 @@ ViewFileBrowser::AirableView::process_oauth_request(
                                 });
     else
     {
-        BUG("Received OAuth request with context hint: "
-            "we should probably handle this case differently");
+        MSG_BUG("Received OAuth request with context hint: "
+                "we should probably handle this case differently");
         oauth_request_.activate(ctx_id, std::move(std::get<4>(plist)),
                                 std::move(std::get<5>(plist)),
                                 [this]
@@ -545,15 +545,15 @@ void ViewFileBrowser::AirableView::finish_async_point_to_child_directory()
 
     if(!ctx.is_valid())
     {
-        BUG("Attempted to find search form in invalid context %u", ctx_id);
+        MSG_BUG("Attempted to find search form in invalid context %u", ctx_id);
         return;
     }
 
     if(!ctx.check_flags(List::ContextInfo::HAS_PROPER_SEARCH_FORM) ||
        ctx.check_flags(List::ContextInfo::SEARCH_NOT_POSSIBLE))
     {
-        BUG("Attempted to find nonexistent search form link in context %s",
-            ctx.string_id_.c_str());
+        MSG_BUG("Attempted to find nonexistent search form link in context %s",
+                ctx.string_id_.c_str());
         return;
     }
 
@@ -607,8 +607,8 @@ void ViewFileBrowser::AirableView::finish_async_point_to_child_directory()
     }
 
     if(i >= num)
-        BUG("Expected to find search form link for context %s in list %u",
-            ctx.string_id_.c_str(), current_list_id_.get_raw_id());
+        MSG_BUG("Expected to find search form link for context %s in list %u",
+                ctx.string_id_.c_str(), current_list_id_.get_raw_id());
 
     file_list_.detach_viewport(std::move(viewport));
 }
@@ -686,7 +686,7 @@ void ViewFileBrowser::AirableView::point_to_search_form__got_root_list_id(
                       "Got error for root list ID, error code %s",
                       result.error_.to_string());
         else if(!result.list_id_.is_valid())
-            BUG("Got invalid list ID for root list, but no error code");
+            MSG_BUG("Got invalid list ID for root list, but no error code");
         else
             root_id = result.list_id_;
     }
@@ -744,7 +744,7 @@ void ViewFileBrowser::AirableView::point_to_search_form__got_root_list_id(
       case DBusRNF::CallState::INITIALIZED:
       case DBusRNF::CallState::READY_TO_FETCH:
       case DBusRNF::CallState::ABOUT_TO_DESTROY:
-        BUG("GetListIDCall for service list for search ended up in unexpected state");
+        MSG_BUG("GetListIDCall for service list for search ended up in unexpected state");
         async_calls_.delete_get_list_id();
         break;
 
@@ -782,7 +782,7 @@ void ViewFileBrowser::AirableView::point_to_search_form__got_service_list_id(
                       "Got error for root list ID, error code %s",
                       result.error_.to_string());
         else if(!result.list_id_.is_valid())
-            BUG("Got invalid list ID for root list, but no error code");
+            MSG_BUG("Got invalid list ID for root list, but no error code");
         else if(point_to_any_location(get_viewport().get(), result.list_id_,
                                       search_forms_[ctx_id].second,
                                       result.list_id_))
@@ -851,7 +851,7 @@ ViewFileBrowser::AirableView::point_to_search_form(List::context_id_t ctx_id)
       case DBusRNF::CallState::INITIALIZED:
       case DBusRNF::CallState::READY_TO_FETCH:
       case DBusRNF::CallState::ABOUT_TO_DESTROY:
-        BUG("GetListIDCall for root for search ended up in unexpected state");
+        MSG_BUG("GetListIDCall for root for search ended up in unexpected state");
         async_calls_.delete_get_list_id();
         break;
 
@@ -928,7 +928,7 @@ bool ViewFileBrowser::AirableView::write_xml(std::ostream &os, uint32_t bits,
     else if((bits & WRITE_FLAG__IS_LOCKED) != 0)
         os << XmlEscape(_("Please use our app."));
     else
-        BUG("Airable: what are we supposed to display here?!");
+        MSG_BUG("Airable: what are we supposed to display here?!");
 
     os << "</text>";
 

@@ -87,7 +87,7 @@ static gpointer process_dbus(gpointer user_data)
 
     auto &data = *static_cast<ProcessData *>(user_data);
 
-    log_assert(data.loop != nullptr);
+    msg_log_assert(data.loop != nullptr);
 
     while(!g_main_context_acquire(data.ctx))
         ;
@@ -500,25 +500,25 @@ int DBus::setup(bool connect_to_session_bus,
         return -1;
     }
 
-    log_assert(dbus_data.dcpd_playback_proxy != nullptr);
-    log_assert(dbus_data.dcpd_views_proxy != nullptr);
-    log_assert(dbus_data.dcpd_list_navigation_proxy != nullptr);
-    log_assert(dbus_data.dcpd_list_item_proxy != nullptr);
-    log_assert(dbus_data.filebroker_lists_navigation_proxy != nullptr);
-    log_assert(dbus_data.airablebroker_lists_navigation_proxy != nullptr);
-    log_assert(dbus_data.upnpbroker_lists_navigation_proxy != nullptr);
-    log_assert(dbus_data.splay_urlfifo_proxy != nullptr);
-    log_assert(dbus_data.splay_playback_proxy != nullptr);
-    log_assert(dbus_data.roonplayer_playback_proxy != nullptr);
-    log_assert(dbus_data.airable_sec_proxy != nullptr);
-    log_assert(dbus_data.airable_errors_proxy != nullptr);
-    log_assert(dbus_data.rest_dcpd_playback_proxy != nullptr);
-    log_assert(dbus_data.rest_display_updates_proxy != nullptr);
-    log_assert(dbus_data.audiopath_source_iface != nullptr);
-    log_assert(dbus_data.audiopath_manager_proxy != nullptr);
-    log_assert(dbus_data.configuration_read_iface != nullptr);
-    log_assert(dbus_data.configuration_write_iface != nullptr);
-    log_assert(dbus_data.debug_logging_iface != nullptr);
+    msg_log_assert(dbus_data.dcpd_playback_proxy != nullptr);
+    msg_log_assert(dbus_data.dcpd_views_proxy != nullptr);
+    msg_log_assert(dbus_data.dcpd_list_navigation_proxy != nullptr);
+    msg_log_assert(dbus_data.dcpd_list_item_proxy != nullptr);
+    msg_log_assert(dbus_data.filebroker_lists_navigation_proxy != nullptr);
+    msg_log_assert(dbus_data.airablebroker_lists_navigation_proxy != nullptr);
+    msg_log_assert(dbus_data.upnpbroker_lists_navigation_proxy != nullptr);
+    msg_log_assert(dbus_data.splay_urlfifo_proxy != nullptr);
+    msg_log_assert(dbus_data.splay_playback_proxy != nullptr);
+    msg_log_assert(dbus_data.roonplayer_playback_proxy != nullptr);
+    msg_log_assert(dbus_data.airable_sec_proxy != nullptr);
+    msg_log_assert(dbus_data.airable_errors_proxy != nullptr);
+    msg_log_assert(dbus_data.rest_dcpd_playback_proxy != nullptr);
+    msg_log_assert(dbus_data.rest_display_updates_proxy != nullptr);
+    msg_log_assert(dbus_data.audiopath_source_iface != nullptr);
+    msg_log_assert(dbus_data.audiopath_manager_proxy != nullptr);
+    msg_log_assert(dbus_data.configuration_read_iface != nullptr);
+    msg_log_assert(dbus_data.configuration_write_iface != nullptr);
+    msg_log_assert(dbus_data.debug_logging_iface != nullptr);
 
     g_signal_connect(dbus_data.dcpd_playback_proxy, "g-signal",
                      G_CALLBACK(dbussignal_dcpd_playback_from_dcpd),

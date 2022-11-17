@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017, 2019, 2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2017, 2019, 2020, 2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -69,7 +69,7 @@ void Playlist::CacheEnforcer::process_dbus(GObject *source_object,
     switch(enforcer.state_)
     {
       case State::CREATED:
-        BUG("Impossible state");
+        MSG_BUG("Impossible state");
         break;
 
       case State::STARTED:
@@ -142,7 +142,7 @@ gboolean Playlist::CacheEnforcer::process_timer(gpointer user_data)
 
 void Playlist::CacheEnforcer::start()
 {
-    log_assert(state_ == State::CREATED);
+    msg_log_assert(state_ == State::CREATED);
     process_timer(this);
 }
 

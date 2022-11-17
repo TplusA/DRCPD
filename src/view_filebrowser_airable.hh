@@ -94,7 +94,7 @@ class OAuthRequest
     {
         if(!is_active())
         {
-            BUG("OAuth request done, but wasn't active");
+            MSG_BUG("OAuth request done, but wasn't active");
             return false;
         }
 
@@ -114,8 +114,8 @@ class OAuthRequest
     void activate_init(const List::context_id_t &context_id,
                        std::string &&url, std::string &&code)
     {
-        BUG_IF(context_id_ != List::ContextMap::INVALID_ID,
-               "Context ID for OAuth request already set (%u)", context_id_);
+        MSG_BUG_IF(context_id_ != List::ContextMap::INVALID_ID,
+                   "Context ID for OAuth request already set (%u)", context_id_);
         context_id_ = context_id;
         url_ = std::move(url);
         code_ = std::move(code);
@@ -139,8 +139,8 @@ class OAuthRequest
 
     void sent_oauth_message()
     {
-        BUG_IF(!sent_ui_message_ && seen_auth_error_,
-               "OAuth-related list error seen before UI message was sent");
+        MSG_BUG_IF(!sent_ui_message_ && seen_auth_error_,
+                   "OAuth-related list error seen before UI message was sent");
         sent_ui_message_ = true;
     }
 
@@ -149,9 +149,9 @@ class OAuthRequest
         if(!is_active())
             return false;
 
-        BUG_IF(!seen_auth_error_ && !sent_ui_message_,
-               "OAuth-related UI message not sent before the expected "
-               "list error was received");
+        MSG_BUG_IF(!seen_auth_error_ && !sent_ui_message_,
+                   "OAuth-related UI message not sent before the expected "
+                   "list error was received");
         seen_auth_error_ = true;
         return true;
     }
@@ -214,7 +214,7 @@ class AirableView: public View
         void set(ID::List list_id, unsigned int line_number,
                  ID::List context_root, const I18n::String &title)
         {
-            log_assert(list_id.is_valid());
+            msg_log_assert(list_id.is_valid());
 
             list_id_ = list_id;
             line_number_ = line_number;

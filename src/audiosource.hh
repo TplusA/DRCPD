@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017, 2019, 2021  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2017, 2019, 2021, 2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -91,7 +91,7 @@ class AudioSource
         {
           case AudioSourceState::DESELECTED:
           case AudioSourceState::REQUESTED:
-            BUG("Set D-Bus proxies for not selected audio source %s", id_.c_str());
+            MSG_BUG("Set D-Bus proxies for not selected audio source %s", id_.c_str());
             break;
 
           case AudioSourceState::SELECTED:
@@ -133,7 +133,7 @@ class AudioSource
         switch(state_)
         {
           case AudioSourceState::DESELECTED:
-            BUG("Cannot switch to selected state directly");
+            MSG_BUG("Cannot switch to selected state directly");
             break;
 
           case AudioSourceState::REQUESTED:
@@ -150,7 +150,7 @@ class AudioSource
         switch(state_)
         {
           case AudioSourceState::REQUESTED:
-            BUG("Bogus direct switch to selected state from requested state");
+            MSG_BUG("Bogus direct switch to selected state from requested state");
 
             /* fall-through */
 

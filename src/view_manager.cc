@@ -117,8 +117,8 @@ void ViewManager::Manager::set_debug_stream(std::ostream &os)
 
 void ViewManager::Manager::set_resume_playback_configuration_file(const char *filename)
 {
-    log_assert(filename != nullptr);
-    log_assert(filename[0] != '\0');
+    msg_log_assert(filename != nullptr);
+    msg_log_assert(filename[0] != '\0');
 
     resume_playback_config_filename_ = filename;
     inifile_free(&resume_configuration_file_);
@@ -178,7 +178,7 @@ static const char *do_get_resume_url_by_audio_source_id(const struct ini_section
     if(kv == nullptr || kv->value == nullptr)
     {
         if(id.empty())
-            BUG("Tried to resume playback for empty audio source ID");
+            MSG_BUG("Tried to resume playback for empty audio source ID");
         else
             msg_error(0, LOG_NOTICE,
                       "No resume data for audio source \"%s\" available",
@@ -233,7 +233,7 @@ void ViewManager::Manager::serialization_result(DCP::Transaction::Result result)
     switch(result)
     {
       case DCP::Transaction::OK:
-        BUG("Got OK from DCPD, but failed ending transaction");
+        MSG_BUG("Got OK from DCPD, but failed ending transaction");
         break;
 
       case DCP::Transaction::FAILED:
@@ -241,11 +241,11 @@ void ViewManager::Manager::serialization_result(DCP::Transaction::Result result)
         break;
 
       case DCP::Transaction::TIMEOUT:
-        BUG("Got no answer from DCPD");
+        MSG_BUG("Got no answer from DCPD");
         break;
 
       case DCP::Transaction::INVALID_ANSWER:
-        BUG("Got invalid response from DCPD");
+        MSG_BUG("Got invalid response from DCPD");
         break;
 
       case DCP::Transaction::IO_ERROR:
@@ -310,7 +310,7 @@ void ViewManager::Manager::notify_main_thread_if_necessary(
             auto *const view =
                 dynamic_cast<ViewFileBrowser::View *>(get_view_by_dbus_proxy(proxy));
             if(view == nullptr)
-                BUG("Could not find view for D-Bus proxy (data cookies available announcement)");
+                MSG_BUG("Could not find view for D-Bus proxy (data cookies available announcement)");
             else
                 view->data_cookies_available_announcement(std::get<1>(plist));
         }
@@ -330,7 +330,7 @@ void ViewManager::Manager::notify_main_thread_if_necessary(
             auto *const view =
                 dynamic_cast<ViewFileBrowser::View *>(get_view_by_dbus_proxy(proxy));
             if(view == nullptr)
-                BUG("Could not find view for D-Bus proxy (data cookies error announcement)");
+                MSG_BUG("Could not find view for D-Bus proxy (data cookies error announcement)");
             else
                 view->data_cookies_error_announcement(std::get<1>(plist));
         }
@@ -493,8 +493,8 @@ void ViewManager::Manager::dispatch_event(UI::ViewEventID event_id,
 
         if(target_view == nullptr)
         {
-            BUG("Cannot send display update to unknown view \"%s\"",
-                target_view_name);
+            MSG_BUG("Cannot send display update to unknown view \"%s\"",
+                    target_view_name);
             return;
         }
     }
@@ -563,7 +563,7 @@ void ViewManager::Manager::dispatch_event(UI::VManEventID event_id,
                 dynamic_cast<ViewFileBrowser::View *>(get_view_by_dbus_proxy(proxy));
 
             if(view == nullptr)
-                BUG("Could not find view for D-Bus proxy (data cookies available)");
+                MSG_BUG("Could not find view for D-Bus proxy (data cookies available)");
             else if(view->data_cookies_available(std::move(std::get<1>(plist))))
                 update_view_if_active(view, DCP::Queue::Mode::FORCE_ASYNC);
         }
@@ -584,7 +584,7 @@ void ViewManager::Manager::dispatch_event(UI::VManEventID event_id,
                 dynamic_cast<ViewFileBrowser::View *>(get_view_by_dbus_proxy(proxy));
 
             if(view == nullptr)
-                BUG("Could not find view for D-Bus proxy (data cookies error)");
+                MSG_BUG("Could not find view for D-Bus proxy (data cookies error)");
             else if(view->data_cookies_error(std::move(std::get<1>(plist))))
                 update_view_if_active(view, DCP::Queue::Mode::FORCE_ASYNC);
         }
@@ -637,7 +637,7 @@ void ViewManager::Manager::dispatch_event(UI::VManEventID event_id,
                 dynamic_cast<ViewFileBrowser::View *>(get_view_by_dbus_proxy(proxy));
 
             if(view == nullptr)
-                BUG("Could not find view for D-Bus proxy (list invalidation)");
+                MSG_BUG("Could not find view for D-Bus proxy (list invalidation)");
             else if(view->list_invalidate(std::get<1>(plist), std::get<2>(plist)))
                 update_view_if_active(view, DCP::Queue::Mode::FORCE_ASYNC);
         }
@@ -670,8 +670,8 @@ bool ViewManager::Manager::do_input_bounce(const ViewManager::InputBouncer &boun
         return true;
     }
 
-    BUG("Failed bouncing command %d, view \"%s\" unknown",
-        static_cast<int>(event_id), item->view_name_);
+    MSG_BUG("Failed bouncing command %d, view \"%s\" unknown",
+            static_cast<int>(event_id), item->view_name_);
 
     return false;
 }
@@ -825,14 +825,14 @@ void ViewManager::Manager::process_pending_events()
         else if(auto *ev_vm = dynamic_cast<UI::Events::ViewMan *>(event.get()))
             dispatch_event(ev_vm->event_id_, std::move(ev_vm->parameters_));
         else
-            BUG("Unhandled event");
+            MSG_BUG("Unhandled event");
     }
 }
 
 void ViewManager::Manager::busy_state_notification(bool is_busy)
 {
     ViewSerializeBase *view = dynamic_cast<ViewSerializeBase *>(active_view_);
-    log_assert(view != nullptr);
+    msg_log_assert(view != nullptr);
 
     view->add_base_update_flags(ViewSerializeBase::UPDATE_FLAGS_BASE_BUSY_FLAG);
     view->update(dcp_transaction_queue_, DCP::Queue::Mode::FORCE_ASYNC,
@@ -848,7 +848,7 @@ ViewManager::Manager::block_async_result_notifications(const void *proxy)
     if(view != nullptr)
         return view->data_cookies_block_notifications();
 
-    BUG("No file browser view for given proxy, cannot block cookie notifications");
+    MSG_BUG("No file browser view for given proxy, cannot block cookie notifications");
     throw std::runtime_error("No file browser found for given D-Bus proxy");
 }
 
@@ -859,19 +859,19 @@ bool ViewManager::Manager::set_pending_cookie(
 {
     if(cookie == 0)
     {
-        BUG("Attempted to store invalid cookie");
+        MSG_BUG("Attempted to store invalid cookie");
         return false;
     }
 
     if(notify == nullptr)
     {
-        BUG("Notify function for cookie not given");
+        MSG_BUG("Notify function for cookie not given");
         return false;
     }
 
     if(fetch == nullptr)
     {
-        BUG("Fetch function for cookie not given");
+        MSG_BUG("Fetch function for cookie not given");
         return false;
     }
 
@@ -880,7 +880,7 @@ bool ViewManager::Manager::set_pending_cookie(
 
     if(view == nullptr)
     {
-        BUG("No file browser view for given proxy, cannot set cookie %u", cookie);
+        MSG_BUG("No file browser view for given proxy, cannot set cookie %u", cookie);
         return false;
     }
 
@@ -891,7 +891,7 @@ bool ViewManager::Manager::abort_cookie(const void *proxy, uint32_t cookie)
 {
     if(cookie == 0)
     {
-        BUG("Attempted to drop invalid cookie");
+        MSG_BUG("Attempted to drop invalid cookie");
         return false;
     }
 
@@ -900,7 +900,7 @@ bool ViewManager::Manager::abort_cookie(const void *proxy, uint32_t cookie)
 
     if(view == nullptr)
     {
-        BUG("No file browser view for given proxy, cannot drop cookie %u", cookie);
+        MSG_BUG("No file browser view for given proxy, cannot drop cookie %u", cookie);
         return false;
     }
 

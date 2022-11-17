@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, 2019, 2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2019, 2020, 2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -79,7 +79,7 @@ class ComparedString
 
     gunichar get_char_at(size_t idx) const throw()
     {
-        log_assert(idx < number_of_utf8_chars_);
+        msg_log_assert(idx < number_of_utf8_chars_);
         return g_utf8_get_char(g_utf8_offset_to_pointer(string_, idx));
     }
 };
@@ -97,7 +97,7 @@ static bool get_casefolded_string(List::DBusList &list,
 
     if(item == nullptr)
     {
-        BUG("List item %u does not exist", position);
+        MSG_BUG("List item %u does not exist", position);
         return false;
     }
 
@@ -105,7 +105,7 @@ static bool get_casefolded_string(List::DBusList &list,
 
     if(item_text == nullptr)
     {
-        BUG("List item %u contains nullptr text", position);
+        MSG_BUG("List item %u contains nullptr text", position);
         return false;
     }
 
@@ -236,7 +236,7 @@ class BSearchState
          */
         void step_center_up() throw()
         {
-            log_assert(center_ > top_);
+            msg_log_assert(center_ > top_);
             --center_;
         }
 
@@ -245,7 +245,7 @@ class BSearchState
          */
         void step_center_down() throw()
         {
-            log_assert(center_ < bottom_);
+            msg_log_assert(center_ < bottom_);
             ++center_;
         }
 
@@ -409,7 +409,7 @@ class BSearchState
                 return result;
 
               case Result::FOUND_APPROXIMATE:
-                BUG("Bogus approximate match for bottom partition boundary");
+                MSG_BUG("Bogus approximate match for bottom partition boundary");
                 return Result::INTERNAL_FAILURE;
             }
         }
@@ -425,7 +425,7 @@ class BSearchState
 
         Partition &p(CompareTraits::want_top_most_boundary() ? upper_ : lower_);
 
-        log_assert(!p.is_empty());
+        msg_log_assert(!p.is_empty());
 
         if(center_string.length() < depth_)
         {
@@ -453,8 +453,8 @@ class BSearchState
 
             if(!shown_bug)
             {
-                BUG("The binary search should resort to linear search once "
-                    "the searched partition becomes small");
+                MSG_BUG("The binary search should resort to linear search once "
+                        "the searched partition becomes small");
                 shown_bug = true;
             }
 
@@ -566,7 +566,7 @@ ssize_t Search::binary_search_utf8(List::DBusList &list, const std::string &quer
 
     if(next_utf8_char == nullptr)
     {
-        BUG("Expected at least one UTF-8 character");
+        MSG_BUG("Expected at least one UTF-8 character");
         return -1;
     }
 
@@ -585,9 +585,9 @@ ssize_t Search::binary_search_utf8(List::DBusList &list, const std::string &quer
         msg_vinfo(MESSAGE_LEVEL_DEBUG, "Top-most result: %d",
                   static_cast<int>(result));
 
-        log_assert(result == BSearchState::Result::FOUND_MATCH ||
-                   result == BSearchState::Result::FOUND_APPROXIMATE ||
-                   result == BSearchState::Result::INTERNAL_FAILURE);
+        msg_log_assert(result == BSearchState::Result::FOUND_MATCH ||
+                       result == BSearchState::Result::FOUND_APPROXIMATE ||
+                       result == BSearchState::Result::INTERNAL_FAILURE);
 
         if(result == BSearchState::Result::INTERNAL_FAILURE)
             return -1;
@@ -602,8 +602,8 @@ ssize_t Search::binary_search_utf8(List::DBusList &list, const std::string &quer
             msg_vinfo(MESSAGE_LEVEL_DEBUG, "Bottom-most result: %d",
                       static_cast<int>(result));
 
-            log_assert(result == BSearchState::Result::FOUND_MATCH ||
-                       result == BSearchState::Result::INTERNAL_FAILURE);
+            msg_log_assert(result == BSearchState::Result::FOUND_MATCH ||
+                           result == BSearchState::Result::INTERNAL_FAILURE);
 
             if(result == BSearchState::Result::INTERNAL_FAILURE)
                 return -1;

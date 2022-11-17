@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017, 2019  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2017, 2019, 2022  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -29,7 +29,7 @@
 
 void Airable::SortedLinks::finalize(const std::function<bool(uint32_t)> &is_bitrate_in_range)
 {
-    log_assert(!is_finalized_);
+    msg_log_assert(!is_finalized_);
     is_finalized_ = true;
 
     if(backing_store_.empty())

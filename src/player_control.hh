@@ -172,7 +172,7 @@ class Control
 
         bool retry(ID::OurStream stream_id)
         {
-            log_assert(stream_id.get().is_valid());
+            msg_log_assert(stream_id.get().is_valid());
 
             if(stream_id_ != stream_id)
                 playing(stream_id.get());

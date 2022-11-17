@@ -101,15 +101,15 @@ class JumpToContext
     {
         if(state_ != State::NOT_JUMPING)
         {
-            BUG("Already jumping to context %d (state %d, source list %u, line %u, parent %u, context list %u), "
-                "requested to jump to %d now (source list %u, line %u)",
-                int(destination_), int(state_), source_.first.get_raw_id(),
-                source_.second, parent_list_id_.get_raw_id(), context_list_id_.get_raw_id(),
-                int(destination), source_list_id.get_raw_id(), source_line);
+            MSG_BUG("Already jumping to context %d (state %d, source list %u, line %u, parent %u, context list %u), "
+                    "requested to jump to %d now (source list %u, line %u)",
+                    int(destination_), int(state_), source_.first.get_raw_id(),
+                    source_.second, parent_list_id_.get_raw_id(), context_list_id_.get_raw_id(),
+                    int(destination), source_list_id.get_raw_id(), source_line);
             return false;
         }
 
-        log_assert(destination != List::ContextMap::INVALID_ID);
+        msg_log_assert(destination != List::ContextMap::INVALID_ID);
         source_.first = source_list_id;
         source_.second = source_line;
         destination_ = destination;
@@ -119,20 +119,20 @@ class JumpToContext
 
     void put_parent_list_id(const ID::List list_id)
     {
-        log_assert(state_ == State::GET_CONTEXT_PARENT_ID);
+        msg_log_assert(state_ == State::GET_CONTEXT_PARENT_ID);
         parent_list_id_ = list_id;
         set_state(State::ENTER_CONTEXT_PARENT);
     }
 
     void begin_second_step()
     {
-        log_assert(state_ == State::ENTER_CONTEXT_PARENT);
+        msg_log_assert(state_ == State::ENTER_CONTEXT_PARENT);
         set_state(State::GET_CONTEXT_LIST_ID);
     }
 
     void put_context_list_id(const ID::List list_id)
     {
-        log_assert(state_ == State::GET_CONTEXT_LIST_ID);
+        msg_log_assert(state_ == State::GET_CONTEXT_LIST_ID);
         context_list_id_ = list_id;
         set_state(State::ENTER_CONTEXT_LIST);
     }
@@ -149,7 +149,7 @@ class JumpToContext
 
     ID::List end()
     {
-        log_assert(state_ == State::ENTER_CONTEXT_LIST);
+        msg_log_assert(state_ == State::ENTER_CONTEXT_LIST);
         const ID::List result = context_list_id_;
         reset(true);
         return result;
@@ -234,7 +234,7 @@ class ContextRestriction
 
     void set_context_id(const List::context_id_t &ctx)
     {
-        log_assert(ctx != List::ContextMap::INVALID_ID);
+        msg_log_assert(ctx != List::ContextMap::INVALID_ID);
         root_list_id_ = ID::List();
         context_id_ = ctx;
         is_blocked_ = true;
@@ -345,8 +345,8 @@ class PendingCookies
      */
     bool add(uint32_t cookie, NotifyFnType &&notify_fn, FetchFnType &&fetch_fn)
     {
-        log_assert(cookie != 0);
-        log_assert(fetch_fn != nullptr);
+        msg_log_assert(cookie != 0);
+        msg_log_assert(fetch_fn != nullptr);
 
         LOGGED_LOCK_CONTEXT_HINT;
         std::lock_guard<LoggedLock::RecMutex> lock(lock_);
@@ -412,7 +412,7 @@ class PendingCookies
 
         if(it == notification_functions_.end())
         {
-            BUG("No notification function for cookie %u (%s)", cookie, what);
+            MSG_BUG("No notification function for cookie %u (%s)", cookie, what);
             return;
         }
 
@@ -428,11 +428,11 @@ class PendingCookies
         }
         catch(const std::exception &e)
         {
-            BUG("Got exception while notifying cookie %u (%s)", cookie, e.what());
+            MSG_BUG("Got exception while notifying cookie %u (%s)", cookie, e.what());
         }
         catch(...)
         {
-            BUG("Got exception while notifying cookie %u", cookie);
+            MSG_BUG("Got exception while notifying cookie %u", cookie);
         }
     }
 
@@ -445,7 +445,7 @@ class PendingCookies
 
         if(it == fetch_functions_.end())
         {
-            BUG("Got %s notification for unknown cookie %u (finish)", what, cookie);
+            MSG_BUG("Got %s notification for unknown cookie %u (finish)", what, cookie);
             return;
         }
 
@@ -460,11 +460,11 @@ class PendingCookies
         }
         catch(const std::exception &e)
         {
-            BUG("Got exception while fetching cookie %u (%s)", cookie, e.what());
+            MSG_BUG("Got exception while fetching cookie %u (%s)", cookie, e.what());
         }
         catch(...)
         {
-            BUG("Got exception while fetching cookie %u", cookie);
+            MSG_BUG("Got exception while fetching cookie %u", cookie);
         }
     }
 };
