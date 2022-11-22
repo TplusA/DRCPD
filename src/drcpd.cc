@@ -513,9 +513,9 @@ static void connect_everything(ViewManager::Manager &views,
                     Playlist::Crawler::Direction::FORWARD,
                     Playlist::Crawler::FindNextOpBase::RecursiveMode::DEPTH_FIRST),
                 "strbo.usb", views, views, views);
-    static ViewFileBrowser::AirableView tunein(
+    static ViewFileBrowser::AirableView airable(
                 ViewNames::BROWSER_INETRADIO, N_("Airable internet radio"), 3,
-                views.NUMBER_OF_LINES_ON_DISPLAY, DBus::ListbrokerID::TUNEIN,
+                views.NUMBER_OF_LINES_ON_DISPLAY, DBus::ListbrokerID::AIRABLE,
                 Playlist::Crawler::DefaultSettings(
                     Playlist::Crawler::Direction::FORWARD,
                     Playlist::Crawler::FindNextOpBase::RecursiveMode::DEPTH_FIRST),
@@ -540,7 +540,7 @@ static void connect_everything(ViewManager::Manager &views,
     views.add_view(error_sink);
     views.add_view(inactive);
     views.add_view(fs);
-    views.add_view(tunein);
+    views.add_view(airable);
     views.add_view(upnp);
     views.add_view(app);
     views.add_view(rest);
@@ -554,7 +554,7 @@ static void connect_everything(ViewManager::Manager &views,
     if(!fs.init())
         return;
 
-    if(!tunein.init())
+    if(!airable.init())
         return;
 
     if(!upnp.init())

@@ -48,7 +48,7 @@ struct DBusData
     tdbusdcpdListItem *dcpd_list_item_proxy;
 
     tdbuslistsNavigation *filebroker_lists_navigation_proxy;
-    tdbuslistsNavigation *tuneinbroker_lists_navigation_proxy;
+    tdbuslistsNavigation *airablebroker_lists_navigation_proxy;
     tdbuslistsNavigation *upnpbroker_lists_navigation_proxy;
 
     tdbussplayURLFIFO *splay_urlfifo_proxy;
@@ -358,7 +358,7 @@ static void name_acquired(GDBusConnection *connection,
                                 G_DBUS_PROXY_FLAGS_NONE,
                                 "de.tahifi.FileBroker", "/de/tahifi/FileBroker");
     connect_signals_list_broker(connection,
-                                data.tuneinbroker_lists_navigation_proxy,
+                                data.airablebroker_lists_navigation_proxy,
                                 G_DBUS_PROXY_FLAGS_NONE,
                                 "de.tahifi.TuneInBroker", "/de/tahifi/TuneInBroker");
     connect_signals_list_broker(connection,
@@ -403,8 +403,8 @@ tdbuslistsNavigation *DBus::get_lists_navigation_iface(DBus::ListbrokerID listbr
       case DBus::ListbrokerID::FILESYSTEM:
         return dbus_data.filebroker_lists_navigation_proxy;
 
-      case DBus::ListbrokerID::TUNEIN:
-        return dbus_data.tuneinbroker_lists_navigation_proxy;
+      case DBus::ListbrokerID::AIRABLE:
+        return dbus_data.airablebroker_lists_navigation_proxy;
 
       case DBus::ListbrokerID::UPNP:
         return dbus_data.upnpbroker_lists_navigation_proxy;
@@ -505,7 +505,7 @@ int DBus::setup(bool connect_to_session_bus,
     log_assert(dbus_data.dcpd_list_navigation_proxy != nullptr);
     log_assert(dbus_data.dcpd_list_item_proxy != nullptr);
     log_assert(dbus_data.filebroker_lists_navigation_proxy != nullptr);
-    log_assert(dbus_data.tuneinbroker_lists_navigation_proxy != nullptr);
+    log_assert(dbus_data.airablebroker_lists_navigation_proxy != nullptr);
     log_assert(dbus_data.upnpbroker_lists_navigation_proxy != nullptr);
     log_assert(dbus_data.splay_urlfifo_proxy != nullptr);
     log_assert(dbus_data.splay_playback_proxy != nullptr);
@@ -540,7 +540,7 @@ int DBus::setup(bool connect_to_session_bus,
                      G_CALLBACK(dbussignal_lists_navigation),
                      dbus_signal_data_for_dbus_handlers);
 
-    g_signal_connect(dbus_data.tuneinbroker_lists_navigation_proxy, "g-signal",
+    g_signal_connect(dbus_data.airablebroker_lists_navigation_proxy, "g-signal",
                      G_CALLBACK(dbussignal_lists_navigation),
                      dbus_signal_data_for_dbus_handlers);
 
@@ -613,7 +613,7 @@ void DBus::shutdown()
     g_object_unref(dbus_data.dcpd_list_navigation_proxy);
     g_object_unref(dbus_data.dcpd_list_item_proxy);
     g_object_unref(dbus_data.filebroker_lists_navigation_proxy);
-    g_object_unref(dbus_data.tuneinbroker_lists_navigation_proxy);
+    g_object_unref(dbus_data.airablebroker_lists_navigation_proxy);
     g_object_unref(dbus_data.upnpbroker_lists_navigation_proxy);
     g_object_unref(dbus_data.splay_urlfifo_proxy);
     g_object_unref(dbus_data.splay_playback_proxy);
