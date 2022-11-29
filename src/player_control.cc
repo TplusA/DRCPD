@@ -625,7 +625,7 @@ bool Player::Control::found_item_for_playing(
         if(finished_notification_ != nullptr)
             finished_notification_(FinishedWith::PLAYING);
 
-        return false;
+        return true;
     }
 
     auto pos(op->extract_position());
@@ -645,7 +645,7 @@ bool Player::Control::found_item_for_playing(
     if(!crawler_handle_->run(prefetch_uris_op_))
         BUG("Failed running prefetch URIs for direct playback");
 
-    return false;
+    return true;
 }
 
 bool Player::Control::found_item_uris_for_playing(
@@ -675,11 +675,11 @@ bool Player::Control::found_item_uris_for_playing(
             {
               case Playlist::Crawler::Direction::FORWARD:
                 skip_forward_request();
-                break;
+                return true;
 
               case Playlist::Crawler::Direction::BACKWARD:
                 skip_backward_request();
-                break;
+                return true;
 
               case Playlist::Crawler::Direction::NONE:
                 break;
@@ -715,6 +715,7 @@ bool Player::Control::found_item_uris_for_playing(
                                      Playlist::Crawler::Bookmark::ABOUT_TO_PLAY,
                                      Playlist::Crawler::Direction::FORWARD, false,
                                      Execution::NOW);
+            return true;
         }
 
         break;
@@ -738,6 +739,7 @@ bool Player::Control::found_item_uris_for_playing(
                 reason = "found next URI in list while listening";
 
             send_play_command(audio_source_, std::move(reason));
+            return true;
         }
 
         break;
