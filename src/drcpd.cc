@@ -92,6 +92,8 @@ ssize_t (*os_write)(int fd, const void *buf, size_t count) = write;
 
 #if LOGGED_LOCKS_ENABLED
 bool LoggedLock::log_messages_enabled = true;
+LoggedLock::Mutex LoggedLock::MutexTraits<LoggedLock::Mutex>::dummy_for_default_ctor_;
+LoggedLock::RecMutex LoggedLock::MutexTraits<LoggedLock::RecMutex>::dummy_for_default_ctor_;
 #if LOGGED_LOCKS_THREAD_CONTEXTS
 thread_local LoggedLock::Context LoggedLock::context;
 #endif
