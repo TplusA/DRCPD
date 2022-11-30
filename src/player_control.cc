@@ -643,7 +643,10 @@ bool Player::Control::found_item_for_playing(
             Playlist::Crawler::OperationBase::CompletionCallbackFilter::SUPPRESS_CANCELED);
 
     if(!crawler_handle_->run(prefetch_uris_op_))
+    {
         MSG_BUG("Failed running prefetch URIs for direct playback");
+        return false;
+    }
 
     return true;
 }
@@ -2239,9 +2242,12 @@ bool Player::Control::found_prefetched_item(Playlist::Crawler::FindNextOpBase &o
             Playlist::Crawler::OperationBase::CompletionCallbackFilter::SUPPRESS_CANCELED);
 
     if(!crawler_handle_->run(prefetch_uris_op_))
+    {
         MSG_BUG("Failed running prefetch URIs for gapless playback");
+        return false;
+    }
 
-    return false;
+    return true;
 }
 
 bool Player::Control::found_prefetched_item_uris(
@@ -2272,7 +2278,7 @@ bool Player::Control::found_prefetched_item_uris(
                                  Playlist::Crawler::Bookmark::PREFETCH_CURSOR,
                                  from_direction, force_play_uri_when_available,
                                  Execution::DELAYED);
-        return false;
+        return true;
     }
 
     const auto intention = player_data_->get_intention();
@@ -2309,6 +2315,7 @@ bool Player::Control::found_prefetched_item_uris(
                                      intention == UserIntention::LISTENING
                                      ? Execution::DELAYED
                                      : Execution::NOW);
+            return true;
         }
 
         break;
