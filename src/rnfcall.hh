@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019, 2020, 2021, 2022  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2019--2023  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -163,9 +163,9 @@ using StatusWatcher =
  * context in which the #DBusRNF::CallBase object has been created, which is
  * required at some later point when the requested results are available. The
  * context data object also has a virtual #DBusRNF::ContextData::notify()
- * function member which may be called from classed derived from
- * #DBusRNF::CallBase the way it wants to (most notably, #DBusRNF::CookieCall,
- * which call the notification function on request completion).
+ * function member which may be called from classes derived from
+ * #DBusRNF::CallBase the way it needs to (most notably, #DBusRNF::CookieCall
+ * does this, which calls the notification function on request completion).
  *
  * The condition variable is available to derived classes, not directly to
  * callers. It is notified when a request has finished, either successfully or

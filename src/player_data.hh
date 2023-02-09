@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, 2017, 2019--2022  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2017, 2019--2023  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -658,7 +658,7 @@ class Data
      * Streams we have sent to streamplayer, but are not playing yet.
      *
      * We need to know the exact IDs and their order to recover from playback
-     * errors. There are situations in which we need restart playback from
+     * errors. There are situations in which we need to restart playback from
      * scratch, and this queue enables us to restore the whole player queue to
      * the previous state.
      *
