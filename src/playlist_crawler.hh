@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016, 2017, 2019--2022  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016, 2017, 2019--2023  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -256,8 +256,8 @@ class Iface
      *
      * All crawler actions must be made through the handle, either directly or
      * through a #Playlist::Crawler::PublicIface object (made available through
-     * the directly accessible #Playlist::Crawler::Iface::Handle::public_iface_
-     * member).
+     * the directly accessible #Playlist::Crawler::Iface::Handle's
+     * \c public_iface_ member).
      *
      * For more readable code, client code should use the
      * #Playlist::Crawler::Handle type alias where the handle type is needed.
@@ -274,9 +274,9 @@ class Iface
      * different means from a StrBo link), and is later passed to the crawler
      * when it is.
      *
-     * Note that #Playlist::Crawler::Iface::Handle::public_iface_ will only
+     * Note that #Playlist::Crawler::Iface::Handle's \c public_iface_ will only
      * become useful after the reference point has been set by a call of
-     * #Playlist::Crawler::Iface::Handle::set_reference_point().
+     * #Playlist::Crawler::Iface::Handle's \c set_reference_point() function.
      *
      * For more readable code, client code should use the
      * #Playlist::Crawler::Handle type alias where the handle type is needed.

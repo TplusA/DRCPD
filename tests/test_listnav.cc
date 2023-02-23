@@ -1,5 +1,6 @@
 /*
- * Copyright (C) 2015, 2016, 2019, 2020, 2022  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015, 2016, 2019, 2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2022, 2023  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -26,6 +27,7 @@
 #include <cppcutter.h>
 #include <algorithm>
 #include <climits>
+#include <array>
 
 #include "listnav.hh"
 #include "ramlist.hh"

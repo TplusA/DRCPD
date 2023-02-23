@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019, 2020, 2021, 2022  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2019, 2020, 2021, 2022, 2023  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -104,8 +104,9 @@ void Playlist::Crawler::DirectoryCrawler::FindNextOp::run_as_far_as_possible()
 /*!
  * Get child ID.
  *
- * This function calls #get_child_item_internal(), which invokes
- * \c de.tahifi.Lists.Navigation.GetListId synchronously in turn.
+ * This function calls
+ * #anonymous_namespace{view_filebrowser_utils.hh}::get_child_item_internal(),
+ * which invokes \c de.tahifi.Lists.Navigation.GetListId synchronously in turn.
  *
  * \bug Synchronous D-Bus call of potentially long-running method.
  */
