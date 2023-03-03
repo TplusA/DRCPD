@@ -1707,7 +1707,7 @@ static bool send_selected_file_uri_to_streamplayer(
 
     if(urlfifo_proxy != nullptr)
     {
-        GVariant *raw_dropped_ids_before;
+        GVariant *raw_dropped_ids_before = nullptr;
         GErrorWrapper error;
         tdbus_splay_urlfifo_call_push_sync(
             urlfifo_proxy, stream_id.get().get_raw_id(),

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019, 2020, 2021, 2022  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2019--2023  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -84,8 +84,8 @@ class GetRankedStreamLinksCall final:
     {
         guint cookie;
         guchar error_code;
-        GVariant *link_list;
-        GVariant *image_stream_key;
+        GVariant *link_list = nullptr;
+        GVariant *image_stream_key = nullptr;
         GErrorWrapper error;
 
         tdbus_lists_navigation_call_get_ranked_stream_links_sync(
@@ -113,8 +113,8 @@ class GetRankedStreamLinksCall final:
     void do_fetch(uint32_t cookie, std::promise<ResultType> &result) final override
     {
         guchar error_code;
-        GVariant *link_list;
-        GVariant *image_stream_key;
+        GVariant *link_list = nullptr;
+        GVariant *image_stream_key = nullptr;
         GErrorWrapper error;
 
         tdbus_lists_navigation_call_get_ranked_stream_links_by_cookie_sync(

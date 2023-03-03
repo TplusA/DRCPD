@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019, 2020, 2022  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2019, 2020, 2022, 2023  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -109,8 +109,8 @@ class GetURIsCall final:
     {
         guint cookie;
         guchar error_code;
-        gchar **uri_list;
-        GVariant *image_stream_key;
+        gchar **uri_list = nullptr;
+        GVariant *image_stream_key = nullptr;
         GErrorWrapper error;
 
         tdbus_lists_navigation_call_get_uris_sync(
@@ -137,8 +137,8 @@ class GetURIsCall final:
     void do_fetch(uint32_t cookie, std::promise<ResultType> &result) final override
     {
         guchar error_code;
-        gchar **uri_list;
-        GVariant *image_stream_key;
+        gchar **uri_list = nullptr;
+        GVariant *image_stream_key = nullptr;
         GErrorWrapper error;
 
         tdbus_lists_navigation_call_get_uris_by_cookie_sync(

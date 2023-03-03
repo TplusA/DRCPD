@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019, 2020, 2021, 2022  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2019--2023  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -243,7 +243,7 @@ class GetRangeCall final: public GetRangeCallBase
         guint cookie;
         guchar error_code;
         guint first_item_id;
-        GVariant *out_list;
+        GVariant *out_list = nullptr;
         GErrorWrapper error;
 
         tdbus_lists_navigation_call_get_range_sync(
@@ -286,7 +286,7 @@ class GetRangeCall final: public GetRangeCallBase
     {
         guchar error_code;
         guint first_item_id;
-        GVariant *out_list;
+        GVariant *out_list = nullptr;
         GErrorWrapper error;
 
         tdbus_lists_navigation_call_get_range_by_cookie_sync(
@@ -360,7 +360,7 @@ class GetRangeWithMetaDataCall final: public GetRangeCallBase
         guint cookie;
         guchar error_code;
         guint first_item_id;
-        GVariant *out_list;
+        GVariant *out_list = nullptr;
         GErrorWrapper error;
 
         tdbus_lists_navigation_call_get_range_with_meta_data_sync(
@@ -404,7 +404,7 @@ class GetRangeWithMetaDataCall final: public GetRangeCallBase
     {
         guchar error_code;
         guint first_item_id;
-        GVariant *out_list;
+        GVariant *out_list = nullptr;
         GErrorWrapper error;
 
         tdbus_lists_navigation_call_get_range_with_meta_data_by_cookie_sync(

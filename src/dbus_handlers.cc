@@ -471,11 +471,11 @@ void dbussignal_splay_playback(GDBusProxy *proxy, const gchar *sender_name,
         check_parameter_assertions(parameters, 6);
 
         guint16 raw_stream_id;
-        GVariant *stream_key_variant;
-        const gchar *url_string;
+        GVariant *stream_key_variant = nullptr;
+        const gchar *url_string = nullptr;
         gboolean queue_is_full;
         GVariantIter *dropped_ids_iter;
-        GVariantIter *meta_data_iter;
+        GVariantIter *meta_data_iter = nullptr;
 
         g_variant_get(parameters, "(q@ay&sbaqa(ss))",
                       &raw_stream_id, &stream_key_variant, &url_string,
@@ -738,9 +738,9 @@ void dbussignal_audiopath_manager(GDBusProxy *proxy, const gchar *sender_name,
     else if(strcmp(signal_name, "PathActivated") == 0 ||
             strcmp(signal_name, "PathReactivated") == 0)
     {
-        const gchar *source_id;
-        const gchar *player_id;
-        GVariant *request_data;
+        const gchar *source_id = nullptr;
+        const gchar *player_id = nullptr;
+        GVariant *request_data = nullptr;
 
         g_variant_get(parameters, "(&s&s@a{sv})",
                       &source_id, &player_id, &request_data);
@@ -793,8 +793,8 @@ void dbussignal_rest_display_updates(GDBusProxy *proxy, const gchar *sender_name
 
     if(strcmp(signal_name, "Object") == 0)
     {
-        const gchar *json_object;
-        GVariant *extra;
+        const gchar *json_object = nullptr;
+        GVariant *extra = nullptr;
         g_variant_get(parameters, "(&s@as)", &json_object, &extra);
 
         auto params =
@@ -829,10 +829,10 @@ void dbussignal_error_messages(GDBusProxy *proxy, const gchar *sender_name,
         return;
     }
 
-    const gchar *code;
-    const gchar *context;
-    const gchar *message;
-    GVariant *message_data;
+    const gchar *code = nullptr;
+    const gchar *context = nullptr;
+    const gchar *message = nullptr;
+    GVariant *message_data = nullptr;
 
     g_variant_get(parameters, "(&s&s&s@a{sv})",
                   &code, &context, &message, &message_data);
