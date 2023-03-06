@@ -1715,8 +1715,6 @@ static bool send_selected_file_uri_to_streamplayer(
             0, "ms", 0, "ms", keep_first_n, to_gvariant(meta_data),
             &fifo_overflow, &is_playing, &raw_dropped_ids_before, nullptr,
             nullptr, error.await());
-        GVariantWrapper dropped_ids_before(raw_dropped_ids_before,
-                                           GVariantWrapper::Transfer::JUST_MOVE);
 
         if(error.log_failure("Push stream"))
         {
@@ -1724,6 +1722,8 @@ static bool send_selected_file_uri_to_streamplayer(
             return false;
         }
 
+        GVariantWrapper dropped_ids_before(raw_dropped_ids_before,
+                                           GVariantWrapper::Transfer::JUST_MOVE);
         player.player_dropped_from_queue(
                 move_gvariant_ids_to_vector(std::move(dropped_ids_before)));
     }
