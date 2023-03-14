@@ -197,19 +197,16 @@ void Player::Control::plug(const LocalPermissionsIface &permissions)
     retry_data_.reset();
 }
 
-static std::vector<ID::Stream> move_gvariant_ids_to_vector(GVariantWrapper &&ids)
+static void move_gvariant_ids_to_vector(GVariantWrapper &&ids,
+                                        std::vector<ID::Stream> &vec)
 {
     GVariantIter it;
     if(g_variant_iter_init(&it, GVariantWrapper::get(ids)) == 0)
-        return {};
+        return;
 
     uint16_t id;
-    std::vector<ID::Stream> vec;
-
     while(g_variant_iter_next(&it, "q", &id))
         vec.push_back(ID::Stream::make_from_raw_id(id));
-
-    return vec;
 }
 
 static bool invalidate_prefetched_uris(Player::AudioSource *asrc,
@@ -236,10 +233,13 @@ static bool invalidate_prefetched_uris(Player::AudioSource *asrc,
     }
 
     GVariantWrapper queued_ids(raw_queued_ids, GVariantWrapper::Transfer::JUST_MOVE);
-    GVariantWrapper removed_ids(raw_removed_ids, GVariantWrapper::Transfer::JUST_MOVE);
 
-    player_data.player_dropped_from_queue(
-                    move_gvariant_ids_to_vector(std::move(removed_ids)));
+    std::vector<ID::Stream> vec;
+    move_gvariant_ids_to_vector(
+                        GVariantWrapper(raw_removed_ids,
+                                        GVariantWrapper::Transfer::JUST_MOVE),
+                        vec);
+    player_data.player_dropped_from_queue(vec);
     return true;
 }
 
@@ -1708,13 +1708,14 @@ static bool send_selected_file_uri_to_streamplayer(
     if(urlfifo_proxy != nullptr)
     {
         GVariant *raw_dropped_ids_before = nullptr;
+        GVariant *raw_dropped_ids_now = nullptr;
         GErrorWrapper error;
         tdbus_splay_urlfifo_call_push_sync(
             urlfifo_proxy, stream_id.get().get_raw_id(),
             GVariantWrapper::move(uris), GVariantWrapper::get(stream_key),
             0, "ms", 0, "ms", keep_first_n, to_gvariant(meta_data),
-            &fifo_overflow, &is_playing, &raw_dropped_ids_before, nullptr,
-            nullptr, error.await());
+            &fifo_overflow, &is_playing, &raw_dropped_ids_before,
+            &raw_dropped_ids_now, nullptr, error.await());
 
         if(error.log_failure("Push stream"))
         {
@@ -1722,10 +1723,16 @@ static bool send_selected_file_uri_to_streamplayer(
             return false;
         }
 
-        GVariantWrapper dropped_ids_before(raw_dropped_ids_before,
-                                           GVariantWrapper::Transfer::JUST_MOVE);
-        player.player_dropped_from_queue(
-                move_gvariant_ids_to_vector(std::move(dropped_ids_before)));
+        std::vector<ID::Stream> dropped_ids_vec;
+        move_gvariant_ids_to_vector(
+                        GVariantWrapper(raw_dropped_ids_before,
+                                        GVariantWrapper::Transfer::JUST_MOVE),
+                        dropped_ids_vec);
+        move_gvariant_ids_to_vector(
+                        GVariantWrapper(raw_dropped_ids_now,
+                                        GVariantWrapper::Transfer::JUST_MOVE),
+                        dropped_ids_vec);
+        player.player_dropped_from_queue(dropped_ids_vec);
     }
 
     if(fifo_overflow)
