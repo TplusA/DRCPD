@@ -851,8 +851,7 @@ ViewPlay::View::process_event(UI::ViewEventID event_id,
 
             auto &now_playing(player_data_.get_now_playing());
 
-            if(now_playing.put_meta_data(stream_id, std::move(std::get<1>(plist))) &&
-               now_playing.is_stream(stream_id))
+            if(now_playing.put_meta_data(stream_id, std::move(std::get<1>(plist))))
             {
                 add_update_flags(UPDATE_FLAGS_META_DATA);
                 view_manager_->update_view_if_active(this, DCP::Queue::Mode::FORCE_ASYNC);
