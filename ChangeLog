@@ -1,3 +1,13 @@
+2023-03-14  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 6.0 released.
+
+	* Airable: Stream links from Airable are passed straight to the
+	  player. It makes more sense to resolve them there and removes quite
+	  some complexity from drcpd.
+
+	* Stability: Fix a few minor bugs.
+
 2022-11-30  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 5.32 released.
@@ -1175,4 +1185,4 @@
 	* First release for testing.
 
 
-Copyright 2015--2022 T+A elektroakustik GmbH & Co. KG
+Copyright 2015--2023 T+A elektroakustik GmbH & Co. KG
