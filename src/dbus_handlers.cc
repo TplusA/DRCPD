@@ -888,7 +888,7 @@ gboolean dbusmethod_audiopath_source_selected(tdbusaupathSource *object,
             tdbus_aupath_source_complete_selected(object, invocation);
         });
     auto params = UI::Events::mk_params<UI::EventID::AUDIO_SOURCE_SELECTED>(
-                        source_id, true, std::move(guard));
+                        source_id, false, std::move(guard));
 
     /* views are switched by the player as seen necessary */
     auto *data = static_cast<DBus::SignalData *>(user_data);
