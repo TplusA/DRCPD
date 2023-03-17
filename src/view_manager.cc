@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015--2022  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015--2023  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -30,6 +30,7 @@
 #include "view_nop.hh"
 #include "ui_parameters_predefined.hh"
 #include "messages.h"
+#include "dump_enum_value.hh"
 
 #include <string>
 #include <numeric>
@@ -375,9 +376,7 @@ void ViewManager::Manager::store_event(UI::EventID event_id,
 static void log_event_dispatch(const UI::ViewEventID event_id,
                                const char *view_name, bool was_bounced)
 {
-    static constexpr std::array<const char *const,
-                                static_cast<unsigned int>(UI::ViewEventID::LAST_VIEW_EVENT_ID) + 1>
-        events
+    static constexpr std::array<const char *const, 34> events
     {
         "NOP",
         "PLAYBACK_COMMAND_START",
@@ -415,30 +414,23 @@ static void log_event_dispatch(const UI::ViewEventID event_id,
         "PLAYBACK_TRY_RESUME",
     };
 
-    static_assert(events[events.size() - 1] != nullptr, "Table too short");
-
     msg_vinfo(MESSAGE_LEVEL_DEBUG, "Dispatch %s (%d) to view %s (%s)",
-              events[static_cast<unsigned int>(event_id)],
-              static_cast<int>(event_id), view_name,
-              was_bounced ? "bounced" : "direct");
+              enum_to_string(events, event_id), static_cast<int>(event_id),
+              view_name, was_bounced ? "bounced" : "direct");
 }
 
 static void log_event_dispatch(const UI::BroadcastEventID event_id,
                                const char *view_name)
 {
-    static constexpr std::array<const char *const,
-                                static_cast<unsigned int>(UI::BroadcastEventID::LAST_EVENT_ID) + 1>
-        events
+    static constexpr std::array<const char *const, 2> events
     {
         "NOP",
         "CONFIGURATION_UPDATED",
     };
 
-    static_assert(events[events.size() - 1] != nullptr, "Table too short");
-
     msg_vinfo(MESSAGE_LEVEL_DEBUG, "Dispatch broadcast %s (%d) to view %s",
-              events[static_cast<unsigned int>(event_id)],
-              static_cast<int>(event_id), view_name);
+              enum_to_string(events, event_id), static_cast<int>(event_id),
+              view_name);
 }
 
 void ViewManager::Manager::dispatch_event(UI::ViewEventID event_id,
