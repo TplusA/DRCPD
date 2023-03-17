@@ -167,13 +167,19 @@ class Control
 
         void playing(ID::Stream stream_id)
         {
-            msg_log_assert(stream_id.is_valid());
-            stream_id_ = ID::OurStream::make_from_generic_id(stream_id);
+            if(stream_id.is_valid())
+                stream_id_ = ID::OurStream::make_from_generic_id(stream_id);
+            else
+                reset();
         }
 
         bool retry(ID::OurStream stream_id)
         {
-            msg_log_assert(stream_id.get().is_valid());
+            if(!stream_id.get().is_valid())
+            {
+                reset();
+                return false;
+            }
 
             if(stream_id_ != stream_id)
                 playing(stream_id.get());
