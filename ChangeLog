@@ -1,3 +1,17 @@
+2023-03-22  Robert Tiemann  <r.tiemann@ta-hifi.de>
+
+	* Version 6.1 released.
+
+	* Stability: Fix crash after wakeup in paused Roon mode.
+
+	* Audio sources: Fix deferred audio source selection.
+
+	* User interface: The busy flag is more reliable now. Double display
+	  updates while navigating a list are avoided, speeding up the UI and
+	  thus improving the UX.
+
+	* Misc: Maintenance work.
+
 2023-03-14  Robert Tiemann  <r.tiemann@ta-hifi.de>
 
 	* Version 6.0 released.
