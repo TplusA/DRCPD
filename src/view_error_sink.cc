@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017, 2019, 2022  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2017, 2019, 2022, 2023  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -64,7 +64,8 @@ ViewErrorSink::View::get_dynamic_ids(uint32_t bits) const
 }
 
 bool ViewErrorSink::View::write_xml(std::ostream &os, uint32_t bits,
-                                    const DCP::Queue::Data &data)
+                                    const DCP::Queue::Data &data,
+                                    bool &busy_state_triggered)
 {
     std::lock_guard<std::mutex> lock(errors_lock_);
 
@@ -90,8 +91,10 @@ bool ViewErrorSink::View::write_xml(std::ostream &os, uint32_t bits,
 }
 
 bool ViewErrorSink::View::write_xml_end(std::ostream &os, uint32_t bits,
-                                        const DCP::Queue::Data &data)
+                                        const DCP::Queue::Data &data,
+                                        bool busy_state_triggered)
 {
+    append_busy_value(os, data.busy_flag_, busy_state_triggered);
     os << "</view>";
     return true;
 }

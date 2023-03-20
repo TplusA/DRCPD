@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015--2021  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015--2021, 2023  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -76,14 +76,18 @@ class View: public ViewIface, public ViewSerializeBase
                               std::unique_ptr<UI::Parameters> parameters) override;
     void process_broadcast(UI::BroadcastEventID event_id,
                            UI::Parameters *parameters) override;
-    void serialize(DCP::Queue &queue, DCP::Queue::Mode mode, std::ostream *debug_os) override;
-    void update(DCP::Queue &queue, DCP::Queue::Mode mode, std::ostream *debug_os) override;
+    void serialize(DCP::Queue &queue, DCP::Queue::Mode mode,
+                   std::ostream *debug_os, const Maybe<bool> &is_busy) override;
+    void update(DCP::Queue &queue, DCP::Queue::Mode mode,
+                std::ostream *debug_os, const Maybe<bool> &is_busy) override;
 
   private:
     bool is_serialization_allowed() const final override;
     bool write_xml_begin(std::ostream &os, uint32_t bits, const DCP::Queue::Data &data_full_view) override;
-    bool write_xml(std::ostream &os, uint32_t bits, const DCP::Queue::Data &data_full_view) override;
-    bool write_xml_end(std::ostream &os, uint32_t bits, const DCP::Queue::Data &data_full_view) override;
+    bool write_xml(std::ostream &os, uint32_t bits, const DCP::Queue::Data &data_full_view,
+                   bool &busy_state_triggered) override;
+    bool write_xml_end(std::ostream &os, uint32_t bits, const DCP::Queue::Data &data_full_view,
+                       bool busy_state_triggered) override;
 };
 
 }

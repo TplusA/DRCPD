@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015--2022  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015--2023  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -1407,7 +1407,8 @@ ViewFileBrowser::View::may_access_list_for_serialization() const
 }
 
 bool ViewFileBrowser::View::write_xml(std::ostream &os, uint32_t bits,
-                                      const DCP::Queue::Data &data)
+                                      const DCP::Queue::Data &data,
+                                      bool &busy_state_triggered)
 {
     os << "<text id=\"cbid\">" << int(drcp_browse_id_) << "</text>"
        << "<context>"
@@ -1452,6 +1453,9 @@ bool ViewFileBrowser::View::write_xml(std::ostream &os, uint32_t bits,
                 }))
     {
       case List::AsyncListIface::OpResult::STARTED:
+        busy_state_triggered = true;
+        break;
+
       case List::AsyncListIface::OpResult::SUCCEEDED:
       case List::AsyncListIface::OpResult::FAILED:
         break;
@@ -1492,6 +1496,10 @@ bool ViewFileBrowser::View::write_xml(std::ostream &os, uint32_t bits,
             switch(op_result)
             {
               case List::AsyncListIface::OpResult::STARTED:
+                busy_state_triggered = true;
+
+                /* fall-through */
+
               case List::AsyncListIface::OpResult::BUSY:
               case List::AsyncListIface::OpResult::SUCCEEDED:
                 item = dynamic_cast<decltype(item)>(dbus_list_item);
@@ -1585,9 +1593,9 @@ bool ViewFileBrowser::View::write_xml(std::ostream &os, uint32_t bits,
 }
 
 void ViewFileBrowser::View::serialize(DCP::Queue &queue, DCP::Queue::Mode mode,
-                                      std::ostream *debug_os)
+                                      std::ostream *debug_os, const Maybe<bool> &is_busy)
 {
-    ViewSerializeBase::serialize(queue, mode);
+    ViewSerializeBase::serialize(queue, mode, debug_os, is_busy);
 
     if(!debug_os)
         return;
@@ -1690,9 +1698,9 @@ void ViewFileBrowser::View::serialize(DCP::Queue &queue, DCP::Queue::Mode mode,
 }
 
 void ViewFileBrowser::View::update(DCP::Queue &queue, DCP::Queue::Mode mode,
-                                   std::ostream *debug_os)
+                                   std::ostream *debug_os, const Maybe<bool> &is_busy)
 {
-    serialize(queue, mode, debug_os);
+    serialize(queue, mode, debug_os, is_busy);
 }
 
 bool ViewFileBrowser::View::owns_dbus_proxy(const void *dbus_proxy) const

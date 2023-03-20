@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015--2022  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015--2023  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -104,7 +104,7 @@ class View: public ViewIface, public ViewSerializeBase
                            UI::Parameters *parameters) final override;
 
     void serialize(DCP::Queue &queue, DCP::Queue::Mode mode,
-                   std::ostream *debug_os) override;
+                   std::ostream *debug_os, const Maybe<bool> &is_busy) override;
 
     void register_audio_source(Player::AudioSource &audio_source,
                                ViewIface &associated_view);
@@ -124,7 +124,7 @@ class View: public ViewIface, public ViewSerializeBase
      */
     bool is_serialization_allowed() const final override { return true; }
     bool write_xml(std::ostream &os, uint32_t bits,
-                   const DCP::Queue::Data &data) override;
+                   const DCP::Queue::Data &data, bool &busy_state_triggered) override;
     void handle_audio_path_changed(const std::string &ausrc_id,
                                    const std::string &player_id,
                                    std::function<InputResult(const char *)> before_view_activation);

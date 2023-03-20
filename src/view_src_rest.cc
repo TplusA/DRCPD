@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021, 2022  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2021, 2022, 2023  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -236,10 +236,10 @@ ViewSourceREST::View::set_display_update_request(const std::string &request)
 }
 
 bool ViewSourceREST::View::write_xml(std::ostream &os, uint32_t bits,
-                                     const DCP::Queue::Data &data)
+                                     const DCP::Queue::Data &data, bool &busy_state_triggered)
 {
     if(lines_[0].empty() and lines_[1].empty())
-        return ViewExternalSource::Base::write_xml(os, bits, data);
+        return ViewExternalSource::Base::write_xml(os, bits, data, busy_state_triggered);
 
     const uint32_t update_flags =
         data.is_full_serialize_ ? UINT32_MAX : data.view_update_flags_;

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016--2022  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016--2023  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -892,10 +892,11 @@ uint32_t ViewFileBrowser::AirableView::about_to_write_xml(const DCP::Queue::Data
 }
 
 bool ViewFileBrowser::AirableView::write_xml(std::ostream &os, uint32_t bits,
-                                             const DCP::Queue::Data &data)
+                                             const DCP::Queue::Data &data,
+                                             bool &busy_state_triggered)
 {
     if((bits & WRITE_FLAG_GROUP__AS_MSG_NO_GET_ITEM_HINT_NEEDED) == 0)
-        return ViewFileBrowser::View::write_xml(os, bits, data);
+        return ViewFileBrowser::View::write_xml(os, bits, data, busy_state_triggered);
 
     const auto ctx_id(determine_ctx_id(have_audio_source(),
                                        context_restriction_.get_context_id(),

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016--2022  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016--2023  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -313,7 +313,7 @@ class AirableView: public View
 
     uint32_t about_to_write_xml(const DCP::Queue::Data &data) const final override;
     bool write_xml(std::ostream &os, uint32_t bits,
-                   const DCP::Queue::Data &data) final override;
+                   const DCP::Queue::Data &data, bool &busy_state_triggered) final override;
 
   private:
     bool try_jump_to_stored_position(StoredPosition &pos);
