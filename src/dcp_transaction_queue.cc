@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2016, 2017, 2019, 2020, 2022  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2023  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -32,7 +33,8 @@ std::function<void(bool)> DCP::Queue::configure_timeout_callback;
 std::function<void()> DCP::Queue::schedule_async_processing_callback;
 
 void DCP::Queue::add(ViewSerializeBase *view,
-                     bool is_full_serialize, uint32_t view_update_flags)
+                     bool is_full_serialize, uint32_t view_update_flags,
+                     const Maybe<bool> &is_busy)
 {
     LOGGED_LOCK_CONTEXT_HINT;
     std::lock_guard<LoggedLock::Mutex> lock(q_.lock_);
@@ -44,7 +46,8 @@ void DCP::Queue::add(ViewSerializeBase *view,
                                 }));
 
     if(it == q_.data_.end())
-        q_.data_.emplace_back(new Data(view, is_full_serialize, view_update_flags));
+        q_.data_.emplace_back(std::make_unique<Data>(view, is_full_serialize,
+                                                     view_update_flags, is_busy));
     else
     {
         auto &d = *it;
@@ -53,6 +56,14 @@ void DCP::Queue::add(ViewSerializeBase *view,
             d->is_full_serialize_ = is_full_serialize;
 
         d->view_update_flags_ |= view_update_flags;
+
+        if(is_busy.is_known())
+        {
+            if(d->busy_flag_.is_known())
+                d->busy_flag_.set_unknown();
+            else
+                d->busy_flag_ = is_busy;
+        }
     }
 }
 

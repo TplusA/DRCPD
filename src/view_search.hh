@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016--2021  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016--2021, 2023  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -71,17 +71,17 @@ class View: public ViewIface, public ViewSerializeBase
                            UI::Parameters *parameters) final override {}
 
     void serialize(DCP::Queue &queue, DCP::Queue::Mode mode,
-                   std::ostream *debug_os = nullptr) override
+                   std::ostream *debug_os, const Maybe<bool> &is_busy) override
     {
         if(can_serialize())
-            ViewSerializeBase::serialize(queue, mode, debug_os);
+            ViewSerializeBase::serialize(queue, mode, debug_os, is_busy);
     }
 
     void update(DCP::Queue &queue, DCP::Queue::Mode mode,
-                std::ostream *debug_os = nullptr) override
+                std::ostream *debug_os, const Maybe<bool> &is_busy) override
     {
         if(can_serialize())
-            ViewSerializeBase::update(queue, mode, debug_os);
+            ViewSerializeBase::update(queue, mode, debug_os, is_busy);
     }
 
     void request_parameters_for_context(const ViewIface *view, const char *context)
@@ -115,7 +115,7 @@ class View: public ViewIface, public ViewSerializeBase
   private:
     bool is_serialization_allowed() const final override { return true; }
     bool write_xml(std::ostream &os, uint32_t bits,
-                   const DCP::Queue::Data &data) override;
+                   const DCP::Queue::Data &data, bool &busy_state_triggered) override;
 
     bool can_serialize() const
     {

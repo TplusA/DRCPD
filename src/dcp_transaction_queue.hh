@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2016, 2017, 2019, 2020  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2023  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -23,6 +24,7 @@
 #define DCP_TRANSACTION_QUEUE_HH
 
 #include "dcp_transaction.hh"
+#include "maybe.hh"
 #include "messages.h"
 #include "logged_lock.hh"
 
@@ -74,15 +76,17 @@ class Queue: public QueueIntrospectionIface
       public:
         ViewSerializeBase *const view_;
         uint32_t view_update_flags_;
+        Maybe<bool> busy_flag_;
         bool is_full_serialize_;
 
         Data(const Data &) = delete;
         Data &operator=(const Data &) = delete;
 
         explicit Data(ViewSerializeBase *view, bool is_full_serialize,
-                      uint32_t view_update_flags):
+                      uint32_t view_update_flags, const Maybe<bool> &is_busy):
             view_(view),
             view_update_flags_(view_update_flags),
+            busy_flag_(is_busy),
             is_full_serialize_(is_full_serialize)
         {}
     };
@@ -133,7 +137,7 @@ class Queue: public QueueIntrospectionIface
     void set_output_stream(std::ostream *os) { active_.dcpd_.set_output_stream(os); }
 
     void add(ViewSerializeBase *view,
-             bool is_full_serialize, uint32_t view_update_flags);
+             bool is_full_serialize, uint32_t view_update_flags, const Maybe<bool> &is_busy);
     bool start_transaction(Mode mode);
 
     bool process_pending_transactions();

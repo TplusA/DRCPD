@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2015--2021  T+A elektroakustik GmbH & Co. KG
+# Copyright (C) 2015--2021, 2023  T+A elektroakustik GmbH & Co. KG
 #
 # This file is part of DRCPD.
 #
@@ -30,7 +30,7 @@ drcpd_SOURCES = \
     timeout.cc timeout.hh \
     os.c os.h named_pipe.c named_pipe.h fdstreambuf.hh \
     dbus_iface.cc dbus_iface.hh dbus_iface_proxies.hh dbus_handlers.hh \
-    dbus_async.hh \
+    dbus_async.hh maybe.hh \
     rnfcall.hh rnfcall_state.hh rnfcall_cookiecall.hh rnfcall_death_row.hh \
     rnfcall_get_list_id.hh rnfcall_get_location_trace.hh \
     rnfcall_get_range.hh rnfcall_get_ranked_stream_links.hh \
@@ -148,7 +148,8 @@ libviews_la_CXXFLAGS = $(AM_CXXFLAGS)
 
 libdcp_transaction_la_SOURCES = \
     dcp_transaction.cc dcp_transaction.hh \
-    dcp_transaction_queue.cc dcp_transaction_queue.hh
+    dcp_transaction_queue.cc dcp_transaction_queue.hh \
+    maybe.hh
 libdcp_transaction_la_CFLAGS = $(AM_CFLAGS)
 libdcp_transaction_la_CXXFLAGS = $(AM_CXXFLAGS)
 

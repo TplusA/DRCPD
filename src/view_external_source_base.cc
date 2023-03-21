@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017, 2019, 2021, 2022  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2017, 2019, 2021--2023  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -59,7 +59,8 @@ bool ViewExternalSource::Base::is_serialization_allowed() const
 }
 
 bool ViewExternalSource::Base::write_xml(std::ostream &os, uint32_t bits,
-                                         const DCP::Queue::Data &data)
+                                         const DCP::Queue::Data &data,
+                                         bool &busy_state_triggered)
 {
     os << "<text id=\"line0\">" << XmlEscape(_(on_screen_name_)) << "</text>";
     return true;

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015--2022  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015--2023  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -1092,7 +1092,7 @@ static bool want_artist_track_album(const MetaData::Set &md)
 }
 
 bool ViewPlay::View::write_xml(std::ostream &os, uint32_t bits,
-                               const DCP::Queue::Data &data)
+                               const DCP::Queue::Data &data, bool &busy_state_triggered)
 {
     const auto lock(player_data_.lock());
     const auto &md(player_data_.get_now_playing().get_meta_data());
@@ -1210,12 +1210,12 @@ bool ViewPlay::View::write_xml(std::ostream &os, uint32_t bits,
 }
 
 void ViewPlay::View::serialize(DCP::Queue &queue, DCP::Queue::Mode mode,
-                               std::ostream *debug_os)
+                               std::ostream *debug_os, const Maybe<bool> &is_busy)
 {
     if(!is_visible_)
         MSG_BUG("serializing invisible ViewPlay::View");
 
-    ViewSerializeBase::serialize(queue, mode);
+    ViewSerializeBase::serialize(queue, mode, debug_os, is_busy);
 
     if(!debug_os)
         return;

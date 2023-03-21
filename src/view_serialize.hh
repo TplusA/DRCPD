@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016--2022  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2016--2023  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -29,6 +29,7 @@
 #include "screen_ids.hh"
 #include "dcp_transaction_queue.hh"
 #include "busy.hh"
+#include "maybe.hh"
 #include "i18n.hh"
 #include "i18nstring.hh"
 #include "xmlescape.hh"
@@ -52,19 +53,6 @@ class ViewSerializeBase
 
         INVALID,
     };
-
-    /*!
-     * Reserved bits for globally used update flags handled by this base class.
-     *
-     * Views may safely ignore these bits, but they may also rely them if
-     * needed.
-     */
-    static constexpr const uint32_t UPDATE_FLAGS_BASE_MASK = 7U << 29;
-
-    /*!
-     * Base update flag: busy flags.
-     */
-    static constexpr const uint32_t UPDATE_FLAGS_BASE_BUSY_FLAG = 1U << 31;
 
     const char *const on_screen_name_;
     const ViewID drcp_view_id_;
@@ -116,11 +104,15 @@ class ViewSerializeBase
      * \param debug_os
      *     An optional debug output stream to see what's going on (not used in
      *     base class implementation).
+     * \param is_busy
+     *     The currently busy flag state, if changed. Pass an unknown value if
+     *     the busy state has not changed or is unknown to the caller.
      */
     virtual void serialize(DCP::Queue &queue, DCP::Queue::Mode mode,
-                           std::ostream *debug_os = nullptr)
+                           std::ostream *debug_os,
+                           const Maybe<bool> &is_busy = Maybe<bool>())
     {
-        do_serialize(queue, mode, true);
+        do_serialize(queue, mode, true, is_busy);
     }
 
     /*!
@@ -130,9 +122,10 @@ class ViewSerializeBase
      * have changed.
      */
     virtual void update(DCP::Queue &queue, DCP::Queue::Mode mode,
-                        std::ostream *debug_os = nullptr)
+                        std::ostream *debug_os,
+                        const Maybe<bool> &is_busy = Maybe<bool>())
     {
-        do_serialize(queue, mode, false);
+        do_serialize(queue, mode, false, is_busy);
     }
 
     bool write_whole_xml(std::ostream &os, const DCP::Queue::Data &data)
@@ -141,15 +134,11 @@ class ViewSerializeBase
             return false;
 
         const uint32_t bits = about_to_write_xml(data);
+        bool busy_state_triggered = false;
 
         return (write_xml_begin(os, bits, data) &&
-                write_xml(os, bits, data) &&
-                write_xml_end(os, bits, data));
-    }
-
-    void add_base_update_flags(uint32_t flags)
-    {
-        update_flags_ |= (flags & UPDATE_FLAGS_BASE_MASK);
+                write_xml(os, bits, data, busy_state_triggered) &&
+                write_xml_end(os, bits, data, busy_state_triggered));
     }
 
     virtual void set_dynamic_title(const I18n::String &t) { dynamic_title_ = t; }
@@ -227,9 +216,21 @@ class ViewSerializeBase
      * \returns True to keep going, false to abort the transaction.
      */
     virtual bool write_xml(std::ostream &os, uint32_t bits,
-                           const DCP::Queue::Data &data)
+                           const DCP::Queue::Data &data, bool &busy_state_triggered)
     {
         return true;
+    }
+
+    static void append_busy_value(std::ostream &os, const Maybe<bool> &busy_flag,
+                                  bool busy_state_triggered)
+    {
+        if(!busy_state_triggered)
+        {
+            if(busy_flag.is_known())
+                os << "<value id=\"busy\">" << (busy_flag == true ? '1' : '0') << "</value>";
+        }
+        else if(!(busy_flag == true))
+            os << "<value id=\"busy\">1</value>";
     }
 
     /*!
@@ -238,9 +239,9 @@ class ViewSerializeBase
      * \returns True to keep going, false to abort the transaction.
      */
     virtual bool write_xml_end(std::ostream &os, uint32_t bits,
-                               const DCP::Queue::Data &data)
+                               const DCP::Queue::Data &data, bool busy_state_triggered)
     {
-        os << "<value id=\"busy\">" << (Busy::is_busy() ? '1' : '0') << "</value>";
+        append_busy_value(os, data.busy_flag_, busy_state_triggered);
         os << "</" << (data.is_full_serialize_ ? "view" : "update") << ">";
         return true;
     }
@@ -270,7 +271,8 @@ class ViewSerializeBase
     }
 
   private:
-    bool do_serialize(DCP::Queue &queue, DCP::Queue::Mode mode, bool is_full_view)
+    bool do_serialize(DCP::Queue &queue, DCP::Queue::Mode mode,
+                      bool is_full_view, const Maybe<bool> &is_busy)
     {
         if(is_serializing())
             return false;
@@ -278,7 +280,7 @@ class ViewSerializeBase
         serialize_begin();
         const Guard end([this] { serialize_end(); });
 
-        queue.add(this, is_full_view, update_flags_);
+        queue.add(this, is_full_view, update_flags_, is_busy);
         update_flags_ = 0;
         return queue.start_transaction(mode);
     }
@@ -288,10 +290,11 @@ class ViewSerializeBase
     {
       public:
         static inline bool do_serialize(ViewSerializeBase &view,
-                                        DCP::Queue &queue, bool is_full_view)
+                                        DCP::Queue &queue, bool is_full_view,
+                                        const Maybe<bool> &is_busy)
         {
             return view.do_serialize(queue, DCP::Queue::Mode::SYNC_IF_POSSIBLE,
-                                     is_full_view);
+                                     is_full_view, is_busy);
         }
 
         friend class ViewMock::View;

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017--2021  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2017--2021, 2023  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -72,9 +72,9 @@ class View: public ViewIface, public ViewSerializeBase, public Error::Sink
     void defocus() override {}
 
     void update(DCP::Queue &queue, DCP::Queue::Mode mode,
-                std::ostream *debug_os = nullptr) final override
+                std::ostream *debug_os, const Maybe<bool> &is_busy) final override
     {
-        serialize(queue, mode, debug_os);
+        serialize(queue, mode, debug_os, is_busy);
     }
 
     InputResult process_event(UI::ViewEventID event_id,
@@ -96,10 +96,12 @@ class View: public ViewIface, public ViewSerializeBase, public Error::Sink
     get_dynamic_ids(uint32_t bits) const final override;
 
     bool write_xml(std::ostream &os, uint32_t bits,
-                   const DCP::Queue::Data &data) final override;
+                   const DCP::Queue::Data &data,
+                   bool &busy_state_triggered) final override;
 
     bool write_xml_end(std::ostream &os, uint32_t bits,
-                       const DCP::Queue::Data &data) final override;
+                       const DCP::Queue::Data &data,
+                       bool busy_state_triggered) final override;
 };
 
 }

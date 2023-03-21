@@ -826,9 +826,8 @@ void ViewManager::Manager::busy_state_notification(bool is_busy)
     ViewSerializeBase *view = dynamic_cast<ViewSerializeBase *>(active_view_);
     msg_log_assert(view != nullptr);
 
-    view->add_base_update_flags(ViewSerializeBase::UPDATE_FLAGS_BASE_BUSY_FLAG);
     view->update(dcp_transaction_queue_, DCP::Queue::Mode::FORCE_ASYNC,
-                 debug_stream_);
+                 debug_stream_, Maybe<bool>(is_busy));
 }
 
 LoggedLock::UniqueLock<LoggedLock::RecMutex>

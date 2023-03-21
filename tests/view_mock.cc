@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015--2020, 2022  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015--2020, 2022, 2023  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -354,7 +354,7 @@ bool ViewMock::View::write_xml_begin(std::ostream &os, uint32_t bits,
 }
 
 bool ViewMock::View::write_xml(std::ostream &os, uint32_t bits,
-                               const DCP::Queue::Data &data)
+                               const DCP::Queue::Data &data, bool &busy_state_triggered)
 {
     /* don't emit anything to keep tests simple */
     cppcut_assert_equal(0U, bits);
@@ -362,7 +362,7 @@ bool ViewMock::View::write_xml(std::ostream &os, uint32_t bits,
 }
 
 bool ViewMock::View::write_xml_end(std::ostream &os, uint32_t bits,
-                                   const DCP::Queue::Data &data)
+                                   const DCP::Queue::Data &data, bool busy_state_triggered)
 {
     /* don't emit anything to keep tests simple */
     cppcut_assert_equal(0U, bits);
@@ -370,7 +370,7 @@ bool ViewMock::View::write_xml_end(std::ostream &os, uint32_t bits,
 }
 
 void ViewMock::View::serialize(DCP::Queue &queue, DCP::Queue::Mode mode,
-                               std::ostream *debug_os)
+                               std::ostream *debug_os, const Maybe<bool> &is_busy)
 {
     if(!ignore_all_)
     {
@@ -380,13 +380,13 @@ void ViewMock::View::serialize(DCP::Queue &queue, DCP::Queue::Mode mode,
     }
 
     const bool succeeded =
-        InternalDoSerialize::do_serialize(*this, queue, true);
+        InternalDoSerialize::do_serialize(*this, queue, true, is_busy);
 
     cut_assert_true(succeeded);
 }
 
 void ViewMock::View::update(DCP::Queue &queue, DCP::Queue::Mode mode,
-                            std::ostream *debug_os)
+                            std::ostream *debug_os, const Maybe<bool> &is_busy)
 {
     if(!ignore_all_)
     {
@@ -397,7 +397,7 @@ void ViewMock::View::update(DCP::Queue &queue, DCP::Queue::Mode mode,
 
     const bool was_idle = queue.get_introspection_iface().is_idle();
     const bool succeeded =
-        InternalDoSerialize::do_serialize(*this, queue, false);
+        InternalDoSerialize::do_serialize(*this, queue, false, is_busy);
 
     cppcut_assert_equal(was_idle, succeeded);
 }

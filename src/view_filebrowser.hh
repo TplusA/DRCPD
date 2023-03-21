@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2015--2022  T+A elektroakustik GmbH & Co. KG
+ * Copyright (C) 2015--2023  T+A elektroakustik GmbH & Co. KG
  *
  * This file is part of DRCPD.
  *
@@ -662,10 +662,14 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
                            UI::Parameters *parameters) final override;
 
     void serialize(DCP::Queue &queue, DCP::Queue::Mode mode,
-                   std::ostream *debug_os) final override;
+                   std::ostream *debug_os, const Maybe<bool> &is_busy) final override;
     void update(DCP::Queue &queue, DCP::Queue::Mode mode,
-                std::ostream *debug_os) final override;
+                std::ostream *debug_os, const Maybe<bool> &is_busy) final override;
 
+  private:
+    void log_serialize_or_update(std::ostream *debug_os);
+
+  public:
     bool owns_dbus_proxy(const void *dbus_proxy) const;
     virtual bool list_invalidate(ID::List list_id, ID::List replacement_id);
 
@@ -901,7 +905,7 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
      * Generate XML document from current state.
      */
     bool write_xml(std::ostream &os, uint32_t bits,
-                   const DCP::Queue::Data &data) override;
+                   const DCP::Queue::Data &data, bool &busy_state_triggered) override;
 
     const std::string &get_status_string_for_empty_root();
 
