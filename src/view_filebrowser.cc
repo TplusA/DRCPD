@@ -257,23 +257,12 @@ void ViewFileBrowser::View::serialized_item_state_changed(
       case DBusRNF::CallState::RESULT_FETCHED:
       case DBusRNF::CallState::ABORTING:
       case DBusRNF::CallState::ABORTED_BY_LIST_BROKER:
-        return;
+      case DBusRNF::CallState::ABOUT_TO_DESTROY:
+        break;
 
       case DBusRNF::CallState::FAILED:
         if(current_list_id_.is_valid())
             list_invalidate(current_list_id_, ID::List());
-
-        break;
-
-      case DBusRNF::CallState::ABOUT_TO_DESTROY:
-        {
-            auto *fn_object = new std::function<void()>(
-                [this]
-                {
-                    view_manager_->serialize_view_if_active(this, DCP::Queue::Mode::FORCE_ASYNC);
-                });
-            MainContext::deferred_call(fn_object, false);
-        }
 
         break;
     }
