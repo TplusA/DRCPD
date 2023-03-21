@@ -1465,8 +1465,7 @@ bool ViewFileBrowser::View::write_xml(std::ostream &os, uint32_t bits,
     std::ostringstream debug_os;
     debug_os
         << "List view, size "
-        << browse_navigation_.get_total_number_of_visible_items() << ", "
-        << (Busy::is_busy() ? "" : "not ") << "busy:\n";
+        << browse_navigation_.get_total_number_of_visible_items() << ":\n";
 
     Guard dump_debug_string([&debug_os] { msg_info("%s", debug_os.str().c_str()); });
 
@@ -1509,7 +1508,7 @@ bool ViewFileBrowser::View::write_xml(std::ostream &os, uint32_t bits,
             /* we do not abort the serialization even in case of error,
              * otherwise the user would see no update at all */
             debug_os << "   " << it << ": *NULL ENTRY*";
-            return true;
+            break;
         }
 
         std::string flags;
@@ -1586,9 +1585,32 @@ void ViewFileBrowser::View::serialize(DCP::Queue &queue, DCP::Queue::Mode mode,
 {
     ViewSerializeBase::serialize(queue, mode, debug_os, is_busy);
 
-    if(!debug_os)
-        return;
+    if(debug_os)
+        log_serialize_or_update(debug_os);
+}
 
+void ViewFileBrowser::View::update(DCP::Queue &queue, DCP::Queue::Mode mode,
+                                   std::ostream *debug_os, const Maybe<bool> &is_busy)
+{
+#ifdef SPI_SLAVE_IMPLEMENTS_SUPPORTS_PARTIAL_UPDATES
+    /*
+     * I've tried to implement partial updates (and succeeded), but the SPI
+     * slave software doesn't interpret them correctly. Unfortunately, we have
+     * to stick with full screen updates for the time being. The display cache
+     * implementation required for partial updates has not been comitted to
+     * avoid dead code.
+     */
+    ViewSerializeBase::update(queue, mode, debug_os, is_busy);
+#else /* !SPI_SLAVE_IMPLEMENTS_SUPPORTS_PARTIAL_UPDATES */
+    ViewSerializeBase::serialize(queue, mode, debug_os, is_busy);
+#endif /* SPI_SLAVE_IMPLEMENTS_SUPPORTS_PARTIAL_UPDATES */
+
+    if(debug_os)
+        log_serialize_or_update(debug_os);
+}
+
+void ViewFileBrowser::View::log_serialize_or_update(std::ostream *debug_os)
+{
     if(is_serializing())
         return;
 
@@ -1673,23 +1695,18 @@ void ViewFileBrowser::View::serialize(DCP::Queue &queue, DCP::Queue::Mode mode,
         }
 
         if(it == browse_navigation_.get_cursor())
-            *debug_os << "--> ";
+            *debug_os << "-> ";
         else
-            *debug_os << "    ";
+            *debug_os << "   ";
 
         if(item != nullptr)
-            *debug_os << "Type " << (unsigned int)item->get_kind().get_raw_code()
-                      << " " << it << ": "
-                      << item->get_text() << '\n';
+            *debug_os
+                << it << ": "
+                << '[' <<  static_cast<unsigned int>(item->get_kind().get_raw_code())
+                << ']' << item->get_text() << '\n';
         else
             *debug_os << "*NULL ENTRY* " << it << '\n';
     }
-}
-
-void ViewFileBrowser::View::update(DCP::Queue &queue, DCP::Queue::Mode mode,
-                                   std::ostream *debug_os, const Maybe<bool> &is_busy)
-{
-    serialize(queue, mode, debug_os, is_busy);
 }
 
 bool ViewFileBrowser::View::owns_dbus_proxy(const void *dbus_proxy) const

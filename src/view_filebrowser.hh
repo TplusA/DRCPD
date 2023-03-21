@@ -666,6 +666,10 @@ class View: public ViewIface, public ViewSerializeBase, public ViewWithAudioSour
     void update(DCP::Queue &queue, DCP::Queue::Mode mode,
                 std::ostream *debug_os, const Maybe<bool> &is_busy) final override;
 
+  private:
+    void log_serialize_or_update(std::ostream *debug_os);
+
+  public:
     bool owns_dbus_proxy(const void *dbus_proxy) const;
     virtual bool list_invalidate(ID::List list_id, ID::List replacement_id);
 
