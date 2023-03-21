@@ -413,7 +413,6 @@ class Call: public CallBase, public std::enable_shared_from_this<Call<RT, BS>>
             Busy::clear(BS);
     }
 
-
     /*!
      * Request some data from list broker via D-Bus.
      *
