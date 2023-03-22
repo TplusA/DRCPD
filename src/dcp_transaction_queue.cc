@@ -58,12 +58,7 @@ void DCP::Queue::add(ViewSerializeBase *view,
         d->view_update_flags_ |= view_update_flags;
 
         if(is_busy.is_known())
-        {
-            if(d->busy_flag_.is_known())
-                d->busy_flag_.set_unknown();
-            else
-                d->busy_flag_ = is_busy;
-        }
+            d->busy_flag_ = is_busy;
     }
 }
 
