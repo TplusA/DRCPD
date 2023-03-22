@@ -27,6 +27,7 @@
 #include <sstream>
 
 #include "busy.hh"
+#include "dump_enum_value.hh"
 #include "logged_lock.hh"
 
 static uint32_t make_mask(Busy::Source src)
@@ -224,9 +225,7 @@ class GlobalBusyState
         /*!
          * Length must match number of values in #Busy::Source.
          */
-        static const
-        std::array<const char *, size_t(Busy::Source::LAST_SOURCE) + 1>
-        source_names
+        static const std::array<const char *const, 13> source_names
         {
             "WAITING_FOR_PLAYER",
             "FILLING_PLAYER_QUEUE",
@@ -262,7 +261,7 @@ class GlobalBusyState
                     shown_heading = true;
                 }
 
-                msg_info("- %30s: %u", source_names[size_t(src)], count);
+                msg_info("- %30s: %u", enum_to_string(source_names, src), count);
             }
             else if((busy_flags_ & make_mask(src)) != 0)
                 bug = true;

@@ -56,6 +56,7 @@ enum class Source
     /* internal */
     FIRST_SOURCE = WAITING_FOR_PLAYER,
     LAST_SOURCE = REALIZING_LOCATION_TRACE,
+    LAST_VALUE = REALIZING_LOCATION_TRACE,
 };
 
 /*!
