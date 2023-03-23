@@ -6,4 +6,5 @@
 /config.h.in~
 /configure
 /.ccls
+/.gitreview
 Makefile.in
