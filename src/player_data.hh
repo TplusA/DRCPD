@@ -720,7 +720,7 @@ class Data
     void player_failed();
 
     /*!
-     * Update queue: streamplayer has just gave us a new currently playing
+     * Update queue: streamplayer has just given us a new currently playing
      * stream.
      *
      * The parameter is the ID of the stream the player has just switched to.
